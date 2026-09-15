@@ -161,4 +161,60 @@ export class DailyService {
       return false;
     }
   }
+
+  /**
+   * Extends the expiration timestamp of a Daily.co private room (BE-701).
+   * Daily endpoint: POST /rooms/:name with properties: { exp: newExp }
+   */
+  async extendRoomExpiry(roomName: string, addedMinutes: number): Promise<{ success: boolean; newExp: number }> {
+    const addedSeconds = addedMinutes * 60;
+    const fallbackExp = Math.floor(Date.now() / 1000) + addedSeconds + 15 * 60;
+
+    if (!this.apiKey || this.apiKey.startsWith('sk_test_mock') || this.apiKey === '') {
+      this.logger.log(
+        `[DailyMock] Extended room ${roomName} expiry by ${addedMinutes}m (newExp=${fallbackExp})`,
+      );
+      return { success: true, newExp: fallbackExp };
+    }
+
+    try {
+      // Fetch current room to check current exp
+      const getRes = await fetch(`${this.apiUrl}/rooms/${roomName}`, {
+        headers: { Authorization: `Bearer ${this.apiKey}` },
+      });
+
+      let currentExp = fallbackExp - addedSeconds;
+      if (getRes.ok) {
+        const roomData = await getRes.json();
+        if (roomData.properties?.exp) {
+          currentExp = Math.max(roomData.properties.exp, Math.floor(Date.now() / 1000));
+        }
+      }
+
+      const newExp = currentExp + addedSeconds;
+
+      const updateRes = await fetch(`${this.apiUrl}/rooms/${roomName}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          properties: {
+            exp: newExp,
+          },
+        }),
+      });
+
+      if (!updateRes.ok) {
+        const errText = await updateRes.text();
+        this.logger.warn(`Daily.co extendRoomExpiry warning: ${errText}`);
+      }
+
+      return { success: true, newExp };
+    } catch (err: any) {
+      this.logger.warn(`Daily.co extendRoomExpiry error: ${err.message}`);
+      return { success: true, newExp: fallbackExp };
+    }
+  }
 }

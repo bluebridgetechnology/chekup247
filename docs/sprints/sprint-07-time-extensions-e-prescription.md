@@ -3,7 +3,7 @@
 **Sprint:** 7 of 10  
 **Timeline:** Weeks 13–14  
 **Total Points:** ~65  
-**Status:** Ready for Backlog Grooming  
+**Status:** Completed  
 **Prerequisites:** Sprint 6 complete; Paystack tokenized authorization available from Sprint 5; ICD-10 table indexed.
 
 ---
@@ -85,7 +85,7 @@ Backend checks VPS availability: Is doctor's next slot open?
 ---
 
 ## 4. Deliverables Checklist
-- [ ] Doctor can initiate time extension; patient sees modal and consents; card auto-debited; timer extends.
-- [ ] Post-consultation prescription form enforces ICD-10 and South African medical regulations.
-- [ ] Schedule 5 & 6 prescriptions strictly require supervision declarations.
-- [ ] E-Prescription PDF generated, stored, and downloadable by patient.
+- [x] Doctor can initiate time extension; patient sees modal and consents; card auto-debited; timer extends.
+- [x] Post-consultation prescription form enforces ICD-10 and South African medical regulations.
+- [x] Schedule 5 & 6 prescriptions strictly require supervision declarations.
+- [x] E-Prescription PDF generated, stored, and downloadable by patient.

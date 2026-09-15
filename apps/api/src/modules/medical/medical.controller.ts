@@ -13,7 +13,7 @@ export class MedicalController {
   constructor(private readonly medicalService: MedicalService) {}
 
   /**
-   * Search ICD-10 Master Industry Table (BE-306)
+   * Search ICD-10 Master Industry Table (BE-306, BE-704)
    * Accessible for typeahead lookups during booking / diagnosis entry
    */
   @Public()
@@ -23,6 +23,19 @@ export class MedicalController {
     @Query('limit') limit = 20,
   ) {
     return this.medicalService.searchIcd10(q, Number(limit) || 20);
+  }
+
+  /**
+   * Search MediKredit NAPPI & South African Medicines Catalog (BE-705)
+   * Supports Schedules S0 through S6 with NAPPI codes.
+   */
+  @Public()
+  @Get('medications')
+  searchMedications(
+    @Query('q') q = '',
+    @Query('limit') limit = 20,
+  ) {
+    return this.medicalService.searchMedications(q, Number(limit) || 20);
   }
 
   /**

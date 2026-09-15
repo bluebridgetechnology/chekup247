@@ -8,15 +8,19 @@ import { NoShowProcessor } from './no-show.processor';
 import {
   Consultation,
   ConsultationExtension,
+  ExtensionStatus,
   Booking,
   BookingStatus,
+  Payment,
+  PaymentRecordStatus,
   PaymentStatus,
 } from '../../database/patient/entities';
-import { AvailabilitySlot, DoctorProfile } from '../../database/operational/entities';
+import { AvailabilitySlot, DoctorProfile, User } from '../../database/operational/entities';
 import { QUEUES } from '../queues/queue.constants';
 import { PaymentsService } from '../payments/payments.service';
+import { PaystackService } from '../payments/paystack.service';
 
-describe('ConsultationsService & Daily.co Core (Sprint 6)', () => {
+describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
   let service: ConsultationsService;
   let dailyService: DailyService;
   let gateway: ConsultationGateway;
@@ -30,19 +34,48 @@ describe('ConsultationsService & Daily.co Core (Sprint 6)', () => {
 
   const mockExtensionRepo = {
     find: jest.fn(),
-    save: jest.fn(),
+    findOne: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => ({ id: 'ext-1', ...dto })),
+    save: jest.fn().mockImplementation((entity) => Promise.resolve({ id: 'ext-1', ...entity })),
   };
 
   const mockBookingRepo = {
     findOne: jest.fn(),
     save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
+    createQueryBuilder: jest.fn().mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    }),
+  };
+
+  const mockPaymentRepo = {
+    findOne: jest.fn(),
+    create: jest.fn().mockImplementation((dto) => ({ id: 'pay-ext-1', ...dto })),
+    save: jest.fn().mockImplementation((entity) => Promise.resolve({ id: 'pay-ext-1', ...entity })),
+    createQueryBuilder: jest.fn().mockReturnValue({
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(null),
+    }),
   };
 
   const mockSlotRepo = {
     findOne: jest.fn(),
+    createQueryBuilder: jest.fn().mockReturnValue({
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(null),
+    }),
   };
 
   const mockDoctorProfileRepo = {
+    findOne: jest.fn(),
+  };
+
+  const mockUserRepo = {
     findOne: jest.fn(),
   };
 
@@ -52,6 +85,18 @@ describe('ConsultationsService & Daily.co Core (Sprint 6)', () => {
 
   const mockPaymentsService = {
     processRefund: jest.fn().mockResolvedValue({ success: true, refund_method: 'paystack' }),
+  };
+
+  const mockPaystackService = {
+    chargeAuthorization: jest.fn().mockResolvedValue({
+      status: 'success',
+      reference: 'chk_ext_12345',
+      authorization: {
+        authorization_code: 'AUTH_test_card',
+        card_type: 'visa',
+        last4: '4081',
+      },
+    }),
   };
 
   beforeEach(async () => {
@@ -74,6 +119,10 @@ describe('ConsultationsService & Daily.co Core (Sprint 6)', () => {
           useValue: mockBookingRepo,
         },
         {
+          provide: getRepositoryToken(Payment, 'patient'),
+          useValue: mockPaymentRepo,
+        },
+        {
           provide: getRepositoryToken(AvailabilitySlot, 'operational'),
           useValue: mockSlotRepo,
         },
@@ -82,12 +131,20 @@ describe('ConsultationsService & Daily.co Core (Sprint 6)', () => {
           useValue: mockDoctorProfileRepo,
         },
         {
+          provide: getRepositoryToken(User, 'operational'),
+          useValue: mockUserRepo,
+        },
+        {
           provide: getQueueToken(QUEUES.NO_SHOW),
           useValue: mockNoShowQueue,
         },
         {
           provide: PaymentsService,
           useValue: mockPaymentsService,
+        },
+        {
+          provide: PaystackService,
+          useValue: mockPaystackService,
         },
       ],
     }).compile();
@@ -276,6 +333,157 @@ describe('ConsultationsService & Daily.co Core (Sprint 6)', () => {
       expect(result.doctorPaid).toBe(true);
       expect(mockBooking.status).toBe(BookingStatus.NO_SHOW);
       expect(mockBooking.payment_status).toBe(PaymentStatus.RELEASED);
+    });
+  });
+
+  describe('Sprint 7: In-Call Time Extensions (BE-701)', () => {
+    it('should successfully initiate extension request when next slot is free', async () => {
+      const mockBooking: any = {
+        id: 'booking-ext-1',
+        doctor_id: 'doc-user-1',
+        patient_id: 'pat-user-1',
+        slot_id: 'slot-1',
+      };
+      const mockCons: any = {
+        id: 'cons-ext-1',
+        booking_id: 'booking-ext-1',
+        booking: mockBooking,
+        started_at: new Date(Date.now() - 15 * 60 * 1000), // 15 mins in call
+        ended_at: null,
+      };
+
+      mockConsultationRepo.findOne.mockResolvedValue(mockCons);
+      mockSlotRepo.findOne.mockResolvedValue({
+        id: 'slot-1',
+        doctor_id: 'doc-user-1',
+        start_time: new Date(Date.now() - 15 * 60 * 1000),
+        end_time: new Date(Date.now() + 15 * 60 * 1000),
+      });
+
+      const spyBroadcast = jest.spyOn(gateway, 'broadcastExtensionRequested');
+
+      const result = await service.requestExtension('booking-ext-1', 15);
+
+      expect(result.amount).toBe(150);
+      expect(result.duration_minutes).toBe(15);
+      expect(spyBroadcast).toHaveBeenCalledWith(
+        'booking-ext-1',
+        expect.objectContaining({
+          durationMinutes: 15,
+          amount: 150,
+        }),
+      );
+    });
+
+    it('should reject extension with 409 Conflict if doctor next slot is booked', async () => {
+      const mockBooking: any = {
+        id: 'booking-ext-2',
+        doctor_id: 'doc-user-1',
+        slot_id: 'slot-2',
+      };
+      const mockCons: any = {
+        id: 'cons-ext-2',
+        booking_id: 'booking-ext-2',
+        booking: mockBooking,
+        started_at: new Date(),
+        ended_at: null,
+      };
+
+      mockConsultationRepo.findOne.mockResolvedValue(mockCons);
+      mockSlotRepo.findOne.mockResolvedValue({
+        id: 'slot-2',
+        doctor_id: 'doc-user-1',
+        start_time: new Date(),
+        end_time: new Date(Date.now() + 10 * 60 * 1000),
+      });
+
+      // Next slot is booked!
+      mockSlotRepo.createQueryBuilder.mockReturnValueOnce({
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({ id: 'next-slot-booked', is_booked: true }),
+      });
+
+      await expect(service.requestExtension('booking-ext-2', 15)).rejects.toThrow(
+        'Next slot is booked',
+      );
+    });
+
+    it('should handle patient decline and broadcast extension_declined', async () => {
+      const mockExt: any = {
+        id: 'ext-dec-1',
+        status: ExtensionStatus.REQUESTED,
+        consultation: {
+          id: 'cons-1',
+          booking: { id: 'b-1' },
+        },
+      };
+      mockExtensionRepo.findOne.mockResolvedValue(mockExt);
+      const spyDeclined = jest.spyOn(gateway, 'broadcastExtensionDeclined');
+
+      const result = await service.consentExtension('b-1', 'ext-dec-1', false);
+
+      expect(result.approved).toBe(false);
+      expect(result.status).toBe(ExtensionStatus.DECLINED);
+      expect(spyDeclined).toHaveBeenCalled();
+    });
+
+    it('should execute Paystack auto-debit on patient approve and extend timers', async () => {
+      const mockBooking: any = {
+        id: 'b-paid-1',
+        patient_id: 'pat-1',
+        doctor_id: 'doc-1',
+      };
+      const mockCons: any = {
+        id: 'cons-paid-1',
+        video_room_id: 'chekup-room-1',
+        booking: mockBooking,
+        started_at: new Date(Date.now() - 10 * 60 * 1000),
+      };
+      const mockExt: any = {
+        id: 'ext-approve-1',
+        consultation_id: 'cons-paid-1',
+        duration_minutes: 15,
+        amount: 150,
+        status: ExtensionStatus.REQUESTED,
+        consultation: mockCons,
+      };
+
+      mockExtensionRepo.findOne.mockResolvedValue(mockExt);
+      mockPaymentRepo.findOne.mockResolvedValue({
+        id: 'orig-pay-1',
+        authorization_code: 'AUTH_token_123',
+        card_type: 'visa',
+        last4: '4081',
+      });
+      mockExtensionRepo.find.mockResolvedValue([
+        { ...mockExt, status: ExtensionStatus.PAID, duration_minutes: 15 },
+      ]);
+
+      const spyExtendRoom = jest.spyOn(dailyService, 'extendRoomExpiry').mockResolvedValue({
+        success: true,
+        newExp: 9999999,
+      });
+      const spyConfirmed = jest.spyOn(gateway, 'broadcastExtensionConfirmed');
+
+      const result = await service.consentExtension('b-paid-1', 'ext-approve-1', true);
+
+      expect(result.approved).toBe(true);
+      expect(result.status).toBe(ExtensionStatus.PAID);
+      expect(mockPaystackService.chargeAuthorization).toHaveBeenCalledWith(
+        expect.objectContaining({
+          authorizationCode: 'AUTH_token_123',
+          amountInCents: 15000,
+        }),
+      );
+      expect(spyExtendRoom).toHaveBeenCalledWith('chekup-room-1', 15);
+      expect(spyConfirmed).toHaveBeenCalledWith(
+        'b-paid-1',
+        expect.objectContaining({
+          addedMinutes: 15,
+          amount: 150,
+        }),
+      );
     });
   });
 });

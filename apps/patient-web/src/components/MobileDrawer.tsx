@@ -105,6 +105,9 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           <Link href="/bookings" onClick={onClose} style={{ fontWeight: 600 }}>
             My Bookings
           </Link>
+          <Link href="/prescriptions" onClick={onClose} style={{ fontWeight: 600 }}>
+            My Prescriptions
+          </Link>
           <Link href="/wallet" onClick={onClose} style={{ fontWeight: 600 }}>
             My Wallet
           </Link>

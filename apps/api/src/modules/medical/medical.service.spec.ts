@@ -70,4 +70,20 @@ describe('MedicalService (Unit)', () => {
     expect(results).toHaveLength(2);
     expect(mockIcd10Repo.find).toHaveBeenCalled();
   });
+
+  it('should search South African medications by name or NAPPI code (BE-705)', async () => {
+    const results = await service.searchMedications('Amoxicillin');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].generic_name.toLowerCase()).toContain('amoxicillin');
+    expect(results[0].nappi_code).toBeDefined();
+    expect(results[0].schedule).toBe('S4');
+  });
+
+  it('should filter controlled S5/S6 medications correctly', async () => {
+    const results = await service.searchMedications('Lorazepam');
+    expect(results.length).toBeGreaterThan(0);
+    expect(results[0].generic_name).toBe('Lorazepam');
+    expect(results[0].schedule).toBe('S5');
+    expect(results[0].is_controlled).toBe(true);
+  });
 });

@@ -163,4 +163,104 @@ export class ConsultationGateway implements OnGatewayConnection, OnGatewayDiscon
       timestamp: timestamp.toISOString(),
     });
   }
+
+  /**
+   * Broadcasts doctor time extension request to patient (BE-701, PA-701).
+   */
+  broadcastExtensionRequested(
+    bookingId: string,
+    payload: {
+      extensionId: string;
+      durationMinutes: number;
+      amount: number;
+      doctorName?: string;
+    },
+  ) {
+    if (!this.server) return;
+    const roomName = `consultation_${bookingId}`;
+    this.logger.log(`Broadcasting extension_requested for ${bookingId}: +${payload.durationMinutes}m`);
+    this.server.to(roomName).emit('extension_requested', {
+      bookingId,
+      ...payload,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Broadcasts extension decline event.
+   */
+  broadcastExtensionDeclined(
+    bookingId: string,
+    payload: { extensionId: string; reason?: string },
+  ) {
+    if (!this.server) return;
+    const roomName = `consultation_${bookingId}`;
+    this.logger.log(`Broadcasting extension_declined for ${bookingId}`);
+    this.server.to(roomName).emit('extension_declined', {
+      bookingId,
+      ...payload,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Broadcasts confirmed extension with updated timers to both parties (BE-701, PA-702, DP-701).
+   */
+  broadcastExtensionConfirmed(
+    bookingId: string,
+    payload: {
+      extensionId: string;
+      addedMinutes: number;
+      newDurationSeconds: number;
+      remainingSeconds: number;
+      amount: number;
+    },
+  ) {
+    if (!this.server) return;
+    const roomName = `consultation_${bookingId}`;
+    this.logger.log(`Broadcasting extension_confirmed for ${bookingId}: +${payload.addedMinutes}m`);
+    this.server.to(roomName).emit('extension_confirmed', {
+      bookingId,
+      ...payload,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Broadcasts payment failure for an extension attempt.
+   */
+  broadcastExtensionPaymentFailed(
+    bookingId: string,
+    payload: { extensionId: string; message: string },
+  ) {
+    if (!this.server) return;
+    const roomName = `consultation_${bookingId}`;
+    this.logger.log(`Broadcasting extension_payment_failed for ${bookingId}`);
+    this.server.to(roomName).emit('extension_payment_failed', {
+      bookingId,
+      ...payload,
+      timestamp: new Date().toISOString(),
+    });
+  }
+
+  /**
+   * Broadcasts real-time prescription readiness to room (BE-707, PA-704).
+   */
+  broadcastPrescriptionIssued(
+    bookingId: string,
+    payload: {
+      prescriptionId: string;
+      doctorName: string;
+      issuedAt: string;
+      icd10Code: string;
+    },
+  ) {
+    if (!this.server) return;
+    const roomName = `consultation_${bookingId}`;
+    this.logger.log(`Broadcasting prescription_issued for booking ${bookingId}`);
+    this.server.to(roomName).emit('prescription_issued', {
+      bookingId,
+      ...payload,
+    });
+  }
 }

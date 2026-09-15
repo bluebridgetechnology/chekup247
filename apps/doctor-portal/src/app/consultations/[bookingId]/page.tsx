@@ -27,6 +27,7 @@ import {
   ChevronDown,
   X,
   Stethoscope,
+  Plus,
 } from 'lucide-react';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
@@ -90,6 +91,14 @@ export default function DoctorConsultationWorkspace() {
   const [remainingSeconds, setRemainingSeconds] = useState<number>(1800);
   const [timerWarning, setTimerWarning] = useState<'normal' | '5min' | '1min'>('normal');
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Time Extension State (DP-701)
+  const [extensionState, setExtensionState] = useState<
+    'idle' | 'requesting' | 'awaiting_consent' | 'confirmed' | 'declined' | 'conflict' | 'failed'
+  >('idle');
+  const [requestedDuration, setRequestedDuration] = useState<number>(15);
+  const [extensionAmount, setExtensionAmount] = useState<number>(150);
+  const [extensionNotice, setExtensionNotice] = useState<string>('');
 
   // End Consultation Modal (DP-604)
   const [showEndModal, setShowEndModal] = useState<boolean>(false);
@@ -313,6 +322,29 @@ export default function DoctorConsultationWorkspace() {
       }
     });
 
+    // Time Extension WebSocket Listeners (DP-701, BE-701)
+    socket.on('extension_confirmed', (data: any) => {
+      setExtensionState('confirmed');
+      setExtensionNotice(`+${data.addedMinutes} min confirmed! (R${data.amount})`);
+      if (typeof data.remainingSeconds === 'number') {
+        setRemainingSeconds(data.remainingSeconds);
+      }
+      setTimeout(() => {
+        setExtensionState('idle');
+        setExtensionNotice('');
+      }, 6000);
+    });
+
+    socket.on('extension_declined', (data: any) => {
+      setExtensionState('declined');
+      setExtensionNotice(data.reason || 'Patient declined the consultation extension request.');
+    });
+
+    socket.on('extension_payment_failed', (data: any) => {
+      setExtensionState('failed');
+      setExtensionNotice(data.message || 'Payment charge failed. Extension cancelled.');
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -453,15 +485,62 @@ export default function DoctorConsultationWorkspace() {
         } catch (e) {}
       }
 
-      // 4. Redirect doctor directly to prescription builder (DP-604)
-      router.push(`/prescriptions/new?bookingId=${bookingId}`);
+      // 4. Redirect doctor directly to prescription builder (DP-604, DP-702)
+      router.push(`/consultations/${bookingId}/prescribe`);
     } catch (err: any) {
       console.error('Failed to end consultation:', err);
-      router.push(`/prescriptions/new?bookingId=${bookingId}`);
+      router.push(`/consultations/${bookingId}/prescribe`);
     } finally {
       setIsEnding(false);
       setShowEndModal(false);
     }
+  };
+
+  // 8. In-Call Time Extension Request Handler (DP-701, BE-701)
+  const handleRequestExtension = async (durationMinutes: number) => {
+    try {
+      setExtensionState('requesting');
+      setRequestedDuration(durationMinutes);
+      const rates: Record<number, number> = { 15: 150, 20: 200, 30: 300 };
+      const cost = rates[durationMinutes] || 150;
+      setExtensionAmount(cost);
+
+      const res = await fetch(`${API_BASE}/consultations/${bookingId}/extend`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          durationMinutes,
+          doctorId: doctor?.id,
+        }),
+      });
+
+      if (res.status === 409) {
+        setExtensionState('conflict');
+        setExtensionNotice('Next slot is booked. Doctor has an upcoming appointment scheduled.');
+        return;
+      }
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setExtensionState('failed');
+        setExtensionNotice(errData.message || 'Failed to request consultation extension.');
+        return;
+      }
+
+      setExtensionState('awaiting_consent');
+      setExtensionNotice(`Awaiting patient consent for +${durationMinutes}m (R${cost})...`);
+    } catch (err: any) {
+      setExtensionState('failed');
+      setExtensionNotice(err.message || 'Failed to request time extension.');
+    }
+  };
+
+  const handleCancelExtension = () => {
+    setExtensionState('idle');
+    setExtensionNotice('');
   };
 
   if (isLoading) {
@@ -566,8 +645,166 @@ export default function DoctorConsultationWorkspace() {
           </div>
         </div>
 
-        {/* Top Right: Countdown Timer & End Button */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        {/* Top Right: Time Extension Widget, Countdown Timer & End Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Time Extension Control Bar (DP-701, BE-701) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '10px',
+              background: 'rgba(15, 23, 42, 0.7)',
+              border: '1px solid rgba(255, 255, 255, 0.12)',
+            }}
+          >
+            {extensionState === 'idle' && (
+              <>
+                <span
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    color: '#94a3b8',
+                    paddingRight: '2px',
+                  }}
+                >
+                  Extend:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRequestExtension(15)}
+                  title="Extend call by 15 minutes (R150)"
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(45, 212, 191, 0.12)',
+                    border: '1px solid rgba(45, 212, 191, 0.3)',
+                    color: '#2dd4bf',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Plus size={12} />
+                  <span>15m (R150)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRequestExtension(20)}
+                  title="Extend call by 20 minutes (R200)"
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(45, 212, 191, 0.12)',
+                    border: '1px solid rgba(45, 212, 191, 0.3)',
+                    color: '#2dd4bf',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Plus size={12} />
+                  <span>20m (R200)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleRequestExtension(30)}
+                  title="Extend call by 30 minutes (R300)"
+                  style={{
+                    padding: '4px 8px',
+                    borderRadius: '6px',
+                    background: 'rgba(45, 212, 191, 0.12)',
+                    border: '1px solid rgba(45, 212, 191, 0.3)',
+                    color: '#2dd4bf',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '3px',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Plus size={12} />
+                  <span>30m (R300)</span>
+                </button>
+              </>
+            )}
+
+            {extensionState === 'requesting' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#94a3b8' }}>
+                <Loader2 size={13} className="animate-spin" style={{ color: '#2dd4bf' }} />
+                <span>Checking availability...</span>
+              </div>
+            )}
+
+            {extensionState === 'awaiting_consent' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#f59e0b' }}>
+                  <Loader2 size={13} className="animate-spin" />
+                  <span>Awaiting patient consent (+{requestedDuration}m - R{extensionAmount})...</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelExtension}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title="Cancel extension request"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+
+            {extensionState === 'confirmed' && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
+                <CheckCircle2 size={14} />
+                <span>{extensionNotice}</span>
+              </div>
+            )}
+
+            {(extensionState === 'declined' || extensionState === 'conflict' || extensionState === 'failed') && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: '#f87171' }}>
+                  <AlertCircle size={14} />
+                  <span>{extensionNotice}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleCancelExtension}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#94a3b8',
+                    cursor: 'pointer',
+                    padding: '2px',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                  title="Dismiss notice"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Synchronized Countdown Timer (PA-603 / DP-601) */}
           <div
             style={{

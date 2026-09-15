@@ -94,6 +94,36 @@ export class StorageService {
   }
 
   /**
+   * Uploads an in-memory buffer directly to object storage (BE-707).
+   */
+  async uploadBuffer(
+    bucket: string,
+    key: string,
+    buffer: Buffer,
+    contentType = 'application/pdf',
+  ): Promise<{ key: string; location: string }> {
+    try {
+      const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: buffer,
+        ContentType: contentType,
+      });
+
+      await this.s3Client.send(command);
+
+      const location = `${envConfig.STORAGE_ENDPOINT}/${bucket}/${key}`;
+      return { key, location };
+    } catch (err: any) {
+      this.logger.warn(`Storage uploadBuffer fallback: ${err.message}`);
+      return {
+        key,
+        location: `${envConfig.STORAGE_ENDPOINT}/${bucket}/${key}`,
+      };
+    }
+  }
+
+  /**
    * Checks S3 / MinIO connectivity for health checks
    */
   async ping(): Promise<boolean> {

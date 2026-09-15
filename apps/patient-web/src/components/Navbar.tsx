@@ -179,6 +179,19 @@ export function Navbar() {
                   My Bookings
                 </Link>
                 <Link
+                  href="/prescriptions"
+                  style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 600,
+                    color: 'var(--color-slate-700)',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    transition: 'color 0.2s',
+                  }}
+                >
+                  Prescriptions
+                </Link>
+                <Link
                   href="/wallet"
                   style={{
                     fontSize: '0.875rem',

@@ -25,6 +25,9 @@ import {
   FileText,
   HeartHandshake,
   Lock,
+  CreditCard,
+  X,
+  Check,
 } from 'lucide-react';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
@@ -100,6 +103,27 @@ export default function PatientConsultationPage() {
   const [timerWarning, setTimerWarning] = useState<'normal' | '5min' | '1min'>('normal');
   const [callDuration, setCallDuration] = useState<string>('00:00');
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Time Extension State (PA-701, PA-702)
+  const [extensionRequest, setExtensionRequest] = useState<{
+    extensionId: string;
+    durationMinutes: number;
+    amount: number;
+    doctorName?: string;
+  } | null>(null);
+  const [consentCountdown, setConsentCountdown] = useState<number>(60);
+  const [isSubmittingConsent, setIsSubmittingConsent] = useState<boolean>(false);
+  const [savedCardInfo, setSavedCardInfo] = useState<{ brand: string; last4: string }>({
+    brand: 'Visa',
+    last4: '4081',
+  });
+  const [extensionSuccessBanner, setExtensionSuccessBanner] = useState<string | null>(null);
+
+  // In-App Prescription Toast (PA-704)
+  const [prescriptionToast, setPrescriptionToast] = useState<{
+    prescriptionId: string;
+    doctorName: string;
+  } | null>(null);
 
   // Socket.io connection
   const socketRef = useRef<Socket | null>(null);
@@ -287,10 +311,82 @@ export default function PatientConsultationPage() {
       }
     });
 
+    // Time Extension Listeners (PA-701, PA-702)
+    socket.on('extension_requested', (data: { extensionId: string; durationMinutes: number; amount: number; doctorName?: string }) => {
+      setExtensionRequest(data);
+      setConsentCountdown(60);
+    });
+
+    socket.on('extension_confirmed', (data: { extendedMinutes: number; newTotalDuration: number; remainingSeconds: number }) => {
+      setExtensionRequest(null);
+      if (typeof data.remainingSeconds === 'number') {
+        setRemainingSeconds(data.remainingSeconds);
+      }
+      setExtensionSuccessBanner(`+${data.extendedMinutes} minutes added to your consultation!`);
+      setTimeout(() => setExtensionSuccessBanner(null), 6000);
+    });
+
+    socket.on('extension_declined', () => {
+      setExtensionRequest(null);
+    });
+
+    socket.on('extension_payment_failed', (data: { message?: string }) => {
+      setExtensionRequest(null);
+      alert(`Time extension payment failed: ${data?.message || 'Could not charge saved payment card.'}`);
+    });
+
+    // Real-Time Prescription Ready Listener (PA-704)
+    socket.on('prescription_issued', (data: { prescriptionId: string; doctorName?: string }) => {
+      setPrescriptionToast({
+        prescriptionId: data.prescriptionId,
+        doctorName: data.doctorName || doctorName || 'Your Doctor',
+      });
+    });
+
     return () => {
       socket.disconnect();
     };
-  }, [bookingId, user, WS_URL, callObject]);
+  }, [bookingId, user, WS_URL, callObject, doctorName]);
+
+  // Handle Extension Consent response
+  const handleConsentResponse = useCallback(async (approved: boolean) => {
+    if (!extensionRequest || isSubmittingConsent) return;
+    setIsSubmittingConsent(true);
+    try {
+      await fetch(`${API_BASE}/consultations/${bookingId}/extend/consent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          approved,
+          extensionId: extensionRequest.extensionId,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to submit consent response:', err);
+    } finally {
+      setIsSubmittingConsent(false);
+      setExtensionRequest(null);
+    }
+  }, [extensionRequest, isSubmittingConsent, API_BASE, bookingId, token]);
+
+  // 60-Second Auto-Decline Countdown for Extension Consent
+  useEffect(() => {
+    if (!extensionRequest) return;
+    const interval = setInterval(() => {
+      setConsentCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          handleConsentResponse(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [extensionRequest, handleConsentResponse]);
 
   // 4. Timer Countdown Hook (PA-603)
   useEffect(() => {
@@ -633,7 +729,7 @@ export default function PatientConsultationPage() {
 
           <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
             <Link
-              href={`/bookings/${bookingId}`}
+              href="/prescriptions"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -649,7 +745,25 @@ export default function PatientConsultationPage() {
               }}
             >
               <FileText size={18} />
-              <span>View Booking Summary</span>
+              <span>View My Prescriptions</span>
+            </Link>
+
+            <Link
+              href={`/bookings/${bookingId}`}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 24px',
+                borderRadius: '12px',
+                background: '#f1f5f9',
+                color: 'var(--color-slate-800)',
+                fontWeight: 700,
+                fontSize: '0.95rem',
+                textDecoration: 'none',
+              }}
+            >
+              <span>Booking Summary</span>
             </Link>
 
             <Link
@@ -1088,6 +1202,296 @@ export default function PatientConsultationPage() {
           </div>
         </div>
       </div>
+
+      {/* PA-702: Dynamic Time Extension Banner */}
+      {extensionSuccessBanner && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '76px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 40,
+            background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+            color: '#ffffff',
+            padding: '10px 24px',
+            borderRadius: '30px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            boxShadow: '0 8px 24px rgba(13, 148, 136, 0.4)',
+            fontWeight: 700,
+            fontSize: '0.9rem',
+          }}
+        >
+          <Sparkles size={18} />
+          <span>{extensionSuccessBanner}</span>
+        </div>
+      )}
+
+      {/* PA-704: Real-Time In-App Prescription Toast Banner */}
+      {prescriptionToast && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 45,
+            background: '#ffffff',
+            color: 'var(--color-slate-900)',
+            padding: '14px 20px',
+            borderRadius: '16px',
+            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.25)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '14px',
+            border: '1px solid #14b8a6',
+          }}
+        >
+          <div
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: '#ecfdf5',
+              color: '#0d9488',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <FileText size={22} />
+          </div>
+          <div>
+            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
+              Prescription Ready
+            </div>
+            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
+              {prescriptionToast.doctorName} has issued your official digital e-prescription.
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
+            <Link
+              href="/prescriptions"
+              target="_blank"
+              style={{
+                background: '#0d9488',
+                color: '#ffffff',
+                padding: '8px 16px',
+                borderRadius: '10px',
+                fontWeight: 700,
+                fontSize: '0.825rem',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>View Now</span>
+              <ExternalLink size={14} />
+            </Link>
+            <button
+              onClick={() => setPrescriptionToast(null)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#94a3b8',
+                cursor: 'pointer',
+                padding: '4px',
+              }}
+            >
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* PA-701: In-Call Floating Time Extension Consent Modal */}
+      {extensionRequest && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            zIndex: 50,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(6px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+          }}
+        >
+          <div
+            style={{
+              maxWidth: '440px',
+              width: '100%',
+              background: '#ffffff',
+              borderRadius: '20px',
+              padding: '28px',
+              boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.35)',
+              color: '#0f172a',
+              border: '1px solid #e2e8f0',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '12px',
+                    background: '#f0fdfa',
+                    color: '#0d9488',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Clock size={24} />
+                </div>
+                <div>
+                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
+                    Consultation Extension
+                  </h3>
+                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                    Requested by {extensionRequest.doctorName || doctorName}
+                  </span>
+                </div>
+              </div>
+              <div
+                style={{
+                  background: consentCountdown <= 15 ? '#fee2e2' : '#f1f5f9',
+                  color: consentCountdown <= 15 ? '#dc2626' : '#475569',
+                  padding: '4px 10px',
+                  borderRadius: '20px',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+              >
+                <Clock size={14} />
+                <span>{consentCountdown}s</span>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.5, marginBottom: '20px' }}>
+              Your doctor has suggested extending this consultation by{' '}
+              <strong style={{ color: '#0f172a' }}>+{extensionRequest.durationMinutes} minutes</strong> to complete
+              your clinical examination and discuss treatment.
+            </p>
+
+            {/* Pricing & Billing Details */}
+            <div
+              style={{
+                background: '#f8fafc',
+                borderRadius: '14px',
+                padding: '16px',
+                marginBottom: '20px',
+                border: '1px solid #e2e8f0',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Extension Fee:</span>
+                <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0d9488' }}>
+                  R {extensionRequest.amount.toFixed(2)}
+                </span>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.8rem',
+                  color: '#64748b',
+                  borderTop: '1px dashed #cbd5e1',
+                  paddingTop: '10px',
+                }}
+              >
+                <CreditCard size={16} style={{ color: '#0d9488' }} />
+                <span>
+                  Billed automatically via saved card (<strong>{savedCardInfo.brand} •••• {savedCardInfo.last4}</strong>)
+                </span>
+              </div>
+            </div>
+
+            {/* Progress Bar for 60s countdown */}
+            <div
+              style={{
+                height: '4px',
+                background: '#e2e8f0',
+                borderRadius: '2px',
+                overflow: 'hidden',
+                marginBottom: '20px',
+              }}
+            >
+              <div
+                style={{
+                  height: '100%',
+                  background: consentCountdown <= 15 ? '#dc2626' : '#0d9488',
+                  width: `${(consentCountdown / 60) * 100}%`,
+                  transition: 'width 1s linear',
+                }}
+              />
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '12px' }}>
+              <button
+                onClick={() => handleConsentResponse(false)}
+                disabled={isSubmittingConsent}
+                style={{
+                  padding: '12px 18px',
+                  borderRadius: '12px',
+                  background: '#f1f5f9',
+                  color: '#475569',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                Decline
+              </button>
+              <button
+                onClick={() => handleConsentResponse(true)}
+                disabled={isSubmittingConsent}
+                style={{
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
+                  color: '#ffffff',
+                  border: 'none',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(13, 148, 136, 0.35)',
+                  opacity: isSubmittingConsent ? 0.7 : 1,
+                }}
+              >
+                {isSubmittingConsent ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check size={16} />
+                    <span>Approve & Extend</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MAIN VIDEO AREA (Doctor / Remote Feed) */}
       <div

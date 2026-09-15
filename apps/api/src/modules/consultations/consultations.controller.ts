@@ -24,6 +24,17 @@ export class EndConsultationDto {
   doctorId?: string;
 }
 
+export class RequestExtensionDto {
+  durationMinutes: number;
+  doctorId?: string;
+}
+
+export class ConsentExtensionDto {
+  extensionId: string;
+  approved: boolean;
+  patientId?: string;
+}
+
 @Controller('consultations')
 export class ConsultationsController {
   constructor(private readonly consultationsService: ConsultationsService) {}
@@ -95,5 +106,52 @@ export class ConsultationsController {
   @Post(':bookingId/provision')
   provisionRoom(@Param('bookingId') bookingId: string) {
     return this.consultationsService.provisionRoom(bookingId);
+  }
+
+  /**
+   * Doctor requests an in-call consultation time extension (BE-701).
+   * Checks next slot on VPS operational DB; emits WebSocket 'extension_requested'.
+   */
+  @Post(':bookingId/extend')
+  requestExtension(
+    @Param('bookingId') bookingId: string,
+    @Body() dto: RequestExtensionDto,
+  ) {
+    if (!dto.durationMinutes) {
+      throw new BadRequestException('durationMinutes (15, 20, or 30) is required');
+    }
+    return this.consultationsService.requestExtension(
+      bookingId,
+      Number(dto.durationMinutes),
+      dto.doctorId,
+    );
+  }
+
+  /**
+   * Patient submits consent for time extension (BE-701).
+   * If approved: auto-debits vaulted card and extends Daily.co room.
+   */
+  @Post(':bookingId/extend/consent')
+  consentExtension(
+    @Param('bookingId') bookingId: string,
+    @Body() dto: ConsentExtensionDto,
+  ) {
+    if (!dto.extensionId || typeof dto.approved !== 'boolean') {
+      throw new BadRequestException('extensionId and approved boolean are required');
+    }
+    return this.consultationsService.consentExtension(
+      bookingId,
+      dto.extensionId,
+      dto.approved,
+      dto.patientId,
+    );
+  }
+
+  /**
+   * Retrieves all extensions for a consultation.
+   */
+  @Get(':bookingId/extensions')
+  getExtensions(@Param('bookingId') bookingId: string) {
+    return this.consultationsService.getExtensions(bookingId);
   }
 }

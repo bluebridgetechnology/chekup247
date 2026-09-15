@@ -5,8 +5,9 @@ import {
   Consultation,
   ConsultationExtension,
   Booking,
+  Payment,
 } from '../../database/patient/entities';
-import { AvailabilitySlot, DoctorProfile } from '../../database/operational/entities';
+import { AvailabilitySlot, DoctorProfile, User } from '../../database/operational/entities';
 import { QUEUES } from '../queues/queue.constants';
 import { PaymentsModule } from '../payments/payments.module';
 import { ConsultationsController } from './consultations.controller';
@@ -18,11 +19,11 @@ import { NoShowProcessor } from './no-show.processor';
 @Module({
   imports: [
     TypeOrmModule.forFeature(
-      [Consultation, ConsultationExtension, Booking],
+      [Consultation, ConsultationExtension, Booking, Payment],
       'patient',
     ),
     TypeOrmModule.forFeature(
-      [AvailabilitySlot, DoctorProfile],
+      [AvailabilitySlot, DoctorProfile, User],
       'operational',
     ),
     BullModule.registerQueue({
