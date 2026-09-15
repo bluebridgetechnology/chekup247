@@ -1,0 +1,25 @@
+{
+  "name": "chekup247-workspace",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ChekUp247 Telehealth Platform — Monorepo",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "dev:api": "npm run start:dev --workspace=@chekup247/api",
+    "dev:patient": "npm run dev --workspace=@chekup247/patient-web",
+    "dev:doctor": "npm run dev --workspace=@chekup247/doctor-portal",
+    "dev:admin": "npm run dev --workspace=@chekup247/admin-panel",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down",
+    "format": "prettier --write \"**/*.{ts,tsx,js,json,md}\""
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}

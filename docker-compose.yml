@@ -1,0 +1,77 @@
+services:
+  operational-postgres:
+    image: postgres:16-alpine
+    container_name: chekup-operational-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chekup_user
+      POSTGRES_PASSWORD: chekup_password
+      POSTGRES_DB: chekup_operational
+    ports:
+      - '5434:5432'
+    volumes:
+      - operational_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chekup_user -d chekup_operational']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  patient-postgres:
+    image: postgres:16-alpine
+    container_name: chekup-patient-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: chekup_user
+      POSTGRES_PASSWORD: chekup_password
+      POSTGRES_DB: chekup_patient
+    ports:
+      - '5433:5432'
+    volumes:
+      - patient_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U chekup_user -d chekup_patient']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: chekup-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redis_password
+    ports:
+      - '6379:6379'
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-a', 'redis_password', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: chekup-minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadminpassword
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ['CMD-SHELL', 'mc ready local || curl -f http://localhost:9000/minio/health/live || exit 0']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  operational_pg_data:
+  patient_pg_data:
+  redis_data:
+  minio_data:
+
