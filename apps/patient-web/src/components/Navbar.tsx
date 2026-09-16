@@ -96,7 +96,17 @@ export function Navbar() {
             >
               How It Works
             </Link>
-
+            <Link
+              href="/for-doctors"
+              style={{
+                fontSize: '0.925rem',
+                fontWeight: 500,
+                color: 'var(--color-slate-700)',
+                transition: 'color 0.2s',
+              }}
+            >
+              For Doctors
+            </Link>
             <Link
               href="/pricing"
               style={{

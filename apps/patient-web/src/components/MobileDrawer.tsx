@@ -111,11 +111,13 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           <Link href="/wallet" onClick={onClose} style={{ fontWeight: 600 }}>
             My Wallet
           </Link>
-          <Link href="/how-it-works" onClick={onClose}>
+          <Link href="/how-it-works" onClick={onClose} className="touch-target">
             How It Works
           </Link>
-
-          <Link href="/pricing" onClick={onClose}>
+          <Link href="/for-doctors" onClick={onClose} className="touch-target">
+            For Doctors
+          </Link>
+          <Link href="/pricing" onClick={onClose} className="touch-target">
             Pricing
           </Link>
           <Link href="/about" onClick={onClose}>

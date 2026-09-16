@@ -13,12 +13,13 @@ import { Response } from 'express';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { AdminIpAllowlistGuard } from '../../common/guards/admin-ip-allowlist.guard';
 import { Roles, CurrentUser } from '../../common/decorators/auth.decorators';
 import { UserRole, VerificationStatus } from '../../database/operational/entities';
 import { JwtPayload } from '../auth/token.service';
 
 @Controller('admin')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(AdminIpAllowlistGuard, JwtAuthGuard, RolesGuard)
 @Roles(UserRole.ADMIN)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}

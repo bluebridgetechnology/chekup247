@@ -272,9 +272,11 @@ export class ConsultationsService {
     success: boolean;
     doctor_notes: string;
     updated_at: Date;
+    booking?: any;
   }> {
     const consultation = await this.consultationRepository.findOne({
       where: { booking_id: bookingId },
+      relations: ['booking'],
     });
 
     if (!consultation) {
@@ -291,6 +293,7 @@ export class ConsultationsService {
       success: true,
       doctor_notes: saved.doctor_notes || '',
       updated_at: saved.updated_at,
+      booking: consultation.booking,
     };
   }
 

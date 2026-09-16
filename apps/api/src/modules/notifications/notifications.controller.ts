@@ -109,4 +109,22 @@ export class NotificationsController {
       Number(limit),
     );
   }
+
+  /**
+   * PA-1007: Public contact form submission endpoint.
+   */
+  @Post('contact')
+  submitContactInquiry(
+    @Body()
+    dto: {
+      name: string;
+      email: string;
+      subject: string;
+      category?: string;
+      message: string;
+      phone?: string;
+    },
+  ) {
+    return this.notificationsService.handleContactInquiry(dto);
+  }
 }

@@ -10,6 +10,7 @@ import {
   UseGuards,
   Res,
   Req,
+  Headers,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
 import { DoctorsService } from './doctors.service';

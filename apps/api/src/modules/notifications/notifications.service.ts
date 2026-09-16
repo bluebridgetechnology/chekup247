@@ -317,4 +317,64 @@ export class NotificationsService {
       count: result.affected || 0,
     };
   }
+
+  /**
+   * PA-1007: Public contact inquiry dispatch via Brevo email provider.
+   */
+  async handleContactInquiry(dto: {
+    name: string;
+    email: string;
+    subject: string;
+    category?: string;
+    message: string;
+    phone?: string;
+  }): Promise<{ success: boolean; message: string }> {
+    if (!dto.name || !dto.email || !dto.message) {
+      throw new BadRequestException('Name, email, and message are required.');
+    }
+
+    this.logger.log(`Received contact inquiry from ${dto.name} (${dto.email}): [${dto.category || 'General'}] ${dto.subject}`);
+
+    // Send inquiry notice to support team
+    await this.brevoEmailProvider.sendEmail({
+      to: [{ email: 'support@chekup247.co.za', name: 'ChekUp247 Support' }],
+      subject: `[Contact Inquiry] ${dto.category ? `[${dto.category}] ` : ''}${dto.subject || 'New Patient Inquiry'}`,
+      htmlContent: `
+        <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+          <h2 style="color: #0e9384;">New ChekUp247 Support Inquiry</h2>
+          <p><strong>From:</strong> ${dto.name} &lt;${dto.email}&gt;</p>
+          ${dto.phone ? `<p><strong>Phone:</strong> ${dto.phone}</p>` : ''}
+          <p><strong>Category:</strong> ${dto.category || 'General Inquiry'}</p>
+          <p><strong>Subject:</strong> ${dto.subject}</p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 16px 0;" />
+          <h3>Message:</h3>
+          <p style="white-space: pre-wrap; background: #f8fafc; padding: 16px; border-radius: 8px;">${dto.message}</p>
+        </div>
+      `,
+    });
+
+    // Send acknowledgment autoresponder to user
+    await this.brevoEmailProvider.sendEmail({
+      to: [{ email: dto.email, name: dto.name }],
+      subject: `We've received your message: ${dto.subject || 'ChekUp247 Support'}`,
+      htmlContent: `
+        <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+          <h2 style="color: #0e9384;">Thank you for contacting ChekUp247</h2>
+          <p>Dear ${dto.name},</p>
+          <p>We have successfully received your inquiry regarding <strong>"${dto.subject || 'Support'}"</strong>. Our clinical and support personnel are reviewing your message and will respond within 2 to 4 business hours.</p>
+          <div style="background: #e6f7f5; padding: 14px; border-radius: 8px; margin: 20px 0; border-left: 4px solid #0e9384;">
+            <p style="margin: 0; font-size: 13px; color: #0f766e;">
+              <strong>Emergency Notice:</strong> ChekUp247 does not provide emergency medical rescue. If you are experiencing acute chest pain, severe trauma, or life-threatening distress, immediately call <strong>10177</strong> or <strong>112</strong>.
+            </p>
+          </div>
+          <p>Warm regards,<br/>The ChekUp247 Support Team</p>
+        </div>
+      `,
+    });
+
+    return {
+      success: true,
+      message: 'Your inquiry has been submitted. A support confirmation has been sent to your email.',
+    };
+  }
 }

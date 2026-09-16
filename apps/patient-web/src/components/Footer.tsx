@@ -147,6 +147,11 @@ export function Footer() {
               }}
             >
               <li>
+                <Link href="/for-doctors" style={{ color: 'var(--color-slate-400)' }}>
+                  Join as a Doctor (Recruitment)
+                </Link>
+              </li>
+              <li>
                 <a
                   href="http://localhost:3001"
                   style={{ color: 'var(--color-slate-400)' }}
@@ -155,7 +160,7 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <Link href="/about" style={{ color: 'var(--color-slate-400)' }}>
+                <Link href="/for-doctors#verification-criteria" style={{ color: 'var(--color-slate-400)' }}>
                   HPCSA Verification Standards
                 </Link>
               </li>

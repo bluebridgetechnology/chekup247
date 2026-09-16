@@ -97,6 +97,10 @@ const envSchema = z.object({
   // WhatsApp Business API Integration (BE-806)
   WHATSAPP_API_TOKEN: z.string().optional().default(''),
   WHATSAPP_PHONE_NUMBER_ID: z.string().optional().default(''),
+
+  // Security & Operations (Sprint 10)
+  ADMIN_IP_ALLOWLIST: z.string().default(''),
+  SENTRY_DSN: z.string().optional().default(''),
 });
 
 

@@ -15,6 +15,7 @@ describe('NotificationsController (Unit & Guard Resolution)', () => {
     markAllAsRead: jest.fn().mockResolvedValue({ affected: 0 }),
     getPreferences: jest.fn().mockResolvedValue({ preferred_channels: ['email', 'sms'] }),
     updatePreferences: jest.fn().mockResolvedValue({ preferred_channels: ['email', 'sms'] }),
+    handleContactInquiry: jest.fn().mockResolvedValue({ success: true, message: 'Sent' }),
   };
 
   const mockTokenService = {
@@ -49,5 +50,17 @@ describe('NotificationsController (Unit & Guard Resolution)', () => {
     const result = await controller.getMyNotifications('user-1');
     expect(result).toBeDefined();
     expect(mockNotificationsService.getUserNotifications).toHaveBeenCalledWith('user-1', 1, 20);
+  });
+
+  it('should handle contact form inquiry', async () => {
+    mockNotificationsService.handleContactInquiry = jest.fn().mockResolvedValue({ success: true, message: 'Sent' });
+    const result = await controller.submitContactInquiry({
+      name: 'John Doe',
+      email: 'john@example.co.za',
+      subject: 'Inquiry',
+      message: 'Need help with booking',
+    });
+    expect(result).toEqual({ success: true, message: 'Sent' });
+    expect(mockNotificationsService.handleContactInquiry).toHaveBeenCalled();
   });
 });
