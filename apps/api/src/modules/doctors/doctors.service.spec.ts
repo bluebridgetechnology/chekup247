@@ -13,7 +13,10 @@ import {
   PlatformSetting,
   VerificationStatus,
   VerificationSource,
+  Payout,
+  PayoutStatus,
 } from '../../database/operational/entities';
+import { Booking, BookingStatus } from '../../database/patient/entities';
 
 describe('DoctorsService (Unit)', () => {
   let service: DoctorsService;
@@ -22,6 +25,8 @@ describe('DoctorsService (Unit)', () => {
   let mockBlackoutRepo: any;
   let mockPlatformSettingRepo: any;
   let mockUserRepo: any;
+  let mockPayoutRepo: any;
+  let mockBookingRepo: any;
   let mockTokenService: any;
   let mockDirectorySyncService: any;
   let mockAvailabilitySyncService: any;
@@ -110,6 +115,46 @@ describe('DoctorsService (Unit)', () => {
       syncAvailability: jest.fn().mockResolvedValue({ totalSlotsGenerated: 12 }),
     };
 
+        mockPayoutRepo = {
+      find: jest.fn().mockResolvedValue([
+        {
+          id: 'p-1',
+          doctor_id: mockDoctor.id,
+          amount: 500,
+          status: PayoutStatus.PAID,
+          period_start: new Date(),
+          period_end: new Date(),
+          transaction_reference: 'pay_ref_123',
+          created_at: new Date(),
+        },
+      ]),
+    };
+
+    mockBookingRepo = {
+      find: jest.fn().mockResolvedValue([
+        {
+          id: 'b-1',
+          doctor_id: mockDoctor.id,
+          patient_id: 'pat-1',
+          status: BookingStatus.COMPLETED,
+          price: 850,
+          commission_amount: 127.5,
+          payment_status: 'released',
+          created_at: new Date('2026-09-10T10:00:00Z'),
+        },
+        {
+          id: 'b-2',
+          doctor_id: mockDoctor.id,
+          patient_id: 'pat-2',
+          status: BookingStatus.COMPLETED,
+          price: 850,
+          commission_amount: 127.5,
+          payment_status: 'released',
+          created_at: new Date('2026-09-12T11:00:00Z'),
+        },
+      ]),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DoctorsService,
@@ -132,6 +177,14 @@ describe('DoctorsService (Unit)', () => {
         {
           provide: getRepositoryToken(User, 'operational'),
           useValue: mockUserRepo,
+        },
+        {
+          provide: getRepositoryToken(Payout, 'operational'),
+          useValue: mockPayoutRepo,
+        },
+        {
+          provide: getRepositoryToken(Booking, 'patient'),
+          useValue: mockBookingRepo,
         },
         {
           provide: TokenService,
@@ -358,6 +411,33 @@ describe('DoctorsService (Unit)', () => {
       expect(res.blackout).toBeDefined();
       expect(res.cancelledSlotsCount).toBe(2);
       expect(mockSlotRepo.remove).toHaveBeenCalled();
+    });
+  });
+
+  describe('BE-903: Doctor Earnings Computation API', () => {
+    it('should aggregate completed consultations, net earnings, and available balance', async () => {
+      const res = await service.getDoctorEarnings(mockDoctor.id!);
+
+      expect(res).toBeDefined();
+      expect(res.doctorId).toBe(mockDoctor.id);
+      expect(res.summary.completedConsultationsCount).toBe(2);
+      expect(res.summary.totalGross).toBe(1700); // 850 * 2
+      expect(res.summary.totalCommission).toBe(255); // 127.5 * 2
+      expect(res.summary.totalNet).toBe(1445); // 1700 - 255
+      expect(res.summary.totalPaidOut).toBe(500); // from mock payout
+      expect(res.summary.availableBalance).toBe(945); // 1445 - 500
+      expect(res.consultationsBreakdown).toHaveLength(2);
+      expect(res.consultationsBreakdown[0].grossFee).toBe(850);
+      expect(res.consultationsBreakdown[0].netEarning).toBe(722.5);
+      expect(res.payouts).toHaveLength(1);
+    });
+
+    it('should throw NotFoundException if doctor profile does not exist', async () => {
+      mockDoctorRepo.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.getDoctorEarnings('invalid-id')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

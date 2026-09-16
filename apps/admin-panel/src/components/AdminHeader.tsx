@@ -2,8 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { Shield, Clock, LogOut, KeyRound } from 'lucide-react';
+import { useAdminAuth } from '../context/AdminAuthContext';
 
 export function AdminHeader() {
+  const { admin, logout } = useAdminAuth();
   const [sessionSecondsRemaining, setSessionSecondsRemaining] = useState(1800); // 30 min session
 
   useEffect(() => {
@@ -18,6 +20,15 @@ export function AdminHeader() {
     const secs = seconds % 60;
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
+
+  const initials = admin?.fullName
+    ? admin.fullName
+        .split(' ')
+        .map((n) => n[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase()
+    : 'AD';
 
   return (
     <header
@@ -102,11 +113,11 @@ export function AdminHeader() {
               fontSize: '0.85rem',
             }}
           >
-            AD
+            {initials}
           </div>
           <div>
             <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc' }}>
-              Admin Operations
+              {admin?.fullName || 'Admin Operations'}
             </div>
             <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
               Superuser (MFA Active)
@@ -116,6 +127,7 @@ export function AdminHeader() {
 
         {/* Logout */}
         <button
+          onClick={() => logout()}
           style={{
             background: 'none',
             border: 'none',
@@ -125,7 +137,10 @@ export function AdminHeader() {
             borderRadius: '6px',
             display: 'flex',
             alignItems: 'center',
+            transition: 'color 0.2s ease',
           }}
+          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#ef4444')}
+          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#64748b')}
           title="End Admin Session"
         >
           <LogOut size={18} />

@@ -7,7 +7,9 @@ import {
   User,
   DoctorBlackout,
   PlatformSetting,
+  Payout,
 } from '../../database/operational/entities';
+import { Booking } from '../../database/patient/entities';
 import { DoctorsController } from './doctors.controller';
 import { DoctorsService } from './doctors.service';
 import { DirectorySyncService } from './directory-sync.service';
@@ -20,9 +22,10 @@ import { QUEUES } from '../queues/queue.constants';
 @Module({
   imports: [
     TypeOrmModule.forFeature(
-      [DoctorProfile, AvailabilitySlot, User, DoctorBlackout, PlatformSetting],
+      [DoctorProfile, AvailabilitySlot, User, DoctorBlackout, PlatformSetting, Payout],
       'operational',
     ),
+    TypeOrmModule.forFeature([Booking], 'patient'),
     BullModule.registerQueue(
       { name: QUEUES.DIRECTORY_SYNC },
       { name: QUEUES.AVAILABILITY_SYNC },

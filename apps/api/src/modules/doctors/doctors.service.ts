@@ -18,7 +18,10 @@ import {
   UserStatus,
   VerificationStatus,
   VerificationSource,
+  Payout,
+  PayoutStatus,
 } from '../../database/operational/entities';
+import { Booking, BookingStatus } from '../../database/patient/entities';
 import { OnboardDoctorDto, UpdateDoctorProfileDto, GetDoctorsQueryDto } from './dto/doctor.dto';
 import {
   CreateSingleSlotDto,
@@ -54,6 +57,10 @@ export class DoctorsService implements OnModuleInit {
     private readonly platformSettingRepository: Repository<PlatformSetting>,
     @InjectRepository(User, 'operational')
     private readonly userRepository: Repository<User>,
+    @InjectRepository(Payout, 'operational')
+    private readonly payoutRepository: Repository<Payout>,
+    @InjectRepository(Booking, 'patient')
+    private readonly bookingRepository: Repository<Booking>,
     private readonly tokenService: TokenService,
     private readonly directorySyncService: DirectorySyncService,
     private readonly availabilitySyncService: AvailabilitySyncService,
@@ -959,6 +966,126 @@ export class DoctorsService implements OnModuleInit {
 
   async triggerAvailabilitySync(options?: { startDate?: string; endDate?: string; doctorId?: string }) {
     return this.availabilitySyncService.syncAvailability(options);
+  }
+
+  /**
+   * BE-903: Doctor Earnings Computation API
+   * Aggregates completed consultations, net earnings (price - commission),
+   * pending payout balance, and historical payouts.
+   */
+  async getDoctorEarnings(userIdOrDoctorId: string) {
+    let doctor = await this.doctorRepository.findOne({
+      where: [{ user_id: userIdOrDoctorId }, { id: userIdOrDoctorId }],
+      relations: ['user'],
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Doctor profile not found');
+    }
+
+    // 1. Completed consultations on AWS RDS
+    const completedBookings = await this.bookingRepository.find({
+      where: {
+        doctor_id: doctor.id,
+        status: BookingStatus.COMPLETED,
+      },
+      order: { created_at: 'DESC' },
+    });
+
+    // 2. Historical payouts on VPS operational DB
+    const payouts = await this.payoutRepository.find({
+      where: { doctor_id: doctor.id },
+      order: { created_at: 'DESC' },
+    });
+
+    let totalGross = 0;
+    let totalCommission = 0;
+    let totalNet = 0;
+
+    const consultationsBreakdown = completedBookings.map((b) => {
+      const price = Number(b.price || 0);
+      const commission = Number(b.commission_amount || 0);
+      const net = Math.max(0, price - commission);
+
+      totalGross += price;
+      totalCommission += commission;
+      totalNet += net;
+
+      const dateStr = b.created_at ? new Date(b.created_at).toISOString() : new Date().toISOString();
+
+      return {
+        bookingId: b.id,
+        patientId: b.patient_id,
+        patientInitial: `Patient ${b.patient_id ? b.patient_id.substring(0, 5).toUpperCase() : 'Guest'}`,
+        date: dateStr,
+        duration: '30 mins',
+        grossFee: Number(price.toFixed(2)),
+        commission: Number(commission.toFixed(2)),
+        netEarning: Number(net.toFixed(2)),
+        status: b.status,
+        paymentStatus: b.payment_status,
+      };
+    });
+
+    let totalPaidOut = 0;
+    for (const p of payouts) {
+      if (p.status === PayoutStatus.PAID) {
+        totalPaidOut += Number(p.amount || 0);
+      }
+    }
+
+    const availableBalance = Math.max(0, totalNet - totalPaidOut);
+
+    // Standard next payout schedule: 1st of next month
+    const now = new Date();
+    const nextPayoutDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+    // Monthly aggregation for trajectory chart
+    const monthMap: Record<string, { month: string; gross: number; commission: number; net: number; consultations: number }> = {};
+    for (const item of consultationsBreakdown) {
+      const d = new Date(item.date);
+      const monthKey = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      if (!monthMap[monthKey]) {
+        monthMap[monthKey] = {
+          month: monthKey,
+          gross: 0,
+          commission: 0,
+          net: 0,
+          consultations: 0,
+        };
+      }
+      monthMap[monthKey].gross += item.grossFee;
+      monthMap[monthKey].commission += item.commission;
+      monthMap[monthKey].net += item.netEarning;
+      monthMap[monthKey].consultations += 1;
+    }
+
+    const monthlyTrend = Object.values(monthMap);
+
+    return {
+      doctorId: doctor.id,
+      doctorName: doctor.user?.full_name || 'Dr. Medical Practitioner',
+      summary: {
+        totalGross: Number(totalGross.toFixed(2)),
+        totalCommission: Number(totalCommission.toFixed(2)),
+        totalNet: Number(totalNet.toFixed(2)),
+        totalPaidOut: Number(totalPaidOut.toFixed(2)),
+        availableBalance: Number(availableBalance.toFixed(2)),
+        completedConsultationsCount: completedBookings.length,
+        nextPayoutDate: nextPayoutDate.toISOString(),
+      },
+      payouts: payouts.map((p) => ({
+        id: p.id,
+        amount: Number(p.amount),
+        status: p.status,
+        periodStart: p.period_start,
+        periodEnd: p.period_end,
+        reference: p.transaction_reference,
+        createdAt: p.created_at,
+      })),
+      consultationsBreakdown,
+      monthlyTrend,
+    };
   }
 }
 

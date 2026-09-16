@@ -3,7 +3,7 @@
 **Sprint:** 9 of 10  
 **Timeline:** Weeks 17–18  
 **Total Points:** ~82 ⚠️ (Consider splitting into 9a / 9b)  
-**Status:** Ready for Backlog Grooming  
+**Status:** Completed  
 **Prerequisites:** Sprint 8 complete.
 
 ---
@@ -85,8 +85,9 @@ Because Sprint 9 contains **~82 points**, it can be split into:
 ---
 
 ## 5. Deliverables Checklist
-- [ ] Patients can rate and review doctors after completed consultations.
-- [ ] Doctor ratings automatically sync and update on public profiles.
-- [ ] Doctors have full visibility into earnings and commission breakdowns.
-- [ ] Admin panel provides complete financial, operational, and dispute oversight.
-- [ ] POPIA audit logging captures all access to sensitive patient records.
+- [x] Patients can rate and review doctors after completed consultations.
+- [x] Doctor ratings automatically sync and update on public profiles.
+- [x] Doctors have full visibility into earnings and commission breakdowns.
+- [x] Admin panel provides complete financial, operational, and dispute oversight.
+- [x] POPIA audit logging captures all access to sensitive patient records.
+

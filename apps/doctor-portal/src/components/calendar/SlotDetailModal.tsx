@@ -24,6 +24,10 @@ export interface CalendarSlotItem {
   isRecurring?: boolean;
   source: 'direct' | 'locumstaff';
   isLocked: boolean;
+  bookingStatus?: 'pending' | 'confirmed' | 'completed' | 'cancelled' | 'no_show';
+  cancellationReason?: string;
+  cancellationFeeEarned?: number;
+  patientName?: string;
 }
 
 interface SlotDetailModalProps {
@@ -205,6 +209,51 @@ export function SlotDetailModal({
             >
               <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
               <div>{errorMsg}</div>
+            </div>
+          )}
+
+          {/* Cancelled Appointment Banner (DP-802) */}
+          {slot.bookingStatus === 'cancelled' && (
+            <div
+              style={{
+                padding: '16px',
+                borderRadius: '14px',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                marginBottom: '18px',
+                color: '#991b1b',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.95rem', marginBottom: '6px' }}>
+                <AlertCircle size={18} color="#dc2626" />
+                <span>Appointment Cancelled by Patient</span>
+              </div>
+              <p style={{ margin: '0 0 8px', fontSize: '0.85rem', color: '#7f1d1d' }}>
+                <strong>Reason:</strong> {slot.cancellationReason || 'Patient requested cancellation'}
+              </p>
+              {slot.cancellationFeeEarned && slot.cancellationFeeEarned > 0 ? (
+                <div
+                  style={{
+                    background: '#ecfdf5',
+                    border: '1px solid #a7f3d0',
+                    borderRadius: '10px',
+                    padding: '8px 12px',
+                    color: '#065f46',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  <span>Late Cancellation Fee Earned: +R{Number(slot.cancellationFeeEarned).toFixed(2)} (Credited to Practice)</span>
+                </div>
+              ) : (
+                <div style={{ fontSize: '0.78rem', color: '#991b1b' }}>
+                  Cancelled &gt;24 hours in advance (No late cancellation fee). Slot is available for re-booking.
+                </div>
+              )}
             </div>
           )}
 

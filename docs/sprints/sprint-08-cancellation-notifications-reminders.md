@@ -79,8 +79,8 @@
 ---
 
 ## 4. Deliverables Checklist
-- [ ] Patient can cancel or reschedule bookings with proper 24h threshold enforcement.
-- [ ] Platform credits are generated, tracked, and never expire.
-- [ ] Brevo delivers responsive transactional emails for all system events.
-- [ ] Automated reminders trigger at 24h, 1h, and 15m prior to consultation.
-- [ ] In-app notification center provides real-time alerts across patient and doctor apps.
+- [x] Patient can cancel or reschedule bookings with proper 24h threshold enforcement.
+- [x] Platform credits are generated, tracked, and never expire.
+- [x] Brevo delivers responsive transactional emails for all system events.
+- [x] Automated reminders trigger at 24h, 1h, and 15m prior to consultation.
+- [x] In-app notification center provides real-time alerts across patient and doctor apps.

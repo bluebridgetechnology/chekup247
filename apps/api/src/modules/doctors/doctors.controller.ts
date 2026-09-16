@@ -27,7 +27,7 @@ import { Roles, Public, CurrentUser } from '../../common/decorators/auth.decorat
 import { UserRole } from '../../database/operational/entities';
 import { JwtPayload } from '../auth/token.service';
 
-@Controller('doctors')
+@Controller(['doctors', 'doctor'])
 export class DoctorsController {
   constructor(private readonly doctorsService: DoctorsService) {}
 
@@ -74,6 +74,20 @@ export class DoctorsController {
     @Body() dto: UpdateDoctorProfileDto,
   ) {
     return this.doctorsService.updateDoctorProfile(user.sub, dto);
+  }
+
+  /**
+   * BE-903: Doctor Earnings Computation API (GET /doctor/earnings or GET /doctors/me/earnings)
+   */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DOCTOR)
+  @Get(['me/earnings', 'earnings'])
+  async getMyEarnings(
+    @CurrentUser() user: JwtPayload,
+    @Headers('x-doctor-id') headerDoctorId?: string,
+  ) {
+    const doctorId = user?.sub || headerDoctorId;
+    return this.doctorsService.getDoctorEarnings(doctorId);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

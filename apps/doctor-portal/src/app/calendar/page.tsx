@@ -89,7 +89,18 @@ export default function DoctorCalendarPage() {
         { start: '09:05', end: '09:35', isBooked: dayOffset === 1, source: 'direct', isLocked: false },
         { start: '10:00', end: '10:30', isBooked: false, source: 'locumstaff', isLocked: true },
         { start: '10:35', end: '11:05', isBooked: false, source: 'locumstaff', isLocked: true },
-        { start: '14:00', end: '14:30', isBooked: dayOffset === 2, source: 'direct', isLocked: false },
+        {
+          start: '11:10',
+          end: '11:40',
+          isBooked: false,
+          source: 'direct',
+          isLocked: false,
+          bookingStatus: dayOffset === 2 ? ('cancelled' as const) : undefined,
+          patientName: dayOffset === 2 ? 'Sipho Ndlovu' : undefined,
+          cancellationReason: dayOffset === 2 ? 'Patient cancelled within 24h (Late fee applied)' : undefined,
+          cancellationFeeEarned: dayOffset === 2 ? 150 : undefined,
+        },
+        { start: '14:00', end: '14:30', isBooked: dayOffset === 3, source: 'direct', isLocked: false },
         { start: '14:35', end: '15:05', isBooked: false, source: 'direct', isLocked: false },
       ];
 
@@ -109,6 +120,10 @@ export default function DoctorCalendarPage() {
           isRecurring: true,
           source: t.source as any,
           isLocked: t.isLocked,
+          bookingStatus: (t as any).bookingStatus,
+          patientName: (t as any).patientName,
+          cancellationReason: (t as any).cancellationReason,
+          cancellationFeeEarned: (t as any).cancellationFeeEarned,
         });
       }
     }
@@ -795,6 +810,7 @@ export default function DoctorCalendarPage() {
 
                         const isLocum = slot.source === 'locumstaff';
                         const isPast = new Date(slot.endTime).getTime() < Date.now();
+                        const isCancelled = slot.bookingStatus === 'cancelled' || !!slot.cancellationFeeEarned;
 
                         return (
                           <div
@@ -803,19 +819,23 @@ export default function DoctorCalendarPage() {
                             style={{
                               padding: '8px 10px',
                               borderRadius: '10px',
-                              border: slot.isBooked
+                              border: isCancelled
+                                ? '1px solid #fecdd3'
+                                : slot.isBooked
                                 ? '1px solid #bfdbfe'
                                 : isLocum
                                 ? '1px solid #f5d0fe'
                                 : '1px solid #a7f3d0',
-                              background: slot.isBooked
+                              background: isCancelled
+                                ? '#fff1f2'
+                                : slot.isBooked
                                 ? '#eff6ff'
                                 : isLocum
                                 ? '#fdf4ff'
                                 : '#ecfdf5',
                               cursor: 'pointer',
                               transition: 'transform 0.1s ease, box-shadow 0.1s ease',
-                              opacity: isPast ? 0.6 : 1,
+                              opacity: isPast && !isCancelled ? 0.6 : 1,
                             }}
                           >
                             <div
@@ -830,7 +850,9 @@ export default function DoctorCalendarPage() {
                                 style={{
                                   fontSize: '0.8rem',
                                   fontWeight: 800,
-                                  color: slot.isBooked
+                                  color: isCancelled
+                                    ? '#be123c'
+                                    : slot.isBooked
                                     ? '#1d4ed8'
                                     : isLocum
                                     ? '#86198f'
@@ -839,9 +861,25 @@ export default function DoctorCalendarPage() {
                               >
                                 {sTime} – {eTime}
                               </span>
-                              {isLocum && (
+                              {isLocum && !isCancelled && (
                                 <span title="Synced from LocumStaff (Locked)">
                                   <Lock size={12} style={{ color: '#a21caf' }} />
+                                </span>
+                              )}
+                              {isCancelled && slot.cancellationFeeEarned && (
+                                <span
+                                  title={`Late cancellation fee earned: R${slot.cancellationFeeEarned}`}
+                                  style={{
+                                    fontSize: '0.65rem',
+                                    fontWeight: 800,
+                                    background: '#ffe4e6',
+                                    color: '#be123c',
+                                    padding: '1px 5px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #fecdd3',
+                                  }}
+                                >
+                                  +R{slot.cancellationFeeEarned}
                                 </span>
                               )}
                             </div>
@@ -850,15 +888,19 @@ export default function DoctorCalendarPage() {
                               <span
                                 style={{
                                   fontSize: '0.7rem',
-                                  fontWeight: 600,
-                                  color: slot.isBooked
+                                  fontWeight: 700,
+                                  color: isCancelled
+                                    ? '#e11d48'
+                                    : slot.isBooked
                                     ? '#2563eb'
                                     : isLocum
                                     ? '#a21caf'
                                     : '#059669',
                                 }}
                               >
-                                {slot.isBooked
+                                {isCancelled
+                                  ? 'Cancelled'
+                                  : slot.isBooked
                                   ? 'Booked'
                                   : isLocum
                                   ? 'Locum Duty'
@@ -913,6 +955,7 @@ export default function DoctorCalendarPage() {
                     hour12: false,
                   });
                   const isLocum = slot.source === 'locumstaff';
+                  const isCancelled = slot.bookingStatus === 'cancelled' || !!slot.cancellationFeeEarned;
 
                   return (
                     <div
@@ -921,12 +964,16 @@ export default function DoctorCalendarPage() {
                       style={{
                         padding: '16px 20px',
                         borderRadius: '14px',
-                        border: slot.isBooked
+                        border: isCancelled
+                          ? '1px solid #fecdd3'
+                          : slot.isBooked
                           ? '1px solid #bfdbfe'
                           : isLocum
                           ? '1px solid #f5d0fe'
                           : '1px solid #a7f3d0',
-                        background: slot.isBooked
+                        background: isCancelled
+                          ? '#fff1f2'
+                          : slot.isBooked
                           ? '#eff6ff'
                           : isLocum
                           ? '#fdf4ff'
@@ -941,7 +988,9 @@ export default function DoctorCalendarPage() {
                         <Clock
                           size={20}
                           style={{
-                            color: slot.isBooked
+                            color: isCancelled
+                              ? '#e11d48'
+                              : slot.isBooked
                               ? '#2563eb'
                               : isLocum
                               ? '#a21caf'
@@ -952,14 +1001,14 @@ export default function DoctorCalendarPage() {
                           <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
                             {sTime} – {eTime}
                           </span>
-                          <div style={{ fontSize: '0.775rem', color: 'var(--color-slate-500)' }}>
-                            30 Min Consultation Window
+                          <div style={{ fontSize: '0.775rem', color: isCancelled ? '#be123c' : 'var(--color-slate-500)' }}>
+                            {isCancelled ? 'Cancelled Appointment' : '30 Min Consultation Window'}
                           </div>
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {isLocum && (
+                        {isLocum && !isCancelled && (
                           <span
                             style={{
                               display: 'flex',
@@ -977,18 +1026,51 @@ export default function DoctorCalendarPage() {
                             <span>Synced</span>
                           </span>
                         )}
-                        <span
-                          style={{
-                            padding: '4px 10px',
-                            borderRadius: '8px',
-                            background: slot.isBooked ? '#2563eb' : '#059669',
-                            color: '#ffffff',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                          }}
-                        >
-                          {slot.isBooked ? 'Booked' : 'Available'}
-                        </span>
+                        {isCancelled ? (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span
+                              style={{
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                background: '#e11d48',
+                                color: '#ffffff',
+                                fontSize: '0.75rem',
+                                fontWeight: 700,
+                              }}
+                            >
+                              Cancelled
+                            </span>
+                            {slot.cancellationFeeEarned && (
+                              <span
+                                style={{
+                                  padding: '4px 8px',
+                                  borderRadius: '8px',
+                                  background: '#ffe4e6',
+                                  color: '#be123c',
+                                  border: '1px solid #fecdd3',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 800,
+                                }}
+                                title="Late cancellation fee earned"
+                              >
+                                +R{slot.cancellationFeeEarned} Fee
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span
+                            style={{
+                              padding: '4px 10px',
+                              borderRadius: '8px',
+                              background: slot.isBooked ? '#2563eb' : '#059669',
+                              color: '#ffffff',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {slot.isBooked ? 'Booked' : 'Available'}
+                          </span>
+                        )}
                       </div>
                     </div>
                   );

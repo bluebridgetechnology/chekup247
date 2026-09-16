@@ -13,11 +13,13 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MedicalModule } from './modules/medical/medical.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
     DatabaseModule,
     QueuesModule,
+    AuditModule,
     StorageModule,
     HealthModule,
     AuthModule,

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Menu, X, ShieldCheck, Video, User } from 'lucide-react';
 import { MobileDrawer } from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
+import { NotificationBell } from './NotificationBell';
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -204,6 +205,7 @@ export function Navbar() {
                 >
                   Wallet
                 </Link>
+                <NotificationBell />
                 <Link
                   href="/profile"
                   style={{

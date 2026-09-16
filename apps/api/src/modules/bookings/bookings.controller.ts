@@ -71,16 +71,34 @@ export class BookingsController {
   }
 
   /**
-   * BE-507: Cancel booking and process refund.
+   * BE-801: Cancel booking and process refund or credit based on 24h threshold.
    */
   @UseGuards(JwtAuthGuard)
   @Post(':id/cancel')
   cancelBooking(
     @Param('id') id: string,
     @CurrentUser('id') userId: string,
-    @Body('reason') reason?: string,
+    @Body() dto: { reason?: string; action?: 'refund' | 'credit' },
   ) {
-    return this.bookingsService.cancelBooking(id, userId, reason);
+    return this.bookingsService.cancelBooking(
+      id,
+      userId,
+      dto?.reason,
+      dto?.action || 'refund',
+    );
+  }
+
+  /**
+   * BE-802: Reschedule appointment to another open slot.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/reschedule')
+  rescheduleBooking(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: { newSlotId: string; reason?: string },
+  ) {
+    return this.bookingsService.rescheduleBooking(id, userId, dto);
   }
 
   /**

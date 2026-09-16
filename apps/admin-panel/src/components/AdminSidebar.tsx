@@ -4,21 +4,25 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  ShieldAlert,
-  Users,
-  CheckCircle,
-  FileSpreadsheet,
-  Settings,
-  Activity,
-  Lock,
+  LayoutDashboard,
   Layers,
+  FileSpreadsheet,
+  Scale,
+  CheckCircle,
+  Users,
+  Activity,
+  Settings,
+  Lock,
+  ShieldAlert,
 } from 'lucide-react';
 
 const adminNav = [
-  { label: 'Verification Queue', href: '/doctors/verification', icon: CheckCircle },
+  { label: 'Executive Analytics', href: '/', icon: LayoutDashboard },
+  { label: 'Consultations & Bookings', href: '/bookings', icon: Layers },
+  { label: 'Financial Ledger', href: '/transactions', icon: FileSpreadsheet },
+  { label: 'Dispute Resolution', href: '/disputes', icon: Scale },
+  { label: 'HPCSA Verification Queue', href: '/doctors/verification', icon: CheckCircle },
   { label: 'Doctor Directory', href: '/doctors', icon: Users },
-  { label: 'Consultations & Bookings', href: '/consultations', icon: Layers },
-  { label: 'Financial Ledger & Payouts', href: '/ledger', icon: FileSpreadsheet },
   { label: 'Audit Logs (POPIA)', href: '/audit-logs', icon: Activity },
   { label: 'Platform Settings', href: '/settings', icon: Settings },
 ];

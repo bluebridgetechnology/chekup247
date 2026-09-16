@@ -4,9 +4,20 @@ import { envConfig } from '../../config/env.config';
 import { QUEUES } from './queue.constants';
 import { QueueWorkerProcessor } from './queue-worker.processor';
 
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Booking, Review } from '../../database/patient/entities';
+import { DoctorProfile } from '../../database/operational/entities';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { ReminderScheduler } from './reminder.scheduler';
+import { ReminderProcessor } from './reminder.processor';
+import { RatingSyncProcessor } from './rating-sync.processor';
+
 @Global()
 @Module({
   imports: [
+    TypeOrmModule.forFeature([Booking, Review], 'patient'),
+    TypeOrmModule.forFeature([DoctorProfile], 'operational'),
+    NotificationsModule,
     BullModule.forRootAsync({
       useFactory: () => ({
         connection: {
@@ -37,7 +48,7 @@ import { QueueWorkerProcessor } from './queue-worker.processor';
       { name: QUEUES.RECONCILIATION },
     ),
   ],
-  providers: [QueueWorkerProcessor],
-  exports: [BullModule],
+  providers: [QueueWorkerProcessor, ReminderScheduler, ReminderProcessor, RatingSyncProcessor],
+  exports: [BullModule, ReminderScheduler],
 })
 export class QueuesModule {}

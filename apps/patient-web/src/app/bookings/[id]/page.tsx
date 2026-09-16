@@ -18,9 +18,12 @@ import {
   Building,
   Loader2,
   Wallet,
+  Star,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
+import { RescheduleModal } from '../../../components/RescheduleModal';
+import { ReviewModal } from '../../../components/ReviewModal';
 
 interface BookingDetail {
   id: string;
@@ -65,6 +68,10 @@ export default function BookingDetailPage() {
   const [booking, setBooking] = useState<BookingDetail | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [showCancelModal, setShowCancelModal] = useState<boolean>(false);
+  const [showRescheduleModal, setShowRescheduleModal] = useState<boolean>(false);
+  const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
+  const [existingReview, setExistingReview] = useState<any | null>(null);
+  const [refundAction, setRefundAction] = useState<'credit' | 'refund'>('credit');
   const [cancelReason, setCancelReason] = useState<string>('');
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
 
@@ -76,6 +83,18 @@ export default function BookingDetailPage() {
     async function loadBooking() {
       try {
         setIsLoading(true);
+        if (bookingId) {
+          try {
+            const revRes = await fetch(`${API_BASE}/reviews/booking/${bookingId}`);
+            if (revRes.ok) {
+              const revData = await revRes.json();
+              if (isMounted && revData && revData.id) {
+                setExistingReview(revData);
+              }
+            }
+          } catch (e) {}
+        }
+
         if (bookingId && token) {
           const res = await fetch(`${API_BASE}/bookings/${bookingId}`, {
             headers: { Authorization: `Bearer ${token}` },
@@ -154,7 +173,10 @@ export default function BookingDetailPage() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ reason: cancelReason || 'Cancelled from booking details' }),
+          body: JSON.stringify({
+            reason: cancelReason || 'Cancelled by patient',
+            action: refundAction,
+          }),
         });
 
         if (!res.ok) {
@@ -507,128 +529,476 @@ export default function BookingDetailPage() {
                 </div>
               </div>
 
-              {/* Cancellation & Policy */}
-              <div
-                style={{
-                  background: '#ffffff',
-                  borderRadius: '18px',
-                  border: '1px solid var(--color-slate-200)',
-                  padding: '24px',
-                }}
-              >
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-slate-900)', marginBottom: '10px' }}>
-                  Cancellation & Refund Policy
-                </h3>
-                <p style={{ fontSize: '0.85rem', color: 'var(--color-slate-500)', lineHeight: 1.5, marginBottom: '16px' }}>
-                  You may cancel this appointment up to 2 hours prior to scheduled start time for a 100% refund. Refunds are instantly credited to your ChekUp247 platform wallet for convenient re-booking.
-                </p>
-
-                {booking.status === 'confirmed' && (
-                  <button
-                    onClick={() => setShowCancelModal(true)}
+              {/* PA-901: Post-Consultation Rating & Review Section */}
+              {booking.status === 'completed' && (
+                <div
+                  style={{
+                    background: '#ffffff',
+                    borderRadius: '18px',
+                    border: '1px solid var(--color-slate-200)',
+                    padding: '24px',
+                  }}
+                >
+                  <div
                     style={{
-                      width: '100%',
-                      padding: '12px',
-                      borderRadius: '12px',
-                      border: '1px solid #fecaca',
-                      background: '#fef2f2',
-                      color: '#dc2626',
-                      fontWeight: 600,
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '12px',
                     }}
                   >
-                    Cancel This Consultation
-                  </button>
-                )}
-              </div>
+                    <h3
+                      style={{
+                        fontSize: '1.05rem',
+                        fontWeight: 700,
+                        color: 'var(--color-slate-900)',
+                        margin: 0,
+                      }}
+                    >
+                      Consultation Feedback
+                    </h3>
+                    <span
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        padding: '3px 8px',
+                        borderRadius: '8px',
+                        background: existingReview ? '#ecfdf5' : 'rgba(14, 147, 132, 0.1)',
+                        color: existingReview ? '#059669' : 'var(--color-brand-700)',
+                      }}
+                    >
+                      {existingReview ? 'Review Submitted' : 'Feedback Pending'}
+                    </span>
+                  </div>
+
+                  {existingReview ? (
+                    <div
+                      style={{
+                        padding: '16px',
+                        background: 'var(--color-slate-50)',
+                        borderRadius: '12px',
+                        border: '1px solid var(--color-slate-200)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', gap: '3px' }}>
+                          {[1, 2, 3, 4, 5].map((s) => (
+                            <Star
+                              key={s}
+                              size={16}
+                              style={{
+                                fill: s <= existingReview.rating ? '#f59e0b' : 'transparent',
+                                color: s <= existingReview.rating ? '#f59e0b' : 'var(--color-slate-300)',
+                              }}
+                            />
+                          ))}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.8rem',
+                            fontWeight: 700,
+                            color: 'var(--color-slate-700)',
+                          }}
+                        >
+                          {existingReview.rating} / 5.0
+                        </span>
+                      </div>
+                      {existingReview.comment && (
+                        <p
+                          style={{
+                            fontSize: '0.875rem',
+                            color: 'var(--color-slate-700)',
+                            margin: '6px 0 0',
+                            lineHeight: 1.5,
+                            whiteSpace: 'pre-line',
+                          }}
+                        >
+                          "{existingReview.comment}"
+                        </p>
+                      )}
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--color-slate-400)',
+                          marginTop: '8px',
+                        }}
+                      >
+                        Verified patient review recorded on{' '}
+                        {new Date(existingReview.created_at).toLocaleDateString()}
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <p
+                        style={{
+                          fontSize: '0.85rem',
+                          color: 'var(--color-slate-500)',
+                          lineHeight: 1.5,
+                          marginBottom: '16px',
+                        }}
+                      >
+                        Your consultation is complete. How was your experience with{' '}
+                        {booking.doctor?.fullName || 'the practitioner'}? Please share your
+                        rating and comments to help other patients.
+                      </p>
+                      <button
+                        onClick={() => setShowReviewModal(true)}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '12px',
+                          border: 'none',
+                          background: 'var(--color-brand-600)',
+                          color: '#ffffff',
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          boxShadow: '0 4px 12px rgba(14, 147, 132, 0.25)',
+                        }}
+                      >
+                        <Star size={16} style={{ fill: '#ffffff' }} />
+                        <span>Rate & Review Doctor</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Cancellation & Reschedule Engine (PA-801, PA-802) */}
+              {booking.status === 'confirmed' && (() => {
+                const slotStart = booking.slot?.startTime ? new Date(booking.slot.startTime) : null;
+                const now = new Date();
+                const hoursUntil = slotStart ? (slotStart.getTime() - now.getTime()) / (1000 * 60 * 60) : 0;
+                const isOver24h = hoursUntil >= 24;
+                const lateDeductionPercent = 30;
+                const price = Number(booking.price || 0);
+                const deductionAmount = Math.round(price * (lateDeductionPercent / 100) * 100) / 100;
+                const remainderAmount = Math.max(0, price - deductionAmount);
+
+                return (
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      borderRadius: '18px',
+                      border: '1px solid var(--color-slate-200)',
+                      padding: '24px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-slate-900)', margin: 0 }}>
+                        Cancellation & Rescheduling
+                      </h3>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '3px 8px',
+                          borderRadius: '8px',
+                          background: isOver24h ? '#ecfdf5' : '#fffbeb',
+                          color: isOver24h ? '#059669' : '#d97706',
+                          border: isOver24h ? '1px solid #a7f3d0' : '1px solid #fde68a',
+                        }}
+                      >
+                        {isOver24h ? '≥ 24h Window (No Penalty)' : '< 24h Window (30% Late Fee)'}
+                      </span>
+                    </div>
+
+                    <p style={{ fontSize: '0.85rem', color: 'var(--color-slate-500)', lineHeight: 1.5, marginBottom: '16px' }}>
+                      {isOver24h
+                        ? 'Your consultation is at least 24 hours away. You can reschedule to another available slot on this doctor’s calendar for free, or cancel for a 100% full refund.'
+                        : 'Short-notice cancellations within 24 hours allocate a 30% deduction fee to the consulting doctor. The remaining 70% is refunded to your card or wallet credits.'}
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {isOver24h && (
+                        <button
+                          onClick={() => setShowRescheduleModal(true)}
+                          style={{
+                            width: '100%',
+                            padding: '12px',
+                            borderRadius: '12px',
+                            border: 'none',
+                            background: 'var(--color-brand-600)',
+                            color: '#ffffff',
+                            fontWeight: 700,
+                            fontSize: '0.9rem',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            transition: 'all 0.2s',
+                          }}
+                        >
+                          <Calendar size={16} />
+                          <span>Reschedule Consultation (Free)</span>
+                        </button>
+                      )}
+
+                      <button
+                        onClick={() => setShowCancelModal(true)}
+                        style={{
+                          width: '100%',
+                          padding: '12px',
+                          borderRadius: '12px',
+                          border: '1px solid #fecaca',
+                          background: '#fef2f2',
+                          color: '#dc2626',
+                          fontWeight: 600,
+                          fontSize: '0.9rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                      >
+                        Cancel This Consultation
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         )}
       </div>
 
-      {/* Cancel Modal */}
-      {showCancelModal && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(15, 23, 42, 0.5)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            padding: '16px',
-          }}
-        >
+      {/* PA-801: Dynamic Cancellation Modal */}
+      {showCancelModal && booking && (() => {
+        const slotStart = booking.slot?.startTime ? new Date(booking.slot.startTime) : null;
+        const now = new Date();
+        const hoursUntil = slotStart ? (slotStart.getTime() - now.getTime()) / (1000 * 60 * 60) : 0;
+        const isOver24h = hoursUntil >= 24;
+        const lateDeductionPercent = 30;
+        const price = Number(booking.price || 0);
+        const deductionAmount = Math.round(price * (lateDeductionPercent / 100) * 100) / 100;
+        const remainderAmount = Math.max(0, price - deductionAmount);
+
+        return (
           <div
             style={{
-              background: '#ffffff',
-              borderRadius: '20px',
-              padding: '32px',
-              maxWidth: '480px',
-              width: '100%',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 100,
+              padding: '16px',
             }}
           >
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-slate-900)', marginBottom: '12px' }}>
-              Confirm Cancellation
-            </h3>
-            <p style={{ fontSize: '0.9rem', color: 'var(--color-slate-600)', marginBottom: '16px' }}>
-              Are you sure you want to cancel your consultation with {booking?.doctor?.fullName}? Your slot will be reopened to other patients and a refund will be processed.
-            </p>
-
-            <textarea
-              rows={2}
-              value={cancelReason}
-              onChange={(e) => setCancelReason(e.target.value)}
-              placeholder="Reason for cancellation (optional)"
+            <div
               style={{
+                background: '#ffffff',
+                borderRadius: '24px',
+                padding: '32px',
+                maxWidth: '520px',
                 width: '100%',
-                padding: '10px',
-                borderRadius: '8px',
-                border: '1px solid var(--color-slate-300)',
-                fontSize: '0.875rem',
-                marginBottom: '20px',
+                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
               }}
-            />
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <AlertCircle size={22} color={isOver24h ? '#059669' : '#dc2626'} />
+                <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
+                  Confirm Cancellation
+                </h3>
+              </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button
-                onClick={() => setShowCancelModal(false)}
-                disabled={isCancelling}
+              {/* Status Alert Banner */}
+              <div
                 style={{
-                  padding: '10px 18px',
+                  background: isOver24h ? '#ecfdf5' : '#fffbeb',
+                  border: isOver24h ? '1px solid #a7f3d0' : '1px solid #fde68a',
+                  color: isOver24h ? '#065f46' : '#92400e',
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  fontSize: '0.875rem',
+                  margin: '16px 0',
+                }}
+              >
+                {isOver24h ? (
+                  <div>
+                    <strong>Full Refund Eligible (≥ 24 Hours Away):</strong> Your appointment is scheduled for{' '}
+                    {booking.slot?.startTime ? new Date(booking.slot.startTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : 'later'}.
+                    You will receive 100% of your R{price.toFixed(2)} payment.
+                  </div>
+                ) : (
+                  <div>
+                    <strong>Short-Notice Cancellation (&lt; 24 Hours Away):</strong>
+                    <div style={{ marginTop: '4px', fontSize: '0.825rem' }}>
+                      Per policy, a 30% doctor reservation fee (<strong>R{deductionAmount.toFixed(2)}</strong>) will be allocated to Dr. {booking.doctor?.fullName}.
+                      The remaining 70% (<strong>R{remainderAmount.toFixed(2)}</strong>) is refunded to you.
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Refund Method Radio Selection */}
+              <div style={{ margin: '18px 0' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-slate-700)', display: 'block', marginBottom: '10px' }}>
+                  Choose Your Refund Preference:
+                </label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      border: refundAction === 'credit' ? '2px solid var(--color-brand-600)' : '1px solid var(--color-slate-200)',
+                      background: refundAction === 'credit' ? 'var(--color-brand-50)' : '#ffffff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="refundAction"
+                      value="credit"
+                      checked={refundAction === 'credit'}
+                      onChange={() => setRefundAction('credit')}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--color-slate-900)' }}>
+                        Platform Wallet Credit (R{(isOver24h ? price : remainderAmount).toFixed(2)})
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-500)' }}>
+                        Instant credit, never expires, automatically usable on future bookings.
+                      </div>
+                    </div>
+                  </label>
+
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      padding: '12px 14px',
+                      borderRadius: '12px',
+                      border: refundAction === 'refund' ? '2px solid var(--color-brand-600)' : '1px solid var(--color-slate-200)',
+                      background: refundAction === 'refund' ? 'var(--color-brand-50)' : '#ffffff',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="refundAction"
+                      value="refund"
+                      checked={refundAction === 'refund'}
+                      onChange={() => setRefundAction('refund')}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--color-slate-900)' }}>
+                        Original Payment Card (R{(isOver24h ? price : remainderAmount).toFixed(2)})
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-500)' }}>
+                        Processed via Paystack back to your bank card within 3–5 business days.
+                      </div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              {/* Optional reason */}
+              <textarea
+                rows={2}
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Reason for cancellation (optional)"
+                style={{
+                  width: '100%',
+                  padding: '10px',
                   borderRadius: '10px',
                   border: '1px solid var(--color-slate-300)',
-                  background: '#ffffff',
-                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  marginBottom: '20px',
+                  boxSizing: 'border-box',
                 }}
-              >
-                Go Back
-              </button>
-              <button
-                onClick={handleCancelBooking}
-                disabled={isCancelling}
-                style={{
-                  padding: '10px 20px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: '#dc2626',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
-              >
-                {isCancelling ? 'Processing...' : 'Confirm Cancellation'}
-              </button>
+              />
+
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button
+                  onClick={() => setShowCancelModal(false)}
+                  disabled={isCancelling}
+                  style={{
+                    padding: '10px 18px',
+                    borderRadius: '10px',
+                    border: '1px solid var(--color-slate-300)',
+                    background: '#ffffff',
+                    color: 'var(--color-slate-700)',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Keep Appointment
+                </button>
+                <button
+                  onClick={handleCancelBooking}
+                  disabled={isCancelling}
+                  style={{
+                    padding: '10px 22px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    background: '#dc2626',
+                    color: '#ffffff',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {isCancelling ? 'Processing Cancellation...' : 'Confirm Cancellation'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
+        );
+      })()}
+
+      {/* PA-802: Reschedule Calendar Modal */}
+      {showRescheduleModal && booking && (
+        <RescheduleModal
+          isOpen={showRescheduleModal}
+          onClose={() => setShowRescheduleModal(false)}
+          bookingId={booking.id}
+          doctorId={booking.doctor_id}
+          doctorName={booking.doctor?.fullName}
+          currentSlotTime={booking.slot?.startTime}
+          token={token}
+          onRescheduleSuccess={(updatedBooking) => {
+            setBooking(updatedBooking);
+            setShowRescheduleModal(false);
+          }}
+        />
+      )}
+
+      {/* PA-901: Post-Consultation Rating & Review Modal */}
+      {showReviewModal && booking && (
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          bookingId={booking.id}
+          doctorName={booking.doctor?.fullName}
+          doctorSpecialty={booking.doctor?.specialty}
+          doctorAvatar={booking.doctor?.avatarUrl || undefined}
+          token={token}
+          onReviewSubmitted={(saved) => {
+            setExistingReview(saved);
+            setShowReviewModal(false);
+          }}
+        />
       )}
     </div>
   );

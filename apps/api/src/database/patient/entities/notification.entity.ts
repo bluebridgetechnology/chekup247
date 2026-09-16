@@ -32,6 +32,18 @@ export class Notification {
   @Column({ type: 'jsonb', default: {} })
   payload: Record<string, any>;
 
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  title: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  deep_link: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  is_read: boolean;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  read_at: Date | null;
+
   @Column({
     type: 'enum',
     enum: NotificationDeliveryStatus,

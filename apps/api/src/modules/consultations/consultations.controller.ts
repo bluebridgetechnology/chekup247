@@ -35,9 +35,16 @@ export class ConsentExtensionDto {
   patientId?: string;
 }
 
+import { AuditService } from '../audit/audit.service';
+import { Req } from '@nestjs/common';
+import { Request } from 'express';
+
 @Controller('consultations')
 export class ConsultationsController {
-  constructor(private readonly consultationsService: ConsultationsService) {}
+  constructor(
+    private readonly consultationsService: ConsultationsService,
+    private readonly auditService: AuditService,
+  ) {}
 
   /**
    * Backward-compatible booking lookup.
@@ -87,17 +94,31 @@ export class ConsultationsController {
   }
 
   /**
-   * Saves doctor private clinical consultation notes to RDS (BE-605).
+   * Saves doctor private clinical consultation notes to RDS (BE-605, BE-907).
    */
   @Put(':bookingId/notes')
-  saveNotes(
+  async saveNotes(
     @Param('bookingId') bookingId: string,
     @Body() dto: SaveNotesDto,
+    @Req() req: Request,
   ) {
     if (typeof dto.notes !== 'string') {
       throw new BadRequestException('Notes content must be a string');
     }
-    return this.consultationsService.saveDoctorNotes(bookingId, dto.notes);
+    const result = await this.consultationsService.saveDoctorNotes(bookingId, dto.notes);
+
+    await this.auditService.logHealthRecordAccess({
+      patientId: result?.booking?.patient_id,
+      action: 'UPDATE_CONSULTATION_NOTES',
+      ipAddress: req.ip || (req.headers['x-forwarded-for'] as string),
+      userAgent: req.headers['user-agent'],
+      metadata: {
+        bookingId,
+        notesLength: dto.notes.length,
+      },
+    });
+
+    return result;
   }
 
   /**

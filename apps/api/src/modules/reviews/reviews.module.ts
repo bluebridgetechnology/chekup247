@@ -1,11 +1,20 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Review } from '../../database/patient/entities';
+import { BullModule } from '@nestjs/bullmq';
+import { Review, Booking } from '../../database/patient/entities';
+import { DoctorProfile, User } from '../../database/operational/entities';
+import { QUEUES } from '../queues/queue.constants';
 import { ReviewsController } from './reviews.controller';
 import { ReviewsService } from './reviews.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Review], 'patient')],
+  imports: [
+    TypeOrmModule.forFeature([Review, Booking], 'patient'),
+    TypeOrmModule.forFeature([DoctorProfile, User], 'operational'),
+    BullModule.registerQueue({
+      name: QUEUES.RATING_SYNC,
+    }),
+  ],
   controllers: [ReviewsController],
   providers: [ReviewsService],
   exports: [ReviewsService],

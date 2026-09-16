@@ -6,6 +6,7 @@ import {
   InternalServerErrorException,
   ForbiddenException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
@@ -21,8 +22,11 @@ import {
   AvailabilitySlot,
   DoctorProfile,
   User,
+  PlatformSetting,
 } from '../../database/operational/entities';
 import { PaymentsService } from '../payments/payments.service';
+import { NotificationsService } from '../notifications/notifications.service';
+import { ReminderScheduler } from '../queues/reminder.scheduler';
 import { QUEUES } from '../queues/queue.constants';
 
 export interface CreateBookingDto {
@@ -71,6 +75,8 @@ export class BookingsService {
     private readonly doctorRepository: Repository<DoctorProfile>,
     @InjectRepository(User, 'operational')
     private readonly userRepository: Repository<User>,
+    @InjectRepository(PlatformSetting, 'operational')
+    private readonly platformSettingRepository: Repository<PlatformSetting>,
     @InjectDataSource('operational')
     private readonly operationalDataSource: DataSource,
     @InjectDataSource('patient')
@@ -78,6 +84,10 @@ export class BookingsService {
     private readonly paymentsService: PaymentsService,
     @InjectQueue(QUEUES.BOOKING_DLQ)
     private readonly dlqQueue: Queue,
+    @Optional()
+    private readonly notificationsService?: NotificationsService,
+    @Optional()
+    private readonly reminderScheduler?: ReminderScheduler,
   ) {}
 
   /**
@@ -274,13 +284,21 @@ export class BookingsService {
   }
 
   /**
-   * Cancel booking with automatic refund processing & slot unlock (BE-507).
+   * BE-507 & BE-801: 24-Hour Cancellation & Deduction Policy Engine.
+   * Computes >=24h vs <24h rules, allocates penalty deduction to doctor,
+   * executes refund or credit issuance, cancels BullMQ reminders,
+   * and reopens availability slot on VPS.
    */
   async cancelBooking(
     bookingId: string,
     userId: string,
-    reason: string = 'Patient cancelled appointment',
+    reason?: string,
+    action: 'refund' | 'credit' = 'refund',
   ) {
+    this.logger.log(
+      `Cancelling booking ${bookingId} requested by user ${userId} with action=${action}`,
+    );
+
     const booking = await this.bookingRepository.findOne({
       where: { id: bookingId },
     });
@@ -299,46 +317,329 @@ export class BookingsService {
 
     // Check authorization: must be patient, or doctor of the booking
     const isPatient = booking.patient_id === userId;
-    const isDoctor = booking.doctor_id === userId;
+    let isDoctor = booking.doctor_id === userId;
+    let doctorProfile: DoctorProfile | null = null;
 
     if (!isPatient && !isDoctor) {
-      // Check if user is the doctor via doctor profile
-      const doctorProfile = await this.doctorRepository.findOne({
+      doctorProfile = await this.doctorRepository.findOne({
         where: { user_id: userId },
       });
-      if (!doctorProfile || doctorProfile.id !== booking.doctor_id) {
+      if (doctorProfile && doctorProfile.id === booking.doctor_id) {
+        isDoctor = true;
+      } else {
         throw new ForbiddenException('You are not authorized to cancel this booking');
       }
     }
 
-    // 1. Process refund if payment was held/completed
-    let refundResult = null;
-    if (booking.payment_status === PaymentStatus.HELD) {
-      refundResult = await this.paymentsService.processRefund({
-        bookingId: booking.id,
-        reason,
-        refundToWallet: true, // Default to wallet credit for instant patient benefit
-      });
+    // Fetch slot to compute 24-hour threshold
+    const slot = await this.slotRepository.findOne({
+      where: { id: booking.slot_id },
+      relations: ['doctor', 'doctor.user'],
+    });
+
+    const now = Date.now();
+    const slotStartMs = slot ? new Date(slot.start_time).getTime() : now;
+    const hoursUntilAppointment = (slotStartMs - now) / (1000 * 60 * 60);
+    const isOver24Hours = hoursUntilAppointment >= 24;
+
+    // Fetch platform setting for late cancellation deduction
+    let lateDeductionPercent = 30.0;
+    try {
+      const settings = await this.platformSettingRepository?.findOne({ where: {} });
+      if (settings?.late_cancellation_deduction_percent !== undefined) {
+        lateDeductionPercent = Number(settings.late_cancellation_deduction_percent);
+      }
+    } catch (_) {}
+
+    const totalPrice = Number(booking.price);
+    let deductionAmount = 0;
+    let remainderAmount = totalPrice;
+
+    // Doctor initiated cancellation (any time) -> 100% full refund to patient
+    // Patient initiated cancellation:
+    // >= 24h: 100% refund (card or credit)
+    // < 24h: configured deduction % (e.g. 30%) allocated to doctor, remainder (70%) to patient
+    if (isPatient && !isOver24Hours) {
+      deductionAmount = Math.round(totalPrice * (lateDeductionPercent / 100) * 100) / 100;
+      remainderAmount = Math.max(0, totalPrice - deductionAmount);
+      this.logger.log(
+        `Late cancellation (<24h). Price=${totalPrice}, deduction=${deductionAmount} (${lateDeductionPercent}%), remainder=${remainderAmount}`,
+      );
     }
 
-    // 2. Mark booking as cancelled
+    // Process refund / platform credit
+    let refundResult = null;
+    if (booking.payment_status === PaymentStatus.HELD || booking.payment_status === PaymentStatus.UNPAID) {
+      if (action === 'credit') {
+        // Option A: 100% Platform Credit (never expires)
+        await this.paymentsService.addWalletCredit(
+          booking.patient_id,
+          remainderAmount,
+          reason || `Platform credit for cancelled booking ${booking.id}`,
+          booking.id,
+        );
+        booking.payment_status = PaymentStatus.REFUNDED;
+        refundResult = {
+          success: true,
+          refund_method: 'wallet',
+          amount: remainderAmount,
+          message: 'Platform credit issued to wallet',
+        };
+      } else {
+        // Option B: Cash refund to original card
+        refundResult = await this.paymentsService.processRefund({
+          bookingId: booking.id,
+          amount: remainderAmount,
+          reason: reason || 'Booking cancellation',
+          refundToWallet: false,
+        });
+      }
+    }
+
+    // Mark booking as cancelled
     booking.status = BookingStatus.CANCELLED;
     await this.bookingRepository.save(booking);
 
-    // 3. Unlock availability slot on VPS Postgres
-    await this.slotRepository.update(
-      { id: booking.slot_id },
-      { is_booked: false },
-    );
-    this.logger.log(`Booking ${bookingId} cancelled and slot ${booking.slot_id} unlocked`);
+    // Reopen availability slot on VPS Postgres
+    if (slot) {
+      slot.is_booked = false;
+      await this.slotRepository.save(slot);
+    } else {
+      await this.slotRepository.update({ id: booking.slot_id }, { is_booked: false });
+    }
+
+    // Cancel delayed BullMQ reminders
+    if (this.reminderScheduler) {
+      await this.reminderScheduler.cancelBookingReminders(booking.id);
+    }
+
+    // Multi-Channel Notifications Dispatch (BE-807)
+    if (this.notificationsService) {
+      const formattedDate = slot
+        ? new Date(slot.start_time).toLocaleDateString('en-ZA', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          })
+        : 'scheduled date';
+
+      // Alert Patient
+      await this.notificationsService.dispatchNotification({
+        recipientId: booking.patient_id,
+        title: 'Booking Cancelled',
+        templateId: 'booking_cancelled',
+        payload: {
+          bookingId: booking.id,
+          doctorName: slot?.doctor?.user?.full_name || 'Doctor',
+          appointmentDate: formattedDate,
+          refundStatus: isOver24Hours
+            ? '100% full refund processed'
+            : `Late cancellation: R${deductionAmount.toFixed(2)} allocated to doctor, remainder R${remainderAmount.toFixed(2)} processed.`,
+          creditAmount: action === 'credit' ? remainderAmount : null,
+          message: `Your booking for ${formattedDate} has been cancelled.`,
+        },
+        deepLink: `/bookings`,
+      });
+
+      // Alert Doctor
+      const doctorUserId = slot?.doctor?.user_id;
+      if (doctorUserId) {
+        await this.notificationsService.dispatchNotification({
+          recipientId: doctorUserId,
+          title: 'Appointment Cancelled',
+          templateId: 'booking_cancelled',
+          payload: {
+            bookingId: booking.id,
+            appointmentDate: formattedDate,
+            deductionAmount,
+            message: deductionAmount > 0
+              ? `Appointment for ${formattedDate} was cancelled within 24h. Late cancellation fee of R${deductionAmount.toFixed(2)} allocated to you.`
+              : `Appointment for ${formattedDate} was cancelled by patient.`,
+          },
+          deepLink: `/calendar`,
+        });
+      }
+    }
+
+    this.logger.log(`Booking ${bookingId} cancelled and slot reopened.`);
 
     return {
       success: true,
       booking_id: booking.id,
       status: booking.status,
+      is_over_24h: isOver24Hours,
+      deduction_percent: isOver24Hours || isDoctor ? 0 : lateDeductionPercent,
+      deduction_amount: deductionAmount,
+      refund_amount: remainderAmount,
+      refund_method: action === 'credit' ? 'wallet' : 'card',
       refund: refundResult,
-      message: 'Booking cancelled successfully and slot reopened.',
+      message: isOver24Hours
+        ? 'Booking cancelled with 100% refund.'
+        : `Booking cancelled within 24 hours. ${lateDeductionPercent}% (R${deductionAmount.toFixed(2)}) allocated to doctor as late fee. Remainder R${remainderAmount.toFixed(2)} processed.`,
     };
+  }
+
+  /**
+   * BE-802: Appointment Rescheduling Engine.
+   * Atomically swaps slot reference on VPS, updates booking on AWS RDS,
+   * reschedules BullMQ reminders, and dispatches notifications.
+   */
+  async rescheduleBooking(
+    bookingId: string,
+    userId: string,
+    dto: { newSlotId: string; reason?: string },
+  ): Promise<StitchedBookingResponse> {
+    const { newSlotId } = dto;
+    this.logger.log(`Rescheduling booking ${bookingId} to slot ${newSlotId} for user ${userId}`);
+
+    const booking = await this.bookingRepository.findOne({
+      where: { id: bookingId },
+    });
+
+    if (!booking) {
+      throw new NotFoundException(`Booking ${bookingId} not found`);
+    }
+
+    if (booking.status !== BookingStatus.CONFIRMED && booking.status !== BookingStatus.PENDING) {
+      throw new BadRequestException(`Cannot reschedule booking in status: ${booking.status}`);
+    }
+
+    // Check authorization
+    const isPatient = booking.patient_id === userId;
+    let isDoctor = booking.doctor_id === userId;
+
+    if (!isPatient && !isDoctor) {
+      const doctorProfile = await this.doctorRepository.findOne({ where: { user_id: userId } });
+      if (doctorProfile && doctorProfile.id === booking.doctor_id) {
+        isDoctor = true;
+      } else {
+        throw new ForbiddenException('You are not authorized to reschedule this booking');
+      }
+    }
+
+    // Fetch old slot
+    const oldSlot = await this.slotRepository.findOne({ where: { id: booking.slot_id } });
+    if (!oldSlot) {
+      throw new NotFoundException('Current availability slot not found');
+    }
+
+    // Patient rule: >= 24h threshold
+    const now = Date.now();
+    const oldSlotStartMs = new Date(oldSlot.start_time).getTime();
+    if (isPatient && (oldSlotStartMs - now) < 24 * 60 * 60 * 1000) {
+      throw new BadRequestException(
+        'Rescheduling is only permitted at least 24 hours prior to appointment start time. Within 24 hours, please cancel to apply late policy.',
+      );
+    }
+
+    // Fetch new slot
+    const newSlot = await this.slotRepository.findOne({
+      where: { id: newSlotId },
+      relations: ['doctor', 'doctor.user'],
+    });
+
+    if (!newSlot) {
+      throw new NotFoundException(`Replacement slot ${newSlotId} not found`);
+    }
+
+    if (newSlot.doctor_id !== booking.doctor_id) {
+      throw new BadRequestException('Replacement slot must belong to the same doctor');
+    }
+
+    if (newSlot.is_booked || newSlot.is_locked) {
+      throw new ConflictException('Selected replacement slot is no longer available');
+    }
+
+    if (new Date(newSlot.start_time).getTime() <= now) {
+      throw new BadRequestException('Cannot reschedule to a past time slot');
+    }
+
+    // Atomic swap on VPS DB
+    const queryRunner = this.operationalDataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      newSlot.is_booked = true;
+      await queryRunner.manager.save(AvailabilitySlot, newSlot);
+
+      oldSlot.is_booked = false;
+      await queryRunner.manager.save(AvailabilitySlot, oldSlot);
+
+      await queryRunner.commitTransaction();
+    } catch (err: any) {
+      await queryRunner.rollbackTransaction();
+      this.logger.error(`Atomic slot swap failed on VPS: ${err.message}`);
+      throw new InternalServerErrorException('Failed to swap availability slots');
+    } finally {
+      await queryRunner.release();
+    }
+
+    // Update booking on AWS RDS
+    booking.slot_id = newSlot.id;
+    await this.bookingRepository.save(booking);
+
+    // Reschedule BullMQ reminders
+    if (this.reminderScheduler) {
+      await this.reminderScheduler.cancelBookingReminders(booking.id);
+      await this.reminderScheduler.scheduleBookingReminders({
+        bookingId: booking.id,
+        patientId: booking.patient_id,
+        doctorId: booking.doctor_id,
+        slotStartTime: newSlot.start_time,
+        doctorName: newSlot.doctor?.user?.full_name || 'Doctor',
+      });
+    }
+
+    // Dispatch notifications
+    const formattedDate = new Date(newSlot.start_time).toLocaleDateString('en-ZA', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+    });
+    const formattedTime = new Date(newSlot.start_time).toLocaleTimeString('en-ZA', {
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    if (this.notificationsService) {
+      // Patient notification
+      await this.notificationsService.dispatchNotification({
+        recipientId: booking.patient_id,
+        title: 'Appointment Rescheduled',
+        templateId: 'booking_rescheduled',
+        payload: {
+          bookingId: booking.id,
+          doctorName: newSlot.doctor?.user?.full_name || 'Doctor',
+          appointmentDate: formattedDate,
+          appointmentTime: formattedTime,
+          message: `Your appointment with Dr. ${newSlot.doctor?.user?.full_name || 'Doctor'} has been rescheduled to ${formattedDate} at ${formattedTime}.`,
+        },
+        deepLink: `/bookings/${booking.id}`,
+      });
+
+      // Doctor notification
+      const doctorUser = newSlot.doctor?.user_id;
+      if (doctorUser) {
+        await this.notificationsService.dispatchNotification({
+          recipientId: doctorUser,
+          title: 'Appointment Rescheduled',
+          templateId: 'booking_rescheduled',
+          payload: {
+            bookingId: booking.id,
+            appointmentDate: formattedDate,
+            appointmentTime: formattedTime,
+            message: `An appointment was rescheduled to ${formattedDate} at ${formattedTime}.`,
+          },
+          deepLink: `/calendar`,
+        });
+      }
+    }
+
+    this.logger.log(`Booking ${bookingId} successfully rescheduled to slot ${newSlotId}`);
+    return this.getBookingById(booking.id, userId);
   }
 
   /**

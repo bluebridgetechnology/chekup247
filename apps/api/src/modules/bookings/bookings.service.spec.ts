@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { BookingsService } from './bookings.service';
 import { Booking, BookingStatus, PaymentStatus, Payment } from '../../database/patient/entities';
-import { AvailabilitySlot, DoctorProfile, User } from '../../database/operational/entities';
+import { AvailabilitySlot, DoctorProfile, User, PlatformSetting } from '../../database/operational/entities';
 import { PaymentsService } from '../payments/payments.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { QUEUES } from '../queues/queue.constants';
@@ -46,6 +46,7 @@ describe('BookingsService (Saga & Cross-DB)', () => {
   const mockSlotRepository = {
     update: jest.fn().mockResolvedValue({ affected: 1 }),
     find: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn(),
     save: jest.fn(),
   };
 
@@ -59,8 +60,16 @@ describe('BookingsService (Saga & Cross-DB)', () => {
     findOne: jest.fn(),
   };
 
+  const mockPlatformSettingRepository = {
+    findOne: jest.fn().mockResolvedValue({
+      late_cancellation_deduction_percent: 30.0,
+      commission_percent: 15.0,
+    }),
+  };
+
   const mockPaymentsService = {
-    processRefund: jest.fn().mockResolvedValue({ success: true }),
+    processRefund: jest.fn().mockResolvedValue({ success: true, refund_method: 'paystack' }),
+    addWalletCredit: jest.fn().mockResolvedValue({ id: 'credit-1', amount: 700 }),
   };
 
   const mockDlqQueue = {
@@ -82,6 +91,7 @@ describe('BookingsService (Saga & Cross-DB)', () => {
         { provide: getRepositoryToken(AvailabilitySlot, 'operational'), useValue: mockSlotRepository },
         { provide: getRepositoryToken(DoctorProfile, 'operational'), useValue: mockDoctorRepository },
         { provide: getRepositoryToken(User, 'operational'), useValue: mockUserRepository },
+        { provide: getRepositoryToken(PlatformSetting, 'operational'), useValue: mockPlatformSettingRepository },
         { provide: 'operationalDataSource', useValue: mockOperationalDataSource },
         { provide: 'patientDataSource', useValue: mockPatientDataSource },
         { provide: PaymentsService, useValue: mockPaymentsService },
@@ -179,7 +189,8 @@ describe('BookingsService (Saga & Cross-DB)', () => {
   });
 
   describe('cancelBooking', () => {
-    it('should cancel booking, trigger refund, and release availability slot', async () => {
+    it('should cancel booking with 100% refund when >= 24h away', async () => {
+      const futureDate = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours away
       const booking = {
         id: 'booking-1',
         patient_id: 'patient-1',
@@ -187,23 +198,120 @@ describe('BookingsService (Saga & Cross-DB)', () => {
         slot_id: 'slot-1',
         status: BookingStatus.CONFIRMED,
         payment_status: PaymentStatus.HELD,
+        price: 1000,
+      };
+
+      const slot = {
+        id: 'slot-1',
+        doctor_id: 'doc-1',
+        start_time: futureDate,
+        is_booked: true,
       };
 
       mockBookingRepository.findOne.mockResolvedValue(booking);
+      mockSlotRepository.findOne.mockResolvedValue(slot);
 
-      const res = await service.cancelBooking('booking-1', 'patient-1', 'Emergency');
+      const res = await service.cancelBooking('booking-1', 'patient-1', 'Emergency', 'refund');
 
       expect(res.success).toBe(true);
+      expect(res.is_over_24h).toBe(true);
+      expect(res.deduction_percent).toBe(0);
+      expect(res.refund_amount).toBe(1000);
       expect(booking.status).toBe(BookingStatus.CANCELLED);
+      expect(slot.is_booked).toBe(false);
       expect(mockPaymentsService.processRefund).toHaveBeenCalledWith({
         bookingId: 'booking-1',
+        amount: 1000,
         reason: 'Emergency',
-        refundToWallet: true,
+        refundToWallet: false,
       });
-      expect(mockSlotRepository.update).toHaveBeenCalledWith(
-        { id: 'slot-1' },
-        { is_booked: false },
+    });
+
+    it('should apply late cancellation deduction (30%) when < 24h away', async () => {
+      const nearFutureDate = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours away (< 24h)
+      const booking = {
+        id: 'booking-2',
+        patient_id: 'patient-1',
+        doctor_id: 'doc-1',
+        slot_id: 'slot-2',
+        status: BookingStatus.CONFIRMED,
+        payment_status: PaymentStatus.HELD,
+        price: 1000,
+      };
+
+      const slot = {
+        id: 'slot-2',
+        doctor_id: 'doc-1',
+        start_time: nearFutureDate,
+        is_booked: true,
+      };
+
+      mockBookingRepository.findOne.mockResolvedValue(booking);
+      mockSlotRepository.findOne.mockResolvedValue(slot);
+
+      const res = await service.cancelBooking('booking-2', 'patient-1', 'Traffic', 'credit');
+
+      expect(res.success).toBe(true);
+      expect(res.is_over_24h).toBe(false);
+      expect(res.deduction_percent).toBe(30);
+      expect(res.deduction_amount).toBe(300);
+      expect(res.refund_amount).toBe(700);
+      expect(res.refund_method).toBe('wallet');
+      expect(mockPaymentsService.addWalletCredit).toHaveBeenCalledWith(
+        'patient-1',
+        700,
+        'Traffic',
+        'booking-2',
       );
+      expect(slot.is_booked).toBe(false);
+    });
+  });
+
+  describe('rescheduleBooking', () => {
+    it('should atomically swap slots when rescheduling >= 24h away', async () => {
+      const oldFutureDate = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      const newFutureDate = new Date(Date.now() + 72 * 60 * 60 * 1000);
+
+      const booking = {
+        id: 'booking-1',
+        patient_id: 'patient-1',
+        doctor_id: 'doc-1',
+        slot_id: 'old-slot-1',
+        status: BookingStatus.CONFIRMED,
+        payment_status: PaymentStatus.HELD,
+        price: 1000,
+      };
+
+      const oldSlot = {
+        id: 'old-slot-1',
+        doctor_id: 'doc-1',
+        start_time: oldFutureDate,
+        is_booked: true,
+      };
+
+      const newSlot = {
+        id: 'new-slot-2',
+        doctor_id: 'doc-1',
+        start_time: newFutureDate,
+        is_booked: false,
+        is_locked: false,
+        doctor: { user: { full_name: 'Dr. Test' } },
+      };
+
+      mockBookingRepository.findOne.mockResolvedValue(booking);
+      mockSlotRepository.findOne
+        .mockResolvedValueOnce(oldSlot)
+        .mockResolvedValueOnce(newSlot);
+
+      const res = await service.rescheduleBooking('booking-1', 'patient-1', {
+        newSlotId: 'new-slot-2',
+        reason: 'Shift clash',
+      });
+
+      expect(booking.slot_id).toBe('new-slot-2');
+      expect(oldSlot.is_booked).toBe(false);
+      expect(newSlot.is_booked).toBe(true);
+      expect(res.id).toBe('booking-1');
     });
   });
 

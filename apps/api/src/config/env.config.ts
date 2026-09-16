@@ -83,6 +83,20 @@ const envSchema = z.object({
   DAILY_API_KEY: z.string().optional().default(''),
   DAILY_DOMAIN: z.string().default('chekup247'),
   DAILY_API_URL: z.string().default('https://api.daily.co/v1'),
+
+  // Brevo Transactional Email Integration (BE-804)
+  BREVO_API_KEY: z.string().optional().default(''),
+  BREVO_SENDER_EMAIL: z.string().default('notifications@chekup247.co.za'),
+  BREVO_SENDER_NAME: z.string().default('ChekUp247 Telehealth'),
+
+  // SMS Gateway Integration (BE-805)
+  TWILIO_ACCOUNT_SID: z.string().optional().default(''),
+  TWILIO_AUTH_TOKEN: z.string().optional().default(''),
+  TWILIO_FROM_NUMBER: z.string().optional().default('+27110000000'),
+
+  // WhatsApp Business API Integration (BE-806)
+  WHATSAPP_API_TOKEN: z.string().optional().default(''),
+  WHATSAPP_PHONE_NUMBER_ID: z.string().optional().default(''),
 });
 
 
