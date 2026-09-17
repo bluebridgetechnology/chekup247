@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { io, Socket } from 'socket.io-client';
 import Link from 'next/link';
 import {
   Video,
@@ -30,7 +31,6 @@ import {
   Plus,
 } from 'lucide-react';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
-import { io, Socket } from 'socket.io-client';
 import { useDoctorAuth } from '../../../context/DoctorAuthContext';
 
 interface ConsultationDetail {

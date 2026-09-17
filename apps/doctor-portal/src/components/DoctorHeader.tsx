@@ -14,7 +14,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { useDoctorAuth } from '../context/DoctorAuthContext';
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 
 export type DoctorStatus = 'active' | 'in_consultation' | 'offline';
 
@@ -73,30 +73,44 @@ export function DoctorHeader() {
 
     fetchNotifications();
 
+    let activeSocket: Socket | null = null;
+    let isCancelled = false;
+
     const socketUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace('/api/v1', '');
-    try {
-      const socket = io(`${socketUrl}/notifications`, {
-        transports: ['websocket'],
-        reconnection: true,
+
+    import('socket.io-client')
+      .then(({ io }) => {
+        if (isCancelled) return;
+        const socket = io(`${socketUrl}/notifications`, {
+          transports: ['websocket'],
+          reconnection: true,
+        });
+
+        socket.on('connect', () => {
+          socket.emit('subscribe_user', { userId: doctor.id });
+        });
+
+        socket.on('new_notification', (notif: DoctorNotification) => {
+          setNotifications((prev) => [notif, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        });
+
+        activeSocket = socket;
+        socketRef.current = socket;
+      })
+      .catch((err) => {
+        console.warn('Doctor WebSocket notification subscription failed:', err);
       });
 
-      socket.on('connect', () => {
-        socket.emit('subscribe_user', { userId: doctor.id });
-      });
-
-      socket.on('new_notification', (notif: DoctorNotification) => {
-        setNotifications((prev) => [notif, ...prev]);
-        setUnreadCount((prev) => prev + 1);
-      });
-
-      socketRef.current = socket;
-
-      return () => {
-        socket.disconnect();
-      };
-    } catch (err) {
-      console.warn('Doctor WebSocket notification subscription failed:', err);
-    }
+    return () => {
+      isCancelled = true;
+      if (activeSocket) {
+        activeSocket.disconnect();
+      }
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
   }, [isAuthenticated, token, doctor]);
 
   // Click outside listener for notifications dropdown

@@ -13,7 +13,7 @@ import {
   Check,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 
 export interface AppNotification {
   id: string;
@@ -61,31 +61,45 @@ export function NotificationBell() {
 
     fetchNotifications();
 
+    let activeSocket: Socket | null = null;
+    let isCancelled = false;
+
     // Setup WebSocket connection to /notifications namespace
     const socketUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace('/api/v1', '');
-    try {
-      const socket = io(`${socketUrl}/notifications`, {
-        transports: ['websocket'],
-        reconnection: true,
+
+    import('socket.io-client')
+      .then(({ io }) => {
+        if (isCancelled) return;
+        const socket = io(`${socketUrl}/notifications`, {
+          transports: ['websocket'],
+          reconnection: true,
+        });
+
+        socket.on('connect', () => {
+          socket.emit('subscribe_user', { userId: user.id });
+        });
+
+        socket.on('new_notification', (notif: AppNotification) => {
+          setNotifications((prev) => [notif, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        });
+
+        activeSocket = socket;
+        socketRef.current = socket;
+      })
+      .catch((err) => {
+        console.warn('WebSocket notification subscription failed:', err);
       });
 
-      socket.on('connect', () => {
-        socket.emit('subscribe_user', { userId: user.id });
-      });
-
-      socket.on('new_notification', (notif: AppNotification) => {
-        setNotifications((prev) => [notif, ...prev]);
-        setUnreadCount((prev) => prev + 1);
-      });
-
-      socketRef.current = socket;
-
-      return () => {
-        socket.disconnect();
-      };
-    } catch (err) {
-      console.warn('WebSocket notification subscription failed:', err);
-    }
+    return () => {
+      isCancelled = true;
+      if (activeSocket) {
+        activeSocket.disconnect();
+      }
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
   }, [isAuthenticated, token, user]);
 
   // Click outside to close

@@ -2,10 +2,78 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Menu, X, ShieldCheck, Video, User } from 'lucide-react';
+import { SolarIcon } from './SolarIcon';
 import { MobileDrawer } from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
+
+/**
+ * Precision Chekup247 Brand Medical Cross Mark
+ * Diagonal seam and light reflection glint matching the design reference
+ */
+export function ChekupCrossLogo({ size = 26 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 28 28"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: 'block', flexShrink: 0 }}
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="crossGoldGrad" x1="3" y1="2" x2="25" y2="26" gradientUnits="userSpaceOnUse">
+          <stop offset="0%" stopColor="var(--color-gold-light)" />
+          <stop offset="50%" stopColor="var(--color-gold-base)" />
+          <stop offset="100%" stopColor="var(--color-gold-dark)" />
+        </linearGradient>
+        <clipPath id="crossClipShape">
+          <rect x="9.5" y="1.5" width="9" height="25" rx="4.5" />
+          <rect x="1.5" y="9.5" width="25" height="9" rx="4.5" />
+        </clipPath>
+      </defs>
+
+      <g clipPath="url(#crossClipShape)">
+        <rect x="0" y="0" width="28" height="28" fill="url(#crossGoldGrad)" />
+        {/* Diagonal split seam */}
+        <line
+          x1="5"
+          y1="23"
+          x2="23"
+          y2="5"
+          stroke="var(--color-chocolate-base)"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+        />
+        {/* Reflection highlight along the diagonal seam */}
+        <path
+          d="M8.5 21L21 8.5"
+          stroke="var(--color-white)"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeOpacity="0.85"
+        />
+        {/* Soft specular reflection */}
+        <ellipse cx="17.5" cy="12" rx="3.5" ry="1.8" transform="rotate(-45 17.5 12)" fill="var(--color-white)" fillOpacity="0.3" />
+      </g>
+    </svg>
+  );
+}
+
+interface NavItem {
+  label: string;
+  href: string;
+  isActive?: boolean;
+}
+
+const NAV_LINKS: NavItem[] = [
+  { label: 'Home', href: '/', isActive: true },
+  { label: 'Doctor Consultation', href: '/doctors' },
+  { label: 'How It Works', href: '/how-it-works' },
+  { label: 'For Providers', href: '/for-doctors' },
+  { label: 'About', href: '/about' },
+];
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -18,202 +86,126 @@ export function Navbar() {
           position: 'sticky',
           top: 0,
           zIndex: 50,
-          background: 'rgba(255, 255, 255, 0.85)',
-          backdropFilter: 'blur(12px)',
-          borderBottom: '1px solid var(--color-slate-200)',
+          backgroundColor: 'var(--color-chocolate-base)',
+          width: '100%',
+          borderBottom: 'none',
         }}
       >
         <div
-          className="container"
           style={{
+            maxWidth: '1240px',
+            margin: '0 auto',
+            padding: '0 32px',
+            height: '74px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            height: '72px',
+            flexWrap: 'nowrap',
           }}
+          className="header-inner"
         >
-          {/* Brand Logo */}
+          {/* LEFT SIDE: Brand Logo */}
           <Link
             href="/"
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              fontWeight: 800,
-              fontSize: '1.35rem',
-              color: 'var(--color-brand-600)',
-              letterSpacing: '-0.03em',
+              gap: '10px',
+              textDecoration: 'none',
+              flexShrink: 0,
             }}
+            aria-label="Chekup247 Home"
           >
-            <div
+            <ChekupCrossLogo size={26} />
+            <span
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'linear-gradient(135deg, var(--color-brand-500) 0%, var(--color-brand-700) 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#fff',
-                boxShadow: '0 4px 10px rgba(14, 147, 132, 0.3)',
+                fontSize: '1.28rem',
+                fontWeight: 700,
+                letterSpacing: '-0.02em',
+                lineHeight: 1,
+                display: 'inline-flex',
+                alignItems: 'baseline',
+                fontFamily: 'var(--font-heading), sans-serif',
               }}
             >
-              <Video size={20} />
-            </div>
-            <span>
-              ChekUp<span style={{ color: 'var(--color-slate-900)' }}>247</span>
+              <span style={{ color: 'var(--color-white)' }}>Chekup</span>
+              <span style={{ color: 'var(--color-gold-base)' }}>247</span>
             </span>
           </Link>
 
-          {/* Desktop Navigation Links */}
+          {/* CENTER: Navigation Links */}
           <nav
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '28px',
+              gap: '32px',
             }}
             className="desktop-nav"
+            aria-label="Primary Navigation"
           >
-            <Link
-              href="/doctors"
-              style={{
-                fontSize: '0.925rem',
-                fontWeight: 600,
-                color: 'var(--color-brand-600)',
-                transition: 'color 0.2s',
-              }}
-            >
-              Find a Doctor
-            </Link>
-            <Link
-              href="/how-it-works"
-              style={{
-                fontSize: '0.925rem',
-                fontWeight: 500,
-                color: 'var(--color-slate-700)',
-                transition: 'color 0.2s',
-              }}
-            >
-              How It Works
-            </Link>
-            <Link
-              href="/for-doctors"
-              style={{
-                fontSize: '0.925rem',
-                fontWeight: 500,
-                color: 'var(--color-slate-700)',
-                transition: 'color 0.2s',
-              }}
-            >
-              For Doctors
-            </Link>
-            <Link
-              href="/pricing"
-              style={{
-                fontSize: '0.925rem',
-                fontWeight: 500,
-                color: 'var(--color-slate-700)',
-                transition: 'color 0.2s',
-              }}
-            >
-              Pricing
-            </Link>
-            <Link
-              href="/about"
-              style={{
-                fontSize: '0.925rem',
-                fontWeight: 500,
-                color: 'var(--color-slate-700)',
-                transition: 'color 0.2s',
-              }}
-            >
-              About
-            </Link>
-            <Link
-              href="/faq"
-              style={{
-                fontSize: '0.925rem',
-                fontWeight: 500,
-                color: 'var(--color-slate-700)',
-                transition: 'color 0.2s',
-              }}
-            >
-              FAQ
-            </Link>
-            <Link
-              href="/contact"
-              style={{
-                fontSize: '0.925rem',
-                fontWeight: 500,
-                color: 'var(--color-slate-700)',
-                transition: 'color 0.2s',
-              }}
-            >
-              Contact
-            </Link>
+            {NAV_LINKS.map((item) => (
+              <Link
+                key={item.label}
+                href={item.href}
+                style={{
+                  position: 'relative',
+                  fontSize: '0.875rem',
+                  fontWeight: item.isActive ? 600 : 500,
+                  color: item.isActive ? 'var(--color-white)' : 'var(--color-white-80)',
+                  textDecoration: 'none',
+                  transition: 'color 0.2s ease',
+                  padding: '6px 0',
+                  display: 'inline-flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  letterSpacing: '-0.01em',
+                  whiteSpace: 'nowrap',
+                }}
+                className={`nav-link ${item.isActive ? 'active' : ''}`}
+              >
+                <span>{item.label}</span>
+                {item.isActive && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      bottom: '-2px',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: '28px',
+                      height: '2px',
+                      backgroundColor: 'var(--color-gold-base)',
+                      borderRadius: '1px',
+                    }}
+                    aria-hidden="true"
+                  />
+                )}
+              </Link>
+            ))}
           </nav>
 
-          {/* Action CTAs */}
+          {/* RIGHT SIDE: Log In & Primary CTA */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
+              gap: '24px',
+              flexShrink: 0,
             }}
-            className="desktop-ctas"
+            className="header-actions"
           >
-            <a
-              href="http://localhost:3001"
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--color-brand-600)',
-                padding: '8px 14px',
-                borderRadius: '8px',
-              }}
-            >
-              Doctor Portal
-            </a>
             {isAuthenticated && user ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }} className="auth-actions">
                 <Link
                   href="/bookings"
                   style={{
                     fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--color-slate-700)',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    transition: 'color 0.2s',
+                    fontWeight: 500,
+                    color: 'var(--color-white-85)',
+                    textDecoration: 'none',
                   }}
+                  className="auth-link"
                 >
                   My Bookings
-                </Link>
-                <Link
-                  href="/prescriptions"
-                  style={{
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--color-slate-700)',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    transition: 'color 0.2s',
-                  }}
-                >
-                  Prescriptions
-                </Link>
-                <Link
-                  href="/wallet"
-                  style={{
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--color-slate-700)',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    transition: 'color 0.2s',
-                  }}
-                >
-                  Wallet
                 </Link>
                 <NotificationBell />
                 <Link
@@ -222,67 +214,80 @@ export function Navbar() {
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
-                    padding: '6px 14px',
-                    borderRadius: 'var(--radius-full)',
-                    background: 'var(--color-brand-50)',
-                    color: 'var(--color-brand-700)',
+                    padding: '5px 12px',
+                    borderRadius: '9999px',
+                    background: 'var(--color-gold-glow)',
+                    color: 'var(--color-gold-base)',
                     fontWeight: 600,
-                    fontSize: '0.875rem',
-                    border: '1px solid var(--color-brand-200)',
+                    fontSize: '0.85rem',
+                    textDecoration: 'none',
+                    border: '1px solid var(--color-gold-glow)',
                   }}
                 >
-                  <div
-                    style={{
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      background: 'var(--color-brand-500)',
-                      color: '#fff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {user.fullName ? user.fullName[0].toUpperCase() : 'P'}
-                  </div>
-                  <span>{user.fullName?.split(' ')[0] || 'My Profile'}</span>
+                  <span>{user.fullName?.split(' ')[0] || 'Profile'}</span>
                 </Link>
                 <button
                   onClick={() => logout()}
                   style={{
                     background: 'transparent',
                     border: 'none',
-                    color: 'var(--color-slate-500)',
+                    color: 'var(--color-white-65)',
                     fontSize: '0.85rem',
                     fontWeight: 500,
                     cursor: 'pointer',
-                    padding: '6px 10px',
+                    padding: '4px 6px',
                   }}
+                  className="auth-signout"
                 >
                   Sign Out
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Link
-                  href="/login"
-                  style={{
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    color: 'var(--color-slate-700)',
-                    padding: '8px 14px',
-                  }}
-                >
-                  Sign In
-                </Link>
-                <Link href="/register" className="btn-primary">
-                  <User size={16} />
-                  <span>Register</span>
-                </Link>
-              </div>
+              <Link
+                href="/login"
+                style={{
+                  fontSize: '0.875rem',
+                  fontWeight: 500,
+                  color: 'var(--color-white-85)',
+                  textDecoration: 'none',
+                  transition: 'color 0.2s ease',
+                  letterSpacing: '-0.01em',
+                  whiteSpace: 'nowrap',
+                }}
+                className="nav-link-login"
+              >
+                Patient Log In
+              </Link>
             )}
+
+            {/* Primary Navigation CTA */}
+            <Link
+              href="/register"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--color-gold-primary)',
+                color: 'var(--color-chocolate-base)',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                padding: '8px 20px',
+                borderRadius: '9999px',
+                textDecoration: 'none',
+                lineHeight: 1,
+                height: '38px',
+                boxSizing: 'border-box',
+                transition: 'all 0.2s ease',
+                letterSpacing: '-0.01em',
+                whiteSpace: 'nowrap',
+              }}
+              className="nav-btn-get-started"
+            >
+              <span>Get Started</span>
+              <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
+            </Link>
+
+            {/* Compact Mobile Menu Trigger */}
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
               style={{
@@ -291,33 +296,25 @@ export function Navbar() {
                 border: 'none',
                 cursor: 'pointer',
                 padding: '6px',
-                color: 'var(--color-slate-700)',
+                color: 'var(--color-gold-base)',
+                marginLeft: '4px',
               }}
               className="mobile-toggle"
               aria-label="Toggle Navigation"
             >
-              {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+              {mobileOpen ? (
+                <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base)" />
+              ) : (
+                <SolarIcon name="hamburger-menu-linear" size={24} color="var(--color-gold-base)" />
+              )}
             </button>
           </div>
         </div>
       </header>
 
-      {/* Mobile Drawer */}
+      {/* Mobile Navigation Drawer */}
       <MobileDrawer isOpen={mobileOpen} onClose={() => setMobileOpen(false)} />
-
-      <style jsx global>{`
-        @media (max-width: 768px) {
-          .desktop-nav {
-            display: none !important;
-          }
-          .desktop-ctas a {
-            display: none !important;
-          }
-          .mobile-toggle {
-            display: block !important;
-          }
-        }
-      `}</style>
     </>
   );
 }
+

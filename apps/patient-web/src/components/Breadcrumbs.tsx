@@ -20,8 +20,9 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
         alignItems: 'center',
         gap: '8px',
         fontSize: '0.875rem',
-        color: 'var(--color-slate-500)',
+        color: 'var(--color-cream-text-muted)',
         marginBottom: '24px',
+        fontFamily: 'var(--font-sans)',
       }}
     >
       <Link
@@ -30,8 +31,9 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
           display: 'flex',
           alignItems: 'center',
           gap: '4px',
-          color: 'var(--color-slate-600)',
+          color: 'var(--color-gold-base)',
           textDecoration: 'none',
+          transition: 'color 0.18s ease',
         }}
       >
         <Home size={14} />
@@ -43,15 +45,15 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
 
         return (
           <React.Fragment key={index}>
-            <ChevronRight size={14} style={{ color: 'var(--color-slate-400)' }} />
+            <ChevronRight size={14} style={{ color: 'var(--color-gold-border)' }} />
             {isLast || !item.href ? (
-              <span style={{ color: 'var(--color-brand-700)', fontWeight: 600 }}>
+              <span style={{ color: 'var(--color-white-90, var(--color-chocolate-base))', fontWeight: 600 }}>
                 {item.label}
               </span>
             ) : (
               <Link
                 href={item.href}
-                style={{ color: 'var(--color-slate-600)', textDecoration: 'none' }}
+                style={{ color: 'var(--color-gold-base)', textDecoration: 'none' }}
               >
                 {item.label}
               </Link>

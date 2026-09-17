@@ -4,6 +4,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { Review, Booking } from '../../database/patient/entities';
 import { DoctorProfile, User } from '../../database/operational/entities';
 import { QUEUES } from '../queues/queue.constants';
+import { AuthModule } from '../auth/auth.module';
 import { ReviewsController } from './reviews.controller';
 import { ReviewsService } from './reviews.service';
 
@@ -14,6 +15,7 @@ import { ReviewsService } from './reviews.service';
     BullModule.registerQueue({
       name: QUEUES.RATING_SYNC,
     }),
+    AuthModule,
   ],
   controllers: [ReviewsController],
   providers: [ReviewsService],

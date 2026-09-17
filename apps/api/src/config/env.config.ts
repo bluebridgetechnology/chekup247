@@ -2,7 +2,9 @@ import { z } from 'zod';
 import * as dotenv from 'dotenv';
 import * as path from 'path';
 
-// Load root .env or app .env
+// Load root .env or app .env robustly across monorepo layouts
+dotenv.config({ path: path.resolve(__dirname, '../../../../.env') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 dotenv.config();
 
@@ -11,8 +13,8 @@ const envSchema = z.object({
   PORT: z.coerce.number().default(4000),
 
   // Operational Database (VPS / Local)
-  OPERATIONAL_DB_HOST: z.string().default('localhost'),
-  OPERATIONAL_DB_PORT: z.coerce.number().default(5432),
+  OPERATIONAL_DB_HOST: z.string().default('127.0.0.1'),
+  OPERATIONAL_DB_PORT: z.coerce.number().default(5434),
   OPERATIONAL_DB_USER: z.string().default('chekup_user'),
   OPERATIONAL_DB_PASSWORD: z.string().default('chekup_password'),
   OPERATIONAL_DB_NAME: z.string().default('chekup_operational'),
@@ -23,7 +25,7 @@ const envSchema = z.object({
   DATABASE_OPERATIONAL_URL: z.string().optional(),
 
   // Patient Database (Local / VPS / AWS RDS af-south-1)
-  PATIENT_DB_HOST: z.string().default('localhost'),
+  PATIENT_DB_HOST: z.string().default('127.0.0.1'),
   PATIENT_DB_PORT: z.coerce.number().default(5433),
   PATIENT_DB_USER: z.string().default('chekup_user'),
   PATIENT_DB_PASSWORD: z.string().default('chekup_password'),
@@ -35,7 +37,7 @@ const envSchema = z.object({
   DATABASE_PATIENT_URL: z.string().optional(),
 
   // Redis & BullMQ
-  REDIS_HOST: z.string().default('localhost'),
+  REDIS_HOST: z.string().default('127.0.0.1'),
   REDIS_PORT: z.coerce.number().default(6379),
   REDIS_PASSWORD: z.string().optional().default(''),
 
