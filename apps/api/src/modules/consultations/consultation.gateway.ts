@@ -173,6 +173,7 @@ export class ConsultationGateway implements OnGatewayConnection, OnGatewayDiscon
       extensionId: string;
       durationMinutes: number;
       amount: number;
+      isFree?: boolean;
       doctorName?: string;
     },
   ) {

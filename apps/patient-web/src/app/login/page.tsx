@@ -21,7 +21,7 @@ import { ChekupCrossLogo } from '../../components/Navbar';
 function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectUrl = searchParams?.get('redirect') || '/profile';
+  const redirectUrl = searchParams?.get('redirect') || '/appointments';
 
   const { login, googleLogin } = useAuth();
 
@@ -374,8 +374,8 @@ function LoginContent() {
                     textDecoration: 'none',
                     transition: 'color 0.18s ease',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-chocolate-base)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-gold-bronze)')}
+                  onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.color = 'var(--color-chocolate-base)')}
+                  onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.color = 'var(--color-gold-bronze)')}
                 >
                   Forgot password?
                 </Link>
@@ -461,7 +461,7 @@ function LoginContent() {
           >
             <span>Don&apos;t have an account? </span>
             <Link
-              href="/register"
+              href={redirectUrl && redirectUrl !== '/appointments' && redirectUrl !== '/portal' ? `/register?redirect=${encodeURIComponent(redirectUrl)}` : '/register'}
               style={{
                 color: 'var(--color-chocolate-base)',
                 fontWeight: 700,
@@ -469,8 +469,8 @@ function LoginContent() {
                 textUnderlineOffset: '3px',
                 transition: 'color 0.18s ease',
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-gold-bronze)')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-chocolate-base)')}
+              onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.color = 'var(--color-gold-bronze)')}
+              onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.color = 'var(--color-chocolate-base)')}
             >
               Create Patient Account
             </Link>

@@ -19,6 +19,8 @@ export interface DoctorCardProps {
   photo_url?: string;
   next_available_slot?: string;
   tags?: string[];
+  experience_years?: number | string;
+  offers_in_clinic?: boolean;
 }
 
 const DEFAULT_DOCTOR_IMAGES = [
@@ -42,17 +44,11 @@ export function DoctorCard({
   photo_url,
   next_available_slot,
   tags,
+  experience_years,
+  offers_in_clinic,
 }: DoctorCardProps) {
   const profileUrl = `/doctors/${slug || id}`;
   const displayName = name.startsWith('Dr.') || name.startsWith('Dr ') ? name : `Dr. ${name}`;
-
-  // Extract initials for the avatar circle
-  const cleanName = displayName.replace(/^Dr\.?\s*/i, '').trim();
-  const nameParts = cleanName.split(/\s+/).filter(Boolean);
-  const initials =
-    nameParts.length >= 2
-      ? `${nameParts[0][0]}${nameParts[nameParts.length - 1][0]}`.toUpperCase()
-      : cleanName.slice(0, 2).toUpperCase() || 'DR';
 
   // Fallback image selection based on id or name
   const fallbackIndex = Math.abs(
@@ -71,10 +67,20 @@ export function DoctorCard({
   const locationText = facility_address || facility_name;
 
   return (
-    <div className="doctor-card">
-      <div>
-        {/* Doctor Photograph with Floating Badges */}
-        <div className="doctor-image-wrapper">
+    <div className="doctor-card" style={{ minWidth: 0, width: '100%' }}>
+      <div style={{ minWidth: 0, width: '100%' }}>
+        {/* Doctor Photograph with Floating Badges — strictly constrained height */}
+        <div
+          className="doctor-image-wrapper"
+          style={{
+            width: '100%',
+            height: '220px',
+            minHeight: '220px',
+            maxHeight: '220px',
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}
+        >
           <img
             src={imgSrc}
             alt={displayName}
@@ -86,7 +92,9 @@ export function DoctorCard({
             style={{
               width: '100%',
               height: '100%',
+              maxHeight: '100%',
               objectFit: 'cover',
+              objectPosition: 'center 20%',
               display: 'block',
             }}
           />
@@ -108,26 +116,14 @@ export function DoctorCard({
         </div>
 
         {/* Doctor Identity Area */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            marginBottom: '10px',
-          }}
-        >
-          {/* Initials Badge */}
-          <div className="doctor-avatar-circle">
-            <span>{initials}</span>
-          </div>
-
+        <div style={{ marginBottom: '10px' }}>
           {/* Name, Specialty & HPCSA Verification */}
-          <div style={{ minWidth: 0, flex: 1 }}>
+          <div>
             <h3
               style={{
                 fontFamily: 'var(--font-heading), sans-serif',
                 fontSize: '1.125rem',
-                fontWeight: 700,
+                fontWeight: 600,
                 color: 'var(--color-chocolate-base)',
                 marginBottom: '2px',
                 lineHeight: 1.25,
@@ -173,8 +169,32 @@ export function DoctorCard({
           </div>
         </div>
 
-        {/* Location Row */}
-        {locationText && (
+        {/* Experience Row */}
+        {experience_years !== undefined && experience_years !== null && experience_years !== '' && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.8125rem',
+              color: 'var(--color-chocolate-muted)',
+              marginBottom: locationText ? '6px' : '10px',
+            }}
+          >
+            <SolarIcon name="diploma-verified-linear" size={14} color="var(--color-gold-base)" />
+            <span>
+              {typeof experience_years === 'number'
+                ? `${experience_years}+ yrs experience`
+                : experience_years.toString().includes('exp')
+                ? experience_years
+                : `${experience_years} experience`}
+            </span>
+          </div>
+        )}
+
+        {/* In-Clinic Physical Location Row (ONLY shown if doctor offers In-Clinic visits) */}
+        {offers_in_clinic && locationText && !locationText.includes('yrs exp') && (
           <div
             style={{
               display: 'flex',
@@ -184,11 +204,23 @@ export function DoctorCard({
               fontSize: '0.8125rem',
               color: 'var(--color-chocolate-muted)',
               marginBottom: '10px',
+              minWidth: 0,
+              width: '100%',
+              overflow: 'hidden',
             }}
           >
-            <SolarIcon name="map-point-linear" size={14} color="var(--color-gold-base)" />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {locationText}
+            <SolarIcon name="map-point-linear" size={14} color="var(--color-gold-base)" style={{ flexShrink: 0 }} />
+            <span
+              title={`In-Clinic: ${locationText}`}
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                minWidth: 0,
+                flex: 1,
+              }}
+            >
+              In-Clinic: {locationText}
             </span>
           </div>
         )}
@@ -232,7 +264,7 @@ export function DoctorCard({
       </div>
 
       {/* Card Footer: Fee Callout & Booking Actions */}
-      <div>
+      <div style={{ minWidth: 0, width: '100%' }}>
         {/* Consultation Fee Callout in bold chocolate text */}
         <div
           style={{

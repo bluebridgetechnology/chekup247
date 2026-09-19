@@ -158,7 +158,7 @@ export function HeroSection() {
                 fontWeight: 600,
                 fontSize: '0.925rem',
                 padding: '13px 26px',
-                borderRadius: '9999px',
+                borderRadius: '12px',
                 textDecoration: 'none',
                 lineHeight: 1,
                 boxSizing: 'border-box',

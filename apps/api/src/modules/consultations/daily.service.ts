@@ -20,13 +20,17 @@ export class DailyService {
   private readonly domain = envConfig.DAILY_DOMAIN || 'chekup247';
 
   /**
-   * Creates a private Daily.co room for a consultation session (BE-601).
+   * Creates a private, ephemeral Daily.co room for a consultation session (BE-601).
+   * In a multi-tenant marketplace, each consultation gets a uniquely generated,
+   * isolated room on Daily's global mesh network.
    * - Max 2 participants (doctor and patient)
    * - Expiration: slot end time + 15 min buffer
+   * - URL is dynamically generated and returned directly by Daily's REST API.
    */
   async createRoom(bookingId: string, slotEndTime: Date): Promise<DailyRoomResult> {
-    const cleanId = bookingId.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 20);
-    const roomName = `chekup-${cleanId}`;
+    const cleanId = bookingId.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 16);
+    // Collision-free unique room name for this consultation session
+    const roomName = `chekup-${cleanId}-${Date.now().toString(36)}`;
     const exp = Math.floor(new Date(slotEndTime).getTime() / 1000) + 15 * 60; // 15-minute buffer
 
     if (!this.apiKey || this.apiKey.startsWith('sk_test_mock') || this.apiKey === '') {
@@ -61,24 +65,41 @@ export class DailyService {
 
       if (!res.ok) {
         const errText = await res.text();
-        this.logger.warn(`Daily.co API error (${res.status}): ${errText}. Falling back to domain room.`);
-        return {
-          name: roomName,
-          url: `https://${this.domain}.daily.co/${roomName}`,
-          privacy: 'private',
-          exp,
-        };
+        this.logger.warn(`Daily.co API error (${res.status}): ${errText}`);
+
+        // If room name already exists, attempt to fetch its existing details from Daily
+        if (res.status === 400) {
+          try {
+            const getRes = await fetch(`${this.apiUrl}/rooms/${roomName}`, {
+              headers: { Authorization: `Bearer ${this.apiKey}` },
+            });
+            if (getRes.ok) {
+              const existingData = await getRes.json();
+              return {
+                name: existingData.name || roomName,
+                url: existingData.url,
+                privacy: existingData.privacy || 'private',
+                exp: existingData.properties?.exp || exp,
+              };
+            }
+          } catch {
+            // fall through
+          }
+        }
+
+        throw new Error(`Daily.co room creation failed (${res.status}): ${errText}`);
       }
 
       const data = await res.json();
+      // data.url is the authoritative, live room URL provided by Daily for your account
       return {
         name: data.name || roomName,
-        url: data.url || `https://${this.domain}.daily.co/${roomName}`,
+        url: data.url,
         privacy: data.privacy || 'private',
         exp: data.properties?.exp || exp,
       };
     } catch (err: any) {
-      this.logger.error(`Daily.co createRoom failed: ${err.message}. Using fallback.`);
+      this.logger.error(`Daily.co createRoom failed: ${err.message}. Using fallback mock URL.`);
       return {
         name: roomName,
         url: `https://${this.domain}.daily.co/${roomName}`,

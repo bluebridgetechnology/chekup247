@@ -4,6 +4,7 @@ import {
   Post,
   Param,
   Body,
+  Query,
   Res,
   Headers,
   BadRequestException,
@@ -65,6 +66,48 @@ export class PrescriptionsController {
         icd10Code: dto.icd10Code,
         scheduleFlag: dto.scheduleFlag,
         medicationsCount: dto.medications?.length || 0,
+      },
+    });
+
+    return result;
+  }
+
+  /**
+   * Retrieves all prescriptions issued by the doctor (DR-701).
+   */
+  @Get()
+  async getDoctorPrescriptions(
+    @Query('doctorId') queryDoctorId?: string,
+    @Headers('x-doctor-id') headerDoctorId?: string,
+    @Req() req?: Request,
+  ) {
+    const doctorId = queryDoctorId || headerDoctorId || (req as any)?.user?.sub;
+    return this.prescriptionsService.getDoctorPrescriptions(doctorId);
+  }
+
+  /**
+   * Revokes an existing prescription (DR-702).
+   */
+  @Post(':id/revoke')
+  async revokePrescription(
+    @Param('id') id: string,
+    @Body('reason') reason: string,
+    @Headers('x-doctor-id') headerDoctorId?: string,
+    @Req() req?: Request,
+  ) {
+    const doctorId = headerDoctorId || (req as any)?.user?.sub || 'system-doctor';
+    const result = await this.prescriptionsService.revokePrescription(doctorId, id, reason || 'Revoked by practitioner');
+
+    await this.auditService.logHealthRecordAccess({
+      userId: doctorId,
+      userRole: 'doctor',
+      patientId: (result as any)?.patient_id,
+      action: 'REVOKE_PRESCRIPTION',
+      ipAddress: req?.ip || (req?.headers?.['x-forwarded-for'] as string),
+      userAgent: req?.headers?.['user-agent'],
+      metadata: {
+        prescriptionId: id,
+        reason,
       },
     });
 
@@ -136,5 +179,27 @@ export class PrescriptionsController {
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.setHeader('Content-Length', buffer.length);
     return res.end(buffer);
+  }
+
+  /**
+   * Public verification endpoint for anyone scanning prescription QR code (BE-907, PA-703).
+   */
+  @Public()
+  @Get(':id/verify')
+  async verifyPrescription(
+    @Param('id') id: string,
+    @Req() req: Request,
+  ) {
+    const result = await this.prescriptionsService.getPublicPrescriptionById(id);
+
+    await this.auditService.logHealthRecordAccess({
+      action: 'PUBLIC_VERIFY_PRESCRIPTION',
+      patientId: result?.patient?.patient_id,
+      ipAddress: req.ip || (req.headers['x-forwarded-for'] as string),
+      userAgent: req.headers['user-agent'],
+      metadata: { prescriptionId: id },
+    });
+
+    return result;
   }
 }

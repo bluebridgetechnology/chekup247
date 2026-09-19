@@ -1,17 +1,19 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Payment, Booking, WalletCredit } from '../../database/patient/entities';
-import { User } from '../../database/operational/entities';
+import { User, AvailabilitySlot, DoctorProfile } from '../../database/operational/entities';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PaystackService } from './paystack.service';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Payment, Booking, WalletCredit], 'patient'),
-    TypeOrmModule.forFeature([User], 'operational'),
+    TypeOrmModule.forFeature([User, AvailabilitySlot, DoctorProfile], 'operational'),
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [PaymentsController],
   providers: [PaymentsService, PaystackService],

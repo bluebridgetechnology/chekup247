@@ -19,6 +19,7 @@ export interface Doctor {
   nextAvailable: string;
   image: string;
   tags: string[];
+  offers_in_clinic?: boolean;
 }
 
 export const FEATURED_DOCTORS: Doctor[] = [
@@ -36,6 +37,7 @@ export const FEATURED_DOCTORS: Doctor[] = [
     nextAvailable: 'Available today',
     image: '/images/doctor_thabo.jpg',
     tags: ['Flu & Infections', 'Chronic Script Renewal', 'Wellness'],
+    offers_in_clinic: true,
   },
   {
     id: 'doc-2',
@@ -205,7 +207,7 @@ export function FeaturedDoctorsSection() {
                 fontSize: '0.925rem',
                 height: '52px',
                 padding: '0 28px',
-                borderRadius: '9999px',
+                borderRadius: '12px',
                 border: '1px solid var(--color-gold-border)',
                 backgroundColor: 'var(--color-cream-surface)',
                 textDecoration: 'none',
@@ -246,7 +248,17 @@ export function FeaturedDoctorsSection() {
               <div key={doc.id} className="doctor-card">
                 <div>
                   {/* Doctor Photograph with Floating Badges */}
-                  <div className="doctor-image-wrapper">
+                  <div
+                    className="doctor-image-wrapper"
+                    style={{
+                      width: '100%',
+                      height: '220px',
+                      minHeight: '220px',
+                      maxHeight: '220px',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                    }}
+                  >
                     <Image
                       src={doc.image}
                       alt={doc.name}
@@ -278,26 +290,14 @@ export function FeaturedDoctorsSection() {
                   </div>
 
                   {/* Doctor Identity Area */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      marginBottom: '12px',
-                    }}
-                  >
-                    {/* Initials Badge */}
-                    <div className="doctor-avatar-circle">
-                      <span>{doc.initials}</span>
-                    </div>
-
+                  <div style={{ marginBottom: '12px' }}>
                     {/* Name, Specialty & Qualifications */}
-                    <div style={{ minWidth: 0, flex: 1 }}>
+                    <div>
                       <h3
                         style={{
                           fontFamily: 'var(--font-heading), sans-serif',
                           fontSize: '1.125rem',
-                          fontWeight: 700,
+                          fontWeight: 600,
                           color: 'var(--color-chocolate-base)',
                           marginBottom: '2px',
                           lineHeight: 1.25,
@@ -328,7 +328,7 @@ export function FeaturedDoctorsSection() {
                     </div>
                   </div>
 
-                  {/* Location Row */}
+                  {/* Location / Telehealth Mode Row */}
                   <div
                     style={{
                       display: 'flex',
@@ -340,8 +340,28 @@ export function FeaturedDoctorsSection() {
                       marginBottom: '16px',
                     }}
                   >
-                    <SolarIcon name="map-point-linear" size={14} color="var(--color-gold-base)" />
-                    <span>{doc.location}</span>
+                    {doc.offers_in_clinic ? (
+                      <>
+                        <SolarIcon name="map-point-linear" size={14} color="var(--color-gold-base)" style={{ flexShrink: 0 }} />
+                        <span
+                          title={`In-Clinic: ${doc.location}`}
+                          style={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            minWidth: 0,
+                            flex: 1,
+                          }}
+                        >
+                          In-Clinic: {doc.location}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <SolarIcon name="videocamera-record-linear" size={14} color="var(--color-gold-base)" style={{ flexShrink: 0 }} />
+                        <span>Virtual Video Telehealth</span>
+                      </>
+                    )}
                   </div>
 
                   {/* Specialty Tags */}

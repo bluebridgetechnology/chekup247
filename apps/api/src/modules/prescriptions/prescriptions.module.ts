@@ -5,6 +5,7 @@ import { Prescription, Consultation, Booking } from '../../database/patient/enti
 import { DoctorProfile, User, AuditLog } from '../../database/operational/entities';
 import { QUEUES } from '../queues/queue.constants';
 import { ConsultationsModule } from '../consultations/consultations.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PrescriptionsController } from './prescriptions.controller';
 import { PrescriptionsService } from './prescriptions.service';
 import { PrescriptionPdfService } from './prescription-pdf.service';
@@ -17,6 +18,7 @@ import { PrescriptionPdfService } from './prescription-pdf.service';
       name: QUEUES.NOTIFICATIONS,
     }),
     forwardRef(() => ConsultationsModule),
+    NotificationsModule,
   ],
   controllers: [PrescriptionsController],
   providers: [PrescriptionsService, PrescriptionPdfService],

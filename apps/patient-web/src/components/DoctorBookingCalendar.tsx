@@ -2,19 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import {
-  Calendar as CalendarIcon,
-  Clock,
-  ChevronLeft,
-  ChevronRight,
-  ShieldCheck,
-  Video,
-  CheckCircle2,
-  Sparkles,
-  AlertCircle,
-  Globe,
-  ArrowRight,
-} from 'lucide-react';
+import { SolarIcon } from './SolarIcon';
 
 export interface AvailabilitySlotDto {
   id: string;
@@ -32,6 +20,12 @@ interface DoctorBookingCalendarProps {
     id: string;
     slug: string;
     rate_per_hour: number | string;
+    consultation_duration_minutes?: number;
+    offers_video?: boolean;
+    offers_audio?: boolean;
+    offers_in_clinic?: boolean;
+    facility_name?: string;
+    facility_address?: string;
     user?: {
       full_name: string;
     };
@@ -39,29 +33,77 @@ interface DoctorBookingCalendarProps {
   initialSlots?: AvailabilitySlotDto[];
 }
 
+/**
+ * Helper to format duration for badges and pricing subtext
+ * Supports 30 min, 45 min, 1 hr, etc., dynamically based on doctor settings
+ */
+function formatDurationBadge(durationMinutes?: number): string {
+  const mins = durationMinutes || 30;
+  if (mins >= 60) {
+    const hrs = Math.floor(mins / 60);
+    const rem = mins % 60;
+    return rem > 0 ? `${hrs}h ${rem}m Consult` : `${hrs} Hr Consult`;
+  }
+  return `${mins} Min Consult`;
+}
+
+function formatDurationSubtext(durationMinutes?: number): string {
+  const mins = durationMinutes || 30;
+  if (mins >= 60) {
+    const hrs = Math.floor(mins / 60);
+    const rem = mins % 60;
+    return rem > 0 ? `${hrs} hr ${rem} mins` : `${hrs} hr`;
+  }
+  return `${mins} mins`;
+}
+
 export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBookingCalendarProps) {
   const [slots, setSlots] = useState<AvailabilitySlotDto[]>(initialSlots);
-  const [isLoading, setIsLoading] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlotDto | null>(null);
   const [userTimeZone, setUserTimeZone] = useState<string>('Africa/Johannesburg');
 
-  // Detect local timezone in browser
+  // Consultation modes (Video, In-Clinic, Audio)
+  const availableModes = useMemo(() => {
+    const modes: { id: 'video' | 'in_clinic' | 'audio'; label: string; icon: string }[] = [];
+    if (doctor.offers_video !== false) {
+      modes.push({ id: 'video', label: 'Video Call', icon: 'videocamera-record-bold' });
+    }
+    if (doctor.offers_in_clinic) {
+      modes.push({ id: 'in_clinic', label: 'In-Clinic Visit', icon: 'hospital-bold' });
+    }
+    if (doctor.offers_audio) {
+      modes.push({ id: 'audio', label: 'Audio Call', icon: 'phone-calling-bold' });
+    }
+    if (modes.length === 0) {
+      modes.push({ id: 'video', label: 'Video Call', icon: 'videocamera-record-bold' });
+    }
+    return modes;
+  }, [doctor.offers_video, doctor.offers_in_clinic, doctor.offers_audio]);
+
+  const [consultationMode, setConsultationMode] = useState<'video' | 'in_clinic' | 'audio'>('video');
+
+  useEffect(() => {
+    if (!availableModes.some((m) => m.id === consultationMode)) {
+      setConsultationMode(availableModes[0].id);
+    }
+  }, [availableModes, consultationMode]);
+
+  // Detect local timezone
   useEffect(() => {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (tz) setUserTimeZone(tz);
-    } catch (e) {
-      // default to SAST
+    } catch {
+      // Default to SAST
     }
   }, []);
 
-  // Fetch live availability slots from API
+  // Fetch live availability slots from API if available
   useEffect(() => {
     let isMounted = true;
     async function loadSlots() {
       try {
-        setIsLoading(true);
         const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
         const res = await fetch(`${apiBase}/doctors/${doctor.slug || doctor.id}/availability`);
         if (res.ok) {
@@ -70,10 +112,8 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
             setSlots(data.slots);
           }
         }
-      } catch (err) {
-        console.warn('Could not fetch live slots from API, using fallback data:', err);
-      } finally {
-        if (isMounted) setIsLoading(false);
+      } catch {
+        // Fallback slots used gracefully
       }
     }
 
@@ -83,45 +123,53 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     };
   }, [doctor.slug, doctor.id]);
 
-  // Generate fallback slots if none exist
-  const effectiveSlots = useMemo(() => {
-    if (slots && slots.length > 0) return slots;
+  // Doctor configured consultation duration (30 min, 60 min, etc.)
+  const defaultDuration = doctor.consultation_duration_minutes || 30;
 
-    // Generate dynamic mock slots for the next 7 days
-    const mockList: AvailabilitySlotDto[] = [];
+  // Generate effective slots (live or dynamic deterministic fallback)
+  const effectiveSlots = useMemo(() => {
     const now = new Date();
 
-    for (let day = 1; day <= 6; day++) {
+    // If slots are provided from API, strictly filter out past slots
+    if (slots && slots.length > 0) {
+      return slots.filter((s) => new Date(s.startTime).getTime() > now.getTime());
+    }
+
+    const mockList: AvailabilitySlotDto[] = [];
+
+    for (let day = 0; day <= 14; day++) {
       const d = new Date(now);
       d.setDate(now.getDate() + day);
       const dateStr = d.toISOString().split('T')[0];
 
-      const times = ['08:30', '10:00', '11:30', '14:00', '15:30', '16:45'];
+      const times = ['08:30', '10:00', '11:30', '14:00', '15:30', '16:45', '17:30', '18:15', '19:00'];
       for (const timeStr of times) {
         const [h, m] = timeStr.split(':').map(Number);
         const start = new Date(d);
         start.setHours(h, m, 0, 0);
-        const end = new Date(start.getTime() + 30 * 60 * 1000);
+        const end = new Date(start.getTime() + defaultDuration * 60 * 1000);
 
-        mockList.push({
-          id: `slot-fallback-${dateStr}-${timeStr}`,
-          doctorId: doctor.id,
-          startTime: start.toISOString(),
-          endTime: end.toISOString(),
-          date: dateStr,
-          durationMinutes: 30,
-          source: 'direct',
-        });
+        // Strictly enforce: slot must be in the future
+        if (start.getTime() > now.getTime()) {
+          mockList.push({
+            id: `slot-${dateStr}-${timeStr}`,
+            doctorId: doctor.id,
+            startTime: start.toISOString(),
+            endTime: end.toISOString(),
+            date: dateStr,
+            durationMinutes: defaultDuration,
+            source: 'direct',
+          });
+        }
       }
     }
     return mockList;
-  }, [slots, doctor.id]);
+  }, [slots, doctor.id, defaultDuration]);
 
-  // Days with available slots map
+  // Map slots by date string YYYY-MM-DD
   const daysWithSlots = useMemo(() => {
     const map = new Map<string, AvailabilitySlotDto[]>();
     for (const slot of effectiveSlots) {
-      // Format to local date string YYYY-MM-DD
       const localDate = new Date(slot.startTime);
       const yyyy = localDate.getFullYear();
       const mm = String(localDate.getMonth() + 1).padStart(2, '0');
@@ -134,13 +182,13 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     return map;
   }, [effectiveSlots]);
 
-  // Week dates slider window
+  // Week offset pagination
   const [weekOffset, setWeekOffset] = useState(0);
 
   const displayDays = useMemo(() => {
     const dates = [];
     const base = new Date();
-    base.setDate(base.getDate() + 1 + weekOffset * 7); // start tomorrow
+    base.setDate(base.getDate() + weekOffset * 7);
 
     for (let i = 0; i < 7; i++) {
       const d = new Date(base);
@@ -156,7 +204,6 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
         monthName: d.toLocaleDateString('en-US', { month: 'short' }),
         dayNumber: d.getDate(),
         hasSlots: (daysWithSlots.get(dateKey)?.length || 0) > 0,
-        slotCount: daysWithSlots.get(dateKey)?.length || 0,
       });
     }
     return dates;
@@ -165,7 +212,6 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
   // Set default selected date
   useEffect(() => {
     if (!selectedDate && displayDays.length > 0) {
-      // Select first day that has slots, or first day
       const firstWithSlots = displayDays.find((d) => d.hasSlots);
       if (firstWithSlots) {
         setSelectedDate(firstWithSlots.dateKey);
@@ -175,13 +221,13 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     }
   }, [displayDays, selectedDate]);
 
-  // Slots for the active selected day
+  // Slots for selected day
   const slotsForSelectedDay = useMemo(() => {
     if (!selectedDate) return [];
     return daysWithSlots.get(selectedDate) || [];
   }, [selectedDate, daysWithSlots]);
 
-  // Select first slot by default when date changes
+  // Automatically select first slot of day
   useEffect(() => {
     if (slotsForSelectedDay.length > 0) {
       setSelectedSlot(slotsForSelectedDay[0]);
@@ -190,7 +236,6 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     }
   }, [selectedDate, slotsForSelectedDay]);
 
-  // Helper to format slot time in user local browser time
   const formatSlotTime = (isoString: string) => {
     try {
       const date = new Date(isoString);
@@ -200,11 +245,10 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
         hour12: false,
       });
     } catch {
-      return '09:00';
+      return '08:30';
     }
   };
 
-  // Helper to format date header
   const formatSelectedDateHeading = (dateKey: string) => {
     if (!dateKey) return '';
     const [y, m, d] = dateKey.split('-').map(Number);
@@ -216,7 +260,6 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     });
   };
 
-  // Group slots by Morning / Afternoon
   const morningSlots = slotsForSelectedDay.filter((s) => {
     const d = new Date(s.startTime);
     return d.getHours() < 12;
@@ -224,141 +267,153 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
 
   const afternoonSlots = slotsForSelectedDay.filter((s) => {
     const d = new Date(s.startTime);
-    return d.getHours() >= 12;
+    return d.getHours() >= 12 && d.getHours() < 17;
   });
 
-  const fee = Number(doctor.rate_per_hour || 750).toFixed(2);
-  const doctorName = doctor.user?.full_name || 'Dr. Practitioner';
+  const eveningSlots = slotsForSelectedDay.filter((s) => {
+    const d = new Date(s.startTime);
+    return d.getHours() >= 17;
+  });
+
+  const fee = Number(doctor.rate_per_hour || 850).toFixed(2);
+  const doctorName = doctor.user?.full_name || 'Dr. Thabo Molefe';
+  const activeDuration = selectedSlot?.durationMinutes || defaultDuration;
 
   return (
-    <div
-      style={{
-        background: '#ffffff',
-        borderRadius: '24px',
-        border: '1px solid var(--color-slate-200)',
-        padding: '24px',
-        boxShadow: '0 12px 36px rgba(15, 23, 42, 0.08)',
-      }}
-    >
-      {/* Header: Pricing */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'baseline',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid var(--color-slate-100)',
-          paddingBottom: '16px',
-          marginBottom: '20px',
-        }}
-      >
+    <div className="doctor-booking-card">
+      {/* Header with Pricing and Availability */}
+      <div className="doctor-booking-header">
         <div>
-          <span
-            style={{
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              color: 'var(--color-brand-600)',
-              display: 'block',
-              marginBottom: '2px',
-            }}
-          >
-            Instant Booking
-          </span>
-          <h3
-            style={{
-              fontSize: '1rem',
-              fontWeight: 700,
-              color: 'var(--color-slate-800)',
-              margin: 0,
-            }}
-          >
-            Video Consultation
+          <div className="doctor-booking-instant-badge">
+            <span className="doctor-available-dot" />
+            <span>INSTANT BOOKING</span>
+          </div>
+          <h3 className="doctor-booking-service-title">
+            {consultationMode === 'in_clinic'
+              ? 'In-Clinic Consultation'
+              : consultationMode === 'audio'
+                ? 'Audio Consultation'
+                : 'Video Consultation'}
           </h3>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div
-            style={{
-              fontSize: '1.65rem',
-              fontWeight: 800,
-              color: 'var(--color-slate-900)',
-              letterSpacing: '-0.02em',
-              lineHeight: 1,
-            }}
-          >
-            R{fee}
-          </div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-slate-400)', fontWeight: 500 }}>
-            incl. VAT / 30 mins
+        <div>
+          <div className="doctor-booking-price">R{fee}</div>
+          <span className="doctor-booking-price-sub">
+            incl. VAT / {formatDurationSubtext(activeDuration)}
           </span>
         </div>
       </div>
 
-      {/* Week Navigator (PA-401) */}
-      <div style={{ marginBottom: '18px' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '10px',
-          }}
-        >
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-slate-800)' }}>
-            Select Date
-          </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+      {/* Consultation Mode Segmented Tabs (Video / In-Clinic / Audio) */}
+      {availableModes.length > 1 && (
+        <div className="doctor-booking-tab-bar-container">
+          <div
+            className="doctor-booking-tab-bar"
+            role="tablist"
+            aria-label="Consultation mode"
+            style={{
+              gridTemplateColumns: `repeat(${availableModes.length}, 1fr)`,
+            }}
+          >
+            {availableModes.map((mode) => {
+              const isSelected = consultationMode === mode.id;
+              return (
+                <button
+                  key={mode.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isSelected}
+                  onClick={() => setConsultationMode(mode.id)}
+                  className={`doctor-booking-tab ${isSelected ? 'active' : ''}`}
+                >
+                  <SolarIcon
+                    name={mode.icon}
+                    size={14}
+                    color={isSelected ? 'var(--color-chocolate-base)' : 'currentColor'}
+                  />
+                  <span>{mode.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Mode Context Banner */}
+          {consultationMode === 'in_clinic' ? (
+            <div className="doctor-booking-mode-context">
+              <div className="doctor-booking-mode-context-icon">
+                <SolarIcon name="hospital-bold" size={15} color="var(--color-chocolate-base)" />
+              </div>
+              <div className="doctor-booking-mode-context-info">
+                <div className="doctor-booking-mode-context-title">
+                  In-Clinic Consultation
+                </div>
+                {(doctor.facility_name || doctor.facility_address) && (
+                  <div className="doctor-booking-mode-context-desc">
+                    {doctor.facility_name ? `${doctor.facility_name} — ` : ''}
+                    {doctor.facility_address || doctor.facility_name}
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : consultationMode === 'video' ? (
+            <div className="doctor-booking-mode-context">
+              <div className="doctor-booking-mode-context-icon">
+                <SolarIcon name="videocamera-record-bold" size={15} color="var(--color-chocolate-base)" />
+              </div>
+              <div className="doctor-booking-mode-context-info">
+                <div className="doctor-booking-mode-context-title">
+                  Secure Video Consultation
+                </div>
+                <div className="doctor-booking-mode-context-desc">
+                  Join via private browser room or mobile. No download needed.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="doctor-booking-mode-context">
+              <div className="doctor-booking-mode-context-icon">
+                <SolarIcon name="phone-calling-bold" size={15} color="var(--color-chocolate-base)" />
+              </div>
+              <div className="doctor-booking-mode-context-info">
+                <div className="doctor-booking-mode-context-title">
+                  Direct Phone Call
+                </div>
+                <div className="doctor-booking-mode-context-desc">
+                  Practitioner will call your phone at the scheduled time.
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Date Carousel Section */}
+      <div className="doctor-booking-date-section">
+        <div className="doctor-booking-date-nav-row">
+          <span className="doctor-booking-date-label">Select Date</span>
+          <div className="doctor-booking-nav-controls">
             <button
               type="button"
               onClick={() => setWeekOffset((w) => Math.max(0, w - 1))}
               disabled={weekOffset === 0}
+              className="doctor-booking-nav-arrow"
               aria-label="Previous week"
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '8px',
-                border: '1px solid var(--color-slate-200)',
-                background: '#ffffff',
-                color: weekOffset === 0 ? 'var(--color-slate-300)' : 'var(--color-slate-700)',
-                cursor: weekOffset === 0 ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
             >
-              <ChevronLeft size={16} />
+              <SolarIcon name="arrow-left-linear" size={14} color="currentColor" />
             </button>
             <button
               type="button"
               onClick={() => setWeekOffset((w) => w + 1)}
+              className="doctor-booking-nav-arrow"
               aria-label="Next week"
-              style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '8px',
-                border: '1px solid var(--color-slate-200)',
-                background: '#ffffff',
-                color: 'var(--color-slate-700)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
             >
-              <ChevronRight size={16} />
+              <SolarIcon name="arrow-right-linear" size={14} color="currentColor" />
             </button>
           </div>
         </div>
 
-        {/* Day Pills Carousel */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(7, 1fr)',
-            gap: '6px',
-            marginBottom: '6px',
-          }}
-        >
+        {/* 7 Days Row */}
+        <div className="doctor-booking-days-grid">
           {displayDays.map((day) => {
             const isSelected = selectedDate === day.dateKey;
             return (
@@ -366,140 +421,40 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
                 key={day.dateKey}
                 type="button"
                 onClick={() => setSelectedDate(day.dateKey)}
-                style={{
-                  padding: '8px 2px',
-                  borderRadius: '12px',
-                  border: isSelected
-                    ? '2px solid var(--color-brand-600)'
-                    : '1px solid var(--color-slate-200)',
-                  background: isSelected
-                    ? 'var(--color-brand-50)'
-                    : day.hasSlots
-                    ? '#ffffff'
-                    : 'var(--color-slate-50)',
-                  color: isSelected
-                    ? 'var(--color-brand-700)'
-                    : day.hasSlots
-                    ? 'var(--color-slate-800)'
-                    : 'var(--color-slate-400)',
-                  cursor: 'pointer',
-                  textAlign: 'center',
-                  transition: 'all 0.15s ease',
-                  position: 'relative',
-                }}
+                className={`doctor-booking-day-btn ${isSelected ? 'active' : ''}`}
               >
-                <div
-                  style={{
-                    fontSize: '0.65rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: isSelected ? 'var(--color-brand-600)' : 'var(--color-slate-400)',
-                  }}
-                >
-                  {day.dayName}
-                </div>
-                <div
-                  style={{
-                    fontSize: '0.95rem',
-                    fontWeight: 800,
-                    marginTop: '2px',
-                  }}
-                >
-                  {day.dayNumber}
-                </div>
-                {day.hasSlots ? (
-                  <div
-                    style={{
-                      width: '5px',
-                      height: '5px',
-                      borderRadius: '50%',
-                      background: isSelected ? 'var(--color-brand-600)' : '#10b981',
-                      margin: '4px auto 0',
-                    }}
-                  />
-                ) : (
-                  <div style={{ height: '5px', margin: '4px auto 0' }} />
-                )}
+                <span className="doctor-booking-day-name">{day.dayName}</span>
+                <span className="doctor-booking-day-num">{day.dayNumber}</span>
               </button>
             );
           })}
         </div>
 
-        {/* Timezone Indicator */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: '0.725rem',
-            color: 'var(--color-slate-500)',
-            padding: '4px 2px',
-          }}
-        >
+        {/* Timezone and Selected Date Label */}
+        <div className="doctor-booking-timezone-row">
           <span style={{ fontWeight: 600 }}>{formatSelectedDateHeading(selectedDate)}</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-            <Globe size={12} style={{ color: 'var(--color-slate-400)' }} />
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <SolarIcon name="globe-linear" size={13} color="currentColor" />
             <span>{userTimeZone.replace('_', ' ')}</span>
           </span>
         </div>
       </div>
 
-      {/* Available Time Chips (PA-401 & PA-402) */}
-      <div style={{ marginBottom: '20px' }}>
+      {/* Consultation Time Slots */}
+      <div style={{ marginBottom: '16px' }}>
         {slotsForSelectedDay.length === 0 ? (
-          <div
-            style={{
-              padding: '24px 16px',
-              borderRadius: '16px',
-              background: 'var(--color-slate-50)',
-              border: '1px dashed var(--color-slate-300)',
-              textAlign: 'center',
-            }}
-          >
-            <Clock size={24} style={{ color: 'var(--color-slate-400)', margin: '0 auto 8px' }} />
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-slate-600)', margin: 0, fontWeight: 500 }}>
-              No available consultation slots on this date.
+          <div style={{ textAlign: 'center', padding: '24px 0' }}>
+            <SolarIcon name="clock-circle-linear" size={24} color="var(--color-cream-text-secondary)" />
+            <p className="doctor-service-status" style={{ marginTop: '8px' }}>
+              No available slots on this date.
             </p>
-            {/* Quick jump to next available */}
-            {displayDays.find((d) => d.hasSlots && d.dateKey !== selectedDate) && (
-              <button
-                type="button"
-                onClick={() => {
-                  const nextDay = displayDays.find((d) => d.hasSlots);
-                  if (nextDay) setSelectedDate(nextDay.dateKey);
-                }}
-                style={{
-                  marginTop: '10px',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--color-brand-600)',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  textDecoration: 'underline',
-                }}
-              >
-                Jump to next available date →
-              </button>
-            )}
           </div>
         ) : (
-          <div>
+          <>
             {morningSlots.length > 0 && (
-              <div style={{ marginBottom: '12px' }}>
-                <span
-                  style={{
-                    display: 'block',
-                    fontSize: '0.725rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: 'var(--color-slate-400)',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Morning
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <div className="doctor-booking-slots-group">
+                <span className="doctor-booking-group-label">Morning</span>
+                <div className="doctor-booking-slots-grid">
                   {morningSlots.map((slot) => {
                     const isSelected = selectedSlot?.id === slot.id;
                     return (
@@ -507,25 +462,13 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
                         key={slot.id}
                         type="button"
                         onClick={() => setSelectedSlot(slot)}
-                        style={{
-                          padding: '9px 4px',
-                          borderRadius: '10px',
-                          border: isSelected
-                            ? '2px solid var(--color-brand-600)'
-                            : '1px solid var(--color-slate-200)',
-                          background: isSelected ? 'var(--color-brand-600)' : '#ffffff',
-                          color: isSelected ? '#ffffff' : 'var(--color-slate-800)',
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '4px',
-                          transition: 'all 0.15s ease',
-                        }}
+                        className={`doctor-booking-slot-btn ${isSelected ? 'active' : ''}`}
                       >
-                        <Clock size={13} style={{ opacity: isSelected ? 1 : 0.6 }} />
+                        <SolarIcon
+                          name={isSelected ? 'clock-circle-bold' : 'clock-circle-linear'}
+                          size={13}
+                          color="currentColor"
+                        />
                         <span>{formatSlotTime(slot.startTime)}</span>
                       </button>
                     );
@@ -535,20 +478,9 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
             )}
 
             {afternoonSlots.length > 0 && (
-              <div>
-                <span
-                  style={{
-                    display: 'block',
-                    fontSize: '0.725rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    color: 'var(--color-slate-400)',
-                    marginBottom: '6px',
-                  }}
-                >
-                  Afternoon & Evening
-                </span>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <div className="doctor-booking-slots-group">
+                <span className="doctor-booking-group-label">Afternoon</span>
+                <div className="doctor-booking-slots-grid">
                   {afternoonSlots.map((slot) => {
                     const isSelected = selectedSlot?.id === slot.id;
                     return (
@@ -556,25 +488,13 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
                         key={slot.id}
                         type="button"
                         onClick={() => setSelectedSlot(slot)}
-                        style={{
-                          padding: '9px 4px',
-                          borderRadius: '10px',
-                          border: isSelected
-                            ? '2px solid var(--color-brand-600)'
-                            : '1px solid var(--color-slate-200)',
-                          background: isSelected ? 'var(--color-brand-600)' : '#ffffff',
-                          color: isSelected ? '#ffffff' : 'var(--color-slate-800)',
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '4px',
-                          transition: 'all 0.15s ease',
-                        }}
+                        className={`doctor-booking-slot-btn ${isSelected ? 'active' : ''}`}
                       >
-                        <Clock size={13} style={{ opacity: isSelected ? 1 : 0.6 }} />
+                        <SolarIcon
+                          name={isSelected ? 'clock-circle-bold' : 'clock-circle-linear'}
+                          size={13}
+                          color="currentColor"
+                        />
                         <span>{formatSlotTime(slot.startTime)}</span>
                       </button>
                     );
@@ -582,123 +502,123 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
                 </div>
               </div>
             )}
-          </div>
+
+            {eveningSlots.length > 0 && (
+              <div className="doctor-booking-slots-group">
+                <span className="doctor-booking-group-label">Evening</span>
+                <div className="doctor-booking-slots-grid">
+                  {eveningSlots.map((slot) => {
+                    const isSelected = selectedSlot?.id === slot.id;
+                    return (
+                      <button
+                        key={slot.id}
+                        type="button"
+                        onClick={() => setSelectedSlot(slot)}
+                        className={`doctor-booking-slot-btn ${isSelected ? 'active' : ''}`}
+                      >
+                        <SolarIcon
+                          name={isSelected ? 'clock-circle-bold' : 'clock-circle-linear'}
+                          size={13}
+                          color="currentColor"
+                        />
+                        <span>{formatSlotTime(slot.startTime)}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
-      {/* PA-402: Slot Selection Interaction State & Summary Preview */}
-      {selectedSlot ? (
-        <div
-          style={{
-            background: 'var(--color-slate-50)',
-            borderRadius: '16px',
-            border: '1px solid var(--color-slate-200)',
-            padding: '16px',
-            marginBottom: '18px',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              marginBottom: '10px',
-            }}
-          >
-            <span
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: 'var(--color-brand-700)',
-                textTransform: 'uppercase',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <CheckCircle2 size={14} style={{ color: 'var(--color-brand-600)' }} />
-              Selected Appointment
+      {/* Selected Appointment Summary Card */}
+      {selectedSlot && (
+        <div className="doctor-booking-selected-card">
+          <div className="doctor-booking-selected-top">
+            <span className="doctor-booking-selected-badge">
+              <SolarIcon name="check-circle-bold" size={14} color="var(--color-gold-base)" />
+              <span>SELECTED APPOINTMENT</span>
             </span>
-            <span
-              style={{
-                fontSize: '0.75rem',
-                background: '#e0f2fe',
-                color: '#0369a1',
-                padding: '2px 8px',
-                borderRadius: '6px',
-                fontWeight: 600,
-              }}
-            >
-              30 Min Consult
+            <span className="doctor-booking-duration-badge">
+              {formatDurationBadge(activeDuration)}
             </span>
           </div>
 
-          <div
-            style={{
-              fontSize: '0.9rem',
-              fontWeight: 700,
-              color: 'var(--color-slate-900)',
-              marginBottom: '4px',
-            }}
-          >
+          <div className="doctor-booking-selected-heading">
             {formatSelectedDateHeading(selectedDate)} at {formatSlotTime(selectedSlot.startTime)}
           </div>
-          <div style={{ fontSize: '0.775rem', color: 'var(--color-slate-500)' }}>
-            With {doctorName} • Virtual High-Definition Video Room
+          <div className="doctor-booking-selected-sub">
+            {consultationMode === 'in_clinic' ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '4px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 600, color: 'var(--color-gold-base)' }}>
+                  <SolarIcon name="hospital-bold" size={14} color="currentColor" />
+                  In-Clinic Consultation with {doctorName}
+                </span>
+                {(doctor.facility_address || doctor.facility_name) && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--color-cream-text-secondary)', fontSize: '0.82rem' }}>
+                    <SolarIcon name="map-point-linear" size={14} color="currentColor" style={{ flexShrink: 0 }} />
+                    <span>{doctor.facility_name ? `${doctor.facility_name} — ` : ''}{doctor.facility_address || doctor.facility_name}</span>
+                  </span>
+                )}
+              </div>
+            ) : consultationMode === 'audio' ? (
+              `With ${doctorName} • Telehealth Voice Call`
+            ) : (
+              `With ${doctorName} • Virtual High-Definition Video Room`
+            )}
           </div>
         </div>
-      ) : null}
+      )}
 
-      {/* CTA Button */}
-      <Link
-        href={
-          selectedSlot
-            ? `/bookings/checkout?doctor=${doctor.id}&slot=${selectedSlot.id}`
-            : `/doctors/${doctor.slug || doctor.id}`
-        }
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '8px',
-          width: '100%',
-          padding: '14px',
-          borderRadius: '14px',
-          background: selectedSlot
-            ? 'linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-700) 100%)'
-            : 'var(--color-slate-300)',
-          color: '#ffffff',
-          fontWeight: 700,
-          fontSize: '0.95rem',
-          textDecoration: 'none',
-          boxShadow: selectedSlot ? '0 4px 14px rgba(13, 148, 136, 0.35)' : 'none',
-          cursor: selectedSlot ? 'pointer' : 'not-allowed',
-          pointerEvents: selectedSlot ? 'auto' : 'none',
-          transition: 'all 0.2s ease',
-        }}
-      >
-        <span>Proceed to Booking</span>
-        <ArrowRight size={18} />
-      </Link>
+      {/* Proceed to Booking CTA Button */}
+      {selectedSlot && new Date(selectedSlot.startTime).getTime() > Date.now() ? (
+        <Link
+          href={`/bookings/checkout?doctor=${doctor.id}&slot=${selectedSlot.id}&date=${selectedDate}&type=${consultationMode}`}
+          className="doctor-booking-cta"
+        >
+          <span>Proceed to Booking ({formatSlotTime(selectedSlot.startTime)})</span>
+          <SolarIcon name="arrow-right-linear" size={17} color="currentColor" />
+        </Link>
+      ) : (
+        <button
+          type="button"
+          disabled
+          className="doctor-booking-cta disabled"
+          aria-disabled="true"
+        >
+          <span>
+            {selectedSlot && new Date(selectedSlot.startTime).getTime() <= Date.now()
+              ? 'Selected Slot Has Passed'
+              : 'Select a Time Slot to Continue'}
+          </span>
+          <SolarIcon name="clock-circle-linear" size={16} color="currentColor" />
+        </button>
+      )}
 
-      {/* Trust & Guarantee Badges */}
-      <div
-        style={{
-          marginTop: '16px',
-          paddingTop: '16px',
-          borderTop: '1px solid var(--color-slate-100)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.775rem', color: 'var(--color-slate-600)' }}>
-          <ShieldCheck size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+      {/* Trust Statements */}
+      <div className="doctor-booking-trust-list">
+        <div className="doctor-booking-trust-item">
+          <SolarIcon
+            name="shield-check-linear"
+            size={16}
+            color="var(--color-gold-base)"
+            style={{ flexShrink: 0, marginTop: '1px' }}
+          />
           <span>HPCSA-Verified Practitioner • Protection & POPIA Compliant</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.775rem', color: 'var(--color-slate-600)' }}>
-          <Video size={16} style={{ color: 'var(--color-brand-600)', flexShrink: 0 }} />
-          <span>Instant video link sent via SMS & Email immediately on booking</span>
+        <div className="doctor-booking-trust-item">
+          <SolarIcon
+            name={consultationMode === 'in_clinic' ? 'map-point-linear' : 'videocamera-linear'}
+            size={16}
+            color="var(--color-gold-base)"
+            style={{ flexShrink: 0, marginTop: '1px' }}
+          />
+          <span>
+            {consultationMode === 'in_clinic'
+              ? 'Practice location & appointment confirmation sent via SMS & Email'
+              : 'Instant video link sent via SMS & Email immediately on booking'}
+          </span>
         </div>
       </div>
     </div>

@@ -96,3 +96,19 @@ export class GoogleAuthDto {
   @IsString()
   picture?: string;
 }
+
+export class VerifyOtpDto {
+  @IsNotEmpty({ message: 'Email address is required' })
+  @IsEmail({}, { message: 'Invalid email address' })
+  email: string;
+
+  @IsNotEmpty({ message: 'OTP code is required' })
+  @IsString()
+  otp: string;
+}
+
+export class ResendOtpDto {
+  @IsNotEmpty({ message: 'Email address is required' })
+  @IsEmail({}, { message: 'Invalid email address' })
+  email: string;
+}

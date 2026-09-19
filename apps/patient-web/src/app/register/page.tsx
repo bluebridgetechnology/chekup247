@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   User,
   Mail,
@@ -38,8 +38,10 @@ const HIGHLIGHTS = [
   },
 ];
 
-export default function PatientRegisterPage() {
+function RegisterContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams?.get('redirect') || '/appointments';
   const { register, googleLogin } = useAuth();
 
   const [fullName, setFullName] = useState('');
@@ -119,7 +121,7 @@ export default function PatientRegisterPage() {
   const handleGoogleSignUp = () => {
     setError(null);
     googleLogin('mock-google-credential', email || 'patient@gmail.com', fullName || 'Google Patient')
-      .then(() => router.push('/profile'))
+      .then(() => router.push(redirectUrl))
       .catch((e: any) => setError(e.message || 'Google sign-up failed. Please try again.'));
   };
 
@@ -307,7 +309,7 @@ export default function PatientRegisterPage() {
               </p>
 
               <Link
-                href={`/verify-email?token=${registeredSuccess !== 'sent' ? registeredSuccess : ''}`}
+                href={`/verify-email?token=${registeredSuccess !== 'sent' ? registeredSuccess : ''}${redirectUrl && redirectUrl !== '/appointments' && redirectUrl !== '/portal' ? `&redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
                 className="btn-primary"
                 style={{
                   width: '100%',
@@ -425,7 +427,7 @@ export default function PatientRegisterPage() {
                 <span>or sign up with email</span>
               </div>
 
-              {/* Form Inputs directly on Canvas */}
+              {/* Patient Registration Form */}
               <form onSubmit={handleSubmit} noValidate>
                 {/* Full Name */}
                 <div className="auth-input-group">
@@ -479,9 +481,10 @@ export default function PatientRegisterPage() {
                     gap: '12px',
                   }}
                 >
+                  {/* Phone */}
                   <div className="auth-input-group">
                     <label htmlFor="phone" className="auth-label">
-                      Mobile Phone
+                      Phone Number
                     </label>
                     <div className="auth-input-wrapper">
                       <span className="auth-input-icon">
@@ -493,12 +496,13 @@ export default function PatientRegisterPage() {
                         type="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
-                        placeholder="+27 82 123 4567"
+                        placeholder="+27 82 000 0000"
                         className="auth-input"
                       />
                     </div>
                   </div>
 
+                  {/* Date of Birth */}
                   <div className="auth-input-group">
                     <label htmlFor="dateOfBirth" className="auth-label">
                       Date of Birth
@@ -519,10 +523,10 @@ export default function PatientRegisterPage() {
                   </div>
                 </div>
 
-                {/* Password */}
+                {/* Password Field */}
                 <div className="auth-input-group">
                   <label htmlFor="password" className="auth-label">
-                    Create Password
+                    Password (min. 8 characters)
                   </label>
                   <div className="auth-input-wrapper">
                     <span className="auth-input-icon">
@@ -535,21 +539,21 @@ export default function PatientRegisterPage() {
                       required
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="At least 8 characters"
+                      placeholder="Create a strong password"
                       className="auth-input"
                       style={{ paddingRight: '46px' }}
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="auth-input-action"
+                      className="auth-password-toggle"
                       aria-label={showPassword ? 'Hide password' : 'Show password'}
                     >
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
 
-                  {/* Live Password Strength Indicator */}
+                  {/* Live Strength Bar */}
                   {password && (
                     <div style={{ marginTop: '8px' }}>
                       <div
@@ -557,21 +561,18 @@ export default function PatientRegisterPage() {
                           display: 'flex',
                           justifyContent: 'space-between',
                           fontSize: '0.75rem',
-                          marginBottom: '4px',
                           fontFamily: 'var(--font-sans)',
+                          marginBottom: '4px',
                         }}
                       >
-                        <span style={{ color: 'var(--color-cream-text-muted)' }}>
-                          Password strength:
-                        </span>
-                        <span style={{ fontWeight: 600, color: strengthColor }}>
-                          {strengthLabel}
-                        </span>
+                        <span style={{ color: 'var(--color-cream-text-muted)' }}>Strength:</span>
+                        <span style={{ fontWeight: 600, color: strengthColor }}>{strengthLabel}</span>
                       </div>
                       <div
                         style={{
                           height: '4px',
-                          backgroundColor: 'var(--color-gold-pale)',
+                          width: '100%',
+                          backgroundColor: 'var(--color-border)',
                           borderRadius: 'var(--radius-full)',
                           overflow: 'hidden',
                         }}
@@ -641,7 +642,7 @@ export default function PatientRegisterPage() {
               >
                 Already registered?{' '}
                 <Link
-                  href="/login"
+                  href={redirectUrl && redirectUrl !== '/appointments' && redirectUrl !== '/portal' ? `/login?redirect=${encodeURIComponent(redirectUrl)}` : '/login'}
                   style={{
                     color: 'var(--color-chocolate-base)',
                     fontWeight: 700,
@@ -659,5 +660,35 @@ export default function PatientRegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PatientRegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: 'calc(100vh - 74px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'var(--color-cream-base)',
+          }}
+        >
+          <p
+            style={{
+              color: 'var(--color-cream-text-muted)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.95rem',
+            }}
+          >
+            Loading registration...
+          </p>
+        </div>
+      }
+    >
+      <RegisterContent />
+    </Suspense>
   );
 }

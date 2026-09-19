@@ -2,21 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import {
-  Bell,
-  Mail,
-  MessageSquare,
-  Phone,
-  CheckCircle2,
-  AlertCircle,
-  ShieldCheck,
-  Save,
-  Loader2,
-  Clock,
-  ArrowLeft,
-} from 'lucide-react';
+import { SolarIcon } from '../../../components/SolarIcon';
 import { useAuth } from '../../../context/AuthContext';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
+import { PatientPortalLayout } from '../../../components/portal/PatientPortalLayout';
 
 export default function NotificationPreferencesPage() {
   const { user, token, isAuthenticated } = useAuth();
@@ -116,28 +105,29 @@ export default function NotificationPreferencesPage() {
       id: 'email',
       name: 'Email Notifications',
       description: 'Receive rich HTML booking receipts, prescription downloads, and pre-consultation reminders via Brevo.',
-      icon: Mail,
+      iconName: 'letter-linear',
       target: user?.email || 'Your verified email',
     },
     {
       id: 'whatsapp',
       name: 'WhatsApp Alerts',
       description: 'Get instant interactive appointment alerts with direct "Join Consultation" buttons on your phone.',
-      icon: MessageSquare,
+      iconName: 'chat-dots-linear',
       target: user?.phone || 'Your verified mobile phone',
     },
     {
       id: 'sms',
       name: 'SMS Text Messages',
       description: 'Concise SMS alerts sent directly to your phone for short-notice reminders (15 mins prior).',
-      icon: Phone,
+      iconName: 'phone-linear',
       target: user?.phone || 'Your cellular number',
     },
   ];
 
   return (
-    <div style={{ minHeight: '85vh', background: 'var(--color-slate-50)', padding: '32px 0 64px' }}>
-      <div className="container" style={{ maxWidth: '800px', margin: '0 auto', padding: '0 16px' }}>
+    <PatientPortalLayout activeNavKey="notifications">
+      <div style={{ flex: 1, backgroundColor: '#F8F4EC', minHeight: 'calc(100vh - 72px)', padding: '36px 40px 60px 40px', boxSizing: 'border-box' }} className="portal-workspace">
+        <div style={{ maxWidth: '820px', margin: '0 auto' }}>
         {/* Navigation Breadcrumb */}
         <div style={{ marginBottom: '20px' }}>
           <Link
@@ -146,14 +136,14 @@ export default function NotificationPreferencesPage() {
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              color: 'var(--color-slate-600)',
+              color: '#5F4D41',
               fontSize: '0.875rem',
               fontWeight: 600,
               textDecoration: 'none',
               marginBottom: '12px',
             }}
           >
-            <ArrowLeft size={16} />
+            <SolarIcon name="arrow-left-linear" size={16} color="#5F4D41" />
             <span>Back to Profile</span>
           </Link>
           <Breadcrumbs
@@ -171,23 +161,23 @@ export default function NotificationPreferencesPage() {
             background: '#ffffff',
             borderRadius: '20px',
             padding: '28px 32px',
-            border: '1px solid var(--color-slate-200)',
+            border: '1px solid #EDE4D4',
             marginBottom: '24px',
-            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
+            boxShadow: '0 4px 16px rgba(42, 23, 15, 0.03)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-brand-600)', marginBottom: '4px' }}>
-                <Bell size={20} />
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B88647', marginBottom: '4px' }}>
+                <SolarIcon name="bell-linear" size={20} color="#B88647" />
                 <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Patient Communication Settings
                 </span>
               </div>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: '0 0 6px' }}>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#2A170F', margin: '0 0 6px' }}>
                 Notification Preferences
               </h1>
-              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-slate-500)' }}>
+              <p style={{ margin: 0, fontSize: '0.9rem', color: '#7A6A5E' }}>
                 Customize which channels ChekUp247 uses to send booking confirmations and automated reminders.
               </p>
             </div>
@@ -197,9 +187,9 @@ export default function NotificationPreferencesPage() {
               style={{
                 padding: '8px 16px',
                 borderRadius: '999px',
-                background: channels.length === 2 ? '#ecfdf5' : 'var(--color-slate-100)',
-                border: channels.length === 2 ? '1px solid #a7f3d0' : '1px solid var(--color-slate-200)',
-                color: channels.length === 2 ? '#059669' : 'var(--color-slate-700)',
+                background: channels.length === 2 ? '#ecfdf5' : '#F8F4EC',
+                border: channels.length === 2 ? '1px solid #a7f3d0' : '1px solid #EDE4D4',
+                color: channels.length === 2 ? '#059669' : '#5F4D41',
                 fontWeight: 700,
                 fontSize: '0.85rem',
               }}
@@ -225,7 +215,7 @@ export default function NotificationPreferencesPage() {
               gap: '10px',
             }}
           >
-            <CheckCircle2 size={18} />
+            <SolarIcon name="check-circle-bold" size={18} color="#065f46" />
             <span>Your notification preferences have been saved successfully.</span>
           </div>
         )}
@@ -245,7 +235,7 @@ export default function NotificationPreferencesPage() {
               gap: '10px',
             }}
           >
-            <AlertCircle size={18} />
+            <SolarIcon name="danger-circle-bold" size={18} color="#dc2626" />
             <span>{errorMsg}</span>
           </div>
         )}
@@ -255,7 +245,6 @@ export default function NotificationPreferencesPage() {
           {channelOptions.map((opt) => {
             const isSelected = channels.includes(opt.id);
             const isMaxReached = channels.length >= 2 && !isSelected;
-            const Icon = opt.icon;
 
             return (
               <div
@@ -264,9 +253,9 @@ export default function NotificationPreferencesPage() {
                 style={{
                   background: '#ffffff',
                   borderRadius: '18px',
-                  border: isSelected ? '2px solid var(--color-brand-600)' : '1px solid var(--color-slate-200)',
+                  border: isSelected ? '2px solid #C59550' : '1px solid #EDE4D4',
                   padding: '24px',
-                  boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
+                  boxShadow: '0 4px 16px rgba(42, 23, 15, 0.025)',
                   cursor: isMaxReached ? 'not-allowed' : 'pointer',
                   opacity: isMaxReached ? 0.6 : 1,
                   transition: 'all 0.2s ease',
@@ -282,42 +271,43 @@ export default function NotificationPreferencesPage() {
                       width: '46px',
                       height: '46px',
                       borderRadius: '14px',
-                      background: isSelected ? 'var(--color-brand-50)' : 'var(--color-slate-100)',
-                      color: isSelected ? 'var(--color-brand-600)' : 'var(--color-slate-500)',
+                      background: isSelected ? '#FAF2E4' : '#F8F4EC',
+                      color: isSelected ? '#2A170F' : '#7A6A5E',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
                     }}
                   >
-                    <Icon size={24} />
+                    <SolarIcon name={opt.iconName} size={24} color={isSelected ? '#2A170F' : '#7A6A5E'} />
                   </div>
 
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-slate-900)', margin: 0 }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#2A170F', margin: 0 }}>
                         {opt.name}
                       </h3>
                       {isSelected && (
                         <span
                           style={{
-                            background: 'var(--color-brand-100)',
-                            color: 'var(--color-brand-800)',
+                            background: '#FAF2E4',
+                            color: '#8E5A1C',
                             fontSize: '0.7rem',
                             fontWeight: 700,
                             padding: '2px 8px',
                             borderRadius: '999px',
+                            border: '1px solid #EADBCA',
                           }}
                         >
                           ACTIVE
                         </span>
                       )}
                     </div>
-                    <p style={{ margin: '6px 0 8px', fontSize: '0.85rem', color: 'var(--color-slate-600)', lineHeight: 1.4 }}>
+                    <p style={{ margin: '6px 0 8px', fontSize: '0.85rem', color: '#6B5E55', lineHeight: 1.4 }}>
                       {opt.description}
                     </p>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--color-slate-400)' }}>
-                      Destination: <strong style={{ color: 'var(--color-slate-600)' }}>{opt.target}</strong>
+                    <div style={{ fontSize: '0.78rem', color: '#A08F83' }}>
+                      Destination: <strong style={{ color: '#4E3C32' }}>{opt.target}</strong>
                     </div>
                   </div>
                 </div>
@@ -329,7 +319,7 @@ export default function NotificationPreferencesPage() {
                       width: '48px',
                       height: '26px',
                       borderRadius: '13px',
-                      background: isSelected ? 'var(--color-brand-600)' : 'var(--color-slate-300)',
+                      background: isSelected ? '#C59550' : '#D5C1A7',
                       padding: '2px',
                       boxSizing: 'border-box',
                       transition: 'background 0.2s ease',
@@ -359,10 +349,10 @@ export default function NotificationPreferencesPage() {
           style={{
             background: '#ffffff',
             borderRadius: '18px',
-            border: '1px solid var(--color-slate-200)',
+            border: '1px solid #EDE4D4',
             padding: '24px',
             marginBottom: '32px',
-            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)',
+            boxShadow: '0 4px 16px rgba(42, 23, 15, 0.025)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
@@ -375,21 +365,21 @@ export default function NotificationPreferencesPage() {
                 width: '46px',
                 height: '46px',
                 borderRadius: '14px',
-                background: remindersEnabled ? '#f0fdfa' : 'var(--color-slate-100)',
-                color: remindersEnabled ? 'var(--color-brand-600)' : 'var(--color-slate-500)',
+                background: remindersEnabled ? '#FAF2E4' : '#F8F4EC',
+                color: remindersEnabled ? '#B88647' : '#7A6A5E',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}
             >
-              <Clock size={24} />
+              <SolarIcon name="clock-circle-linear" size={24} color={remindersEnabled ? '#B88647' : '#7A6A5E'} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--color-slate-900)', margin: 0 }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#2A170F', margin: 0 }}>
                 Automated Consultation Reminders
               </h3>
-              <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--color-slate-500)' }}>
+              <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: '#6B5E55' }}>
                 Dispatch timely countdown reminders at 24 hours, 1 hour, and 15 minutes before your scheduled call.
               </p>
             </div>
@@ -401,7 +391,7 @@ export default function NotificationPreferencesPage() {
               width: '48px',
               height: '26px',
               borderRadius: '13px',
-              background: remindersEnabled ? 'var(--color-brand-600)' : 'var(--color-slate-300)',
+              background: remindersEnabled ? '#C59550' : '#D5C1A7',
               padding: '2px',
               boxSizing: 'border-box',
               cursor: 'pointer',
@@ -431,33 +421,36 @@ export default function NotificationPreferencesPage() {
             disabled={isSaving}
             style={{
               padding: '12px 32px',
-              borderRadius: '12px',
+              borderRadius: '24px',
               border: 'none',
-              background: 'var(--color-brand-600)',
-              color: '#ffffff',
+              background: '#EDD5B3',
+              color: '#2A170F',
               fontWeight: 700,
-              fontSize: '0.95rem',
+              fontSize: '0.92rem',
               cursor: isSaving ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               gap: '8px',
-              boxShadow: '0 4px 14px rgba(14, 147, 132, 0.35)',
+              boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
+              minHeight: '44px',
             }}
+            className="portal-primary-cta"
           >
             {isSaving ? (
               <>
-                <Loader2 size={18} className="animate-spin" />
+                <SolarIcon name="refresh-linear" size={18} color="#2A170F" className="animate-spin" />
                 <span>Saving Preferences...</span>
               </>
             ) : (
               <>
-                <Save size={18} />
+                <SolarIcon name="diskette-linear" size={18} color="#2A170F" />
                 <span>Save Notification Settings</span>
               </>
             )}
           </button>
         </div>
       </div>
-    </div>
+      </div>
+    </PatientPortalLayout>
   );
 }

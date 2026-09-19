@@ -3,6 +3,8 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
 import { LocumStaffSsoService } from './locumstaff-sso.service';
+import { BrevoEmailProvider } from '../notifications/providers/brevo.provider';
+import { SmsProvider } from '../notifications/providers/sms.provider';
 import {
   User,
   UserRole,
@@ -148,6 +150,18 @@ describe('AuthService & LocumStaffSsoService', () => {
         {
           provide: getRepositoryToken(NotificationPreference, 'operational'),
           useValue: mockPrefRepository,
+        },
+        {
+          provide: BrevoEmailProvider,
+          useValue: {
+            sendEmail: jest.fn().mockResolvedValue({ success: true, messageId: 'test-email-id' }),
+          },
+        },
+        {
+          provide: SmsProvider,
+          useValue: {
+            sendSms: jest.fn().mockResolvedValue({ success: true, sid: 'test-sms-id' }),
+          },
         },
       ],
     }).compile();

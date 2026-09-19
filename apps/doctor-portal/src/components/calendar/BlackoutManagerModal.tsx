@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  X,
   Calendar,
   AlertTriangle,
   Plus,
@@ -10,9 +9,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Clock,
-  ShieldAlert,
 } from 'lucide-react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { SolarIcon } from '../common/SolarIcon';
 
 export interface BlackoutItem {
   id: string;
@@ -109,7 +108,7 @@ export function BlackoutManagerModal({
         throw new Error(data.message || 'Failed to create blackout range');
       }
 
-      setSuccessMsg(data.message || 'Out of office period created successfully');
+      setSuccessMsg(data.message || 'Out-of-office period created successfully');
       await loadBlackouts();
       onUpdated();
     } catch (err: any) {
@@ -143,63 +142,62 @@ export function BlackoutManagerModal({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.55)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-        padding: '20px',
+      className="portal-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
+        className="portal-modal-surface"
         style={{
-          background: '#ffffff',
-          borderRadius: '24px',
           width: '100%',
-          maxWidth: '560px',
+          maxWidth: '580px',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
           overflow: 'hidden',
-          animation: 'fadeIn 0.2s ease-out',
+          background: 'var(--color-cream-surface, #FDFBF7)',
         }}
       >
         {/* Header */}
         <div
           style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--color-slate-100)',
+            padding: '22px 28px',
+            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            background: 'var(--color-cream-surface, #FDFBF7)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: '#fef3c7',
-                color: '#d97706',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: 'var(--color-gold-pale, #F0E5D3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Calendar size={20} />
+              <SolarIcon name="calendar-minimalistic-linear" size={20} color="var(--color-gold-bronze, #B88647)" />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
-                Out-of-Office & Blackout Manager (DP-405)
+              <h2
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  margin: 0,
+                }}
+              >
+                Out-of-Office & Blackout Periods
               </h2>
-              <span style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)' }}>
-                Block holidays and prevent consultation bookings
+              <span style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                Block clinical dates and prevent patient consultation bookings
               </span>
             </div>
           </div>
@@ -210,17 +208,20 @@ export function BlackoutManagerModal({
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--color-slate-400)',
+              color: 'var(--color-cream-text-muted, #6B5E55)',
               cursor: 'pointer',
               padding: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <X size={20} />
+            <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base, #DFAB62)" />
           </button>
         </div>
 
         {/* Scrollable Container */}
-        <div style={{ padding: '24px', overflowY: 'auto', flex: 1 }}>
+        <div style={{ padding: '24px 28px', overflowY: 'auto', flex: 1 }}>
           {errorMsg && (
             <div
               style={{
@@ -261,20 +262,28 @@ export function BlackoutManagerModal({
           <form
             onSubmit={handleCreateBlackout}
             style={{
-              background: 'var(--color-slate-50)',
-              borderRadius: '16px',
-              border: '1px solid var(--color-slate-200)',
-              padding: '18px',
+              background: 'var(--color-cream-base, #FAF6EE)',
+              borderRadius: '18px',
+              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
+              padding: '20px',
               marginBottom: '24px',
             }}
           >
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-slate-900)', marginBottom: '14px' }}>
+            <h3
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: '1rem',
+                fontWeight: 800,
+                color: 'var(--color-chocolate-base, #2A170F)',
+                marginBottom: '14px',
+              }}
+            >
               Schedule New Out-of-Office Period
             </h3>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '4px' }}>
+                <label className="portal-label">
                   Start Date
                 </label>
                 <input
@@ -282,18 +291,11 @@ export function BlackoutManagerModal({
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--color-slate-300)',
-                    fontSize: '0.875rem',
-                    background: '#ffffff',
-                  }}
+                  className="portal-input"
                 />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '4px' }}>
+                <label className="portal-label">
                   End Date
                 </label>
                 <input
@@ -301,96 +303,83 @@ export function BlackoutManagerModal({
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid var(--color-slate-300)',
-                    fontSize: '0.875rem',
-                    background: '#ffffff',
-                  }}
+                  className="portal-input"
                 />
               </div>
             </div>
 
             <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '4px' }}>
-                Reason / Note
+              <label className="portal-label">
+                Reason / Clinical Note
               </label>
               <select
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '8px 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-slate-300)',
-                  fontSize: '0.875rem',
-                  background: '#ffffff',
-                }}
+                className="portal-select"
               >
                 <option value="Annual Leave">Annual Leave</option>
-                <option value="Medical Conference">Medical Conference / CME</option>
+                <option value="Medical Conference">Medical Conference / CPD / CME</option>
                 <option value="Sick Leave">Personal / Medical Leave</option>
                 <option value="Public Holiday">Public Holiday</option>
-                <option value="Out of Office">Out of Office</option>
+                <option value="Out of Office">Out of Office / Personal Shift</option>
               </select>
             </div>
 
             {/* Warning Callout */}
             <div
               style={{
-                background: '#fffbeb',
-                borderRadius: '10px',
-                padding: '10px 12px',
-                border: '1px solid #fde68a',
-                fontSize: '0.775rem',
-                color: '#92400e',
-                lineHeight: 1.4,
-                marginBottom: '14px',
+                background: 'var(--color-gold-pale, #F0E5D3)',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                border: '1px solid rgba(223, 171, 98, 0.35)',
+                fontSize: '0.78rem',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                lineHeight: 1.45,
+                marginBottom: '16px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '8px',
               }}
             >
-              ⚠️ <strong>Auto-cancellation:</strong> All unbooked availability slots within this window will be cancelled automatically, and no third-party shifts will slice during this period.
+              <SolarIcon name="danger-circle-bold" size={16} color="var(--color-gold-bronze, #B88647)" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <span>
+                <strong>Notice:</strong> All unbooked availability slots within this window will be blocked automatically, preventing new patient telehealth bookings.
+              </span>
             </div>
 
             <button
               type="submit"
               disabled={isSubmitting}
-              style={{
-                width: '100%',
-                padding: '10px',
-                borderRadius: '10px',
-                border: 'none',
-                background: 'var(--color-brand-600)',
-                color: '#ffffff',
-                fontSize: '0.875rem',
-                fontWeight: 700,
-                cursor: isSubmitting ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-              }}
+              className="btn-primary"
+              style={{ width: '100%', padding: '11px', fontSize: '0.875rem' }}
             >
-              <Plus size={16} />
-              <span>{isSubmitting ? 'Saving...' : 'Confirm & Block Out-of-Office'}</span>
+              <SolarIcon name="add-circle-bold" size={17} color="var(--color-chocolate-base)" />
+              <span>{isSubmitting ? 'Saving Period...' : 'Confirm & Block Out-of-Office'}</span>
             </button>
           </form>
 
           {/* Active Blackouts List */}
           <div>
-            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-slate-900)', marginBottom: '12px' }}>
-              Current & Upcoming Out-of-Office Periods
+            <h3
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: '1rem',
+                fontWeight: 800,
+                color: 'var(--color-chocolate-base, #2A170F)',
+                marginBottom: '12px',
+              }}
+            >
+              Current & Scheduled Out-of-Office Periods
             </h3>
 
             {blackouts.length === 0 ? (
               <div
                 style={{
                   padding: '24px',
-                  borderRadius: '12px',
-                  border: '1px dashed var(--color-slate-200)',
+                  borderRadius: '14px',
+                  border: '1.5px dashed var(--color-gold-border, rgba(223, 171, 98, 0.25))',
                   textAlign: 'center',
-                  color: 'var(--color-slate-400)',
+                  color: 'var(--color-cream-text-muted, #6B5E55)',
                   fontSize: '0.85rem',
                 }}
               >
@@ -399,12 +388,12 @@ export function BlackoutManagerModal({
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {blackouts.map((b) => {
-                  const s = new Date(b.startTime).toLocaleDateString('en-US', {
+                  const s = new Date(b.startTime).toLocaleDateString('en-ZA', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',
                   });
-                  const e = new Date(b.endTime).toLocaleDateString('en-US', {
+                  const e = new Date(b.endTime).toLocaleDateString('en-ZA', {
                     month: 'short',
                     day: 'numeric',
                     year: 'numeric',
@@ -415,9 +404,9 @@ export function BlackoutManagerModal({
                       key={b.id}
                       style={{
                         padding: '12px 16px',
-                        borderRadius: '12px',
-                        border: '1px solid var(--color-slate-200)',
-                        background: '#ffffff',
+                        borderRadius: '14px',
+                        border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
+                        background: 'var(--color-cream-surface, #FDFBF7)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -425,19 +414,10 @@ export function BlackoutManagerModal({
                     >
                       <div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              background: '#fef3c7',
-                              color: '#b45309',
-                            }}
-                          >
+                          <span className="badge-gold">
                             {b.reason}
                           </span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-slate-800)' }}>
+                          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
                             {s} — {e}
                           </span>
                         </div>
@@ -450,13 +430,16 @@ export function BlackoutManagerModal({
                         style={{
                           background: 'none',
                           border: 'none',
-                          color: '#ef4444',
+                          color: '#dc2626',
                           cursor: 'pointer',
                           padding: '6px',
                           borderRadius: '6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                       >
-                        <Trash2 size={16} />
+                        <SolarIcon name="trash-bin-trash-linear" size={17} color="#dc2626" />
                       </button>
                     </div>
                   );
@@ -469,25 +452,18 @@ export function BlackoutManagerModal({
         {/* Footer */}
         <div
           style={{
-            padding: '16px 24px',
-            borderTop: '1px solid var(--color-slate-100)',
+            padding: '16px 28px',
+            borderTop: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.15))',
             display: 'flex',
             justifyContent: 'flex-end',
+            background: 'var(--color-cream-surface, #FDFBF7)',
           }}
         >
           <button
             type="button"
             onClick={onClose}
-            style={{
-              padding: '8px 16px',
-              borderRadius: '8px',
-              border: '1px solid var(--color-slate-300)',
-              background: '#ffffff',
-              color: 'var(--color-slate-700)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="btn-secondary"
+            style={{ padding: '8px 20px', fontSize: '0.85rem' }}
           >
             Close
           </button>

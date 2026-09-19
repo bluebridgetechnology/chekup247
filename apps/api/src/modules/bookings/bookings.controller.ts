@@ -102,6 +102,19 @@ export class BookingsController {
   }
 
   /**
+   * Update clinical intake, reason, notes, or uploaded test reports for a booking.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/intake')
+  updateBookingIntake(
+    @Param('id') id: string,
+    @CurrentUser('id') userId: string,
+    @Body() dto: { notes?: string; reasonCategory?: string; attachments?: any[] },
+  ) {
+    return this.bookingsService.updateBookingIntake(id, userId, dto);
+  }
+
+  /**
    * BE-508: Trigger cross-database reconciliation job manually.
    */
   @UseGuards(JwtAuthGuard)

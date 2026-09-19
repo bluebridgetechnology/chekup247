@@ -140,7 +140,7 @@ export function HowItWorksSection() {
                   fontWeight: 600,
                   fontSize: '0.925rem',
                   padding: '13px 28px',
-                  borderRadius: '9999px',
+                  borderRadius: '12px',
                   textDecoration: 'none',
                   lineHeight: 1,
                   boxSizing: 'border-box',

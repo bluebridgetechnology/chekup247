@@ -196,7 +196,7 @@ export function Navbar() {
             {isAuthenticated && user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }} className="auth-actions">
                 <Link
-                  href="/bookings"
+                  href="/appointments"
                   style={{
                     fontSize: '0.875rem',
                     fontWeight: 500,
@@ -205,17 +205,17 @@ export function Navbar() {
                   }}
                   className="auth-link"
                 >
-                  My Bookings
+                  My Appointments
                 </Link>
                 <NotificationBell />
                 <Link
-                  href="/profile"
+                  href="/appointments"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '8px',
                     padding: '5px 12px',
-                    borderRadius: '9999px',
+                    borderRadius: '10px',
                     background: 'var(--color-gold-glow)',
                     color: 'var(--color-gold-base)',
                     fontWeight: 600,
@@ -224,7 +224,7 @@ export function Navbar() {
                     border: '1px solid var(--color-gold-glow)',
                   }}
                 >
-                  <span>{user.fullName?.split(' ')[0] || 'Profile'}</span>
+                  <span>{user.fullName?.split(' ')[0] || 'Portal'}</span>
                 </Link>
                 <button
                   onClick={() => logout()}
@@ -272,7 +272,7 @@ export function Navbar() {
                 fontWeight: 600,
                 fontSize: '0.875rem',
                 padding: '8px 20px',
-                borderRadius: '9999px',
+                borderRadius: '10px',
                 textDecoration: 'none',
                 lineHeight: 1,
                 height: '38px',

@@ -176,7 +176,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               fontWeight: 600,
               fontSize: '0.9rem',
               padding: '12px 20px',
-              borderRadius: '9999px',
+              borderRadius: '12px',
               textDecoration: 'none',
               width: '100%',
               boxSizing: 'border-box',

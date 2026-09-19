@@ -64,6 +64,11 @@ export class BrevoEmailProvider {
     const appointmentTime = params.appointmentTime || '';
     const portalUrl = params.portalUrl || envConfig.PATIENT_WEB_URL;
     const bookingId = params.bookingId || '';
+    const hpcsaNumber = params.hpcsaNumber || '';
+    const specialty = params.specialty || 'General Practitioner';
+    const amount = params.amount || '0.00';
+    const prescriptionId = params.prescriptionId || bookingId || '';
+    const icd10Code = params.icd10Code || '';
 
     const baseStyles = `
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
@@ -91,27 +96,338 @@ export class BrevoEmailProvider {
       text-decoration: none;
       margin-top: 20px;
     `;
+    const headerHtml = `
+      <div style="text-align: center; margin-bottom: 24px;">
+        <h1 style="color: #2A170F; margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -0.5px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+          ChekUp<span style="color: #DFAB62;">247</span>
+        </h1>
+        <p style="color: #64748b; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;">
+          Telehealth & Digital Healthcare South Africa
+        </p>
+      </div>
+    `;
+    const footerHtml = `
+      <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+        <p style="margin: 0; font-weight: 600; color: #64748b;">ChekUp247 (Pty) Ltd &bull; HPCSA Compliant &bull; POPIA Certified</p>
+        <p style="margin: 4px 0 0 0;">Need clinical or technical assistance? Contact <a href="mailto:support@chekup247.co.za" style="color: #0e9384; text-decoration: none; font-weight: 600;">support@chekup247.co.za</a></p>
+      </div>
+    `;
 
     switch (templateId) {
+      case 'otp_verification':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <p>Dear <strong>${patientName}</strong>,</p>
+              <p>Your one-time security code to verify your ChekUp247 account and access your telehealth consultation is:</p>
+              <div style="background: #FAF6EE; border: 1.5px dashed #DFAB62; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center;">
+                <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #2A170F; font-family: monospace;">${params.otp || '000000'}</span>
+              </div>
+              <p style="color: #64748b; font-size: 13px; line-height: 1.5;">This code expires in 15 minutes. Never share this code with anyone. ChekUp247 staff will never ask for your code.</p>
+              <p style="color: #64748b; font-size: 13px; margin-top: 12px;">Verifying your account allows you to securely enter consultation rooms with doctors, receive HPCSA e-prescriptions, and review medical records.</p>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
       case 'booking_confirmed':
         return `
           <div style="${baseStyles}">
             <div style="${cardStyles}">
-              <div style="text-align: center; margin-bottom: 24px;">
-                <h1 style="color: #0e9384; margin: 0; font-size: 24px;">Appointment Confirmed</h1>
-                <p style="color: #64748b; font-size: 14px; margin-top: 4px;">ChekUp247 Telehealth Consultation</p>
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  &#10003; Consultation Confirmed
+                </span>
               </div>
               <p>Dear <strong>${patientName}</strong>,</p>
-              <p>Your video consultation with <strong>Dr. ${doctorName}</strong> has been successfully booked and confirmed.</p>
-              <div style="background: #f1f5f9; border-radius: 12px; padding: 16px; margin: 20px 0;">
+              <p>Your video consultation with <strong>Dr. ${doctorName}</strong> has been successfully booked and payment secured in escrow.</p>
+              <div style="background: #FAF6EE; border: 1px solid #DFAB62; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Consulting Practitioner:</strong> Dr. ${doctorName} (${specialty})</p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Date:</strong> ${appointmentDate}</p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Time:</strong> ${appointmentTime} (SAST)</p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Booking Reference:</strong> <span style="font-family: monospace; font-weight: 700;">${bookingId}</span></p>
+              </div>
+              <p style="color: #475569; font-size: 14px;">Please test your camera and microphone 5 minutes prior to your appointment time. Consultations take place directly in your web browser.</p>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/bookings/${bookingId}" style="${buttonStyles}">View Booking & Waiting Room</a>
+              </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'doctor_application_received':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #eff6ff; color: #1e40af; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  Practitioner Application Received
+                </span>
+              </div>
+              <p>Dear <strong>Dr. ${doctorName}</strong>,</p>
+              <p>Thank you for submitting your application to practice telemedicine on ChekUp247. We have received your credentials and documentation.</p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <p style="margin: 4px 0;"><strong>Practitioner Name:</strong> Dr. ${doctorName}</p>
+                <p style="margin: 4px 0;"><strong>Specialty:</strong> ${specialty}</p>
+                <p style="margin: 4px 0;"><strong>HPCSA Number:</strong> <span style="font-family: monospace; font-weight: 700;">${hpcsaNumber || 'Submitted'}</span></p>
+                <p style="margin: 4px 0;"><strong>Documents Submitted:</strong> ${params.documentCount || 1} file(s)</p>
+                <p style="margin: 4px 0;"><strong>Status:</strong> <span style="color: #d97706; font-weight: 700;">Pending HPCSA Verification</span></p>
+              </div>
+              <p style="color: #475569; font-size: 14px;">Our clinical governance team verifies all medical practitioners against the official Health Professions Council of South Africa register. Verification typically takes <strong>24 to 48 business hours</strong>.</p>
+              <p style="color: #475569; font-size: 14px;">Once approved, you will receive an immediate notification to set up your consultation fees and weekly calendar slots.</p>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/doctor/status" style="${buttonStyles}">View Application Status</a>
+              </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'doctor_profile_approved':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  &#10003; Practitioner Profile Approved
+                </span>
+              </div>
+              <p>Dear <strong>Dr. ${doctorName}</strong>,</p>
+              <p>Congratulations! Your HPCSA credentials and practitioner profile have been officially verified and approved by the ChekUp247 clinical administration team.</p>
+              <div style="background: #FAF6EE; border: 1px solid #DFAB62; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <p style="margin: 4px 0; color: #2A170F;"><strong>HPCSA Registration:</strong> <span style="font-family: monospace; font-weight: 700;">${hpcsaNumber}</span> (Active & Verified)</p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Specialty:</strong> ${specialty}</p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Telehealth Status:</strong> Active & Cleared for Consultations</p>
+              </div>
+              <h3 style="color: #2A170F; font-size: 16px; margin: 20px 0 8px 0;">Next Steps to Start Seeing Patients:</h3>
+              <ol style="color: #475569; font-size: 14px; padding-left: 20px; line-height: 1.8;">
+                <li>Log in to your <strong>Practitioner Portal</strong>.</li>
+                <li>Set your <strong>weekly availability schedule</strong> and consultation hours.</li>
+                <li>Ensure your digital signature and stamp are configured for e-prescriptions.</li>
+              </ol>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/calendar" style="${buttonStyles}">Open Schedule & Calendar</a>
+              </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'new_booking_doctor':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #eff6ff; color: #1e40af; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  New Appointment Booked
+                </span>
+              </div>
+              <p>Dear <strong>Dr. ${doctorName}</strong>,</p>
+              <p>A patient has booked and paid for a telehealth consultation with you on ChekUp247.</p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <p style="margin: 4px 0;"><strong>Patient:</strong> ${patientName}</p>
                 <p style="margin: 4px 0;"><strong>Date:</strong> ${appointmentDate}</p>
                 <p style="margin: 4px 0;"><strong>Time:</strong> ${appointmentTime} (SAST)</p>
-                <p style="margin: 4px 0;"><strong>Booking Reference:</strong> ${bookingId}</p>
+                <p style="margin: 4px 0;"><strong>Primary Reason:</strong> ${params.clinicalReason || 'General Telehealth Consultation'}</p>
+                <p style="margin: 4px 0;"><strong>Booking Reference:</strong> <span style="font-family: monospace; font-weight: 700;">${bookingId}</span></p>
               </div>
-              <p>Please ensure you are in a quiet room with good internet connectivity 5 minutes before the call.</p>
+              <p style="color: #475569; font-size: 14px;">The patient's payment is held securely in platform escrow and will be released to your practitioner wallet immediately upon conclusion of the consultation.</p>
               <div style="text-align: center;">
-                <a href="${portalUrl}/bookings/${bookingId}" style="${buttonStyles}">View Booking Details</a>
+                <a href="${portalUrl}/doctor/consultations/${bookingId}" style="${buttonStyles}">View Triage Notes & Patient History</a>
               </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'doctor_joined_room':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  &#9654; Doctor In Room
+                </span>
+              </div>
+              <p>Dear <strong>${patientName}</strong>,</p>
+              <p style="font-size: 16px; font-weight: 600; color: #0e9384;">Dr. ${doctorName} has arrived and is waiting in your ChekUp247 video consultation room.</p>
+              <div style="background: #FAF6EE; border: 1px solid #DFAB62; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Consulting Doctor:</strong> Dr. ${doctorName}</p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Status:</strong> Waiting for you to connect</p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Grace Period:</strong> 10 minutes maximum</p>
+              </div>
+              <p style="color: #475569; font-size: 14px;">Please click the button below right away to launch your encrypted HD video consultation.</p>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/consultations/${bookingId}" style="${buttonStyles}">Join Video Room Now</a>
+              </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'patient_no_show_warning':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #fef2f2; color: #991b1b; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  &#9888; Action Required: Consultation in Progress
+                </span>
+              </div>
+              <p>Hi <strong>${patientName}</strong>,</p>
+              <p><strong>Dr. ${doctorName}</strong> is currently waiting in your consultation room. You have not yet joined the session.</p>
+              <div style="background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 18px; margin: 20px 0; color: #991b1b;">
+                <p style="margin: 4px 0; font-weight: 700;">Urgent Grace Period Notice</p>
+                <p style="margin: 4px 0; font-size: 13px;">In accordance with HPCSA guidelines and platform policy, consultations unattended after 10 minutes will be recorded as a patient no-show, and consultation fees will be forfeited to the doctor.</p>
+              </div>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/consultations/${bookingId}" style="${buttonStyles}">Enter Consultation Room Immediately</a>
+              </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'prescription_issued':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  &#10003; Digital E-Prescription Issued
+                </span>
+              </div>
+              <p>Dear <strong>${patientName}</strong>,</p>
+              <p>Following your telehealth consultation, <strong>Dr. ${doctorName}</strong> has generated your official South African digital prescription.</p>
+              <div style="background: #FAF6EE; border: 1px solid #DFAB62; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Prescribing Doctor:</strong> Dr. ${doctorName} (${specialty})</p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>HPCSA Number:</strong> <span style="font-family: monospace; font-weight: 700;">${hpcsaNumber || 'Verified'}</span></p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Diagnosis / ICD-10:</strong> <span style="font-weight: 700;">${icd10Code || 'Clinical Consultation'}</span></p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Prescription Reference:</strong> <span style="font-family: monospace;">${prescriptionId}</span></p>
+              </div>
+              <p style="color: #475569; font-size: 14px;">This prescription includes a cryptographic digital seal compliant with the South African Medicines Act. You can download the PDF or present it directly to any licensed South African community or courier pharmacy.</p>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/prescriptions/${prescriptionId}" style="${buttonStyles}">View & Download Prescription</a>
+              </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'medical_certificate_ready':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  &#10003; Medical Certificate Ready
+                </span>
+              </div>
+              <p>Dear <strong>${patientName}</strong>,</p>
+              <p><strong>Dr. ${doctorName}</strong> has issued your official medical certificate (sick note) following your consultation.</p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <p style="margin: 4px 0;"><strong>Issuing Practitioner:</strong> Dr. ${doctorName}</p>
+                <p style="margin: 4px 0;"><strong>Valid Period:</strong> ${params.validPeriod || 'As specified by doctor'}</p>
+                <p style="margin: 4px 0;"><strong>Legal Compliance:</strong> HPCSA Ethical Rule 16 & BCEA Compliant</p>
+              </div>
+              <p style="color: #475569; font-size: 14px;">The certificate has been digitally signed and stored securely in your medical records for submission to your employer or educational institution.</p>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/records/sick-notes" style="${buttonStyles}">Download Medical Certificate</a>
+              </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'review_request':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #FAF6EE; color: #2A170F; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px; border: 1px solid #DFAB62;">
+                  &#9733; How Was Your Care?
+                </span>
+              </div>
+              <p>Dear <strong>${patientName}</strong>,</p>
+              <p>Thank you for consulting with <strong>Dr. ${doctorName}</strong> on ChekUp247 today.</p>
+              <p style="color: #475569; font-size: 14px;">Your honest review helps other South African patients find quality healthcare, and helps Dr. ${doctorName} maintain the highest standard of patient care.</p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0 0 12px 0; font-weight: 700; color: #2A170F;">Rate your consultation experience:</p>
+                <div style="font-size: 28px; letter-spacing: 8px;">
+                  <a href="${portalUrl}/reviews/new?bookingId=${bookingId}&rating=5" style="text-decoration: none;">&#11088;</a>
+                  <a href="${portalUrl}/reviews/new?bookingId=${bookingId}&rating=4" style="text-decoration: none;">&#11088;</a>
+                  <a href="${portalUrl}/reviews/new?bookingId=${bookingId}&rating=3" style="text-decoration: none;">&#11088;</a>
+                  <a href="${portalUrl}/reviews/new?bookingId=${bookingId}&rating=2" style="text-decoration: none;">&#11088;</a>
+                  <a href="${portalUrl}/reviews/new?bookingId=${bookingId}&rating=1" style="text-decoration: none;">&#11088;</a>
+                </div>
+              </div>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/reviews/new?bookingId=${bookingId}" style="${buttonStyles}">Leave a 30-Second Review</a>
+              </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'doctor_earnings_credited':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  &#10003; Wallet Credited
+                </span>
+              </div>
+              <p>Dear <strong>Dr. ${doctorName}</strong>,</p>
+              <p>Consultation <strong>#${bookingId}</strong> has successfully concluded. Platform escrow funds have been released to your practitioner wallet.</p>
+              <div style="background: #FAF6EE; border: 1px solid #DFAB62; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Consultation Fee Credited:</strong> <span style="font-size: 20px; font-weight: 800; color: #0e9384;">R${amount}</span></p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Booking Reference:</strong> <span style="font-family: monospace;">${bookingId}</span></p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Settlement:</strong> Available for scheduled weekly payout or instant transfer</p>
+              </div>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/doctor/wallet" style="${buttonStyles}">View Wallet & Balance</a>
+              </div>
+              ${footerHtml}
+            </div>
+          </div>
+        `;
+
+      case 'doctor_payout_dispatched':
+        return `
+          <div style="${baseStyles}">
+            <div style="${cardStyles}">
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  &#10003; Bank Payout Dispatched
+                </span>
+              </div>
+              <p>Dear <strong>Dr. ${doctorName}</strong>,</p>
+              <p>A payout transfer from your ChekUp247 practitioner wallet has been dispatched to your registered South African bank account.</p>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <p style="margin: 4px 0;"><strong>Payout Amount:</strong> <span style="font-size: 20px; font-weight: 800; color: #0e9384;">R${amount}</span></p>
+                <p style="margin: 4px 0;"><strong>Bank Name:</strong> ${params.bankName || 'Verified Bank Account'}</p>
+                <p style="margin: 4px 0;"><strong>Account Ending:</strong> ${params.accountLast4 || '****'}</p>
+                <p style="margin: 4px 0;"><strong>Transfer Reference:</strong> <span style="font-family: monospace; font-weight: 700;">${params.payoutReference || bookingId}</span></p>
+              </div>
+              <p style="color: #475569; font-size: 14px;">Depending on your bank, funds typically reflect within 1 to 2 business days.</p>
+              <div style="text-align: center;">
+                <a href="${portalUrl}/doctor/payouts" style="${buttonStyles}">View Payout History</a>
+              </div>
+              ${footerHtml}
             </div>
           </div>
         `;
@@ -127,9 +443,11 @@ export class BrevoEmailProvider {
         return `
           <div style="${baseStyles}">
             <div style="${cardStyles}">
-              <div style="text-align: center; margin-bottom: 24px;">
-                <h1 style="color: #0e9384; margin: 0; font-size: 24px;">Consultation Reminder (${timing})</h1>
-                <p style="color: #64748b; font-size: 14px; margin-top: 4px;">Your appointment is starting soon</p>
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #FAF6EE; color: #2A170F; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px; border: 1px solid #DFAB62;">
+                  Consultation Reminder (${timing})
+                </span>
               </div>
               <p>Hi <strong>${patientName}</strong>,</p>
               <p>This is a reminder that your telehealth consultation with <strong>Dr. ${doctorName}</strong> starts in <strong>${timing}</strong>.</p>
@@ -138,8 +456,9 @@ export class BrevoEmailProvider {
                 <p style="margin: 4px 0;"><strong>Grace Period:</strong> 10 minutes maximum after start time</p>
               </div>
               <div style="text-align: center;">
-                <a href="${portalUrl}/consultation/${bookingId}" style="${buttonStyles}">Enter Consultation Room</a>
+                <a href="${portalUrl}/consultations/${bookingId}" style="${buttonStyles}">Enter Consultation Room</a>
               </div>
+              ${footerHtml}
             </div>
           </div>
         `;
@@ -149,9 +468,11 @@ export class BrevoEmailProvider {
         return `
           <div style="${baseStyles}">
             <div style="${cardStyles}">
-              <div style="text-align: center; margin-bottom: 24px;">
-                <h1 style="color: #dc2626; margin: 0; font-size: 24px;">Booking Cancelled</h1>
-                <p style="color: #64748b; font-size: 14px; margin-top: 4px;">ChekUp247 Consultation Notice</p>
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #fef2f2; color: #991b1b; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  Booking Cancelled
+                </span>
               </div>
               <p>Dear <strong>${patientName}</strong>,</p>
               <p>Your appointment with <strong>Dr. ${doctorName}</strong> for <strong>${appointmentDate}</strong> has been cancelled.</p>
@@ -163,6 +484,7 @@ export class BrevoEmailProvider {
               <div style="text-align: center;">
                 <a href="${portalUrl}/doctors" style="${buttonStyles}">Find Alternative Doctor</a>
               </div>
+              ${footerHtml}
             </div>
           </div>
         `;
@@ -171,9 +493,11 @@ export class BrevoEmailProvider {
         return `
           <div style="${baseStyles}">
             <div style="${cardStyles}">
-              <div style="text-align: center; margin-bottom: 24px;">
-                <h1 style="color: #0e9384; margin: 0; font-size: 24px;">Appointment Rescheduled</h1>
-                <p style="color: #64748b; font-size: 14px; margin-top: 4px;">Updated Time Slot Confirmed</p>
+              ${headerHtml}
+              <div style="text-align: center; margin-bottom: 20px;">
+                <span style="display: inline-block; background: #ecfdf5; color: #065f46; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 20px;">
+                  Appointment Rescheduled
+                </span>
               </div>
               <p>Dear <strong>${patientName}</strong>,</p>
               <p>Your consultation with <strong>Dr. ${doctorName}</strong> has been rescheduled to a new time.</p>
@@ -184,6 +508,7 @@ export class BrevoEmailProvider {
               <div style="text-align: center;">
                 <a href="${portalUrl}/bookings/${bookingId}" style="${buttonStyles}">View Rescheduled Booking</a>
               </div>
+              ${footerHtml}
             </div>
           </div>
         `;
@@ -192,8 +517,10 @@ export class BrevoEmailProvider {
         return `
           <div style="${baseStyles}">
             <div style="${cardStyles}">
+              ${headerHtml}
               <h2 style="color: #0e9384;">ChekUp247 Notification</h2>
               <p>${params.message || 'You have an update regarding your consultation on ChekUp247.'}</p>
+              ${footerHtml}
             </div>
           </div>
         `;

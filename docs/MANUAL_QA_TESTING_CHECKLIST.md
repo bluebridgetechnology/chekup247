@@ -159,3 +159,15 @@ npm run dev:admin     # http://localhost:3002 (Admin Panel)
 | **Lead QA Engineer** | ____________________ | ____________________ | ____________ | [ ] Go / [ ] No-Go |
 | **Product Manager** | ____________________ | ____________________ | ____________ | [ ] Go / [ ] No-Go |
 | **Engineering Lead** | ____________________ | ____________________ | ____________ | [ ] Go / [ ] No-Go |
+
+---
+
+## 4. Pre-Deployment & Production Go-Live Checklist
+
+- [ ] **Daily.co Subdomain Switch**: Update `DAILY_DOMAIN` in production `.env` from local/default (`chekup247`) to your registered live Daily.co domain.
+- [ ] **Daily.co Production API Key**: Update `DAILY_API_KEY` in production environment with the live Daily.co API key.
+- [ ] **WebRTC HTTPS Enforcement**: Ensure SSL/TLS certificates are active on all domains. WebRTC media streams (audio, video, virtual blur) strictly require HTTPS in production browsers.
+- [ ] **Paystack Live Keys**: Swap `PAYSTACK_SECRET_KEY` and `PAYSTACK_PUBLIC_KEY` from test keys (`sk_test_*`) to South African live production keys.
+- [ ] **Production Gateway Credentials**: Ensure live credentials are configured for SMSPortal (`SMSPORTAL_API_KEY`, `SMSPORTAL_API_SECRET`) and Brevo (`BREVO_API_KEY`).
+- [ ] **Database SSL & Secrets**: Set `OPERATIONAL_DB_SSL=true` and `PATIENT_DB_SSL=true` on production PostgreSQL connections.
+

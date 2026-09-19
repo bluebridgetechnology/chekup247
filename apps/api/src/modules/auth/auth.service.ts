@@ -5,6 +5,7 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  OnModuleInit,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -22,10 +23,14 @@ import {
   RegisterPatientDto,
   LoginDto,
   VerifyEmailDto,
+  VerifyOtpDto,
+  ResendOtpDto,
   ForgotPasswordDto,
   ResetPasswordDto,
   GoogleAuthDto,
 } from './dto/auth.dto';
+import { BrevoEmailProvider } from '../notifications/providers/brevo.provider';
+import { SmsProvider } from '../notifications/providers/sms.provider';
 
 export interface AuthSessionResponse {
   accessToken: string;
@@ -43,8 +48,17 @@ export interface AuthSessionResponse {
   };
 }
 
+export interface RegisterPatientResponse {
+  message: string;
+  userId: string;
+  accessToken: string;
+  user: AuthSessionResponse['user'];
+  verificationToken?: string;
+  otp?: string;
+}
+
 @Injectable()
-export class AuthService {
+export class AuthService implements OnModuleInit {
   private readonly logger = new Logger(AuthService.name);
 
   constructor(
@@ -57,14 +71,74 @@ export class AuthService {
     @InjectRepository(NotificationPreference, 'operational')
     private readonly notificationPreferenceRepository: Repository<NotificationPreference>,
     private readonly tokenService: TokenService,
+    private readonly brevoEmailProvider: BrevoEmailProvider,
+    private readonly smsProvider: SmsProvider,
   ) {}
 
+  async onModuleInit() {
+    try {
+      await this.ensureTestPatientAccount();
+    } catch (err: any) {
+      this.logger.warn(`Test patient seed check deferred: ${err.message}`);
+    }
+  }
+
   /**
-   * Register a new patient
+   * Seed or verify the default verified test patient account
+   */
+  async ensureTestPatientAccount(): Promise<{ email: string; message: string; user: User }> {
+    const testPatientEmail = 'patient@chekup247.com';
+    let user = await this.userRepository.findOne({
+      where: { email: testPatientEmail },
+    });
+
+    const passwordHash = await this.tokenService.hashPassword('PatientChekup2026!');
+
+    if (!user) {
+      user = this.userRepository.create({
+        email: testPatientEmail,
+        password_hash: passwordHash,
+        full_name: 'Lerato Khumalo',
+        phone: '+27626571700',
+        role: UserRole.PATIENT,
+        status: UserStatus.ACTIVE,
+        is_email_verified: true,
+        email_verified_at: new Date(),
+      });
+      user = await this.userRepository.save(user);
+
+      const prefs = this.notificationPreferenceRepository.create({
+        user_id: user.id,
+        channels: ['email', 'sms'],
+        reminders_enabled: true,
+      });
+      await this.notificationPreferenceRepository.save(prefs);
+      this.logger.log(`Created default test patient account: ${testPatientEmail}`);
+    } else {
+      user.role = UserRole.PATIENT;
+      user.status = UserStatus.ACTIVE;
+      user.password_hash = passwordHash;
+      user.is_email_verified = true;
+      user.full_name = user.full_name || 'Lerato Khumalo';
+      user.phone = user.phone || '+27626571700';
+      user = await this.userRepository.save(user);
+    }
+
+    return {
+      email: testPatientEmail,
+      message: 'Default verified test patient account is ready',
+      user,
+    };
+  }
+
+  /**
+   * Register a new patient.
+   * Issues immediate session token for zero checkout friction,
+   * while dispatching a 6-digit clinical OTP code for clinical gating.
    */
   async registerPatient(
     dto: RegisterPatientDto,
-  ): Promise<{ message: string; userId: string; verificationToken: string }> {
+  ): Promise<RegisterPatientResponse> {
     const existing = await this.userRepository.findOne({
       where: { email: dto.email.toLowerCase() },
     });
@@ -96,9 +170,9 @@ export class AuthService {
     });
     await this.notificationPreferenceRepository.save(prefs);
 
-    // Generate email verification token (24h expiration)
-    const { token, hash } = this.tokenService.generateSecureToken(32);
-    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    // Generate 6-digit numeric OTP (15 min expiration)
+    const { otp, hash } = this.tokenService.generateOtp();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
 
     const verificationToken = this.tokenRepository.create({
       user_id: savedUser.id,
@@ -108,13 +182,196 @@ export class AuthService {
     });
     await this.tokenRepository.save(verificationToken);
 
-    this.logger.log(`Patient registered: ${savedUser.email}. Verification token: ${token}`);
+    // Dispatch verification code via Email & SMS
+    await this.sendVerificationOtp(savedUser, otp);
+
+    this.logger.log(`Patient registered: ${savedUser.email}. OTP: ${otp}`);
+
+    // Generate immediate session accessToken so patient can continue to booking checkout
+    const accessToken = this.tokenService.generateAccessToken({
+      sub: savedUser.id,
+      email: savedUser.email,
+      role: savedUser.role,
+      fullName: savedUser.full_name,
+    });
 
     return {
-      message: 'Registration successful. Please verify your email address to continue.',
+      message: 'Registration successful. A 6-digit verification code has been dispatched.',
       userId: savedUser.id,
-      verificationToken: token, // Returned for dev convenience & transactional mailer
+      accessToken,
+      user: {
+        id: savedUser.id,
+        email: savedUser.email,
+        fullName: savedUser.full_name,
+        role: savedUser.role,
+        status: savedUser.status,
+        phone: savedUser.phone,
+        isEmailVerified: savedUser.is_email_verified,
+        avatarUrl: savedUser.avatar_url,
+        dateOfBirth: savedUser.date_of_birth,
+      },
+      verificationToken: otp,
+      otp,
     };
+  }
+
+  /**
+   * Verify patient email with 6-digit OTP code
+   */
+  async verifyOtp(dto: VerifyOtpDto): Promise<AuthSessionResponse> {
+    const user = await this.userRepository.findOne({
+      where: { email: dto.email.toLowerCase().trim() },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User associated with this email was not found');
+    }
+
+    if (user.is_email_verified) {
+      const accessToken = this.tokenService.generateAccessToken({
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        fullName: user.full_name,
+      });
+
+      return {
+        accessToken,
+        user: {
+          id: user.id,
+          email: user.email,
+          fullName: user.full_name,
+          role: user.role,
+          status: user.status,
+          phone: user.phone,
+          isEmailVerified: true,
+          avatarUrl: user.avatar_url,
+          dateOfBirth: user.date_of_birth,
+        },
+      };
+    }
+
+    const otpHash = this.tokenService.hashToken(dto.otp.trim());
+
+    const record = await this.tokenRepository.findOne({
+      where: {
+        user_id: user.id,
+        token_hash: otpHash,
+        type: TokenType.EMAIL_VERIFICATION,
+      },
+      order: { created_at: 'DESC' },
+    });
+
+    if (!record) {
+      throw new BadRequestException('Invalid verification code. Please check and try again.');
+    }
+
+    if (record.used_at) {
+      throw new BadRequestException('This verification code has already been used');
+    }
+
+    if (new Date() > record.expires_at) {
+      throw new BadRequestException('Verification code has expired. Please request a new code.');
+    }
+
+    // Mark as verified
+    user.is_email_verified = true;
+    user.email_verified_at = new Date();
+    await this.userRepository.save(user);
+
+    // Mark token as used
+    record.used_at = new Date();
+    await this.tokenRepository.save(record);
+
+    const accessToken = this.tokenService.generateAccessToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      fullName: user.full_name,
+    });
+
+    this.logger.log(`Patient verified via OTP: ${user.email}`);
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        role: user.role,
+        status: user.status,
+        phone: user.phone,
+        isEmailVerified: user.is_email_verified,
+        avatarUrl: user.avatar_url,
+        dateOfBirth: user.date_of_birth,
+      },
+    };
+  }
+
+  /**
+   * Resend 6-digit OTP code to patient
+   */
+  async resendOtp(dto: ResendOtpDto): Promise<{ message: string; otp?: string }> {
+    const user = await this.userRepository.findOne({
+      where: { email: dto.email.toLowerCase().trim() },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User associated with this email was not found');
+    }
+
+    if (user.is_email_verified) {
+      return { message: 'Account is already verified.' };
+    }
+
+    // Generate new 6-digit numeric OTP (15 min expiration)
+    const { otp, hash } = this.tokenService.generateOtp();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    const verificationToken = this.tokenRepository.create({
+      user_id: user.id,
+      token_hash: hash,
+      type: TokenType.EMAIL_VERIFICATION,
+      expires_at: expiresAt,
+    });
+    await this.tokenRepository.save(verificationToken);
+
+    await this.sendVerificationOtp(user, otp);
+
+    this.logger.log(`Resent OTP for ${user.email}: ${otp}`);
+
+    return {
+      message: 'A new 6-digit verification code has been dispatched.',
+      otp,
+    };
+  }
+
+  /**
+   * Helper to dispatch 6-digit OTP code via email and SMS
+   */
+  private async sendVerificationOtp(user: User, otp: string): Promise<void> {
+    try {
+      if (user.email) {
+        await this.brevoEmailProvider.sendEmail({
+          to: [{ email: user.email, name: user.full_name }],
+          subject: `${otp} is your ChekUp247 verification code`,
+          templateId: 'otp_verification',
+          templateParams: {
+            patientName: user.full_name,
+            otp,
+          },
+        });
+      }
+
+      if (user.phone) {
+        await this.smsProvider.sendSms({
+          to: user.phone,
+          message: `Your ChekUp247 clinical verification code is: ${otp}. Valid for 15 minutes.`,
+        });
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not dispatch OTP notification: ${err.message}`);
+    }
   }
 
   /**

@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import '../styles/globals.css';
-import { Navbar } from '../components/Navbar';
-import { Footer } from '../components/Footer';
+import { LayoutShell } from '../components/LayoutShell';
 import { AuthProvider } from '../context/AuthContext';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chekup247.co.za';
@@ -144,11 +143,7 @@ export default function RootLayout({
           Skip to main content
         </a>
         <AuthProvider>
-          <Navbar />
-          <main id="main-content" tabIndex={-1} style={{ flex: 1, outline: 'none' }}>
-            {children}
-          </main>
-          <Footer />
+          <LayoutShell>{children}</LayoutShell>
         </AuthProvider>
       </body>
     </html>

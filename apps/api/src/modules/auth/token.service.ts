@@ -66,6 +66,12 @@ export class TokenService {
     return { token, hash };
   }
 
+  generateOtp(): { otp: string; hash: string } {
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const hash = this.hashToken(otp);
+    return { otp, hash };
+  }
+
   hashToken(token: string): string {
     return crypto.createHash('sha256').update(token).digest('hex');
   }

@@ -90,6 +90,64 @@ export class DoctorProfile {
   @Column({ type: 'text', array: true, default: '{}' })
   documents_url: string[];
 
+  @Column({
+    type: 'text',
+    array: true,
+    default: '{}',
+  })
+  consultation_types: string[];
+
+  @Column({ type: 'boolean', default: true })
+  offers_video: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  offers_audio: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  offers_in_clinic: boolean;
+
+  @Column({ type: 'boolean', default: false })
+  accepts_medical_aid: boolean;
+
+  @Column({ type: 'int', default: 10 })
+  experience_years: number;
+
+  @Column({ type: 'boolean', default: true })
+  is_board_certified: boolean;
+
+  @Column({ type: 'varchar', length: 255, nullable: true, default: 'Board Certified' })
+  board_certification_title: string | null;
+
+  @Column({ type: 'boolean', default: false })
+  is_on_holiday: boolean;
+
+  @Column({ type: 'varchar', length: 50, default: 'active' })
+  presence_status: string;
+
+  @Column({ type: 'text', nullable: true })
+  signature_url: string | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  signature_uploaded_at: Date | null;
+
+  @Column({ type: 'text', array: true, default: '{}' })
+  secondary_specialties: string[];
+
+  @Column({ type: 'varchar', length: 150, nullable: true })
+  bank_name: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  account_number: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  branch_code: string | null;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  account_type: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  account_holder: string | null;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 

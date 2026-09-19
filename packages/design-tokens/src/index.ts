@@ -1,5 +1,31 @@
 export const tokens = {
   colors: {
+    chocolate: {
+      base: '#2A170F',
+      hover: '#3E2114',
+      dark: '#1E100A',
+      mid: '#3E2114',
+      accent: '#4A2818',
+      border: '#5B3722',
+      deep: '#6B3A1E',
+    },
+    gold: {
+      base: '#DFAB62',
+      primary: '#E2B467',
+      hover: '#ECC076',
+      light: '#ECC27E',
+      dark: '#C9944A',
+      bronze: '#B88647',
+      pale: '#F0E5D3',
+      paleHover: '#EBDDC7',
+    },
+    cream: {
+      base: '#FAF6EE',
+      surface: '#FDFBF7',
+      text: '#2A170F',
+      muted: '#6B5E55',
+      secondary: '#7A6A60',
+    },
     brand: {
       50: '#e6f7f5',
       100: '#c2ece7',

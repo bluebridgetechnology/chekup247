@@ -6,7 +6,9 @@ import {
   Logger,
   Inject,
   forwardRef,
+  Optional,
 } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -51,6 +53,8 @@ export class ConsultationsService {
     private readonly paystackService: PaystackService,
     @InjectQueue(QUEUES.NO_SHOW)
     private readonly noShowQueue: Queue,
+    @Optional()
+    private readonly notificationsService?: NotificationsService,
   ) {}
 
   /**
@@ -173,6 +177,23 @@ export class ConsultationsService {
 
     if (isDoctor && !consultation.doctor_joined_at) {
       consultation.doctor_joined_at = new Date();
+      if (this.notificationsService && consultation.booking?.patient_id && !consultation.patient_joined_at) {
+        this.notificationsService
+          .dispatchNotification({
+            recipientId: consultation.booking.patient_id,
+            title: `Dr. ${userName || 'Your Doctor'} has joined the room`,
+            templateId: 'doctor_joined_room',
+            payload: {
+              bookingId,
+              doctorName: userName || 'Doctor',
+              message: `Dr. ${userName || 'Your Doctor'} has entered your video consultation room. Please join immediately.`,
+            },
+            deepLink: `/consultations/${bookingId}`,
+          })
+          .catch((err) => {
+            this.logger.warn(`Could not dispatch doctor_joined_room: ${err.message}`);
+          });
+      }
     } else if (!isDoctor && !consultation.patient_joined_at) {
       consultation.patient_joined_at = new Date();
     }
@@ -252,6 +273,50 @@ export class ConsultationsService {
     this.logger.log(
       `Consultation for booking ${bookingId} concluded by doctor ${doctorId}. Status set to COMPLETED.`,
     );
+
+    if (this.notificationsService) {
+      this.userRepository
+        .findOne({ where: { id: doctorId } })
+        .then((docUser) => {
+          const doctorName = docUser?.full_name || 'Practitioner';
+
+          // 1. Dispatch review_request to patient
+          this.notificationsService
+            ?.dispatchNotification({
+              recipientId: booking.patient_id,
+              title: 'How was your consultation?',
+              templateId: 'review_request',
+              payload: {
+                bookingId: booking.id,
+                doctorName,
+                message: `Thank you for consulting with Dr. ${doctorName}. How was your experience?`,
+              },
+              deepLink: `/reviews/new?bookingId=${booking.id}`,
+            })
+            .catch(() => {});
+
+          // 2. Dispatch doctor_earnings_credited to doctor
+          const netAmount = (
+            Number(booking.price || 0) - Number(booking.commission_amount || 0)
+          ).toFixed(2);
+
+          this.notificationsService
+            ?.dispatchNotification({
+              recipientId: doctorId,
+              title: 'Consultation Earnings Credited',
+              templateId: 'doctor_earnings_credited',
+              payload: {
+                bookingId: booking.id,
+                doctorName,
+                amount: netAmount,
+                message: `R${netAmount} net earnings credited to your wallet for consultation #${booking.id}.`,
+              },
+              deepLink: `/doctor/wallet`,
+            })
+            .catch(() => {});
+        })
+        .catch(() => {});
+    }
 
     return {
       success: true,
@@ -351,10 +416,12 @@ export class ConsultationsService {
     bookingId: string,
     durationMinutes: number,
     doctorId?: string,
+    isFree: boolean = false,
   ): Promise<{
     extension: ConsultationExtension;
     amount: number;
     duration_minutes: number;
+    is_free: boolean;
   }> {
     const consultation = await this.consultationRepository.findOne({
       where: { booking_id: bookingId },
@@ -374,9 +441,9 @@ export class ConsultationsService {
       throw new BadRequestException('Extension duration must be 15, 20, or 30 minutes');
     }
 
-    // Standard platform extension rates: +15 min = R150, +20 min = R200, +30 min = R300
+    // Standard platform extension rates: +15 min = R150, +20 min = R200, +30 min = R300 (or R0 if complimentary)
     const rates: Record<number, number> = { 15: 150, 20: 200, 30: 300 };
-    const amount = rates[durationMinutes];
+    const amount = isFree ? 0 : rates[durationMinutes];
 
     // Check VPS availability: Is doctor's next slot open?
     const booking = consultation.booking;
@@ -449,17 +516,19 @@ export class ConsultationsService {
       extensionId: savedExtension.id,
       durationMinutes,
       amount,
+      isFree,
       doctorName: docName,
     });
 
     this.logger.log(
-      `Time extension requested for booking ${bookingId}: +${durationMinutes}m (R${amount})`,
+      `Time extension requested for booking ${bookingId}: +${durationMinutes}m (${isFree ? 'FREE' : 'R' + amount})`,
     );
 
     return {
       extension: savedExtension,
       amount,
       duration_minutes: durationMinutes,
+      is_free: isFree,
     };
   }
 
@@ -516,83 +585,89 @@ export class ConsultationsService {
       };
     }
 
-    // Approved: execute auto-debit charge using vaulted Paystack authorization token (BE-701, BE-504)
+    // Approved: execute auto-debit charge if amount > 0, otherwise grant complimentary extension
     extension.status = ExtensionStatus.APPROVED;
     await this.extensionRepository.save(extension);
 
-    // Retrieve saved authorization code from patient's previous payment
-    let savedPayment = await this.paymentRepository.findOne({
-      where: { booking_id: booking.id, status: PaymentRecordStatus.SUCCESS },
-      order: { created_at: 'DESC' },
-    });
-
-    if (!savedPayment?.authorization_code) {
-      // Check if patient has any previous vaulted card
-      const pastPayment = await this.paymentRepository
-        .createQueryBuilder('p')
-        .innerJoin('p.booking', 'b')
-        .where('b.patient_id = :patientId', { patientId: booking.patient_id })
-        .andWhere('p.authorization_code IS NOT NULL')
-        .andWhere('p.status = :status', { status: PaymentRecordStatus.SUCCESS })
-        .orderBy('p.created_at', 'DESC')
-        .getOne();
-
-      if (pastPayment) {
-        savedPayment = pastPayment;
-      }
-    }
-
-    const authCode = savedPayment?.authorization_code || 'AUTH_tok_vault_default';
-    const patientUser = await this.userRepository.findOne({
-      where: { id: booking.patient_id },
-    });
-    const patientEmail = patientUser?.email || 'patient@chekup247.com';
-    const amountInCents = Math.round(Number(extension.amount) * 100);
-    const reference = `chk_ext_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-
-    let chargeResult: any;
-    try {
-      chargeResult = await this.paystackService.chargeAuthorization({
-        authorizationCode: authCode,
-        email: patientEmail,
-        amountInCents,
-        reference,
-        metadata: {
-          booking_id: booking.id,
-          extension_id: extension.id,
-          duration_minutes: extension.duration_minutes,
-        },
+    if (Number(extension.amount) > 0) {
+      // Retrieve saved authorization code from patient's previous payment
+      let savedPayment = await this.paymentRepository.findOne({
+        where: { booking_id: booking.id, status: PaymentRecordStatus.SUCCESS },
+        order: { created_at: 'DESC' },
       });
 
-      if (chargeResult.status !== 'success') {
-        throw new Error(chargeResult.gateway_response || 'Card debit authorization declined');
+      if (!savedPayment?.authorization_code) {
+        // Check if patient has any previous vaulted card
+        const pastPayment = await this.paymentRepository
+          .createQueryBuilder('p')
+          .innerJoin('p.booking', 'b')
+          .where('b.patient_id = :patientId', { patientId: booking.patient_id })
+          .andWhere('p.authorization_code IS NOT NULL')
+          .andWhere('p.status = :status', { status: PaymentRecordStatus.SUCCESS })
+          .orderBy('p.created_at', 'DESC')
+          .getOne();
+
+        if (pastPayment) {
+          savedPayment = pastPayment;
+        }
       }
-    } catch (chargeErr: any) {
-      this.logger.error(`Paystack tokenized auto-debit failed: ${chargeErr.message}`);
-      this.consultationGateway.broadcastExtensionPaymentFailed(bookingId, {
-        extensionId: extension.id,
-        message: 'Vaulted card charge failed. Extension could not be activated.',
+
+      const authCode = savedPayment?.authorization_code || 'AUTH_tok_vault_default';
+      const patientUser = await this.userRepository.findOne({
+        where: { id: booking.patient_id },
       });
-      throw new BadRequestException('Payment debit failed for time extension.');
+      const patientEmail = patientUser?.email || 'patient@chekup247.com';
+      const amountInCents = Math.round(Number(extension.amount) * 100);
+      const reference = `chk_ext_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
+
+      let chargeResult: any;
+      try {
+        chargeResult = await this.paystackService.chargeAuthorization({
+          authorizationCode: authCode,
+          email: patientEmail,
+          amountInCents,
+          reference,
+          metadata: {
+            booking_id: booking.id,
+            extension_id: extension.id,
+            duration_minutes: extension.duration_minutes,
+          },
+        });
+
+        if (chargeResult.status !== 'success') {
+          throw new Error(chargeResult.gateway_response || 'Card debit authorization declined');
+        }
+      } catch (chargeErr: any) {
+        this.logger.error(`Paystack tokenized auto-debit failed: ${chargeErr.message}`);
+        this.consultationGateway.broadcastExtensionPaymentFailed(bookingId, {
+          extensionId: extension.id,
+          message: 'Vaulted card charge failed. Extension could not be activated.',
+        });
+        throw new BadRequestException('Payment debit failed for time extension.');
+      }
+
+      // Record successful extension payment
+      const payment = this.paymentRepository.create({
+        booking_id: booking.id,
+        amount: Number(extension.amount),
+        provider: 'paystack',
+        provider_ref: reference,
+        authorization_code: authCode,
+        card_type: savedPayment?.card_type || 'visa',
+        last4: savedPayment?.last4 || '4081',
+        status: PaymentRecordStatus.SUCCESS,
+      });
+      const savedPaymentRecord = await this.paymentRepository.save(payment);
+
+      // Update extension to PAID
+      extension.payment_id = savedPaymentRecord.id;
+      extension.status = ExtensionStatus.PAID;
+      await this.extensionRepository.save(extension);
+    } else {
+      this.logger.log(`Complimentary extension (Free) approved for booking ${bookingId}`);
+      extension.status = ExtensionStatus.PAID;
+      await this.extensionRepository.save(extension);
     }
-
-    // Record successful extension payment
-    const payment = this.paymentRepository.create({
-      booking_id: booking.id,
-      amount: Number(extension.amount),
-      provider: 'paystack',
-      provider_ref: reference,
-      authorization_code: authCode,
-      card_type: savedPayment?.card_type || 'visa',
-      last4: savedPayment?.last4 || '4081',
-      status: PaymentRecordStatus.SUCCESS,
-    });
-    const savedPaymentRecord = await this.paymentRepository.save(payment);
-
-    // Update extension to PAID
-    extension.payment_id = savedPaymentRecord.id;
-    extension.status = ExtensionStatus.PAID;
-    await this.extensionRepository.save(extension);
 
     // Extend Daily.co room expiry on Daily API
     await this.dailyService.extendRoomExpiry(
@@ -656,5 +731,36 @@ export class ConsultationsService {
       where: { consultation_id: consultation.id },
       order: { created_at: 'ASC' },
     });
+  }
+
+  /**
+   * Handles incoming Daily.co Webhook events (e.g. participant.joined, participant.left).
+   * Daily sends a test ping { test: "test" } during webhook creation.
+   */
+  async handleDailyWebhook(payload: any): Promise<{ received: boolean; status?: string }> {
+    if (payload?.test === 'test') {
+      this.logger.log('[DailyWebhook] Verification test payload received successfully');
+      return { received: true, status: 'verified' };
+    }
+
+    const eventType = payload?.type;
+    const eventPayload = payload?.payload;
+    this.logger.log(`[DailyWebhook] Received event: ${eventType} for room: ${eventPayload?.room_name}`);
+
+    if (eventType === 'participant.joined') {
+      const roomName = eventPayload?.room_name;
+      if (roomName) {
+        const consultation = await this.consultationRepository.findOne({
+          where: { video_room_id: roomName },
+        });
+        if (consultation && !consultation.started_at) {
+          consultation.started_at = new Date();
+          await this.consultationRepository.save(consultation);
+          this.logger.log(`[DailyWebhook] Marked consultation for room ${roomName} as started`);
+        }
+      }
+    }
+
+    return { received: true, status: eventType || 'processed' };
   }
 }

@@ -3,21 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  User,
-  Mail,
-  Phone,
-  Calendar,
-  Bell,
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  Save,
-  MessageSquare,
-  Smartphone,
-  Check,
-} from 'lucide-react';
+import { SolarIcon } from '../../components/SolarIcon';
 import { useAuth } from '../../context/AuthContext';
+import { PatientPortalLayout } from '../../components/portal/PatientPortalLayout';
 
 export default function PatientProfilePage() {
   const router = useRouter();
@@ -39,7 +27,7 @@ export default function PatientProfilePage() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login?redirect=/profile');
+      router.push('/login?redirect=/appointments');
     }
   }, [isLoading, isAuthenticated, router]);
 
@@ -70,7 +58,7 @@ export default function PatientProfilePage() {
         phone: phone.trim() || undefined,
         date_of_birth: dateOfBirth || undefined,
       });
-      setFeedback({ type: 'success', message: 'Personal profile updated successfully!' });
+      setFeedback({ type: 'success', message: 'Personal demographics updated successfully!' });
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message || 'Failed to update personal details.' });
     } finally {
@@ -129,499 +117,678 @@ export default function PatientProfilePage() {
 
   if (isLoading || !user) {
     return (
-      <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <p style={{ color: 'var(--color-slate-500)', fontSize: '1rem' }}>Loading patient profile...</p>
-      </div>
+      <PatientPortalLayout activeNavKey="settings">
+        <div
+          style={{
+            minHeight: '60vh',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#B88647',
+          }}
+        >
+          <p style={{ color: '#6B5E55', fontSize: '0.95rem' }}>Loading patient profile...</p>
+        </div>
+      </PatientPortalLayout>
     );
   }
 
   return (
-    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '40px 20px' }}>
-      {/* Profile Header */}
+    <PatientPortalLayout activeNavKey="settings">
       <div
         style={{
-          background: '#ffffff',
-          borderRadius: 'var(--radius-xl)',
-          padding: '28px',
-          border: '1px solid var(--color-slate-200)',
-          boxShadow: 'var(--shadow-sm)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '20px',
-          marginBottom: '28px',
+          flex: 1,
+          backgroundColor: '#F8F4EC',
+          minHeight: 'calc(100vh - 72px)',
+          padding: '36px 40px 60px 40px',
+          boxSizing: 'border-box',
         }}
+        className="portal-workspace"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div
-            style={{
-              width: '68px',
-              height: '68px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, var(--color-brand-500) 0%, var(--color-brand-700) 100%)',
-              color: '#ffffff',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '1.75rem',
-              fontWeight: 800,
-              boxShadow: '0 4px 12px rgba(14, 147, 132, 0.3)',
-            }}
-          >
-            {user.fullName ? user.fullName[0].toUpperCase() : 'P'}
-          </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
-              <h1 style={{ fontSize: '1.5rem', color: 'var(--color-slate-900)' }}>
-                {user.fullName}
-              </h1>
-              {user.isEmailVerified ? (
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '2px 8px',
-                    borderRadius: 'var(--radius-full)',
-                    background: '#ecfdf5',
-                    color: '#059669',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  <CheckCircle2 size={12} />
-                  <span>Verified</span>
-                </span>
-              ) : (
-                <Link
-                  href="/verify-email"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    padding: '2px 8px',
-                    borderRadius: 'var(--radius-full)',
-                    background: '#fffbeb',
-                    color: '#d97706',
-                    fontSize: '0.75rem',
-                    fontWeight: 600,
-                  }}
-                >
-                  <AlertCircle size={12} />
-                  <span>Unverified (Verify Email)</span>
-                </Link>
-              )}
-            </div>
-            <p style={{ color: 'var(--color-slate-500)', fontSize: '0.9rem' }}>{user.email}</p>
-          </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <div
-            style={{
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-full)',
-              background: 'var(--color-slate-100)',
-              color: 'var(--color-slate-700)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-            }}
-          >
-            Role: {user.role.toUpperCase()}
-          </div>
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--color-slate-200)' }}>
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('profile');
-            setFeedback(null);
-          }}
-          style={{
-            padding: '12px 20px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'profile' ? '2px solid var(--color-brand-600)' : '2px solid transparent',
-            color: activeTab === 'profile' ? 'var(--color-brand-600)' : 'var(--color-slate-500)',
-            fontWeight: 600,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <User size={18} />
-          <span>Personal Details</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => {
-            setActiveTab('notifications');
-            setFeedback(null);
-          }}
-          style={{
-            padding: '12px 20px',
-            background: 'none',
-            border: 'none',
-            borderBottom: activeTab === 'notifications' ? '2px solid var(--color-brand-600)' : '2px solid transparent',
-            color: activeTab === 'notifications' ? 'var(--color-brand-600)' : 'var(--color-slate-500)',
-            fontWeight: 600,
-            fontSize: '0.95rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-          }}
-        >
-          <Bell size={18} />
-          <span>Notification Preferences</span>
-        </button>
-      </div>
-
-      {/* Status Feedback banner */}
-      {feedback && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            padding: '12px 16px',
-            borderRadius: 'var(--radius-md)',
-            background: feedback.type === 'success' ? '#ecfdf5' : 'var(--color-danger-bg)',
-            border: `1px solid ${feedback.type === 'success' ? '#a7f3d0' : '#fecaca'}`,
-            color: feedback.type === 'success' ? '#065f46' : 'var(--color-danger)',
-            fontSize: '0.875rem',
-            marginBottom: '24px',
-          }}
-        >
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-          <span>{feedback.message}</span>
-        </div>
-      )}
-
-      {/* Tab 1: Personal Details */}
-      {activeTab === 'profile' && (
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: 'var(--radius-xl)',
-            padding: '32px',
-            border: '1px solid var(--color-slate-200)',
-          }}
-        >
-          <h2 style={{ fontSize: '1.25rem', marginBottom: '8px', color: 'var(--color-slate-900)' }}>
-            Personal Demographics
-          </h2>
-          <p style={{ color: 'var(--color-slate-500)', fontSize: '0.875rem', marginBottom: '24px' }}>
-            This information is shared with consulting doctors for clinical record keeping.
-          </p>
-
-          <form onSubmit={handleProfileSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '24px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                  Full Legal Name
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                    <User size={18} />
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 38px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                  Email Address
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                    <Mail size={18} />
-                  </span>
-                  <input
-                    type="email"
-                    disabled
-                    value={user.email}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 38px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-slate-200)',
-                      background: 'var(--color-slate-100)',
-                      color: 'var(--color-slate-500)',
-                      fontSize: '0.9rem',
-                      cursor: 'not-allowed',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                  Mobile Phone (SMS / WhatsApp)
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                    <Phone size={18} />
-                  </span>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="+27 82 123 4567"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 38px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                  Date of Birth
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                    <Calendar size={18} />
-                  </span>
-                  <input
-                    type="date"
-                    value={dateOfBirth}
-                    onChange={(e) => setDateOfBirth(e.target.value)}
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 38px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+        <div style={{ maxWidth: '920px', margin: '0 auto' }}>
+          {/* Header */}
+          <div style={{ marginBottom: '28px' }}>
+            <div
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                letterSpacing: '0.12em',
+                color: '#B88647',
+                textTransform: 'uppercase',
+                marginBottom: '6px',
+              }}
             >
-              <Save size={18} />
-              <span>{saving ? 'Saving...' : 'Save Profile Changes'}</span>
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Tab 2: Notification Preferences (PA-206) */}
-      {activeTab === 'notifications' && (
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: 'var(--radius-xl)',
-            padding: '32px',
-            border: '1px solid var(--color-slate-200)',
-          }}
-        >
-          <div style={{ marginBottom: '24px' }}>
-            <h2 style={{ fontSize: '1.25rem', color: 'var(--color-slate-900)', marginBottom: '6px' }}>
-              Multi-Channel Reminder Preferences
-            </h2>
-            <p style={{ color: 'var(--color-slate-500)', fontSize: '0.875rem' }}>
-              Per POPIA regulations and platform rules, select <strong>1 or 2 preferred communication channels</strong> for booking confirmations and appointment reminders.
+              ACCOUNT SETTINGS
+            </div>
+            <h1
+              style={{
+                fontSize: '2.1rem',
+                fontWeight: 800,
+                letterSpacing: '-0.03em',
+                color: '#2A170F',
+                margin: '0 0 8px 0',
+                fontFamily: 'var(--font-heading), sans-serif',
+                lineHeight: 1.15,
+              }}
+            >
+              Profile & Settings
+            </h1>
+            <p style={{ fontSize: '0.94rem', color: '#6B5E55', margin: 0, lineHeight: 1.5 }}>
+              Manage your personal demographics, contact details, and multi-channel notification preferences.
             </p>
           </div>
 
-          <form onSubmit={handlePreferencesSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '28px' }}>
-              {/* Channel 1: Email */}
+          {/* Patient Overview Card without giant avatar */}
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '18px',
+              border: '1px solid #EDE4D4',
+              padding: '22px 26px',
+              boxShadow: '0 4px 16px rgba(42, 23, 15, 0.03)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px',
+              marginBottom: '24px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
               <div
-                onClick={() => toggleChannel('email')}
                 style={{
-                  padding: '20px',
-                  borderRadius: 'var(--radius-lg)',
-                  border: `2px solid ${channels.includes('email') ? 'var(--color-brand-500)' : 'var(--color-slate-200)'}`,
-                  background: channels.includes('email') ? 'var(--color-brand-50)' : '#ffffff',
-                  cursor: 'pointer',
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  backgroundColor: '#EAD2B2',
+                  color: '#2A170F',
                   display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '14px',
-                  transition: 'all 0.2s ease',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.92rem',
                 }}
               >
-                <div
-                  style={{
-                    padding: '8px',
-                    borderRadius: '8px',
-                    background: channels.includes('email') ? 'var(--color-brand-500)' : 'var(--color-slate-100)',
-                    color: channels.includes('email') ? '#ffffff' : 'var(--color-slate-600)',
-                  }}
-                >
-                  <Mail size={22} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-slate-900)' }}>
-                      Email
-                    </div>
-                    {channels.includes('email') && (
-                      <div style={{ color: 'var(--color-brand-600)' }}>
-                        <Check size={18} />
-                      </div>
-                    )}
-                  </div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', marginTop: '4px' }}>
-                    Sent via Brevo. Includes booking calendar invites (.ics) and prescription download links.
-                  </p>
-                </div>
+                {user.fullName
+                  ?.split(' ')
+                  .filter(Boolean)
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join('')
+                  .toUpperCase() || 'LK'}
               </div>
-
-              {/* Channel 2: WhatsApp */}
-              <div
-                onClick={() => toggleChannel('whatsapp')}
-                style={{
-                  padding: '20px',
-                  borderRadius: 'var(--radius-lg)',
-                  border: `2px solid ${channels.includes('whatsapp') ? 'var(--color-brand-500)' : 'var(--color-slate-200)'}`,
-                  background: channels.includes('whatsapp') ? 'var(--color-brand-50)' : '#ffffff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '14px',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '8px',
-                    borderRadius: '8px',
-                    background: channels.includes('whatsapp') ? 'var(--color-brand-500)' : 'var(--color-slate-100)',
-                    color: channels.includes('whatsapp') ? '#ffffff' : 'var(--color-slate-600)',
-                  }}
-                >
-                  <MessageSquare size={22} />
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ fontSize: '1.15rem', fontWeight: 700, color: '#2A170F' }}>
+                    {user.fullName || 'Lerato Khumalo'}
+                  </span>
+                  {user.isEmailVerified ? (
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 9px',
+                        borderRadius: '12px',
+                        backgroundColor: '#ECFDF5',
+                        color: '#1B8755',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                      }}
+                    >
+                      <SolarIcon name="check-circle-bold" size={13} color="#1B8755" />
+                      <span>Verified Patient</span>
+                    </span>
+                  ) : (
+                    <Link
+                      href="/verify-email"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 9px',
+                        borderRadius: '12px',
+                        backgroundColor: '#FFFBEB',
+                        color: '#D97706',
+                        fontSize: '0.74rem',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <SolarIcon name="danger-circle-linear" size={13} color="#D97706" />
+                      <span>Verify Email</span>
+                    </Link>
+                  )}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-slate-900)' }}>
-                      WhatsApp
-                    </div>
-                    {channels.includes('whatsapp') && (
-                      <div style={{ color: 'var(--color-brand-600)' }}>
-                        <Check size={18} />
-                      </div>
-                    )}
-                  </div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', marginTop: '4px' }}>
-                    Instant interactive appointment reminders with one-tap Daily.co video join buttons.
-                  </p>
-                </div>
-              </div>
-
-              {/* Channel 3: SMS */}
-              <div
-                onClick={() => toggleChannel('sms')}
-                style={{
-                  padding: '20px',
-                  borderRadius: 'var(--radius-lg)',
-                  border: `2px solid ${channels.includes('sms') ? 'var(--color-brand-500)' : 'var(--color-slate-200)'}`,
-                  background: channels.includes('sms') ? 'var(--color-brand-50)' : '#ffffff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '14px',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <div
-                  style={{
-                    padding: '8px',
-                    borderRadius: '8px',
-                    background: channels.includes('sms') ? 'var(--color-brand-500)' : 'var(--color-slate-100)',
-                    color: channels.includes('sms') ? '#ffffff' : 'var(--color-slate-600)',
-                  }}
-                >
-                  <Smartphone size={22} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--color-slate-900)' }}>
-                      SMS Text
-                    </div>
-                    {channels.includes('sms') && (
-                      <div style={{ color: 'var(--color-brand-600)' }}>
-                        <Check size={18} />
-                      </div>
-                    )}
-                  </div>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', marginTop: '4px' }}>
-                    Direct cellular reminders for patients in low-data coverage areas.
-                  </p>
+                <div style={{ fontSize: '0.84rem', color: '#7A6A5E', marginTop: '2px' }}>
+                  {user.email} • South Africa (POPIA Protected)
                 </div>
               </div>
             </div>
 
-            {/* Reminders Toggle */}
+            <Link
+              href="/appointments"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                color: '#2A170F',
+                backgroundColor: '#F8F3EA',
+                padding: '8px 16px',
+                borderRadius: '20px',
+                textDecoration: 'none',
+                border: '1px solid #EDE4D4',
+              }}
+            >
+              <span>Back to Appointments</span>
+              <SolarIcon name="arrow-right-linear" size={14} color="#2A170F" />
+            </Link>
+          </div>
+
+          {/* Tabs */}
+          <div
+            style={{
+              display: 'flex',
+              gap: '8px',
+              marginBottom: '20px',
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('profile');
+                setFeedback(null);
+              }}
+              style={{
+                padding: '9px 18px',
+                borderRadius: '20px',
+                fontSize: '0.88rem',
+                fontWeight: activeTab === 'profile' ? 600 : 500,
+                color: activeTab === 'profile' ? '#2A170F' : '#6B5E55',
+                backgroundColor: activeTab === 'profile' ? '#EEDCC5' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.18s ease',
+              }}
+            >
+              <SolarIcon name="user-linear" size={16} color={activeTab === 'profile' ? '#2A170F' : '#6B5E55'} />
+              <span>Personal Demographics</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('notifications');
+                setFeedback(null);
+              }}
+              style={{
+                padding: '9px 18px',
+                borderRadius: '20px',
+                fontSize: '0.88rem',
+                fontWeight: activeTab === 'notifications' ? 600 : 500,
+                color: activeTab === 'notifications' ? '#2A170F' : '#6B5E55',
+                backgroundColor: activeTab === 'notifications' ? '#EEDCC5' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.18s ease',
+              }}
+            >
+              <SolarIcon name="bell-linear" size={16} color={activeTab === 'notifications' ? '#2A170F' : '#6B5E55'} />
+              <span>Notification Preferences</span>
+            </button>
+          </div>
+
+          {/* Feedback Banner */}
+          {feedback && (
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px',
-                padding: '16px',
-                borderRadius: 'var(--radius-md)',
-                background: 'var(--color-slate-50)',
-                marginBottom: '28px',
+                gap: '10px',
+                padding: '12px 18px',
+                borderRadius: '12px',
+                backgroundColor: feedback.type === 'success' ? '#ECFDF5' : '#FEF2F2',
+                border: `1px solid ${feedback.type === 'success' ? '#A7F3D0' : '#FECACA'}`,
+                color: feedback.type === 'success' ? '#065F46' : '#DC2626',
+                fontSize: '0.86rem',
+                marginBottom: '20px',
               }}
             >
-              <input
-                type="checkbox"
-                id="remindersToggle"
-                checked={remindersEnabled}
-                onChange={(e) => setRemindersEnabled(e.target.checked)}
-                style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--color-brand-500)' }}
-              />
-              <label htmlFor="remindersToggle" style={{ fontSize: '0.9rem', color: 'var(--color-slate-700)', cursor: 'pointer' }}>
-                Receive automated reminders at <strong>T-24 hours, T-1 hour, and T-15 minutes</strong> before scheduled consultations
-              </label>
+              {feedback.type === 'success' ? (
+                <SolarIcon name="check-circle-bold" size={18} color="#065F46" />
+              ) : (
+                <SolarIcon name="danger-circle-bold" size={18} color="#DC2626" />
+              )}
+              <span>{feedback.message}</span>
             </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-primary"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+          {/* Tab 1: Personal Demographics */}
+          {activeTab === 'profile' && (
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '18px',
+                padding: '28px 30px',
+                border: '1px solid #EDE4D4',
+                boxShadow: '0 4px 16px rgba(42, 23, 15, 0.03)',
+              }}
             >
-              <Save size={18} />
-              <span>{saving ? 'Saving...' : 'Update Notification Settings'}</span>
-            </button>
-          </form>
+              <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '6px', color: '#2A170F' }}>
+                Personal Demographics
+              </h2>
+              <p style={{ color: '#7A6A5E', fontSize: '0.85rem', marginBottom: '24px' }}>
+                This information is shared with consulting doctors for clinical record keeping and valid prescriptions.
+              </p>
+
+              <form onSubmit={handleProfileSubmit}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                    gap: '20px',
+                    marginBottom: '26px',
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: '#2A170F',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Full Legal Name
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#A08F83',
+                        }}
+                      >
+                        <SolarIcon name="user-linear" size={16} color="#A08F83" />
+                      </span>
+                      <input
+                        type="text"
+                        required
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 38px',
+                          borderRadius: '10px',
+                          border: '1px solid #EDE4D4',
+                          fontSize: '0.88rem',
+                          color: '#2A170F',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: '#2A170F',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Email Address
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#A08F83',
+                        }}
+                      >
+                        <SolarIcon name="letter-linear" size={16} color="#A08F83" />
+                      </span>
+                      <input
+                        type="email"
+                        disabled
+                        value={user.email}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 38px',
+                          borderRadius: '10px',
+                          border: '1px solid #EDE4D4',
+                          backgroundColor: '#F8F4EC',
+                          color: '#7A6A5E',
+                          fontSize: '0.88rem',
+                          cursor: 'not-allowed',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: '#2A170F',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Mobile Phone (SMS / WhatsApp)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#A08F83',
+                        }}
+                      >
+                        <SolarIcon name="phone-linear" size={16} color="#A08F83" />
+                      </span>
+                      <input
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+27 82 123 4567"
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 38px',
+                          borderRadius: '10px',
+                          border: '1px solid #EDE4D4',
+                          fontSize: '0.88rem',
+                          color: '#2A170F',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: '#2A170F',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Date of Birth
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#A08F83',
+                        }}
+                      >
+                        <SolarIcon name="calendar-linear" size={16} color="#A08F83" />
+                      </span>
+                      <input
+                        type="date"
+                        value={dateOfBirth}
+                        onChange={(e) => setDateOfBirth(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 38px',
+                          borderRadius: '10px',
+                          border: '1px solid #EDE4D4',
+                          fontSize: '0.88rem',
+                          color: '#2A170F',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: '#EDD5B3',
+                    color: '#2A170F',
+                    fontSize: '0.88rem',
+                    fontWeight: 600,
+                    padding: '10px 22px',
+                    borderRadius: '22px',
+                    border: 'none',
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
+                    transition: 'all 0.18s ease',
+                  }}
+                  className="portal-primary-cta"
+                >
+                  <SolarIcon name="diskette-linear" size={16} color="#2A170F" />
+                  <span>{saving ? 'Saving...' : 'Save Profile Changes'}</span>
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Tab 2: Notification Preferences */}
+          {activeTab === 'notifications' && (
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '18px',
+                padding: '28px 30px',
+                border: '1px solid #EDE4D4',
+                boxShadow: '0 4px 16px rgba(42, 23, 15, 0.03)',
+              }}
+            >
+              <div style={{ marginBottom: '22px' }}>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#2A170F', marginBottom: '6px' }}>
+                  Multi-Channel Reminder Preferences
+                </h2>
+                <p style={{ color: '#7A6A5E', fontSize: '0.85rem' }}>
+                  Per POPIA regulations and platform rules, select <strong>1 or 2 preferred communication channels</strong> for
+                  booking confirmations and appointment reminders.
+                </p>
+              </div>
+
+              <form onSubmit={handlePreferencesSubmit}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+                    gap: '16px',
+                    marginBottom: '26px',
+                  }}
+                >
+                  {/* Channel 1: Email */}
+                  <div
+                    onClick={() => toggleChannel('email')}
+                    style={{
+                      padding: '18px',
+                      borderRadius: '14px',
+                      border: `1.5px solid ${channels.includes('email') ? '#C59550' : '#EDE4D4'}`,
+                      backgroundColor: channels.includes('email') ? '#FAF2E4' : '#FFFFFF',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      transition: 'all 0.18s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '8px',
+                        borderRadius: '8px',
+                        backgroundColor: channels.includes('email') ? '#EDD5B3' : '#F8F4EC',
+                        color: '#2A170F',
+                      }}
+                    >
+                      <SolarIcon name="letter-linear" size={20} color="#2A170F" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.94rem', color: '#2A170F' }}>Email</div>
+                        {channels.includes('email') && <SolarIcon name="check-read-linear" size={16} color="#C17D3C" />}
+                      </div>
+                      <p style={{ fontSize: '0.78rem', color: '#7A6A5E', marginTop: '4px', lineHeight: 1.4 }}>
+                        Includes calendar invites (.ics) and prescription download links.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Channel 2: WhatsApp */}
+                  <div
+                    onClick={() => toggleChannel('whatsapp')}
+                    style={{
+                      padding: '18px',
+                      borderRadius: '14px',
+                      border: `1.5px solid ${channels.includes('whatsapp') ? '#C59550' : '#EDE4D4'}`,
+                      backgroundColor: channels.includes('whatsapp') ? '#FAF2E4' : '#FFFFFF',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      transition: 'all 0.18s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '8px',
+                        borderRadius: '8px',
+                        backgroundColor: channels.includes('whatsapp') ? '#EDD5B3' : '#F8F4EC',
+                        color: '#2A170F',
+                      }}
+                    >
+                      <SolarIcon name="chat-dots-linear" size={20} color="#2A170F" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.94rem', color: '#2A170F' }}>WhatsApp</div>
+                        {channels.includes('whatsapp') && <SolarIcon name="check-read-linear" size={16} color="#C17D3C" />}
+                      </div>
+                      <p style={{ fontSize: '0.78rem', color: '#7A6A5E', marginTop: '4px', lineHeight: 1.4 }}>
+                        Instant interactive reminders with one-tap video room join buttons.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Channel 3: SMS */}
+                  <div
+                    onClick={() => toggleChannel('sms')}
+                    style={{
+                      padding: '18px',
+                      borderRadius: '14px',
+                      border: `1.5px solid ${channels.includes('sms') ? '#C59550' : '#EDE4D4'}`,
+                      backgroundColor: channels.includes('sms') ? '#FAF2E4' : '#FFFFFF',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '12px',
+                      transition: 'all 0.18s ease',
+                    }}
+                  >
+                    <div
+                      style={{
+                        padding: '8px',
+                        borderRadius: '8px',
+                        backgroundColor: channels.includes('sms') ? '#EDD5B3' : '#F8F4EC',
+                        color: '#2A170F',
+                      }}
+                    >
+                      <SolarIcon name="smartphone-linear" size={20} color="#2A170F" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.94rem', color: '#2A170F' }}>SMS Text</div>
+                        {channels.includes('sms') && <SolarIcon name="check-read-linear" size={16} color="#C17D3C" />}
+                      </div>
+                      <p style={{ fontSize: '0.78rem', color: '#7A6A5E', marginTop: '4px', lineHeight: 1.4 }}>
+                        Direct cellular reminders for patients with limited mobile data connectivity.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Reminders Toggle */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '14px 18px',
+                    borderRadius: '12px',
+                    backgroundColor: '#FAF6EE',
+                    border: '1px solid #EDE4D4',
+                    marginBottom: '26px',
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    id="remindersToggle"
+                    checked={remindersEnabled}
+                    onChange={(e) => setRemindersEnabled(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: '#C59550' }}
+                  />
+                  <label htmlFor="remindersToggle" style={{ fontSize: '0.86rem', color: '#5F4D41', cursor: 'pointer' }}>
+                    Receive automated consultation reminders at <strong>T-24 hours, T-1 hour, and T-15 minutes</strong>
+                  </label>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: '#EDD5B3',
+                    color: '#2A170F',
+                    fontSize: '0.88rem',
+                    fontWeight: 600,
+                    padding: '10px 22px',
+                    borderRadius: '22px',
+                    border: 'none',
+                    cursor: saving ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
+                    transition: 'all 0.18s ease',
+                  }}
+                  className="portal-primary-cta"
+                >
+                  <SolarIcon name="diskette-linear" size={16} color="#2A170F" />
+                  <span>{saving ? 'Saving...' : 'Update Notification Settings'}</span>
+                </button>
+              </form>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </PatientPortalLayout>
   );
 }

@@ -15,6 +15,41 @@ export interface DoctorProfileData {
   ssoProvider?: string | null;
   ssoExternalId?: string | null;
   documentsUrl: string[];
+  /** Whether the doctor offers video consultations (default: true) */
+  offersVideo?: boolean;
+  /** Whether the doctor offers audio-only consultations */
+  offersAudio?: boolean;
+  /** Whether the doctor offers in-clinic in-person visits */
+  offersInClinic?: boolean;
+  /** Practice or clinic facility name */
+  facilityName?: string | null;
+  /** Physical clinic address (only shown if in-clinic visits offered) */
+  facilityAddress?: string | null;
+  /** Whether the doctor accepts medical aid */
+  acceptsMedicalAid?: boolean;
+  /** Areas of expertise / consultation types */
+  consultationTypes?: string[];
+  /** Secondary specialties (selectable pills) */
+  secondarySpecialties?: string[];
+  /** Years of clinical experience */
+  experienceYears?: number;
+  /** Whether the doctor is board certified */
+  isBoardCertified?: boolean;
+  /** Board certification title or fellowship credential */
+  boardCertificationTitle?: string;
+  /** Holiday mode toggle */
+  isOnHoliday?: boolean;
+  /** Presence status ('active' | 'busy' | 'offline') */
+  presenceStatus?: string;
+  /** High resolution PNG signature URL */
+  signatureUrl?: string | null;
+  signatureUploadedAt?: string | null;
+  /** Banking details for EFT settlements */
+  bankName?: string | null;
+  accountNumber?: string | null;
+  branchCode?: string | null;
+  accountType?: string | null;
+  accountHolder?: string | null;
 }
 
 export interface DoctorUserData {
@@ -42,11 +77,50 @@ interface DoctorAuthContextType {
   logout: () => Promise<void>;
   refreshDoctor: () => Promise<void>;
   updateProfile: (data: Partial<DoctorProfileData>) => Promise<any>;
+  toggleHolidayMode: (isOnHoliday: boolean) => Promise<any>;
+  updatePresenceStatus: (status: string) => Promise<any>;
 }
 
 const DoctorAuthContext = createContext<DoctorAuthContextType | undefined>(undefined);
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+
+function mapDoctorProfile(raw: any): DoctorProfileData {
+  return {
+    id: raw.id,
+    userId: raw.user_id,
+    hpcsaNumber: raw.hpcsa_number,
+    specialty: raw.specialty,
+    secondarySpecialties: raw.secondary_specialties || [],
+    ratePerHour: Number(raw.rate_per_hour || 0),
+    ratingAvg: Number(raw.rating_avg || 0),
+    bio: raw.bio || '',
+    verificationStatus: raw.verification_status,
+    verificationSource: raw.verification_source,
+    ssoProvider: raw.sso_provider,
+    ssoExternalId: raw.sso_external_id,
+    documentsUrl: raw.documents_url || [],
+    offersVideo: raw.offers_video !== false,
+    offersAudio: raw.offers_audio === true,
+    offersInClinic: raw.offers_in_clinic === true,
+    facilityName: raw.facility_name || null,
+    facilityAddress: raw.facility_address || null,
+    acceptsMedicalAid: raw.accepts_medical_aid === true,
+    consultationTypes: raw.consultation_types || [],
+    experienceYears: raw.experience_years !== undefined ? Number(raw.experience_years) : 10,
+    isBoardCertified: raw.is_board_certified !== false,
+    boardCertificationTitle: raw.board_certification_title || 'Board Certified',
+    isOnHoliday: raw.is_on_holiday === true,
+    presenceStatus: raw.presence_status || 'active',
+    signatureUrl: raw.signature_url || null,
+    signatureUploadedAt: raw.signature_uploaded_at || null,
+    bankName: raw.bank_name || null,
+    accountNumber: raw.account_number || null,
+    branchCode: raw.branch_code || null,
+    accountType: raw.account_type || null,
+    accountHolder: raw.account_holder || null,
+  };
+}
 
 export function DoctorAuthProvider({ children }: { children: React.ReactNode }) {
   const [doctor, setDoctor] = useState<DoctorUserData | null>(null);
@@ -75,20 +149,7 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
         const data = await res.json();
         setDoctor(data);
         if (data.doctorProfile) {
-          setProfile({
-            id: data.doctorProfile.id,
-            userId: data.doctorProfile.user_id,
-            hpcsaNumber: data.doctorProfile.hpcsa_number,
-            specialty: data.doctorProfile.specialty,
-            ratePerHour: Number(data.doctorProfile.rate_per_hour),
-            ratingAvg: Number(data.doctorProfile.rating_avg || 0),
-            bio: data.doctorProfile.bio,
-            verificationStatus: data.doctorProfile.verification_status,
-            verificationSource: data.doctorProfile.verification_source,
-            ssoProvider: data.doctorProfile.sso_provider,
-            ssoExternalId: data.doctorProfile.sso_external_id,
-            documentsUrl: data.doctorProfile.documents_url || [],
-          });
+          setProfile(mapDoctorProfile(data.doctorProfile));
         }
       } else {
         localStorage.removeItem('chekup_doctor_token');
@@ -122,21 +183,8 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
       localStorage.setItem('chekup_doctor_token', data.accessToken);
       setToken(data.accessToken);
       setDoctor(data.user);
-      if (data.user.doctorProfile) {
-        setProfile({
-          id: data.user.doctorProfile.id,
-          userId: data.user.doctorProfile.user_id,
-          hpcsaNumber: data.user.doctorProfile.hpcsa_number,
-          specialty: data.user.doctorProfile.specialty,
-          ratePerHour: Number(data.user.doctorProfile.rate_per_hour),
-          ratingAvg: Number(data.user.doctorProfile.rating_avg || 0),
-          bio: data.user.doctorProfile.bio,
-          verificationStatus: data.user.doctorProfile.verification_status,
-          verificationSource: data.user.doctorProfile.verification_source,
-          ssoProvider: data.user.doctorProfile.sso_provider,
-          ssoExternalId: data.user.doctorProfile.sso_external_id,
-          documentsUrl: data.user.doctorProfile.documents_url || [],
-        });
+      if (data.user?.doctorProfile) {
+        setProfile(mapDoctorProfile(data.user.doctorProfile));
       }
     }
     return data;
@@ -157,20 +205,7 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
       localStorage.setItem('chekup_doctor_token', data.accessToken);
       setToken(data.accessToken);
       if (data.doctorProfile) {
-        setProfile({
-          id: data.doctorProfile.id,
-          userId: data.doctorProfile.user_id,
-          hpcsaNumber: data.doctorProfile.hpcsa_number,
-          specialty: data.doctorProfile.specialty,
-          ratePerHour: Number(data.doctorProfile.rate_per_hour),
-          ratingAvg: Number(data.doctorProfile.rating_avg || 0),
-          bio: data.doctorProfile.bio,
-          verificationStatus: data.doctorProfile.verification_status,
-          verificationSource: data.doctorProfile.verification_source,
-          ssoProvider: data.doctorProfile.sso_provider,
-          ssoExternalId: data.doctorProfile.sso_external_id,
-          documentsUrl: data.doctorProfile.documents_url || [],
-        });
+        setProfile(mapDoctorProfile(data.doctorProfile));
       }
       await refreshDoctor();
     }
@@ -218,15 +253,69 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
       },
       body: JSON.stringify({
         specialty: updated.specialty,
+        secondary_specialties: updated.secondarySpecialties,
         rate_per_hour: updated.ratePerHour,
         bio: updated.bio,
         documents_url: updated.documentsUrl,
+        consultation_types: updated.consultationTypes,
+        offers_video: updated.offersVideo,
+        offers_audio: updated.offersAudio,
+        offers_in_clinic: updated.offersInClinic,
+        facility_name: updated.facilityName,
+        facility_address: updated.facilityAddress,
+        accepts_medical_aid: updated.acceptsMedicalAid,
+        experience_years: updated.experienceYears,
+        is_board_certified: updated.isBoardCertified,
+        board_certification_title: updated.boardCertificationTitle,
+        is_on_holiday: updated.isOnHoliday,
+        signature_url: updated.signatureUrl,
+        bank_name: updated.bankName,
+        account_number: updated.accountNumber,
+        branch_code: updated.branchCode,
+        account_type: updated.accountType,
+        account_holder: updated.accountHolder,
       }),
       credentials: 'include',
     });
 
     const data = await res.json();
     if (!res.ok) throw new Error(data.message || 'Failed to update doctor profile');
+    await refreshDoctor();
+    return data;
+  };
+
+  const toggleHolidayMode = async (isOnHoliday: boolean) => {
+    if (!token) throw new Error('Not authenticated');
+    const res = await fetch(`${API_BASE}/doctors/me/holiday-mode`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ isOnHoliday }),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to update holiday mode');
+    await refreshDoctor();
+    return data;
+  };
+
+  const updatePresenceStatus = async (status: string) => {
+    if (!token) throw new Error('Not authenticated');
+    const res = await fetch(`${API_BASE}/doctors/me/status`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ status }),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to update presence status');
     await refreshDoctor();
     return data;
   };
@@ -248,6 +337,8 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
         logout,
         refreshDoctor,
         updateProfile,
+        toggleHolidayMode,
+        updatePresenceStatus,
       }}
     >
       {children}

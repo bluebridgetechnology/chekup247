@@ -5,12 +5,17 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ChekupCrossLogo } from './Navbar';
 
-export function Footer() {
+export interface FooterProps {
+  compact?: boolean;
+}
+
+export function Footer({ compact = false }: FooterProps) {
   return (
-    <footer className="site-footer">
+    <footer className={`site-footer ${compact ? 'site-footer--compact' : ''}`}>
       <div className="footer-container">
-        {/* Top 4-Column Area */}
-        <div className="footer-top-grid">
+        {/* Top 4-Column Area (Omitted in patient portal compact mode) */}
+        {!compact && (
+          <div className="footer-top-grid">
           {/* Column 1: Brand & Slogan */}
           <div className="footer-brand-col">
             <Link
@@ -174,6 +179,7 @@ export function Footer() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Bottom Subtle Divider Bar */}
         <div className="footer-bottom-bar">

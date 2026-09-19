@@ -1,6 +1,8 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, Home } from 'lucide-react';
+import { SolarIcon } from './SolarIcon';
 
 export interface BreadcrumbItem {
   label: string;
@@ -13,30 +15,9 @@ interface BreadcrumbsProps {
 
 export function Breadcrumbs({ items }: BreadcrumbsProps) {
   return (
-    <nav
-      aria-label="Breadcrumb"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        fontSize: '0.875rem',
-        color: 'var(--color-cream-text-muted)',
-        marginBottom: '24px',
-        fontFamily: 'var(--font-sans)',
-      }}
-    >
-      <Link
-        href="/"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          color: 'var(--color-gold-base)',
-          textDecoration: 'none',
-          transition: 'color 0.18s ease',
-        }}
-      >
-        <Home size={14} />
+    <nav aria-label="Breadcrumb" className="doctor-breadcrumb-nav">
+      <Link href="/" className="doctor-breadcrumb-link">
+        <SolarIcon name="home-2-linear" size={15} color="currentColor" />
         <span>Home</span>
       </Link>
 
@@ -45,16 +26,13 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
 
         return (
           <React.Fragment key={index}>
-            <ChevronRight size={14} style={{ color: 'var(--color-gold-border)' }} />
+            <span className="doctor-breadcrumb-sep">
+              <SolarIcon name="alt-arrow-right-linear" size={12} color="currentColor" />
+            </span>
             {isLast || !item.href ? (
-              <span style={{ color: 'var(--color-white-90, var(--color-chocolate-base))', fontWeight: 600 }}>
-                {item.label}
-              </span>
+              <span className="doctor-breadcrumb-current">{item.label}</span>
             ) : (
-              <Link
-                href={item.href}
-                style={{ color: 'var(--color-gold-base)', textDecoration: 'none' }}
-              >
+              <Link href={item.href} className="doctor-breadcrumb-link">
                 {item.label}
               </Link>
             )}

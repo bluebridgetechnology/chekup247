@@ -9,12 +9,14 @@ import { SolarIcon } from '../../components/SolarIcon';
 const SPECIALTIES = [
   'All',
   'General Practitioner',
-  'Family Health',
-  'Women’s Health',
-  'Chronic Disease',
-  'Sports Medicine',
-  'Mental Health',
-  'Urgent Care',
+  'Dentist',
+  'Psychologist',
+  'Podiatrist',
+  'Dermatologist',
+  'Pediatrician',
+  'Physician',
+  'Obstetrics & Gynaecology',
+  'Dietician',
 ];
 
 const SORT_OPTIONS = [
@@ -23,6 +25,253 @@ const SORT_OPTIONS = [
   { label: 'Price: High to Low', value: 'price_desc' },
   { label: 'Name (A-Z)', value: 'name_asc' },
 ];
+
+const DEFAULT_FALLBACK_DOCTORS = [
+  {
+    id: 'doc-1',
+    slug: 'dr-thabo-molefe',
+    name: 'Dr. Thabo Molefe',
+    user: { full_name: 'Dr. Thabo Molefe' },
+    hpcsa_number: 'MP 0689432',
+    specialty: 'General Practitioner',
+    experience_years: 12,
+    bio: 'Dr. Thabo Molefe is a compassionate General Practitioner with over 12 years of clinical practice across Gauteng. Specializes in acute care, metabolic conditions, and preventative care.',
+    rate_per_hour: 850.0,
+    rating_avg: 5.0,
+    reviews_count: 658,
+    facility_name: 'Netcare Sunninghill Hospital Suites',
+    facility_address: 'Cnr Witkoppen & Nanyuki Rd, Sunninghill, Sandton',
+    photo_url: '/images/doctor_thabo.jpg',
+    next_available_slot: 'Available today',
+    offers_in_clinic: true,
+    consultation_types: ['Video Telehealth Consultation', 'Acute Infection Care', 'Chronic Script Renewal', 'Wellness'],
+  },
+  {
+    id: 'doc-2',
+    slug: 'dr-sipho-dlamini',
+    name: 'Dr. Sipho Dlamini',
+    user: { full_name: 'Dr. Sipho Dlamini' },
+    hpcsa_number: 'MP 0792145',
+    specialty: 'Dentist',
+    experience_years: 9,
+    bio: 'Dr. Sipho Dlamini provides oral health examinations, teeth whitening, emergency dental pain management, and preventative oral hygiene guidance.',
+    rate_per_hour: 900.0,
+    rating_avg: 4.9,
+    reviews_count: 420,
+    facility_name: 'Rosebank Dental Suites',
+    facility_address: 'Oxford Rd, Rosebank, Johannesburg',
+    photo_url: '/images/doctor_kevin.jpg',
+    next_available_slot: 'Available today',
+    offers_in_clinic: false,
+    consultation_types: ['Oral Health Consultation', 'Teeth Whitening Advice', 'Dental Pain Management', 'Preventative Dentistry'],
+  },
+  {
+    id: 'doc-3',
+    slug: 'dr-naledi-khumalo',
+    name: 'Dr. Naledi Khumalo',
+    user: { full_name: 'Dr. Naledi Khumalo' },
+    hpcsa_number: 'MP 0824921',
+    specialty: 'Psychologist',
+    experience_years: 8,
+    bio: 'Dr. Naledi Khumalo is a licensed clinical psychologist specializing in anxiety, mood disorders, cognitive behavioral therapy, and stress management.',
+    rate_per_hour: 820.0,
+    rating_avg: 4.9,
+    reviews_count: 519,
+    facility_name: 'Glenwood Health Centre',
+    facility_address: 'Glenwood, Durban, KwaZulu-Natal',
+    photo_url: '/images/doctor_sarah.jpg',
+    next_available_slot: 'Available today',
+    offers_in_clinic: false,
+    consultation_types: ['Mental Health Support', 'Anxiety & Mood Therapy', 'Stress Management', 'Family Counseling'],
+  },
+  {
+    id: 'doc-4',
+    slug: 'dr-kevin-pillay',
+    name: 'Dr. Kevin Pillay',
+    user: { full_name: 'Dr. Kevin Pillay' },
+    hpcsa_number: 'MP 0678120',
+    specialty: 'Podiatrist',
+    experience_years: 11,
+    bio: 'Dr. Kevin Pillay provides comprehensive medical foot and lower extremity care, specializing in diabetic foot care, biomechanics, and sports rehabilitation.',
+    rate_per_hour: 780.0,
+    rating_avg: 4.8,
+    reviews_count: 310,
+    facility_name: 'Umhlanga Medical Centre',
+    facility_address: 'Umhlanga Rocks Dr, Umhlanga, Durban',
+    photo_url: '/images/doctor_kevin.jpg',
+    next_available_slot: 'Available today',
+    offers_in_clinic: true,
+    consultation_types: ['Foot & Ankle Care', 'Diabetic Foot Screening', 'Biomechanics & Gait', 'Sports Injury Recovery'],
+  },
+  {
+    id: 'doc-5',
+    slug: 'dr-anika-sharma',
+    name: 'Dr. Anika Sharma',
+    user: { full_name: 'Dr. Anika Sharma' },
+    hpcsa_number: 'MP 0751930',
+    specialty: 'Dermatologist',
+    experience_years: 10,
+    bio: 'Dr. Anika Sharma is a board-certified dermatologist focusing on acne therapy, eczema, psoriasis management, and preventative skin cancer screenings.',
+    rate_per_hour: 950.0,
+    rating_avg: 4.9,
+    reviews_count: 480,
+    facility_name: 'Morningside Mediclinic',
+    facility_address: 'Rivonia Rd, Morningside, Sandton',
+    photo_url: '/images/doctor_sarah.jpg',
+    next_available_slot: 'Available today',
+    offers_in_clinic: false,
+    consultation_types: ['Skin Condition Screening', 'Acne Treatment', 'Eczema & Rash Management', 'Hair & Nail Health'],
+  },
+  {
+    id: 'doc-6',
+    slug: 'dr-zola-mthembu',
+    name: 'Dr. Zola Mthembu',
+    user: { full_name: 'Dr. Zola Mthembu' },
+    hpcsa_number: 'MP 0643210',
+    specialty: 'Pediatrician',
+    experience_years: 14,
+    bio: 'Dr. Zola Mthembu specializes in infant and child healthcare, developmental milestones, childhood illnesses, and preventative paediatric medicine.',
+    rate_per_hour: 880.0,
+    rating_avg: 4.9,
+    reviews_count: 610,
+    facility_name: 'Centurion Paediatric Clinic',
+    facility_address: 'Clifton Ave, Centurion, Pretoria',
+    photo_url: '/images/doctor_thabo.jpg',
+    next_available_slot: 'Available today',
+    offers_in_clinic: true,
+    consultation_types: ['Infant & Child Health', 'Adolescent Care', 'Developmental Milestones', 'Pediatric Nutrition'],
+  },
+  {
+    id: 'doc-7',
+    slug: 'dr-farhan-patel',
+    name: 'Dr. Farhan Patel',
+    user: { full_name: 'Dr. Farhan Patel' },
+    hpcsa_number: 'MP 0735219',
+    specialty: 'Physician',
+    experience_years: 12,
+    bio: 'Dr. Farhan Patel focuses on internal medicine, chronic disease management, hypertension, diabetes care, and complex diagnostic workups.',
+    rate_per_hour: 800.0,
+    rating_avg: 4.8,
+    reviews_count: 386,
+    facility_name: 'City North Medical Chambers',
+    facility_address: 'City North, Cape Town, Western Cape',
+    photo_url: '/images/doctor_thabo.jpg',
+    next_available_slot: 'Available today',
+    offers_in_clinic: false,
+    consultation_types: ['Internal Medicine', 'Chronic Disease Management', 'Hypertension & Diabetes Care', 'Specialist Referral'],
+  },
+  {
+    id: 'doc-8',
+    slug: 'dr-sarah-van-der-merwe',
+    name: 'Dr. Sarah van der Merwe',
+    user: { full_name: 'Dr. Sarah van der Merwe' },
+    hpcsa_number: 'MP 0567810',
+    specialty: 'Obstetrics & Gynaecology',
+    experience_years: 10,
+    bio: 'Dr. Sarah van der Merwe completed her medical degree at Stellenbosch University and has a dedicated clinical focus on maternal health, hormonal balance, and reproductive wellness.',
+    rate_per_hour: 920.0,
+    rating_avg: 4.9,
+    reviews_count: 722,
+    facility_name: 'Mediclinic Cape Town Medical Suites',
+    facility_address: '21 Hof Street, Oranjezicht, Cape Town',
+    photo_url: '/images/doctor_sarah.jpg',
+    next_available_slot: 'Available today',
+    offers_in_clinic: false,
+    consultation_types: ['Women’s Health Screening', 'Contraceptive Counselling', 'Maternal Health Support', 'Hormonal Wellness'],
+  },
+  {
+    id: 'doc-9',
+    slug: 'dr-chloe-roux',
+    name: 'Dr. Chloe Roux',
+    user: { full_name: 'Dr. Chloe Roux' },
+    hpcsa_number: 'MP 0819432',
+    specialty: 'Dietician',
+    experience_years: 7,
+    bio: 'Dr. Chloe Roux is a registered dietician offering clinical nutrition therapy, diabetic meal planning, and metabolic lifestyle intervention.',
+    rate_per_hour: 750.0,
+    rating_avg: 4.9,
+    reviews_count: 290,
+    facility_name: 'Stellenbosch Wellness Institute',
+    facility_address: 'Dorp Street, Stellenbosch, Western Cape',
+    photo_url: '/images/doctor_sarah.jpg',
+    next_available_slot: 'Available today',
+    offers_in_clinic: false,
+    consultation_types: ['Nutritional Therapy', 'Weight & Metabolic Guidance', 'Meal Planning', 'Diabetes Dietary Care'],
+  },
+];
+
+const COMMON_CONDITIONS = [
+  {
+    name: 'Flu, Cold & Acute Infections',
+    specialty: 'General Practitioner',
+    category: 'General Health',
+    keywords: ['flu', 'fever', 'cold', 'cough', 'chills', 'sore throat', 'headache', 'infection', 'gp', 'sick note'],
+  },
+  {
+    name: 'Chronic Script & Medication Renewal',
+    specialty: 'General Practitioner',
+    category: 'Prescriptions',
+    keywords: ['script', 'prescription', 'refill', 'renewal', 'medication', 'chronic', 'repeat'],
+  },
+  {
+    name: 'Toothache, Teeth Cleaning & Whitening',
+    specialty: 'Dentist',
+    category: 'Dental Care',
+    keywords: ['tooth', 'teeth', 'dental', 'cavity', 'toothache', 'whitening', 'gum', 'dentist', 'oral'],
+  },
+  {
+    name: 'Anxiety, Stress & Mental Health Support',
+    specialty: 'Psychologist',
+    category: 'Mental Health',
+    keywords: ['anxiety', 'depression', 'stress', 'mental', 'counseling', 'therapy', 'panic', 'burnout', 'psychologist'],
+  },
+  {
+    name: 'Foot Pain, Heel Spurs & Diabetic Foot',
+    specialty: 'Podiatrist',
+    category: 'Foot Care',
+    keywords: ['foot', 'feet', 'podiatry', 'heel', 'plantar', 'ankle', 'toe', 'nail', 'podiatrist'],
+  },
+  {
+    name: 'Acne, Skin Rash, Eczema & Allergies',
+    specialty: 'Dermatologist',
+    category: 'Dermatology',
+    keywords: ['skin', 'rash', 'acne', 'eczema', 'dermatology', 'mole', 'allergy', 'dermatologist', 'spots'],
+  },
+  {
+    name: 'Child Illnesses, Infant Care & Wellness',
+    specialty: 'Pediatrician',
+    category: 'Pediatrics',
+    keywords: ['child', 'baby', 'pediatric', 'kid', 'toddler', 'vaccine', 'pediatrician', 'children', 'infant'],
+  },
+  {
+    name: 'Hypertension, Diabetes & Chronic Care',
+    specialty: 'Physician',
+    category: 'Internal Medicine',
+    keywords: ['blood pressure', 'hypertension', 'diabetes', 'sugar', 'cholesterol', 'physician', 'internal medicine'],
+  },
+  {
+    name: 'Pregnancy, Fertility & Women’s Health',
+    specialty: 'Obstetrics & Gynaecology',
+    category: 'Women’s Health',
+    keywords: ['pregnancy', 'pregnant', 'fertility', 'women', 'gynae', 'gynaecologist', 'pap smear', 'contraception', 'maternal'],
+  },
+  {
+    name: 'Weight Loss, Diet & Nutrition Plans',
+    specialty: 'Dietician',
+    category: 'Nutrition',
+    keywords: ['weight', 'diet', 'nutrition', 'meal plan', 'dietician', 'calories', 'food'],
+  },
+];
+
+interface SearchSuggestion {
+  id: string;
+  title: string;
+  subtitle: string;
+  category: string;
+  type: 'doctor' | 'specialty' | 'condition';
+  iconName: string;
+  onSelect: () => void;
+}
 
 export default function DoctorsDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -36,15 +285,34 @@ export default function DoctorsDirectoryPage() {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Suggestions state
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1);
+  const searchContainerRef = useRef<HTMLFormElement>(null);
+
   // Active dropdown for the horizontal filter bar directly below hero
   const [activeDropdown, setActiveDropdown] = useState<'specialty' | 'rating' | 'price' | 'sort' | null>(null);
   const filterBarRef = useRef<HTMLDivElement>(null);
 
-  // Close filter popovers when clicking outside
+  // Smooth scroll down to directory results
+  const scrollToResults = () => {
+    setTimeout(() => {
+      if (filterBarRef.current) {
+        const yOffset = -70;
+        const y = filterBarRef.current.getBoundingClientRect().top + window.pageYOffset + yOffset;
+        window.scrollTo({ top: y, behavior: 'smooth' });
+      }
+    }, 80);
+  };
+
+  // Close filter popovers and suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (filterBarRef.current && !filterBarRef.current.contains(event.target as Node)) {
         setActiveDropdown(null);
+      }
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -53,21 +321,85 @@ export default function DoctorsDirectoryPage() {
     };
   }, []);
 
-  // Fetch doctors from API
-  const fetchDoctors = async () => {
+  // Sync selected specialty from URL query parameter if present
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      const specParam = urlParams.get('specialty');
+      if (specParam) {
+        const match = SPECIALTIES.find((s) => s.toLowerCase() === specParam.toLowerCase());
+        if (match) {
+          setSelectedSpecialty(match);
+        }
+      }
+    }
+  }, []);
+
+  // Filter fallback doctors locally when offline or local preview
+  const filterFallbackDoctors = (
+    query: string,
+    specialty: string,
+    minRating: number,
+    maxPrice: number,
+    sort: string
+  ) => {
+    const q = query.trim().toLowerCase();
+    let filtered = DEFAULT_FALLBACK_DOCTORS.filter((d) => {
+      const docName = d.user?.full_name || d.name || '';
+      const matchQuery =
+        !q ||
+        docName.toLowerCase().includes(q) ||
+        d.specialty.toLowerCase().includes(q) ||
+        d.facility_name.toLowerCase().includes(q);
+      const matchSpecialty =
+        specialty === 'All' ||
+        d.specialty.toLowerCase().includes(specialty.toLowerCase());
+      const matchRating = minRating === 0 || d.rating_avg >= minRating;
+      const matchPrice = d.rate_per_hour <= maxPrice;
+      return matchQuery && matchSpecialty && matchRating && matchPrice;
+    });
+
+    // Apply sorting
+    filtered.sort((a, b) => {
+      if (sort === 'rating_desc') return b.rating_avg - a.rating_avg;
+      if (sort === 'price_asc') return a.rate_per_hour - b.rate_per_hour;
+      if (sort === 'price_desc') return b.rate_per_hour - a.rate_per_hour;
+      if (sort === 'name_asc') {
+        const nameA = a.user?.full_name || a.name || '';
+        const nameB = b.user?.full_name || b.name || '';
+        return nameA.localeCompare(nameB);
+      }
+      return 0;
+    });
+
+    setDoctors(filtered);
+    setTotal(filtered.length);
+    setTotalPages(1);
+  };
+
+  // Fetch doctors with explicit parameters
+  const fetchDoctorsWith = async (
+    query: string,
+    specialty: string,
+    minRating: number,
+    maxPrice: number,
+    sort: string,
+    pageNum: number
+  ) => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (searchQuery.trim()) params.set('searchQuery', searchQuery.trim());
-      if (selectedSpecialty !== 'All') params.set('specialty', selectedSpecialty);
-      if (ratingMin > 0) params.set('ratingMin', ratingMin.toString());
-      if (priceMax < 1500) params.set('priceMax', priceMax.toString());
-      params.set('sort', sortBy);
-      params.set('page', page.toString());
+      if (query.trim()) params.set('searchQuery', query.trim());
+      if (specialty !== 'All') params.set('specialty', specialty);
+      if (minRating > 0) params.set('ratingMin', minRating.toString());
+      if (maxPrice < 1500) params.set('priceMax', maxPrice.toString());
+      params.set('sort', sort);
+      params.set('page', pageNum.toString());
       params.set('limit', '9');
 
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-      const res = await fetch(`${apiUrl}/api/v1/doctors?${params.toString()}`);
+      const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      const apiBase = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
+      const res = await fetch(`${apiBase}/doctors?${params.toString()}`);
 
       if (res.ok) {
         const data = await res.json();
@@ -81,163 +413,151 @@ export default function DoctorsDirectoryPage() {
           setTotalPages(1);
         }
       } else {
-        // Fallback for offline or local preview
-        loadDefaultFallbackDoctors();
+        filterFallbackDoctors(query, specialty, minRating, maxPrice, sort);
       }
     } catch (err) {
-      loadDefaultFallbackDoctors();
+      filterFallbackDoctors(query, specialty, minRating, maxPrice, sort);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadDefaultFallbackDoctors = () => {
-    const fallbacks = [
-      {
-        id: 'doc-1',
-        slug: 'dr-thabo-molefe',
-        name: 'Dr. Thabo Molefe',
-        user: { full_name: 'Dr. Thabo Molefe' },
-        hpcsa_number: 'MP 0823452',
-        specialty: 'General Practitioner & Family Health',
-        bio: 'Dr. Thabo Molefe is a compassionate General Practitioner with over 7+ years of clinical practice across Gauteng. Specializes in acute care, metabolic conditions, and preventative care.',
-        rate_per_hour: 850.0,
-        rating_avg: 5.0,
-        reviews_count: 658,
-        facility_name: 'Cw Wikliegn, uMkhanyakude, KZN, South Africa',
-        facility_address: '7+ yrs experience',
-        photo_url: '/images/doctor_thabo.jpg',
-        next_available_slot: 'Available today',
-        tags: ['Flu & Infections', 'Chronic Script Renewal', 'Wellness'],
-      },
-      {
-        id: 'doc-2',
-        slug: 'dr-naledi-khumalo',
-        name: 'Dr. Naledi Khumalo',
-        user: { full_name: 'Dr. Naledi Khumalo' },
-        hpcsa_number: 'MP 0824921',
-        specialty: 'Family Medicine & Mental Health',
-        bio: 'Dr. Naledi Khumalo is a committed GP, passionate about mental health integration in primary care, especially anxiety, mood disorders, and family counseling.',
-        rate_per_hour: 820.0,
-        rating_avg: 4.9,
-        reviews_count: 519,
-        facility_name: 'Glenwood, Durban, KZN, South Africa',
-        facility_address: '5+ yrs experience',
-        photo_url: '/images/doctor_sarah.jpg',
-        next_available_slot: 'Available today',
-        tags: ['Mental Health', 'Family Medicine', 'Preventative Care'],
-      },
-      {
-        id: 'doc-3',
-        slug: 'dr-sarah-van-der-merwe',
-        name: 'Dr. Sarah van der Merwe',
-        user: { full_name: 'Dr. Sarah van der Merwe' },
-        hpcsa_number: 'MP 0567810',
-        specialty: 'Internal Medicine & Preventive Care',
-        bio: 'Dr. Sarah van der Merwe completed her medical degree at Stellenbosch University and has a dedicated clinical focus on diagnostic screening and lifestyle medicine.',
-        rate_per_hour: 900.0,
-        rating_avg: 4.8,
-        reviews_count: 722,
-        facility_name: 'Rivonia, Johannesburg, Gauteng, South Africa',
-        facility_address: '8+ yrs experience',
-        photo_url: '/images/doctor_kevin.jpg',
-        next_available_slot: 'Available today',
-        tags: ['Internal Medicine', 'Preventative Care', "Women's Health"],
-      },
-      {
-        id: 'doc-4',
-        slug: 'dr-priya-naidoo',
-        name: 'Dr. Priya Naidoo',
-        user: { full_name: 'Dr. Priya Naidoo' },
-        hpcsa_number: 'MP 0625140',
-        specialty: 'Obstetrics & Gynaecology',
-        bio: 'Dr. Priya Naidoo has 14 years of primary healthcare experience, with a special interest in women’s health, reproductive medicine, and prenatal support.',
-        rate_per_hour: 780.0,
-        rating_avg: 4.8,
-        reviews_count: 482,
-        facility_name: '14th Avenue, Westville, Durban, KZN, South Africa',
-        facility_address: '9+ yrs experience',
-        photo_url: '/images/doctor_sarah.jpg',
-        next_available_slot: 'Available today',
-        tags: ['Obstetrics', 'Gynaecology', 'Family Planning'],
-      },
-      {
-        id: 'doc-5',
-        slug: 'dr-farhan-patel',
-        name: 'Dr. Farhan Patel',
-        user: { full_name: 'Dr. Farhan Patel' },
-        hpcsa_number: 'MP 0735219',
-        specialty: 'Urgent Care & Respiratory Illness',
-        bio: 'Dr. Farhan Patel focuses on urgent care, respiratory infections, asthma management, and immediate medical triage with extensive acute care experience.',
-        rate_per_hour: 750.0,
-        rating_avg: 4.8,
-        reviews_count: 386,
-        facility_name: 'City North, Cape Town, Western Cape, South Africa',
-        facility_address: '7+ yrs experience',
-        photo_url: '/images/doctor_thabo.jpg',
-        next_available_slot: 'Available today',
-        tags: ['Urgent Care', 'Respiratory', 'Asthma'],
-      },
-      {
-        id: 'doc-6',
-        slug: 'dr-johan-botha',
-        name: 'Dr. Johan Botha',
-        user: { full_name: 'Dr. Johan Botha' },
-        hpcsa_number: 'MP 0632748',
-        specialty: 'Internal Medicine & Sports Medicine',
-        bio: 'Dr. Johan Botha is a specialist in Internal Medicine and Sports Medicine, with a focus on preventive care, musculoskeletal therapy, and cardiac wellness.',
-        rate_per_hour: 800.0,
-        rating_avg: 4.8,
-        reviews_count: 360,
-        facility_name: 'Rondebosch, Cape Town, Western Cape, South Africa',
-        facility_address: '6+ yrs experience',
-        photo_url: '/images/doctor_kevin.jpg',
-        next_available_slot: 'Available today',
-        tags: ['Sports Medicine', 'Internal Medicine', 'Cardiology'],
-      },
-    ];
-
-    // Apply filters
-    let filtered = fallbacks.filter((d) => {
-      const docName = d.user?.full_name || d.name || '';
-      const matchQuery =
-        !searchQuery.trim() ||
-        docName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        d.specialty.toLowerCase().includes(searchQuery.toLowerCase());
-      const matchSpecialty =
-        selectedSpecialty === 'All' ||
-        d.specialty.toLowerCase().includes(selectedSpecialty.toLowerCase());
-      const matchRating = ratingMin === 0 || d.rating_avg >= ratingMin;
-      const matchPrice = d.rate_per_hour <= priceMax;
-      return matchQuery && matchSpecialty && matchRating && matchPrice;
-    });
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      if (sortBy === 'rating_desc') return b.rating_avg - a.rating_avg;
-      if (sortBy === 'price_asc') return a.rate_per_hour - b.rate_per_hour;
-      if (sortBy === 'price_desc') return b.rate_per_hour - a.rate_per_hour;
-      if (sortBy === 'name_asc') {
-        const nameA = a.user?.full_name || a.name || '';
-        const nameB = b.user?.full_name || b.name || '';
-        return nameA.localeCompare(nameB);
-      }
-      return 0;
-    });
-
-    setDoctors(filtered);
-    setTotal(filtered.length);
-    setTotalPages(1);
-  };
-
+  // Re-fetch whenever filters or page change
   useEffect(() => {
-    fetchDoctors();
+    fetchDoctorsWith(searchQuery, selectedSpecialty, ratingMin, priceMax, sortBy, page);
   }, [selectedSpecialty, ratingMin, priceMax, sortBy, page]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  // Compute live search suggestions based on searchQuery
+  const searchSuggestions: SearchSuggestion[] = React.useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+
+    const results: SearchSuggestion[] = [];
+
+    // 1. Doctors matching name, specialty, or clinic
+    const candidateDocs = [...DEFAULT_FALLBACK_DOCTORS];
+    doctors.forEach((d) => {
+      if (!candidateDocs.some((c) => c.name === d.name || c.id === d.id)) {
+        candidateDocs.push(d);
+      }
+    });
+
+    const matchingDocs = candidateDocs.filter((d) => {
+      const name = (d.user?.full_name || d.name || '').toLowerCase();
+      const spec = (d.specialty || '').toLowerCase();
+      const facility = (d.facility_name || '').toLowerCase();
+      return name.includes(q) || spec.includes(q) || facility.includes(q);
+    });
+
+    matchingDocs.slice(0, 3).forEach((d) => {
+      const docName = d.user?.full_name || d.name;
+      results.push({
+        id: `doc-${d.id || d.slug}`,
+        title: docName,
+        subtitle: `${d.specialty} • ${d.facility_name || 'Verified Practitioner'}`,
+        category: 'Doctor',
+        type: 'doctor',
+        iconName: 'stethoscope-bold',
+        onSelect: () => {
+          setSearchQuery(docName);
+          setSelectedSpecialty('All');
+          setPage(1);
+          fetchDoctorsWith(docName, 'All', ratingMin, priceMax, sortBy, 1);
+          scrollToResults();
+        },
+      });
+    });
+
+    // 2. Specialties matching query
+    const matchingSpecialties = SPECIALTIES.filter(
+      (spec) => spec !== 'All' && spec.toLowerCase().includes(q)
+    );
+    matchingSpecialties.slice(0, 3).forEach((spec) => {
+      results.push({
+        id: `spec-${spec}`,
+        title: spec,
+        subtitle: `Medical Specialty • View verified practitioners`,
+        category: 'Specialty',
+        type: 'specialty',
+        iconName: 'hospital-bold',
+        onSelect: () => {
+          setSelectedSpecialty(spec);
+          setSearchQuery('');
+          setPage(1);
+          fetchDoctorsWith('', spec, ratingMin, priceMax, sortBy, 1);
+          scrollToResults();
+        },
+      });
+    });
+
+    // 3. Health conditions & symptoms matching query
+    const matchingConditions = COMMON_CONDITIONS.filter(
+      (cond) =>
+        cond.name.toLowerCase().includes(q) ||
+        cond.specialty.toLowerCase().includes(q) ||
+        cond.keywords.some((k) => k.includes(q))
+    );
+    matchingConditions.slice(0, 3).forEach((cond) => {
+      results.push({
+        id: `cond-${cond.name}`,
+        title: cond.name,
+        subtitle: `${cond.category} • Consult a ${cond.specialty}`,
+        category: cond.category,
+        type: 'condition',
+        iconName: 'heart-pulse-bold',
+        onSelect: () => {
+          setSelectedSpecialty(cond.specialty);
+          setSearchQuery(cond.name);
+          setPage(1);
+          fetchDoctorsWith(cond.name, cond.specialty, ratingMin, priceMax, sortBy, 1);
+          scrollToResults();
+        },
+      });
+    });
+
+    return results.slice(0, 8);
+  }, [searchQuery, doctors, ratingMin, priceMax, sortBy]);
+
+  // Form submit handler
+  const handleSearchSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setShowSuggestions(false);
+    setActiveSuggestionIndex(-1);
     setPage(1);
-    fetchDoctors();
+    fetchDoctorsWith(searchQuery, selectedSpecialty, ratingMin, priceMax, sortBy, 1);
+    scrollToResults();
+  };
+
+  // Keyboard navigation for suggestions
+  const handleSearchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || searchSuggestions.length === 0) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        handleSearchSubmit();
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveSuggestionIndex((prev) => (prev < searchSuggestions.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveSuggestionIndex((prev) => (prev > 0 ? prev - 1 : searchSuggestions.length - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeSuggestionIndex >= 0 && activeSuggestionIndex < searchSuggestions.length) {
+        const item = searchSuggestions[activeSuggestionIndex];
+        setShowSuggestions(false);
+        setActiveSuggestionIndex(-1);
+        item.onSelect();
+      } else {
+        handleSearchSubmit();
+      }
+    } else if (e.key === 'Escape') {
+      setShowSuggestions(false);
+      setActiveSuggestionIndex(-1);
+    }
   };
 
   const handleResetFilters = () => {
@@ -247,13 +567,34 @@ export default function DoctorsDirectoryPage() {
     setPriceMax(1500);
     setSortBy('rating_desc');
     setPage(1);
+    setShowSuggestions(false);
+    setActiveSuggestionIndex(-1);
+    fetchDoctorsWith('', 'All', 0, 1500, 'rating_desc', 1);
+  };
+
+  // Highlight matching text in suggestion titles
+  const renderHighlightedText = (text: string, query: string) => {
+    if (!query.trim()) return text;
+    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === query.toLowerCase() ? (
+            <mark key={i}>{part}</mark>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
   };
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-cream-base)', paddingBottom: '88px' }}>
       {/* Redesigned Full-Width Hero Section with doc_hero.png as background */}
       <section className="doctors-hero-section">
-        <div className="container" style={{ position: 'relative', zIndex: 2 }}>
+        <div className="container" style={{ position: 'relative' }}>
           {/* Breadcrumb matching mockup */}
           <nav
             aria-label="Breadcrumb"
@@ -345,22 +686,153 @@ export default function DoctorsDirectoryPage() {
             </p>
 
             {/* Wide Search Pill */}
-            <form onSubmit={handleSearchSubmit} className="doctors-search-form">
+            <form onSubmit={handleSearchSubmit} className="doctors-search-form" ref={searchContainerRef}>
               <div className="doctors-search-pill">
                 <SolarIcon name="magnifier-linear" size={20} color="var(--color-gold-bronze)" />
                 <input
                   type="text"
                   placeholder="Search by doctor name, medical condition, or specialty..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value);
+                    setShowSuggestions(true);
+                    setActiveSuggestionIndex(-1);
+                    setActiveDropdown(null);
+                  }}
+                  onFocus={() => {
+                    setActiveDropdown(null);
+                    if (searchQuery.trim().length > 0) setShowSuggestions(true);
+                  }}
+                  onKeyDown={handleSearchKeyDown}
                   className="doctors-search-input"
+                  aria-autocomplete="list"
+                  aria-expanded={showSuggestions && searchSuggestions.length > 0}
+                  aria-controls="search-suggestions-dropdown"
                 />
+                {searchQuery.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery('');
+                      setShowSuggestions(false);
+                      setActiveSuggestionIndex(-1);
+                    }}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: '4px 6px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      color: 'var(--color-chocolate-muted)',
+                      flexShrink: 0,
+                    }}
+                    aria-label="Clear search"
+                  >
+                    <SolarIcon name="close-circle-bold" size={16} color="var(--color-chocolate-muted)" />
+                  </button>
+                )}
                 <button type="submit" className="doctors-search-submit touch-target" aria-label="Search Doctors">
                   <span className="doctors-search-text-desktop">Search Doctors</span>
                   <span className="doctors-search-text-mobile">Search</span>
                   <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
                 </button>
               </div>
+
+              {/* Autocomplete Suggestion Dropdown */}
+              {showSuggestions && searchQuery.trim().length > 0 && (
+                <div id="search-suggestions-dropdown" className="doctors-search-suggestions" role="listbox">
+                  {searchSuggestions.length > 0 ? (
+                    <>
+                      <div className="doctors-suggestions-header">
+                        <span>Matching Suggestions</span>
+                        <span style={{ fontSize: '0.7rem', color: '#8C7E74', fontWeight: 500, textTransform: 'none' }}>
+                          Use ↑↓ to navigate • Enter to select
+                        </span>
+                      </div>
+                      <ul className="doctors-suggestions-list">
+                        {searchSuggestions.map((item, idx) => {
+                          const isActive = idx === activeSuggestionIndex;
+                          return (
+                            <li key={item.id} style={{ listStyle: 'none' }}>
+                              <button
+                                type="button"
+                                className={`doctors-suggestion-item ${isActive ? 'active' : ''}`}
+                                onClick={() => {
+                                  setShowSuggestions(false);
+                                  setActiveSuggestionIndex(-1);
+                                  item.onSelect();
+                                }}
+                                onMouseEnter={() => setActiveSuggestionIndex(idx)}
+                                role="option"
+                                aria-selected={isActive}
+                              >
+                                <div className="doctors-suggestion-icon-wrap">
+                                  <SolarIcon name={item.iconName} size={18} color="var(--color-gold-base)" />
+                                </div>
+                                <div className="doctors-suggestion-content">
+                                  <span className="doctors-suggestion-title">
+                                    {renderHighlightedText(item.title, searchQuery)}
+                                  </span>
+                                  <span className="doctors-suggestion-subtitle">{item.subtitle}</span>
+                                </div>
+                                <span className={`doctors-suggestion-badge ${item.type}`}>
+                                  {item.category}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                      <div className="doctors-suggestions-footer">
+                        <span>
+                          Searching for <strong>"{searchQuery}"</strong>
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSearchSubmit();
+                          }}
+                        >
+                          <span>View all results</span>
+                          <SolarIcon name="arrow-right-linear" size={14} color="var(--color-gold-base)" />
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ padding: '20px 20px', textAlign: 'center' }}>
+                      <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-chocolate-base)', fontWeight: 700 }}>
+                        No direct matches for "{searchQuery}"
+                      </p>
+                      <p style={{ margin: '4px 0 14px 0', fontSize: '0.78rem', color: '#8C7E74' }}>
+                        Press Enter or click below to search our directory for this term
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleSearchSubmit();
+                        }}
+                        style={{
+                          backgroundColor: 'var(--color-gold-primary)',
+                          color: 'var(--color-chocolate-base)',
+                          border: 'none',
+                          borderRadius: '9999px',
+                          padding: '8px 20px',
+                          fontSize: '0.825rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <span>Search directory</span>
+                        <SolarIcon name="arrow-right-linear" size={14} color="var(--color-chocolate-base)" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </form>
 
             {/* Credibility / Trust Row Directly on Background */}
@@ -419,7 +891,7 @@ export default function DoctorsDirectoryPage() {
       </section>
 
       {/* Redesigned Filter Bar directly beneath hero */}
-      <div className="container doctors-filter-bar-container" ref={filterBarRef}>
+      <div className="container doctors-filter-bar-container" ref={filterBarRef} id="doctors-directory-results">
         <div className="doctors-filter-bar">
           {/* 1. Specialty Dropdown */}
           <div style={{ position: 'relative' }}>
@@ -785,7 +1257,8 @@ export default function DoctorsDirectoryPage() {
                 hpcsa_number={doc.hpcsa_number}
                 specialty={doc.specialty}
                 bio={doc.bio}
-                tags={doc.tags}
+                tags={doc.consultation_types || doc.tags}
+                experience_years={doc.experience_years}
                 rate_per_hour={Number(doc.rate_per_hour) || 750}
                 rating_avg={Number(doc.rating_avg) || 4.8}
                 reviews_count={doc.reviews_count || 24}
@@ -793,6 +1266,7 @@ export default function DoctorsDirectoryPage() {
                 facility_address={doc.facility_address}
                 photo_url={doc.photo_url}
                 next_available_slot={doc.next_available_slot}
+                offers_in_clinic={doc.offers_in_clinic}
               />
             ))}
           </div>
@@ -855,7 +1329,7 @@ export default function DoctorsDirectoryPage() {
               style={{
                 marginTop: '24px',
                 padding: '12px 28px',
-                borderRadius: '9999px',
+                borderRadius: '12px',
                 backgroundColor: 'var(--color-gold-primary)',
                 color: 'var(--color-chocolate-base)',
                 fontWeight: 700,

@@ -2,46 +2,58 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { io, Socket } from 'socket.io-client';
 import Link from 'next/link';
 import {
   Video,
   VideoOff,
   Mic,
   MicOff,
-  Sparkles,
+  Volume2,
+  VolumeX,
   PhoneOff,
-  Settings,
   Maximize2,
   Minimize2,
-  Shield,
   Clock,
   User,
-  AlertCircle,
-  CheckCircle2,
+  Shield,
   Loader2,
-  Camera,
-  RefreshCw,
-  ExternalLink,
   FileText,
-  HeartHandshake,
-  Lock,
-  CreditCard,
-  X,
   Check,
+  Stethoscope,
+  Share2,
+  Download,
+  ArrowRight,
+  Sparkles,
+  Image as ImageIcon,
+  Sliders,
+  CheckCircle2,
+  SwitchCamera,
+  Layers,
+  X,
+  AlertCircle,
+  Camera,
+  AlertTriangle,
+  CreditCard,
+  TimerReset,
 } from 'lucide-react';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
+import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../../context/AuthContext';
+import { ChekupCrossLogo } from '../../../components/common/ChekupCrossLogo';
 
+// ============================================================================
+// Types & Interfaces
+// ============================================================================
 interface ConsultationData {
   id: string;
   booking_id: string;
   video_room_id: string;
-  room_url: string;
+  room_url: string | null;
   started_at: string | null;
   ended_at: string | null;
   doctor_joined_at: string | null;
   patient_joined_at: string | null;
+  doctor_notes: string | null;
   booking?: {
     id: string;
     patient_id: string;
@@ -52,8 +64,74 @@ interface ConsultationData {
   doctor?: {
     name: string;
     specialty: string;
+    photoUrl?: string;
   };
 }
+
+interface JoinResponse {
+  consultation: ConsultationData;
+  roomUrl: string;
+  token: string;
+  startedAt: string | null;
+  isFirstParticipant: boolean;
+}
+
+interface ExtensionRequest {
+  bookingId: string;
+  extensionId: string;
+  durationMinutes: number;
+  amount: number;
+  doctorName?: string;
+  timestamp: string;
+  isFree?: boolean;
+}
+
+interface TimerSyncPayload {
+  startedAt: string;
+  durationSeconds: number;
+  remainingSeconds: number;
+  is5MinWarning: boolean;
+  is1MinWarning: boolean;
+}
+
+export type BackgroundEffectType = 'none' | 'blur-light' | 'blur-heavy' | 'virtual-image';
+
+interface VirtualBackgroundPreset {
+  id: string;
+  name: string;
+  category: string;
+  previewUrl: string;
+}
+
+// ============================================================================
+// Virtual Background Presets
+// ============================================================================
+const VIRTUAL_BACKGROUND_PRESETS: VirtualBackgroundPreset[] = [
+  {
+    id: 'clinic-suite',
+    name: 'Medical Suite',
+    category: 'Clinical',
+    previewUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%231E293B"/><stop offset="100%" stop-color="%230F172A"/></linearGradient></defs><rect width="320" height="180" fill="url(%23g1)"/><rect x="20" y="25" width="80" height="110" rx="4" fill="%2338BDF8" fill-opacity="0.15" stroke="%2338BDF8" stroke-opacity="0.2" stroke-width="2"/><rect x="220" y="40" width="80" height="50" rx="4" fill="%23334155" stroke="%2364748B" stroke-width="1.5"/><circle cx="260" cy="65" r="12" fill="%230EA5E9" fill-opacity="0.2"/><rect x="0" y="145" width="320" height="35" fill="%23182234"/><text x="160" y="168" fill="%2394A3B8" font-size="10" font-family="sans-serif" text-anchor="middle">Chekup247 Clinical Suite</text></svg>',
+  },
+  {
+    id: 'modern-office',
+    name: 'Modern Clinic Office',
+    category: 'Professional',
+    previewUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%232A170F"/><stop offset="100%" stop-color="%231E100A"/></linearGradient></defs><rect width="320" height="180" fill="url(%23bg2)"/><rect x="30" y="30" width="110" height="90" rx="8" fill="%233E2114" stroke="%23DFAB62" stroke-opacity="0.3"/><circle cx="250" cy="50" r="28" fill="%23DFAB62" fill-opacity="0.15"/><rect x="0" y="145" width="320" height="35" fill="%23170B06"/><text x="160" y="168" fill="%23DFAB62" font-size="10" font-family="sans-serif" text-anchor="middle">Private Doctor Consultation</text></svg>',
+  },
+  {
+    id: 'warm-interior',
+    name: 'Warm Living Room',
+    category: 'Home',
+    previewUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="bg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="%233F2E23"/><stop offset="100%" stop-color="%2322150D"/></linearGradient><radialGradient id="lamp" cx="80%" cy="30%" r="50%"><stop offset="0%" stop-color="%23FDE68A" stop-opacity="0.5"/><stop offset="100%" stop-color="%23D97706" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(%23bg3)"/><circle cx="260" cy="55" r="70" fill="url(%23lamp)"/><rect x="0" y="140" width="320" height="40" fill="%231B0F09"/><text x="160" y="168" fill="%23FDE68A" font-size="10" font-family="sans-serif" text-anchor="middle">Warm Cozy Interior</text></svg>',
+  },
+  {
+    id: 'studio-bokeh',
+    name: 'Studio Soft Bokeh',
+    category: 'Minimalist',
+    previewUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="bg4" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%231E1B4B"/><stop offset="100%" stop-color="%23312E81"/></linearGradient></defs><rect width="320" height="180" fill="url(%23bg4)"/><circle cx="60" cy="50" r="35" fill="%23818CF8" fill-opacity="0.25"/><circle cx="240" cy="70" r="45" fill="%23C084FC" fill-opacity="0.2"/><circle cx="160" cy="120" r="55" fill="%2338BDF8" fill-opacity="0.18"/><text x="160" y="168" fill="%23C7D2FE" font-size="10" font-family="sans-serif" text-anchor="middle">Soft Blur Studio</text></svg>',
+  },
+];
 
 export default function PatientConsultationPage() {
   const params = useParams();
@@ -62,215 +140,237 @@ export default function PatientConsultationPage() {
   const bookingId = params?.bookingId as string;
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-  const WS_URL = API_BASE.replace(/\/api\/v1\/?$/, '');
+  const WS_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace('/api/v1', '');
 
-  // UI States
-  const [viewState, setViewState] = useState<'loading' | 'waiting_room' | 'in_call' | 'completed'>(
-    'loading',
-  );
+  // --------------------------------------------------------------------------
+  // Core Lifecycle & State
+  // --------------------------------------------------------------------------
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [consultation, setConsultation] = useState<ConsultationData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [doctorName, setDoctorName] = useState<string>('Doctor');
+  const [doctorSpecialty, setDoctorSpecialty] = useState<string>('General Practitioner');
+  const [isConsultationEnded, setIsConsultationEnded] = useState<boolean>(false);
+  const [showEndModal, setShowEndModal] = useState<boolean>(false);
+  const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
+  const [isEndingCall, setIsEndingCall] = useState<boolean>(false);
 
-  // Pre-call Hardware Preview State (PA-605)
-  const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
-  const [hasMicPermission, setHasMicPermission] = useState<boolean | null>(null);
-  const [audioLevel, setAudioLevel] = useState<number>(0);
-  const previewVideoRef = useRef<HTMLVideoElement | null>(null);
-
-  // Call Object & WebRTC State (PA-601)
+  // --------------------------------------------------------------------------
+  // WebRTC & Daily.co State
+  // --------------------------------------------------------------------------
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
+  const [isDoctorConnected, setIsDoctorConnected] = useState<boolean>(false);
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
-  const [isBlurActive, setIsBlurActive] = useState<boolean>(false);
-  const [isDoctorPresent, setIsDoctorPresent] = useState<boolean>(false);
-  const [doctorName, setDoctorName] = useState<string>('Consulting Doctor');
+  const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
+  const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const [showSettingsDrawer, setShowSettingsDrawer] = useState<boolean>(false);
-  const [availableDevices, setAvailableDevices] = useState<{
-    audioInputs: MediaDeviceInfo[];
-    videoInputs: MediaDeviceInfo[];
-  }>({ audioInputs: [], videoInputs: [] });
 
-  // Video track elements
+  // Real Hardware Stream & Audio Metering
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>([]);
+  const [selectedCameraId, setSelectedCameraId] = useState<string>('');
+  const [micVolumeLevel, setMicVolumeLevel] = useState<number>(0);
+  const [isPatientSpeaking, setIsPatientSpeaking] = useState<boolean>(false);
+
+  // Background Effects
+  const [activeEffect, setActiveEffect] = useState<BackgroundEffectType>('none');
+  const [selectedBgPreset, setSelectedBgPreset] = useState<string>('clinic-suite');
+  const [customBgImage, setCustomBgImage] = useState<string | null>(null);
+  const [showEffectsDrawer, setShowEffectsDrawer] = useState<boolean>(false);
+
+  // Timer State (driven by server started_at and durationSeconds)
+  const [startedAt, setStartedAt] = useState<Date | null>(null);
+  const [totalDurationSeconds, setTotalDurationSeconds] = useState<number>(1800); // 30 min default
+  const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
+  const [timerWarning, setTimerWarning] = useState<'normal' | 'warning_5min' | 'critical_1min'>('normal');
+
+  // Doctor Time Extension Request State
+  const [pendingExtension, setPendingExtension] = useState<ExtensionRequest | null>(null);
+  const [isProcessingExtension, setIsProcessingExtension] = useState<boolean>(false);
+  const [extensionNotice, setExtensionNotice] = useState<string | null>(null);
+
+  // Media Refs
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
-  const callContainerRef = useRef<HTMLDivElement | null>(null);
-
-  // Countdown Timer State (PA-603)
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(1800); // default 30 min
-  const [timerWarning, setTimerWarning] = useState<'normal' | '5min' | '1min'>('normal');
-  const [callDuration, setCallDuration] = useState<string>('00:00');
-  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Time Extension State (PA-701, PA-702)
-  const [extensionRequest, setExtensionRequest] = useState<{
-    extensionId: string;
-    durationMinutes: number;
-    amount: number;
-    doctorName?: string;
-  } | null>(null);
-  const [consentCountdown, setConsentCountdown] = useState<number>(60);
-  const [isSubmittingConsent, setIsSubmittingConsent] = useState<boolean>(false);
-  const [savedCardInfo, setSavedCardInfo] = useState<{ brand: string; last4: string }>({
-    brand: 'Visa',
-    last4: '4081',
-  });
-  const [extensionSuccessBanner, setExtensionSuccessBanner] = useState<string | null>(null);
-
-  // In-App Prescription Toast (PA-704)
-  const [prescriptionToast, setPrescriptionToast] = useState<{
-    prescriptionId: string;
-    doctorName: string;
-  } | null>(null);
-
-  // Socket.io connection
+  const localStreamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animFrameRef = useRef<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const workspaceRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
-  // 1. Initial Load: Fetch Consultation details
+  // --------------------------------------------------------------------------
+  // Timer Effect: Compute elapsed from server started_at in real time
+  // --------------------------------------------------------------------------
   useEffect(() => {
-    let isMounted = true;
+    if (!startedAt) return;
 
-    async function loadData() {
-      try {
-        setViewState('loading');
-        let data: ConsultationData | null = null;
+    const timer = setInterval(() => {
+      const now = Date.now();
+      const elapsed = Math.max(0, Math.floor((now - startedAt.getTime()) / 1000));
+      setElapsedSeconds(elapsed);
 
-        if (token && bookingId) {
-          const res = await fetch(`${API_BASE}/consultations/${bookingId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            data = await res.json();
-          }
-        }
-
-        // Fallback / mock for offline testing
-        if (!data) {
-          data = {
-            id: 'cons-demo-1',
-            booking_id: bookingId || 'demo-booking',
-            video_room_id: `chekup-${(bookingId || 'demo').substring(0, 12)}`,
-            room_url: `https://chekup247.daily.co/chekup-${(bookingId || 'demo').substring(0, 12)}`,
-            started_at: null,
-            ended_at: null,
-            doctor_joined_at: null,
-            patient_joined_at: null,
-            doctor: {
-              name: 'Dr. Thabo Mokoena',
-              specialty: 'Family Medicine & General Practitioner',
-            },
-          };
-        }
-
-        if (isMounted) {
-          setConsultation(data);
-          if (data.doctor?.name) {
-            setDoctorName(data.doctor.name);
-          }
-          if (data.ended_at) {
-            setViewState('completed');
-          } else {
-            setViewState('waiting_room');
-          }
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError(err.message);
-          setViewState('waiting_room');
-        }
+      const remaining = Math.max(0, totalDurationSeconds - elapsed);
+      if (remaining <= 60 && remaining > 0) {
+        setTimerWarning('critical_1min');
+      } else if (remaining <= 300) {
+        setTimerWarning('warning_5min');
+      } else {
+        setTimerWarning('normal');
       }
-    }
+    }, 1000);
 
-    loadData();
+    return () => clearInterval(timer);
+  }, [startedAt, totalDurationSeconds]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [bookingId, token, API_BASE]);
+  const formatElapsed = (totalSec: number) => {
+    const m = Math.floor(totalSec / 60);
+    const s = totalSec % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
 
-  // 2. Hardware Pre-Check in Waiting Room (PA-605)
-  useEffect(() => {
-    if (viewState !== 'waiting_room') return;
+  const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds);
 
-    let stream: MediaStream | null = null;
-    let audioContext: AudioContext | null = null;
-    let analyser: AnalyserNode | null = null;
-    let animationFrameId: number;
-
-    async function setupHardware() {
-      try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-          setPreviewStream(stream);
-          setHasCameraPermission(true);
-          setHasMicPermission(true);
-
-          if (previewVideoRef.current) {
-            previewVideoRef.current.srcObject = stream;
-          }
-
-          // Microphone activity monitor
-          try {
-            audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-            analyser = audioContext.createAnalyser();
-            const source = audioContext.createMediaStreamSource(stream);
-            source.connect(analyser);
-            analyser.fftSize = 64;
-            const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
-            const updateVolume = () => {
-              if (!analyser) return;
-              analyser.getByteFrequencyData(dataArray);
-              let sum = 0;
-              for (let i = 0; i < dataArray.length; i++) {
-                sum += dataArray[i];
-              }
-              const average = sum / dataArray.length;
-              setAudioLevel(Math.min(100, Math.round((average / 128) * 100)));
-              animationFrameId = requestAnimationFrame(updateVolume);
-            };
-            updateVolume();
-          } catch (audioErr) {
-            console.warn('Audio metering unavailable:', audioErr);
-          }
-        } else {
-          setHasCameraPermission(false);
-          setHasMicPermission(false);
-        }
-      } catch (err) {
-        console.warn('Camera/mic access error in waiting room:', err);
+  // --------------------------------------------------------------------------
+  // Real Camera & Microphone Initialization
+  // --------------------------------------------------------------------------
+  const startRealMedia = useCallback(async (deviceId?: string) => {
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
         setHasCameraPermission(false);
-        setHasMicPermission(false);
+        return null;
       }
+
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+
+      const constraints: MediaStreamConstraints = {
+        video: deviceId
+          ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
+          : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
+      setHasCameraPermission(true);
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter((d) => d.kind === 'videoinput');
+      setAvailableCameras(videoDevices);
+      if (!deviceId && videoDevices.length > 0) {
+        setSelectedCameraId(videoDevices[0].deviceId);
+      }
+
+      // Web Audio API: Real Microphone Volume Metering
+      try {
+        if (audioContextRef.current) {
+          audioContextRef.current.close().catch(() => {});
+        }
+
+        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+        if (AudioCtx) {
+          const audioCtx = new AudioCtx();
+          audioContextRef.current = audioCtx;
+          const source = audioCtx.createMediaStreamSource(stream);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 64;
+          analyser.smoothingTimeConstant = 0.4;
+          source.connect(analyser);
+          analyserRef.current = analyser;
+
+          const dataArray = new Uint8Array(analyser.frequencyBinCount);
+          const checkVolume = () => {
+            if (!analyserRef.current) return;
+            analyserRef.current.getByteFrequencyData(dataArray);
+            let sum = 0;
+            for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
+            const avg = sum / dataArray.length;
+            const normalized = Math.min(100, Math.round((avg / 128) * 100));
+            setMicVolumeLevel(normalized);
+            setIsPatientSpeaking(normalized > 14);
+            animFrameRef.current = requestAnimationFrame(checkVolume);
+          };
+          checkVolume();
+        }
+      } catch (audioErr) {
+        console.warn('Web Audio mic visualizer fallback:', audioErr);
+      }
+
+      return stream;
+    } catch (err) {
+      console.warn('Camera/mic access info:', err);
+      setHasCameraPermission(false);
+      return null;
     }
+  }, []);
 
-    setupHardware();
+  // --------------------------------------------------------------------------
+  // Apply Background Effect via Daily.co processor
+  // --------------------------------------------------------------------------
+  const applyBackgroundEffect = useCallback(
+    async (effect: BackgroundEffectType, presetId?: string, customImg?: string) => {
+      setActiveEffect(effect);
+      const chosenPreset = presetId || selectedBgPreset;
+      const chosenCustom = customImg !== undefined ? customImg : customBgImage;
 
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
+      if (callObject) {
+        try {
+          if (effect === 'blur-light') {
+            await callObject.updateInputSettings({
+              video: { processor: { type: 'background-blur', config: { strength: 0.4 } } },
+            });
+          } else if (effect === 'blur-heavy') {
+            await callObject.updateInputSettings({
+              video: { processor: { type: 'background-blur', config: { strength: 0.8 } } },
+            });
+          } else if (effect === 'virtual-image') {
+            const preset = VIRTUAL_BACKGROUND_PRESETS.find((p) => p.id === chosenPreset);
+            const url = chosenCustom || preset?.previewUrl || '';
+            await callObject.updateInputSettings({
+              video: { processor: { type: 'background-image', config: { url } } },
+            });
+          } else {
+            await callObject.updateInputSettings({
+              video: { processor: { type: 'none' } },
+            });
+          }
+        } catch (err) {
+          console.warn('Daily background processor fallback:', err);
+        }
       }
-      if (audioContext && audioContext.state !== 'closed') {
-        audioContext.close();
-      }
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-  }, [viewState]);
+    },
+    [callObject, selectedBgPreset, customBgImage],
+  );
 
-  // 3. WebSocket Setup: Connect to consultations namespace (BE-603)
+  // --------------------------------------------------------------------------
+  // WebSocket Connection for Real-Time Events
+  // --------------------------------------------------------------------------
   useEffect(() => {
     if (!bookingId) return;
 
-    const socket = io(`${WS_URL}/consultations`, {
+    const socket = io(`${WS_BASE}/consultations`, {
       transports: ['websocket', 'polling'],
+      withCredentials: true,
     });
+
     socketRef.current = socket;
 
     socket.on('connect', () => {
+      console.log('[WS] Connected to consultation namespace');
+      // Join the consultation room
       socket.emit('join_session', {
         bookingId,
         role: 'patient',
@@ -279,164 +379,98 @@ export default function PatientConsultationPage() {
       });
     });
 
-    socket.on('doctor_joined', (data) => {
-      setIsDoctorPresent(true);
+    // Doctor presence events
+    socket.on('doctor_joined', (data: { userName?: string }) => {
+      setIsDoctorConnected(true);
       if (data.userName) setDoctorName(data.userName);
     });
 
-    socket.on('participant_left', (data) => {
+    socket.on('participant_left', (data: { role: string }) => {
       if (data.role === 'doctor') {
-        setIsDoctorPresent(false);
+        setIsDoctorConnected(false);
       }
     });
 
-    socket.on('timer_sync', (data) => {
-      if (typeof data.remainingSeconds === 'number') {
-        setRemainingSeconds(data.remainingSeconds);
-        if (data.is1MinWarning) {
-          setTimerWarning('1min');
-        } else if (data.is5MinWarning) {
-          setTimerWarning('5min');
-        } else {
-          setTimerWarning('normal');
-        }
+    // Timer synchronization from server
+    socket.on('timer_sync', (data: TimerSyncPayload) => {
+      if (data.startedAt) {
+        setStartedAt(new Date(data.startedAt));
+      }
+      if (data.durationSeconds) {
+        setTotalDurationSeconds(data.durationSeconds);
       }
     });
 
-    socket.on('consultation_ended', () => {
-      setViewState('completed');
-      if (callObject) {
-        callObject.leave().catch(() => {});
-        callObject.destroy().catch(() => {});
-      }
+    // Doctor-initiated time extension request
+    socket.on('extension_requested', (data: ExtensionRequest) => {
+      setPendingExtension(data);
     });
 
-    // Time Extension Listeners (PA-701, PA-702)
-    socket.on('extension_requested', (data: { extensionId: string; durationMinutes: number; amount: number; doctorName?: string }) => {
-      setExtensionRequest(data);
-      setConsentCountdown(60);
+    // Extension confirmed (timer updated)
+    socket.on('extension_confirmed', (data: {
+      addedMinutes: number;
+      newDurationSeconds: number;
+      remainingSeconds: number;
+      amount: number;
+    }) => {
+      setTotalDurationSeconds(data.newDurationSeconds);
+      setPendingExtension(null);
+      setIsProcessingExtension(false);
+      setExtensionNotice(`+${data.addedMinutes} minutes added to your consultation`);
+      setTimeout(() => setExtensionNotice(null), 6000);
     });
 
-    socket.on('extension_confirmed', (data: { extendedMinutes: number; newTotalDuration: number; remainingSeconds: number }) => {
-      setExtensionRequest(null);
-      if (typeof data.remainingSeconds === 'number') {
-        setRemainingSeconds(data.remainingSeconds);
-      }
-      setExtensionSuccessBanner(`+${data.extendedMinutes} minutes added to your consultation!`);
-      setTimeout(() => setExtensionSuccessBanner(null), 6000);
-    });
-
+    // Extension declined confirmation
     socket.on('extension_declined', () => {
-      setExtensionRequest(null);
+      setPendingExtension(null);
+      setIsProcessingExtension(false);
     });
 
-    socket.on('extension_payment_failed', (data: { message?: string }) => {
-      setExtensionRequest(null);
-      alert(`Time extension payment failed: ${data?.message || 'Could not charge saved payment card.'}`);
+    // Extension payment failed
+    socket.on('extension_payment_failed', (data: { message: string }) => {
+      setIsProcessingExtension(false);
+      setExtensionNotice(`Payment failed: ${data.message}`);
+      setTimeout(() => setExtensionNotice(null), 6000);
     });
 
-    // Real-Time Prescription Ready Listener (PA-704)
-    socket.on('prescription_issued', (data: { prescriptionId: string; doctorName?: string }) => {
-      setPrescriptionToast({
-        prescriptionId: data.prescriptionId,
-        doctorName: data.doctorName || doctorName || 'Your Doctor',
-      });
+    // Doctor ends consultation
+    socket.on('consultation_ended', () => {
+      cleanupAndEnd();
+    });
+
+    // Prescription issued notification
+    socket.on('prescription_issued', (data: { prescriptionId: string; doctorName: string }) => {
+      setExtensionNotice(`Prescription issued by ${data.doctorName}`);
+      setTimeout(() => setExtensionNotice(null), 6000);
     });
 
     return () => {
       socket.disconnect();
+      socketRef.current = null;
     };
-  }, [bookingId, user, WS_URL, callObject, doctorName]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bookingId, user?.id, user?.fullName, WS_BASE]);
 
-  // Handle Extension Consent response
-  const handleConsentResponse = useCallback(async (approved: boolean) => {
-    if (!extensionRequest || isSubmittingConsent) return;
-    setIsSubmittingConsent(true);
-    try {
-      await fetch(`${API_BASE}/consultations/${bookingId}/extend/consent`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          approved,
-          extensionId: extensionRequest.extensionId,
-        }),
-      });
-    } catch (err) {
-      console.error('Failed to submit consent response:', err);
-    } finally {
-      setIsSubmittingConsent(false);
-      setExtensionRequest(null);
-    }
-  }, [extensionRequest, isSubmittingConsent, API_BASE, bookingId, token]);
-
-  // 60-Second Auto-Decline Countdown for Extension Consent
+  // --------------------------------------------------------------------------
+  // Join Consultation & Daily.co WebRTC Session
+  // --------------------------------------------------------------------------
   useEffect(() => {
-    if (!extensionRequest) return;
-    const interval = setInterval(() => {
-      setConsentCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(interval);
-          handleConsentResponse(false);
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [extensionRequest, handleConsentResponse]);
+    let isMounted = true;
+    let dailyCall: DailyCall | null = null;
 
-  // 4. Timer Countdown Hook (PA-603)
-  useEffect(() => {
-    if (viewState !== 'in_call') return;
-
-    timerIntervalRef.current = setInterval(() => {
-      setRemainingSeconds((prev) => {
-        const next = Math.max(0, prev - 1);
-        if (next <= 60) {
-          setTimerWarning('1min');
-        } else if (next <= 300) {
-          setTimerWarning('5min');
-        } else {
-          setTimerWarning('normal');
-        }
-        return next;
-      });
-    }, 1000);
-
-    return () => {
-      if (timerIntervalRef.current) {
-        clearInterval(timerIntervalRef.current);
-      }
-    };
-  }, [viewState]);
-
-  // Format seconds to mm:ss
-  const formatTimer = useCallback((totalSeconds: number) => {
-    const mins = Math.floor(totalSeconds / 60);
-    const secs = totalSeconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  }, []);
-
-  // 5. Join Consultation Call via Daily.co Custom Call Object (PA-601)
-  const handleJoinCall = async () => {
-    try {
-      setViewState('loading');
-
-      // Stop waiting room preview stream before joining Daily
-      if (previewStream) {
-        previewStream.getTracks().forEach((track) => track.stop());
-        setPreviewStream(null);
-      }
-
-      // Call API join endpoint (BE-602)
-      let roomUrl = consultation?.room_url || '';
-      let meetingToken = '';
-
+    async function initSession() {
       try {
-        const res = await fetch(`${API_BASE}/consultations/${bookingId}/join`, {
+        // Start real hardware camera and mic immediately
+        await startRealMedia();
+
+        if (!bookingId) {
+          setLoadError('No booking ID provided');
+          setIsLoading(false);
+          return;
+        }
+
+        // Step 1: Join the consultation via API to get room URL + meeting token
+        const joinRes = await fetch(`${API_BASE}/consultations/${bookingId}/join`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -448,1343 +482,721 @@ export default function PatientConsultationPage() {
           }),
         });
 
-        if (res.ok) {
-          const joinData = await res.json();
-          roomUrl = joinData.roomUrl || roomUrl;
-          meetingToken = joinData.token || '';
-          if (joinData.consultation?.started_at) {
-            const elapsed = Math.floor(
-              (Date.now() - new Date(joinData.consultation.started_at).getTime()) / 1000,
-            );
-            setRemainingSeconds(Math.max(0, 1800 - elapsed));
-          }
-        }
-      } catch (e) {
-        console.warn('Backend join API fallback:', e);
-      }
+        if (!joinRes.ok) {
+          // Fallback: try GET to at least get consultation details
+          const detailRes = await fetch(`${API_BASE}/consultations/${bookingId}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
 
-      // Create Daily.co custom call object (PA-601: NOT plain iframe)
-      const daily = DailyIframe.createCallObject({
-        subscribeToTracksAutomatically: true,
-      });
-      setCallObject(daily);
-
-      // Daily.co WebRTC Track Listeners
-      daily.on('track-started', (evt: DailyEventObjectTrack) => {
-        if (!evt.track) return;
-
-        if (evt.track.kind === 'video') {
-          if (evt.participant?.local) {
-            if (localVideoRef.current) {
-              localVideoRef.current.srcObject = new MediaStream([evt.track]);
+          if (detailRes.ok && isMounted) {
+            const data = await detailRes.json();
+            setConsultation(data);
+            if (data.doctor) {
+              setDoctorName(data.doctor.name || 'Doctor');
+              setDoctorSpecialty(data.doctor.specialty || 'General Practitioner');
             }
-          } else {
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = new MediaStream([evt.track]);
+            if (data.started_at) {
+              setStartedAt(new Date(data.started_at));
             }
-            setIsDoctorPresent(true);
+          } else if (isMounted) {
+            setLoadError('Unable to join consultation. Please check your booking.');
           }
-        } else if (evt.track.kind === 'audio' && !evt.participant?.local) {
-          if (remoteAudioRef.current) {
-            remoteAudioRef.current.srcObject = new MediaStream([evt.track]);
-          }
+
+          if (isMounted) setIsLoading(false);
+          return;
         }
-      });
 
-      daily.on('participant-joined', (evt) => {
-        if (evt?.participant && !evt.participant.local) {
-          setIsDoctorPresent(true);
-          if (evt.participant.user_name) {
-            setDoctorName(evt.participant.user_name);
-          }
+        if (!isMounted) return;
+
+        const joinData: JoinResponse = await joinRes.json();
+        setConsultation(joinData.consultation);
+
+        // Set doctor info from API response
+        if (joinData.consultation.doctor) {
+          setDoctorName(joinData.consultation.doctor.name || 'Doctor');
+          setDoctorSpecialty(joinData.consultation.doctor.specialty || 'General Practitioner');
         }
-      });
 
-      daily.on('participant-left', (evt) => {
-        if (evt?.participant && !evt.participant.local) {
-          setIsDoctorPresent(false);
+        // Set server-authoritative started_at timestamp
+        if (joinData.startedAt) {
+          setStartedAt(new Date(joinData.startedAt));
         }
-      });
 
-      daily.on('left-meeting', () => {
-        setViewState('completed');
-      });
+        // Step 2: Create Daily.co call object and join with meeting token
+        if (joinData.roomUrl) {
+          dailyCall = DailyIframe.createCallObject({
+            videoSource: true,
+            audioSource: true,
+            subscribeToTracksAutomatically: true,
+          });
 
-      daily.on('error', (evt) => {
-        console.warn('Daily.co call error:', evt);
-      });
+          // Handle remote participant tracks (doctor video/audio)
+          dailyCall.on('track-started', (ev: DailyEventObjectTrack) => {
+            if (!isMounted) return;
+            if (ev.participant && !ev.participant.local) {
+              setIsDoctorConnected(true);
+              if (ev.track.kind === 'video' && remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
+              }
+              if (ev.track.kind === 'audio' && remoteAudioRef.current) {
+                remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
+              }
+            } else if (ev.participant?.local) {
+              if (ev.track.kind === 'video' && localVideoRef.current) {
+                localVideoRef.current.srcObject = new MediaStream([ev.track]);
+              }
+            }
+          });
 
-      // Join the Daily room
-      await daily.join({
-        url: roomUrl,
-        ...(meetingToken ? { token: meetingToken } : {}),
-      });
+          dailyCall.on('participant-left', (ev) => {
+            if (!isMounted) return;
+            if (ev.participant && !ev.participant.local) {
+              setIsDoctorConnected(false);
+            }
+          });
 
-      // Enumerate media devices
-      try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        setAvailableDevices({
-          audioInputs: devices.filter((d) => d.kind === 'audioinput'),
-          videoInputs: devices.filter((d) => d.kind === 'videoinput'),
-        });
-      } catch (e) {
-        console.warn('Could not enumerate devices:', e);
+          // Join with the secure meeting token from the backend
+          await dailyCall.join({
+            url: joinData.roomUrl,
+            token: joinData.token,
+          });
+
+          if (isMounted) setCallObject(dailyCall);
+        }
+      } catch (err: any) {
+        console.warn('Consultation session initialization:', err);
+        if (isMounted) setLoadError(err.message || 'Failed to connect');
+      } finally {
+        if (isMounted) setIsLoading(false);
       }
-
-      setViewState('in_call');
-    } catch (err: any) {
-      console.error('Failed to initialize Daily.co call:', err);
-      // Fallback directly to in-call view for UI/demo testing
-      setViewState('in_call');
     }
+
+    initSession();
+
+    return () => {
+      isMounted = false;
+      if (dailyCall) {
+        dailyCall.leave().catch(() => {});
+        dailyCall.destroy().catch(() => {});
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close().catch(() => {});
+      }
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, [bookingId, token, API_BASE, startRealMedia, user?.fullName]);
+
+  // --------------------------------------------------------------------------
+  // Call Controls
+  // --------------------------------------------------------------------------
+  const toggleMic = () => {
+    const next = !isAudioMuted;
+    setIsAudioMuted(next);
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach((t) => { t.enabled = !next; });
+    }
+    if (callObject) callObject.setLocalAudio(!next);
   };
 
-  // Toggle Audio (Mic Mute)
-  const toggleAudio = () => {
-    const nextState = !isAudioMuted;
-    setIsAudioMuted(nextState);
-    if (callObject) {
-      callObject.setLocalAudio(!nextState);
-    }
-  };
-
-  // Toggle Video (Camera Off)
   const toggleVideo = () => {
-    const nextState = !isVideoMuted;
-    setIsVideoMuted(nextState);
-    if (callObject) {
-      callObject.setLocalVideo(!nextState);
+    const next = !isVideoMuted;
+    setIsVideoMuted(next);
+    if (localStreamRef.current) {
+      localStreamRef.current.getVideoTracks().forEach((t) => { t.enabled = !next; });
     }
+    if (callObject) callObject.setLocalVideo(!next);
   };
 
-  // Toggle Background Blur (PA-604: Native Daily.co video processor)
-  const toggleBackgroundBlur = async () => {
-    const nextState = !isBlurActive;
-    setIsBlurActive(nextState);
-    if (callObject) {
-      try {
-        await (callObject as any).updateInputSettings({
-          video: {
-            processor: nextState ? { type: 'background-blur' } : { type: 'none' },
-          },
-        });
-      } catch (e) {
-        console.warn('Background blur not supported on this device/browser:', e);
-      }
-    }
+  const toggleSpeaker = () => {
+    const next = !isSpeakerMuted;
+    setIsSpeakerMuted(next);
+    if (remoteAudioRef.current) remoteAudioRef.current.muted = next;
   };
 
-  // Fullscreen toggle
+  const toggleScreenShare = async () => {
+    if (!callObject) { setIsSharingScreen(!isSharingScreen); return; }
+    try {
+      if (isSharingScreen) { await callObject.stopScreenShare(); setIsSharingScreen(false); }
+      else { await callObject.startScreenShare(); setIsSharingScreen(true); }
+    } catch { setIsSharingScreen(!isSharingScreen); }
+  };
+
   const toggleFullscreen = () => {
-    if (!callContainerRef.current) return;
+    if (!workspaceRef.current) return;
     if (!document.fullscreenElement) {
-      callContainerRef.current.requestFullscreen().catch(() => {});
+      workspaceRef.current.requestFullscreen?.().catch(() => {});
       setIsFullscreen(true);
     } else {
-      document.exitFullscreen().catch(() => {});
+      document.exitFullscreen?.().catch(() => {});
       setIsFullscreen(false);
     }
   };
 
-  // Patient Leaves Call
-  const handleLeaveCall = async () => {
-    if (callObject) {
-      try {
-        await callObject.leave();
-        await callObject.destroy();
-      } catch (e) {}
-    }
-    setViewState('completed');
+  const handleSwitchCamera = async () => {
+    if (availableCameras.length <= 1) return;
+    const idx = availableCameras.findIndex((c) => c.deviceId === selectedCameraId);
+    const next = availableCameras[(idx + 1) % availableCameras.length];
+    setSelectedCameraId(next.deviceId);
+    await startRealMedia(next.deviceId);
   };
 
-  // ============================================================================
-  // RENDER: Loading State
-  // ============================================================================
-  if (viewState === 'loading') {
+  const handleUploadCustomBg = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      const dataUrl = evt.target?.result as string;
+      setCustomBgImage(dataUrl);
+      applyBackgroundEffect('virtual-image', undefined, dataUrl);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // --------------------------------------------------------------------------
+  // Extension Consent Handling
+  // --------------------------------------------------------------------------
+  const handleExtensionConsent = async (approved: boolean) => {
+    if (!pendingExtension || isProcessingExtension) return;
+    setIsProcessingExtension(true);
+
+    try {
+      const res = await fetch(`${API_BASE}/consultations/${bookingId}/extend/consent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          extensionId: pendingExtension.extensionId,
+          approved,
+          patientId: user?.id,
+        }),
+      });
+
+      if (!approved) {
+        setPendingExtension(null);
+        setIsProcessingExtension(false);
+        return;
+      }
+
+      const data = await res.json();
+      if (!res.ok) {
+        setExtensionNotice(data.message || 'Extension payment failed');
+        setTimeout(() => setExtensionNotice(null), 6000);
+        setIsProcessingExtension(false);
+        return;
+      }
+
+      // Success — WebSocket extension_confirmed event handles the rest
+    } catch (err: any) {
+      setExtensionNotice(err.message || 'Extension request failed');
+      setTimeout(() => setExtensionNotice(null), 6000);
+      setIsProcessingExtension(false);
+    }
+  };
+
+  // --------------------------------------------------------------------------
+  // End / Leave Consultation
+  // --------------------------------------------------------------------------
+  const cleanupAndEnd = useCallback(async () => {
+    try {
+      if (callObject) {
+        await callObject.leave().catch(() => {});
+        await callObject.destroy().catch(() => {});
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
+    } catch { /* ignore */ }
+    setPendingExtension(null);
+    setIsConsultationEnded(true);
+  }, [callObject]);
+
+  const handleConfirmLeaveConsultation = async () => {
+    setShowEndModal(false);
+    setIsEndingCall(true);
+
+    try {
+      // Notify the backend that the patient is leaving
+      await fetch(`${API_BASE}/consultations/${bookingId}/end`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({}),
+      }).catch(() => {});
+
+      await cleanupAndEnd();
+    } catch {
+      setIsConsultationEnded(true);
+    }
+  };
+
+  const handleDownloadPrescription = () => {
+    setDownloadNotice('Official e-prescription & clinical summary downloaded.');
+    setTimeout(() => setDownloadNotice(null), 4500);
+  };
+
+  // --------------------------------------------------------------------------
+  // Loading Screen
+  // --------------------------------------------------------------------------
+  if (isLoading) {
     return (
-      <div
-        style={{
-          minHeight: '80vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#090d16',
-          color: '#ffffff',
-          gap: '20px',
-        }}
-      >
-        <Loader2 size={44} className="animate-spin" style={{ color: 'var(--color-brand-400)' }} />
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 600 }}>
-          Initializing Encrypted Consultation Room...
-        </h2>
-        <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-          Configuring secure audio/video channels & medical privacy compliance.
-        </p>
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', backgroundColor: '#1E100A', color: '#FAF6EE', fontFamily: 'var(--font-sans)' }}>
+        <ChekupCrossLogo size={48} />
+        <Loader2 size={36} className="animate-spin" style={{ color: '#E2B467' }} />
+        <div style={{ textAlign: 'center' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 6px', color: '#FAF6EE' }}>
+            Entering Private Consultation Room
+          </h2>
+          <p style={{ fontSize: '0.875rem', color: '#D5C7B8', margin: 0 }}>
+            Securing HD video link for booking #{bookingId}...
+          </p>
+        </div>
       </div>
     );
   }
 
-  // ============================================================================
-  // RENDER: Completion Screen (PA-606)
-  // ============================================================================
-  if (viewState === 'completed') {
+  // --------------------------------------------------------------------------
+  // Error Screen
+  // --------------------------------------------------------------------------
+  if (loadError) {
     return (
-      <div
-        style={{
-          minHeight: '85vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
-          padding: '24px',
-        }}
-      >
-        <div
-          style={{
-            maxWidth: '580px',
-            width: '100%',
-            background: '#ffffff',
-            borderRadius: '24px',
-            padding: '44px 36px',
-            textAlign: 'center',
-            boxShadow: '0 20px 40px -12px rgba(15, 23, 42, 0.08)',
-            border: '1px solid var(--color-slate-200)',
-          }}
-        >
-          <div
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%)',
-              color: '#059669',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 24px',
-              boxShadow: '0 8px 24px rgba(16, 185, 129, 0.2)',
-            }}
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', backgroundColor: '#1E100A', color: '#FAF6EE', fontFamily: 'var(--font-sans)', padding: '24px' }}>
+        <AlertCircle size={48} color="#EF4444" />
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#FAF6EE' }}>
+          Connection Issue
+        </h2>
+        <p style={{ fontSize: '0.9rem', color: '#D5C7B8', margin: 0, textAlign: 'center', maxWidth: '400px' }}>
+          {loadError}
+        </p>
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button
+            onClick={() => window.location.reload()}
+            style={{ padding: '10px 24px', borderRadius: '9999px', backgroundColor: '#E2B467', color: '#2A170F', fontWeight: 700, fontSize: '0.875rem', border: 'none', cursor: 'pointer' }}
           >
-            <CheckCircle2 size={42} />
-          </div>
+            Retry Connection
+          </button>
+          <Link
+            href="/appointments"
+            style={{ padding: '10px 24px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.08)', color: '#FAF6EE', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(223,171,98,0.3)', textDecoration: 'none', display: 'flex', alignItems: 'center' }}
+          >
+            Back to Appointments
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
-          <h1
-            style={{
-              fontSize: '1.75rem',
-              fontWeight: 800,
-              color: 'var(--color-slate-900)',
-              marginBottom: '10px',
-            }}
-          >
-            Consultation Concluded
-          </h1>
-          <p style={{ color: 'var(--color-slate-600)', fontSize: '0.975rem', lineHeight: 1.6 }}>
-            Thank you for consulting with <strong>{doctorName}</strong>. Your session has ended, and
-            all clinical notes are stored securely in your medical file.
+  // --------------------------------------------------------------------------
+  // Post-Consultation Summary Screen
+  // --------------------------------------------------------------------------
+  if (isConsultationEnded) {
+    return (
+      <div style={{ minHeight: '100vh', width: '100vw', backgroundColor: '#FAF6EE', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', color: '#2A170F', fontFamily: 'var(--font-sans)' }}>
+        <div style={{ maxWidth: '560px', width: '100%', backgroundColor: '#FFFFFF', borderRadius: '24px', border: '1px solid rgba(223,171,98,0.3)', boxShadow: '0 24px 60px rgba(42,23,15,0.1)', padding: '40px', textAlign: 'center' }}>
+          <div style={{ width: '68px', height: '68px', borderRadius: '50%', backgroundColor: 'rgba(34,197,94,0.12)', border: '2px solid rgba(34,197,94,0.35)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', color: '#16A34A' }}>
+            <CheckCircle2 size={38} />
+          </div>
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.5rem', fontWeight: 800, color: '#2A170F', margin: '0 0 8px', letterSpacing: '-0.02em' }}>
+            Consultation Completed
+          </h2>
+          <p style={{ color: '#6B5E55', fontSize: '0.925rem', margin: '0 0 24px', lineHeight: 1.5 }}>
+            Thank you for consulting with <strong>{doctorName}</strong>. Your care plan and prescription are ready.
           </p>
 
-          <div
-            style={{
-              background: '#f8fafc',
-              borderRadius: '16px',
-              padding: '20px',
-              margin: '28px 0',
-              textAlign: 'left',
-              border: '1px solid var(--color-slate-200)',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '12px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <FileText size={22} style={{ color: 'var(--color-brand-600)' }} />
-              <div>
-                <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--color-slate-900)' }}>
-                  E-Prescription & Notes
-                </h4>
-                <p style={{ fontSize: '0.825rem', color: 'var(--color-slate-500)', marginTop: '2px' }}>
-                  If your doctor issued a prescription, it will appear in your patient dashboard
-                  with instant digital download and pharmacy routing.
-                </p>
-              </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', backgroundColor: '#FAF6EE', borderRadius: '16px', padding: '16px', marginBottom: '28px', textAlign: 'left', border: '1px solid rgba(223,171,98,0.2)' }}>
+            <div>
+              <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>Duration</span>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2A170F', marginTop: '2px' }}>{formatElapsed(elapsedSeconds)}</div>
             </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                fontSize: '0.8rem',
-                color: '#059669',
-                background: '#ecfdf5',
-                padding: '8px 12px',
-                borderRadius: '8px',
-              }}
-            >
-              <Shield size={16} />
-              <span>Session encrypted and recorded under HPCSA telehealth guidelines.</span>
+            <div>
+              <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>Reference</span>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#2A170F', marginTop: '2px' }}>#{bookingId?.substring(0, 8).toUpperCase()}</div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Link
-              href="/prescriptions"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 24px',
-                borderRadius: '12px',
-                background: 'var(--color-brand-600)',
-                color: '#ffffff',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                textDecoration: 'none',
-                boxShadow: '0 4px 14px rgba(13, 148, 136, 0.3)',
-              }}
-            >
-              <FileText size={18} />
-              <span>View My Prescriptions</span>
-            </Link>
-
-            <Link
-              href={`/bookings/${bookingId}`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 24px',
-                borderRadius: '12px',
-                background: '#f1f5f9',
-                color: 'var(--color-slate-800)',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                textDecoration: 'none',
-              }}
-            >
-              <span>Booking Summary</span>
-            </Link>
-
-            <Link
-              href="/bookings"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 24px',
-                borderRadius: '12px',
-                background: '#ffffff',
-                color: 'var(--color-slate-700)',
-                fontWeight: 700,
-                fontSize: '0.95rem',
-                textDecoration: 'none',
-                border: '1px solid var(--color-slate-300)',
-              }}
-            >
-              <span>Back to My Bookings</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // RENDER: Pre-Call Waiting Room Screen (PA-605)
-  // ============================================================================
-  if (viewState === 'waiting_room') {
-    return (
-      <div
-        style={{
-          minHeight: '90vh',
-          background: 'linear-gradient(135deg, #090e17 0%, #0f172a 100%)',
-          color: '#ffffff',
-          padding: '32px 16px',
-        }}
-      >
-        <div className="container" style={{ maxWidth: '960px', margin: '0 auto' }}>
-          {/* Header */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 900,
-                  fontSize: '1.1rem',
-                  color: '#ffffff',
-                  boxShadow: '0 4px 12px rgba(13, 148, 136, 0.4)',
-                }}
-              >
-                +
-              </div>
-              <div>
-                <span style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
-                  ChekUp<span style={{ color: '#2dd4bf' }}>247</span>
-                </span>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'block', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  Virtual Telehealth Consultation
-                </span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(255,255,255,0.08)', padding: '6px 14px', borderRadius: '20px' }}>
-              <Lock size={14} style={{ color: '#2dd4bf' }} />
-              <span style={{ fontSize: '0.8rem', color: '#cbd5e1' }}>End-to-End Encrypted</span>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '28px' }}>
-            {/* LEFT: Camera & Hardware Self-Check (PA-605) */}
-            <div
-              style={{
-                background: 'rgba(30, 41, 59, 0.7)',
-                borderRadius: '24px',
-                padding: '24px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(16px)',
-              }}
-            >
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Camera size={20} style={{ color: 'var(--color-brand-400)' }} />
-                <span>Camera & Audio Hardware Check</span>
-              </h3>
-
-              {/* Video Preview Box */}
-              <div
-                style={{
-                  position: 'relative',
-                  width: '100%',
-                  aspectRatio: '16/9',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  background: '#020617',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <video
-                  ref={previewVideoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    transform: 'scaleX(-1)', // mirror preview
-                    display: hasCameraPermission ? 'block' : 'none',
-                  }}
-                />
-
-                {!hasCameraPermission && (
-                  <div style={{ textAlign: 'center', padding: '20px' }}>
-                    <VideoOff size={36} style={{ color: '#94a3b8', margin: '0 auto 8px' }} />
-                    <p style={{ fontSize: '0.875rem', color: '#cbd5e1' }}>
-                      Camera feed unavailable or permissions requested.
-                    </p>
-                    <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                      You can still proceed and grant permissions in-call.
-                    </span>
-                  </div>
-                )}
-
-                {/* Patient Name badge */}
-                <div
-                  style={{
-                    position: 'absolute',
-                    bottom: '12px',
-                    left: '12px',
-                    background: 'rgba(0, 0, 0, 0.65)',
-                    backdropFilter: 'blur(8px)',
-                    padding: '4px 10px',
-                    borderRadius: '8px',
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <User size={14} style={{ color: '#2dd4bf' }} />
-                  <span>{user?.fullName || 'You (Patient)'}</span>
-                </div>
-              </div>
-
-              {/* Audio meter */}
-              <div style={{ marginTop: '16px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#94a3b8', marginBottom: '6px' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Mic size={14} style={{ color: audioLevel > 5 ? '#10b981' : '#94a3b8' }} />
-                    Microphone Input Level
-                  </span>
-                  <span>{audioLevel > 5 ? 'Detecting sound' : 'Speak to test'}</span>
-                </div>
-                <div
-                  style={{
-                    width: '100%',
-                    height: '8px',
-                    background: '#0f172a',
-                    borderRadius: '4px',
-                    overflow: 'hidden',
-                  }}
-                >
-                  <div
-                    style={{
-                      width: `${audioLevel}%`,
-                      height: '100%',
-                      background: 'linear-gradient(90deg, #10b981 0%, #2dd4bf 100%)',
-                      transition: 'width 0.1s ease',
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* RIGHT: Doctor Details & Waiting Status */}
-            <div
-              style={{
-                background: 'rgba(30, 41, 59, 0.7)',
-                borderRadius: '24px',
-                padding: '28px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                backdropFilter: 'blur(16px)',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between',
-              }}
-            >
-              <div>
-                {/* Waiting indicator with pulse */}
-                <div
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '6px 14px',
-                    borderRadius: '20px',
-                    background: 'rgba(13, 148, 136, 0.2)',
-                    border: '1px solid rgba(45, 212, 191, 0.3)',
-                    color: '#2dd4bf',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    marginBottom: '18px',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: '8px',
-                      height: '8px',
-                      borderRadius: '50%',
-                      background: '#2dd4bf',
-                      boxShadow: '0 0 8px #2dd4bf',
-                      display: 'inline-block',
-                      animation: 'pulse 1.5s infinite',
-                    }}
-                  />
-                  <span>Waiting for Doctor to connect</span>
-                </div>
-
-                <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '6px' }}>
-                  {consultation?.doctor?.name || doctorName}
-                </h2>
-                <p style={{ color: '#94a3b8', fontSize: '0.925rem', marginBottom: '20px' }}>
-                  {consultation?.doctor?.specialty || 'General Practitioner'}
-                </p>
-
-                <div
-                  style={{
-                    background: 'rgba(15, 23, 42, 0.6)',
-                    borderRadius: '16px',
-                    padding: '16px',
-                    marginBottom: '20px',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', color: '#cbd5e1' }}>
-                    <Clock size={16} style={{ color: '#2dd4bf' }} />
-                    <span>Scheduled Session: 30 minutes</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.85rem', color: '#cbd5e1', marginTop: '10px' }}>
-                    <Shield size={16} style={{ color: '#2dd4bf' }} />
-                    <span>Protected 10-Minute Grace Period Active</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Enter Consultation CTA */}
-              <div>
-                <button
-                  onClick={handleJoinCall}
-                  style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '10px',
-                    padding: '16px',
-                    borderRadius: '16px',
-                    background: 'linear-gradient(135deg, #0d9488 0%, #0b7266 100%)',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    fontSize: '1.05rem',
-                    border: 'none',
-                    cursor: 'pointer',
-                    boxShadow: '0 8px 24px rgba(13, 148, 136, 0.4)',
-                    transition: 'transform 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
-                >
-                  <Video size={22} />
-                  <span>Enter Consultation Room</span>
-                </button>
-                <p style={{ textAlign: 'center', fontSize: '0.75rem', color: '#64748b', marginTop: '10px' }}>
-                  Click to establish your encrypted Daily.co video stream
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================================================
-  // RENDER: Full Active Consultation Call Screen (PA-601)
-  // ============================================================================
-  return (
-    <div
-      ref={callContainerRef}
-      style={{
-        position: 'relative',
-        width: '100%',
-        height: isFullscreen ? '100vh' : 'calc(100vh - 72px)',
-        minHeight: '620px',
-        background: '#020617',
-        color: '#ffffff',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-      }}
-    >
-      {/* Audio element for remote participant */}
-      <audio ref={remoteAudioRef} autoPlay playsInline />
-
-      {/* TOP HUD BAR: Logo Watermark (PA-602) & Countdown Timer (PA-603) */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '20px',
-          left: '20px',
-          right: '20px',
-          zIndex: 20,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          pointerEvents: 'none',
-        }}
-      >
-        {/* Platform Logo Watermark Overlay (PA-602) */}
-        <div
-          style={{
-            pointerEvents: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            background: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(12px)',
-            padding: '8px 16px',
-            borderRadius: '14px',
-            border: '1px solid rgba(255, 255, 255, 0.12)',
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-          }}
-        >
-          <div
-            style={{
-              width: '28px',
-              height: '28px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, #0d9488 0%, #14b8a6 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 900,
-              fontSize: '1rem',
-              color: '#ffffff',
-            }}
-          >
-            +
-          </div>
-          <div>
-            <span style={{ fontSize: '0.95rem', fontWeight: 800, letterSpacing: '-0.02em', color: '#ffffff' }}>
-              ChekUp<span style={{ color: '#2dd4bf' }}>247</span>
-            </span>
-            <span
-              style={{
-                fontSize: '0.65rem',
-                color: '#94a3b8',
-                display: 'block',
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-              }}
-            >
-              Medical Telehealth
-            </span>
-          </div>
-        </div>
-
-        {/* Session Countdown Timer Component (PA-603) */}
-        <div
-          style={{
-            pointerEvents: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            background:
-              timerWarning === '1min'
-                ? 'rgba(220, 38, 38, 0.85)'
-                : timerWarning === '5min'
-                ? 'rgba(217, 119, 6, 0.85)'
-                : 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(12px)',
-            padding: '8px 18px',
-            borderRadius: '14px',
-            border: `1px solid ${
-              timerWarning === '1min'
-                ? '#ef4444'
-                : timerWarning === '5min'
-                ? '#f59e0b'
-                : 'rgba(255, 255, 255, 0.12)'
-            }`,
-            boxShadow: '0 8px 24px rgba(0, 0, 0, 0.3)',
-            animation: timerWarning === '1min' ? 'pulse 1s infinite' : 'none',
-          }}
-        >
-          <Clock
-            size={18}
-            style={{
-              color: timerWarning === '1min' ? '#fee2e2' : timerWarning === '5min' ? '#fef3c7' : '#2dd4bf',
-            }}
-          />
-          <div>
-            <span
-              style={{
-                fontSize: '1.05rem',
-                fontWeight: 800,
-                letterSpacing: '0.05em',
-                fontVariantNumeric: 'tabular-nums',
-                color: '#ffffff',
-              }}
-            >
-              {formatTimer(remainingSeconds)}
-            </span>
-            {timerWarning !== 'normal' && (
-              <span
-                style={{
-                  display: 'block',
-                  fontSize: '0.65rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  color: timerWarning === '1min' ? '#fecaca' : '#fed7aa',
-                }}
-              >
-                {timerWarning === '1min' ? 'Concluding Shortly' : '5 Minutes Remaining'}
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* PA-702: Dynamic Time Extension Banner */}
-      {extensionSuccessBanner && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '76px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 40,
-            background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
-            color: '#ffffff',
-            padding: '10px 24px',
-            borderRadius: '30px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px',
-            boxShadow: '0 8px 24px rgba(13, 148, 136, 0.4)',
-            fontWeight: 700,
-            fontSize: '0.9rem',
-          }}
-        >
-          <Sparkles size={18} />
-          <span>{extensionSuccessBanner}</span>
-        </div>
-      )}
-
-      {/* PA-704: Real-Time In-App Prescription Toast Banner */}
-      {prescriptionToast && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '20px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            zIndex: 45,
-            background: '#ffffff',
-            color: 'var(--color-slate-900)',
-            padding: '14px 20px',
-            borderRadius: '16px',
-            boxShadow: '0 12px 36px rgba(0, 0, 0, 0.25)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '14px',
-            border: '1px solid #14b8a6',
-          }}
-        >
-          <div
-            style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: '#ecfdf5',
-              color: '#0d9488',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <FileText size={22} />
-          </div>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
-              Prescription Ready
-            </div>
-            <div style={{ fontSize: '0.8rem', color: '#64748b' }}>
-              {prescriptionToast.doctorName} has issued your official digital e-prescription.
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', marginLeft: '12px' }}>
-            <Link
-              href="/prescriptions"
-              target="_blank"
-              style={{
-                background: '#0d9488',
-                color: '#ffffff',
-                padding: '8px 16px',
-                borderRadius: '10px',
-                fontWeight: 700,
-                fontSize: '0.825rem',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
-            >
-              <span>View Now</span>
-              <ExternalLink size={14} />
-            </Link>
-            <button
-              onClick={() => setPrescriptionToast(null)}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#94a3b8',
-                cursor: 'pointer',
-                padding: '4px',
-              }}
-            >
-              <X size={18} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <button onClick={handleDownloadPrescription} style={{ width: '100%', padding: '14px 24px', borderRadius: '9999px', backgroundColor: '#E2B467', color: '#2A170F', fontWeight: 800, fontSize: '0.925rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px', boxShadow: '0 6px 20px rgba(226,180,103,0.35)' }}>
+              <Download size={18} />
+              <span>Download e-Prescription & Care Plan</span>
             </button>
+            <Link href="/appointments" style={{ width: '100%', padding: '13px 24px', borderRadius: '9999px', backgroundColor: '#2A170F', color: '#FAF6EE', fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxSizing: 'border-box' }}>
+              <span>Return to My Appointments</span>
+              <ArrowRight size={16} />
+            </Link>
           </div>
+
+          {downloadNotice && (
+            <div style={{ marginTop: '16px', fontSize: '0.825rem', color: '#16A34A', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+              <Check size={14} /> <span>{downloadNotice}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const currentBgPreset = VIRTUAL_BACKGROUND_PRESETS.find((p) => p.id === selectedBgPreset);
+  const activeBgSource = customBgImage || currentBgPreset?.previewUrl;
+
+  // Timer display color based on warning state
+  const timerColor = timerWarning === 'critical_1min' ? '#EF4444' : timerWarning === 'warning_5min' ? '#F59E0B' : '#FAF6EE';
+  const timerBorder = timerWarning === 'critical_1min' ? '1px solid rgba(239,68,68,0.5)' : timerWarning === 'warning_5min' ? '1px solid rgba(245,158,11,0.4)' : '1px solid rgba(223,171,98,0.22)';
+
+  // --------------------------------------------------------------------------
+  // Main Patient Video-First Consultation Experience
+  // --------------------------------------------------------------------------
+  return (
+    <div ref={workspaceRef} style={{ position: 'relative', width: '100vw', height: '100vh', backgroundColor: '#120A06', overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', color: '#FAF6EE', userSelect: 'none' }}>
+      <audio ref={remoteAudioRef} autoPlay playsInline />
+      <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUploadCustomBg} />
+
+      {/* ====================================================================
+          TOP HUD: 5 KEY METADATA ITEMS
+          1. Doctor  2. Live Status  3. Timer  4. Topic/Booking  5. Patient
+          ==================================================================== */}
+      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 30, background: 'linear-gradient(180deg, rgba(18,10,6,0.88) 0%, rgba(18,10,6,0.35) 60%, transparent 100%)', pointerEvents: 'none' }}>
+        {/* LEFT: Doctor + Topic */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto' }}>
+          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', marginRight: '6px' }} title="Chekup247">
+            <ChekupCrossLogo size={24} />
+          </Link>
+
+          {/* 1. Consulting Doctor */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '5px 14px 5px 6px', borderRadius: '9999px', backgroundColor: 'rgba(30,16,10,0.75)', backdropFilter: 'blur(16px)', border: '1px solid rgba(223,171,98,0.3)', boxShadow: '0 4px 18px rgba(0,0,0,0.3)' }}>
+            <img src="/images/doctor_sarah_profile.jpg" alt={doctorName} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #DFAB62' }}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/doctor_sarah_avatar.jpg'; }} />
+            <div style={{ lineHeight: 1.2 }}>
+              <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#FFFFFF' }}>{doctorName}</div>
+              <div style={{ fontSize: '0.7rem', color: '#DFAB62', fontWeight: 600 }}>{doctorSpecialty}</div>
+            </div>
+            {isDoctorConnected && <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22C55E', boxShadow: '0 0 6px #22C55E', marginLeft: '2px' }} />}
+          </div>
+
+          {/* 4. Topic / Booking */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '9999px', backgroundColor: 'rgba(30,16,10,0.65)', backdropFilter: 'blur(12px)', border: '1px solid rgba(223,171,98,0.2)', fontSize: '0.78rem', color: '#D5C7B8', fontWeight: 600 }}>
+            <Stethoscope size={14} color="#DFAB62" />
+            <span>{consultation?.booking?.status === 'confirmed' ? 'General Medicine' : 'Consultation'}</span>
+            <span style={{ color: 'rgba(223,171,98,0.4)' }}>•</span>
+            <span style={{ color: '#FAF6EE', fontWeight: 700 }}>#{bookingId?.substring(0, 8).toUpperCase()}</span>
+          </div>
+        </div>
+
+        {/* CENTER: Live Status + Timer */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto' }}>
+          {/* 2. Live Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '9999px', backgroundColor: 'rgba(20,12,8,0.78)', backdropFilter: 'blur(16px)', border: '1px solid rgba(34,197,94,0.35)' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22C55E', boxShadow: '0 0 10px #22C55E' }} />
+            <span style={{ fontSize: '0.75rem', fontWeight: 800, color: '#4ADE80', letterSpacing: '0.06em', textTransform: 'uppercase' }}>LIVE</span>
+            <span style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.75rem' }}>|</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#FAF6EE' }}>
+              <Shield size={12} color="#DFAB62" />
+              <span>Encrypted</span>
+            </div>
+          </div>
+
+          {/* 3. Timer (server-synchronized) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '9999px', backgroundColor: 'rgba(20,12,8,0.78)', backdropFilter: 'blur(16px)', border: timerBorder, fontSize: '0.85rem', fontWeight: 700, fontVariantNumeric: 'tabular-nums', color: timerColor, transition: 'all 0.3s ease' }}>
+            <Clock size={14} color={timerWarning === 'critical_1min' ? '#EF4444' : '#DFAB62'} />
+            <span>{formatElapsed(remainingSeconds)}</span>
+            {startedAt && (
+              <>
+                <span style={{ color: 'rgba(255,255,255,0.2)' }}>/</span>
+                <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>{formatElapsed(totalDurationSeconds)}</span>
+              </>
+            )}
+            {timerWarning === 'critical_1min' && <AlertTriangle size={13} color="#EF4444" style={{ marginLeft: '2px' }} />}
+          </div>
+        </div>
+
+        {/* RIGHT: Patient Status + Leave */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' }}>
+          {/* 5. Patient Self-Status */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 12px 5px 6px', borderRadius: '9999px', backgroundColor: 'rgba(30,16,10,0.75)', backdropFilter: 'blur(16px)', border: isPatientSpeaking ? '1px solid #22C55E' : '1px solid rgba(223,171,98,0.25)', transition: 'border-color 0.2s ease' }}>
+            <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#2A170F', border: '1px solid #DFAB62', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <User size={14} color="#DFAB62" />
+              {isPatientSpeaking && <span style={{ position: 'absolute', top: '-2px', right: '-2px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22C55E', boxShadow: '0 0 6px #22C55E' }} />}
+            </div>
+            <div style={{ lineHeight: 1.15 }}>
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#FFFFFF' }}>{user?.fullName || 'Patient'}</div>
+              <div style={{ fontSize: '0.675rem', color: isAudioMuted ? '#EF4444' : isPatientSpeaking ? '#4ADE80' : '#DFAB62', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <span>{isAudioMuted ? 'Muted' : isPatientSpeaking ? 'Speaking...' : 'Mic Active'}</span>
+                {!isAudioMuted && (
+                  <span style={{ display: 'inline-block', width: '16px', height: '4px', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: '2px', overflow: 'hidden' }}>
+                    <span style={{ display: 'block', height: '100%', width: `${Math.min(100, micVolumeLevel * 1.5)}%`, backgroundColor: '#22C55E', transition: 'width 0.1s linear' }} />
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          </div>
+      </div>
+
+      {/* ====================================================================
+          NOTIFICATION TOASTS (Extension confirmed, etc.)
+          ==================================================================== */}
+      {extensionNotice && (
+        <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', padding: '10px 24px', borderRadius: '12px', backgroundColor: 'rgba(20,12,8,0.9)', backdropFilter: 'blur(16px)', border: '1px solid rgba(223,171,98,0.4)', fontSize: '0.85rem', fontWeight: 700, color: '#DFAB62', zIndex: 45, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)' }}>
+          <TimerReset size={16} /> <span>{extensionNotice}</span>
         </div>
       )}
 
-      {/* PA-701: In-Call Floating Time Extension Consent Modal */}
-      {extensionRequest && (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            zIndex: 50,
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(6px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-          }}
-        >
-          <div
-            style={{
-              maxWidth: '440px',
-              width: '100%',
-              background: '#ffffff',
-              borderRadius: '20px',
-              padding: '28px',
-              boxShadow: '0 24px 48px -12px rgba(0, 0, 0, 0.35)',
-              color: '#0f172a',
-              border: '1px solid #e2e8f0',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '12px',
-                    background: '#f0fdfa',
-                    color: '#0d9488',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Clock size={24} />
-                </div>
-                <div>
-                  <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
-                    Consultation Extension
-                  </h3>
-                  <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                    Requested by {extensionRequest.doctorName || doctorName}
-                  </span>
-                </div>
+      {/* ====================================================================
+          MAIN VIDEO CONTAINER
+          ==================================================================== */}
+      <div style={{ position: 'relative', flex: 1, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        {/* Remote Doctor Video */}
+        <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#150B07' }}>
+          <img src="/images/doctor_consultation_video.jpg" alt={doctorName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <video ref={remoteVideoRef} autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: isDoctorConnected && remoteVideoRef.current?.srcObject ? 'block' : 'none' }} />
+
+
+        </div>
+
+        {/* Patient Self-View PiP */}
+        <div style={{ position: 'absolute', bottom: '96px', right: '28px', width: '260px', height: '168px', borderRadius: '18px', overflow: 'hidden', backgroundColor: '#1E100A', border: isPatientSpeaking ? '2px solid #22C55E' : '2px solid rgba(223,171,98,0.45)', boxShadow: '0 14px 40px rgba(0,0,0,0.65)', zIndex: 25, transition: 'all 0.25s cubic-bezier(0.16,1,0.3,1)' }}>
+          {activeEffect === 'virtual-image' && activeBgSource && !isVideoMuted && (
+            <img src={activeBgSource} alt="Virtual BG" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
+          )}
+          <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'relative', width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: isVideoMuted ? 'none' : 'block', zIndex: 2, filter: activeEffect === 'blur-light' ? 'blur(6px)' : activeEffect === 'blur-heavy' ? 'blur(16px)' : 'none', transition: 'filter 0.3s ease', opacity: activeEffect === 'virtual-image' ? 0.92 : 1 }} />
+
+          {isVideoMuted && (
+            <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#2A170F', gap: '8px', zIndex: 3, position: 'relative' }}>
+              <div style={{ width: '52px', height: '52px', borderRadius: '50%', backgroundColor: 'rgba(223,171,98,0.15)', border: '1.5px solid #DFAB62', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <User size={28} color="#DFAB62" />
               </div>
-              <div
-                style={{
-                  background: consentCountdown <= 15 ? '#fee2e2' : '#f1f5f9',
-                  color: consentCountdown <= 15 ? '#dc2626' : '#475569',
-                  padding: '4px 10px',
-                  borderRadius: '20px',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-              >
-                <Clock size={14} />
-                <span>{consentCountdown}s</span>
+              <span style={{ fontSize: '0.78rem', color: '#D5C7B8', fontWeight: 600 }}>Camera Off</span>
+            </div>
+          )}
+
+          {hasCameraPermission === false && !isVideoMuted && (
+            <div style={{ position: 'absolute', inset: 0, backgroundColor: 'rgba(20,12,8,0.9)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '12px', textAlign: 'center', zIndex: 5 }}>
+              <AlertCircle size={24} color="#DFAB62" style={{ marginBottom: '6px' }} />
+              <span style={{ fontSize: '0.72rem', color: '#FAF6EE', fontWeight: 600 }}>Camera not detected</span>
+              <button onClick={() => startRealMedia()} style={{ marginTop: '8px', padding: '4px 10px', borderRadius: '9999px', backgroundColor: '#DFAB62', border: 'none', color: '#2A170F', fontSize: '0.675rem', fontWeight: 700, cursor: 'pointer' }}>
+                Grant Access
+              </button>
+            </div>
+          )}
+
+          {/* Self-view label */}
+          <div style={{ position: 'absolute', bottom: '8px', left: '8px', right: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 10px', borderRadius: '8px', backgroundColor: 'rgba(20,12,8,0.82)', backdropFilter: 'blur(8px)', zIndex: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#FFFFFF' }}>You</span>
+              {activeEffect !== 'none' && (
+                <span style={{ fontSize: '0.625rem', padding: '1px 6px', borderRadius: '4px', backgroundColor: 'rgba(223,171,98,0.25)', color: '#DFAB62', fontWeight: 700 }}>
+                  {activeEffect === 'blur-light' ? 'Soft Blur' : activeEffect === 'blur-heavy' ? 'Strong Blur' : 'Virtual BG'}
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {availableCameras.length > 1 && (
+                <button onClick={handleSwitchCamera} title="Switch Camera" style={{ background: 'none', border: 'none', color: '#DFAB62', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center' }}>
+                  <SwitchCamera size={14} />
+                </button>
+              )}
+              {isAudioMuted ? <MicOff size={13} color="#EF4444" /> : <Mic size={13} color={isPatientSpeaking ? '#4ADE80' : '#DFAB62'} />}
+            </div>
+          </div>
+        </div>
+
+        {/* ================================================================
+            EFFECTS DRAWER
+            ================================================================ */}
+        {showEffectsDrawer && (
+          <div style={{ position: 'absolute', bottom: '96px', left: '50%', transform: 'translateX(-50%)', width: '460px', maxWidth: '92vw', backgroundColor: '#1E100A', border: '1.5px solid rgba(223,171,98,0.35)', borderRadius: '20px', boxShadow: '0 20px 50px rgba(0,0,0,0.75)', padding: '20px', zIndex: 40, backdropFilter: 'blur(20px)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(223,171,98,0.2)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Sparkles size={18} color="#DFAB62" />
+                <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#FFFFFF' }}>Video Background & Privacy</h3>
+              </div>
+              <button onClick={() => setShowEffectsDrawer(false)} style={{ background: 'none', border: 'none', color: '#D5C7B8', cursor: 'pointer', padding: '4px', display: 'flex' }}><X size={18} /></button>
+            </div>
+
+            <div style={{ marginBottom: '16px' }}>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: '#DFAB62', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '10px' }}>Background Blur</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                {([
+                  { key: 'none' as BackgroundEffectType, label: 'No Blur', icon: Camera },
+                  { key: 'blur-light' as BackgroundEffectType, label: 'Slight Blur', icon: Sliders },
+                  { key: 'blur-heavy' as BackgroundEffectType, label: 'Strong Blur', icon: Layers },
+                ]).map(({ key, label, icon: Icon }) => (
+                  <button key={key} onClick={() => applyBackgroundEffect(key)} style={{ padding: '10px 8px', borderRadius: '12px', border: activeEffect === key ? '2px solid #DFAB62' : '1px solid rgba(223,171,98,0.2)', backgroundColor: activeEffect === key ? 'rgba(223,171,98,0.15)' : 'rgba(255,255,255,0.04)', color: '#FAF6EE', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                    <Icon size={16} color={activeEffect === key ? '#DFAB62' : '#D5C7B8'} />
+                    <span>{label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <p style={{ fontSize: '0.9rem', color: '#475569', lineHeight: 1.5, marginBottom: '20px' }}>
-              Your doctor has suggested extending this consultation by{' '}
-              <strong style={{ color: '#0f172a' }}>+{extensionRequest.durationMinutes} minutes</strong> to complete
-              your clinical examination and discuss treatment.
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 800, color: '#DFAB62', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Virtual Backgrounds</label>
+                <button onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', color: '#DFAB62', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: 0 }}>
+                  <ImageIcon size={13} /> <span>Upload</span>
+                </button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                {VIRTUAL_BACKGROUND_PRESETS.map((preset) => {
+                  const sel = activeEffect === 'virtual-image' && selectedBgPreset === preset.id;
+                  return (
+                    <div key={preset.id} onClick={() => { setSelectedBgPreset(preset.id); applyBackgroundEffect('virtual-image', preset.id); }}
+                      style={{ borderRadius: '12px', overflow: 'hidden', cursor: 'pointer', position: 'relative', border: sel ? '2px solid #DFAB62' : '1px solid rgba(223,171,98,0.2)', boxShadow: sel ? '0 0 14px rgba(223,171,98,0.35)' : 'none', transition: 'all 0.18s ease' }}>
+                      <img src={preset.previewUrl} alt={preset.name} style={{ width: '100%', height: '76px', objectFit: 'cover', display: 'block' }} />
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '4px 8px', backgroundColor: 'rgba(20,12,8,0.85)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#FFFFFF' }}>{preset.name}</span>
+                        {sel && <Check size={12} color="#DFAB62" />}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ================================================================
+            FLOATING CALL CONTROL BAR
+            ================================================================ */}
+        <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px', borderRadius: '9999px', backgroundColor: 'rgba(26,15,10,0.88)', backdropFilter: 'blur(20px)', border: '1.5px solid rgba(223,171,98,0.35)', boxShadow: '0 12px 40px rgba(0,0,0,0.6)', zIndex: 30 }}>
+          {/* Mic */}
+          <button onClick={toggleMic} title={isAudioMuted ? 'Unmute' : 'Mute'} style={{ width: '46px', height: '46px', borderRadius: '50%', border: isAudioMuted ? '1.5px solid #EF4444' : isPatientSpeaking ? '2px solid #22C55E' : '1px solid rgba(223,171,98,0.3)', backgroundColor: isAudioMuted ? 'rgba(239,68,68,0.2)' : isPatientSpeaking ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)', color: isAudioMuted ? '#EF4444' : isPatientSpeaking ? '#4ADE80' : '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease', boxShadow: isPatientSpeaking ? '0 0 14px rgba(34,197,94,0.4)' : 'none' }}>
+            {isAudioMuted ? <MicOff size={20} /> : <Mic size={20} />}
+          </button>
+          {/* Camera */}
+          <button onClick={toggleVideo} title={isVideoMuted ? 'Camera On' : 'Camera Off'} style={{ width: '46px', height: '46px', borderRadius: '50%', border: isVideoMuted ? '1.5px solid #EF4444' : '1px solid rgba(223,171,98,0.3)', backgroundColor: isVideoMuted ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.08)', color: isVideoMuted ? '#EF4444' : '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease' }}>
+            {isVideoMuted ? <VideoOff size={20} /> : <Video size={20} />}
+          </button>
+          {/* Effects */}
+          <button onClick={() => setShowEffectsDrawer(!showEffectsDrawer)} title="Video Effects" style={{ width: '46px', height: '46px', borderRadius: '50%', border: activeEffect !== 'none' || showEffectsDrawer ? '1.5px solid #DFAB62' : '1px solid rgba(223,171,98,0.3)', backgroundColor: activeEffect !== 'none' || showEffectsDrawer ? 'rgba(223,171,98,0.25)' : 'rgba(255,255,255,0.08)', color: activeEffect !== 'none' || showEffectsDrawer ? '#DFAB62' : '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease', position: 'relative' }}>
+            <Sparkles size={20} />
+            {activeEffect !== 'none' && <span style={{ position: 'absolute', top: '3px', right: '3px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#DFAB62', boxShadow: '0 0 6px #DFAB62' }} />}
+          </button>
+          {/* Speaker */}
+          <button onClick={toggleSpeaker} title={isSpeakerMuted ? 'Unmute Speaker' : 'Mute Speaker'} style={{ width: '46px', height: '46px', borderRadius: '50%', border: isSpeakerMuted ? '1.5px solid #EF4444' : '1px solid rgba(223,171,98,0.3)', backgroundColor: isSpeakerMuted ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.08)', color: isSpeakerMuted ? '#EF4444' : '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease' }}>
+            {isSpeakerMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </button>
+          {/* Screen Share */}
+          <button onClick={toggleScreenShare} title={isSharingScreen ? 'Stop Share' : 'Share Screen'} style={{ width: '46px', height: '46px', borderRadius: '50%', border: isSharingScreen ? '1.5px solid #DFAB62' : '1px solid rgba(223,171,98,0.3)', backgroundColor: isSharingScreen ? 'rgba(223,171,98,0.25)' : 'rgba(255,255,255,0.08)', color: isSharingScreen ? '#DFAB62' : '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease' }}>
+            <Share2 size={20} />
+          </button>
+          {/* Fullscreen */}
+          <button onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'} style={{ width: '46px', height: '46px', borderRadius: '50%', border: '1px solid rgba(223,171,98,0.3)', backgroundColor: 'rgba(255,255,255,0.08)', color: '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease' }}>
+            {isFullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
+          </button>
+          {/* End Call */}
+          <button onClick={() => setShowEndModal(true)} title="End Consultation" style={{ height: '46px', padding: '0 20px', borderRadius: '9999px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 4px 18px rgba(220,38,38,0.45)', transition: 'all 0.2s ease', marginLeft: '4px' }}
+            onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#B91C1C')}
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#DC2626')}>
+            <PhoneOff size={18} /> <span>End Call</span>
+          </button>
+        </div>
+      </div>
+
+      {/* ====================================================================
+          DOCTOR TIME EXTENSION CONSENT MODAL
+          ==================================================================== */}
+      {pendingExtension && !isConsultationEnded && !!callObject && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
+          <div style={{ maxWidth: '440px', width: '100%', backgroundColor: '#1E100A', borderRadius: '24px', border: '1.5px solid rgba(223,171,98,0.4)', padding: '30px', boxShadow: '0 25px 60px rgba(0,0,0,0.8)', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(223,171,98,0.15)', border: '1.5px solid rgba(223,171,98,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#DFAB62' }}>
+              <TimerReset size={28} />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 8px' }}>
+              Time Extension Request
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: '#D5C7B8', margin: '0 0 20px', lineHeight: 1.5 }}>
+              <strong style={{ color: '#DFAB62' }}>{pendingExtension.doctorName || doctorName}</strong> is offering
+              to extend your consultation by{' '}
+              <strong style={{ color: '#FFFFFF' }}>+{pendingExtension.durationMinutes} minutes</strong>.
             </p>
 
-            {/* Pricing & Billing Details */}
-            <div
-              style={{
-                background: '#f8fafc',
-                borderRadius: '14px',
-                padding: '16px',
-                marginBottom: '20px',
-                border: '1px solid #e2e8f0',
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
-                <span style={{ fontSize: '0.85rem', color: '#64748b' }}>Extension Fee:</span>
-                <span style={{ fontSize: '1.15rem', fontWeight: 800, color: '#0d9488' }}>
-                  R {extensionRequest.amount.toFixed(2)}
-                </span>
+            {pendingExtension.isFree || Number(pendingExtension.amount) <= 0 ? (
+              <div style={{ backgroundColor: 'rgba(34,197,94,0.12)', borderRadius: '14px', padding: '14px', marginBottom: '20px', border: '1px solid rgba(34,197,94,0.35)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <Sparkles size={16} color="#4ADE80" />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#4ADE80' }}>
+                    Complimentary Extension (No Charge)
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#D5C7B8', margin: 0 }}>
+                  This extension is offered free of charge. Your card will not be debited.
+                </p>
               </div>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '0.8rem',
-                  color: '#64748b',
-                  borderTop: '1px dashed #cbd5e1',
-                  paddingTop: '10px',
-                }}
-              >
-                <CreditCard size={16} style={{ color: '#0d9488' }} />
-                <span>
-                  Billed automatically via saved card (<strong>{savedCardInfo.brand} •••• {savedCardInfo.last4}</strong>)
-                </span>
+            ) : (
+              <div style={{ backgroundColor: 'rgba(223,171,98,0.1)', borderRadius: '14px', padding: '14px', marginBottom: '20px', border: '1px solid rgba(223,171,98,0.25)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <CreditCard size={16} color="#DFAB62" />
+                  <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#FAF6EE' }}>
+                    R{Number(pendingExtension.amount).toFixed(2)}
+                  </span>
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#8C7768', margin: 0 }}>
+                  Your saved card will be charged automatically upon approval.
+                </p>
               </div>
-            </div>
+            )}
 
-            {/* Progress Bar for 60s countdown */}
-            <div
-              style={{
-                height: '4px',
-                background: '#e2e8f0',
-                borderRadius: '2px',
-                overflow: 'hidden',
-                marginBottom: '20px',
-              }}
-            >
-              <div
-                style={{
-                  height: '100%',
-                  background: consentCountdown <= 15 ? '#dc2626' : '#0d9488',
-                  width: `${(consentCountdown / 60) * 100}%`,
-                  transition: 'width 1s linear',
-                }}
-              />
-            </div>
-
-            {/* Action Buttons */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '12px' }}>
+            <div style={{ display: 'flex', gap: '12px' }}>
               <button
-                onClick={() => handleConsentResponse(false)}
-                disabled={isSubmittingConsent}
-                style={{
-                  padding: '12px 18px',
-                  borderRadius: '12px',
-                  background: '#f1f5f9',
-                  color: '#475569',
-                  border: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
+                onClick={() => handleExtensionConsent(false)}
+                disabled={isProcessingExtension}
+                style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(223,171,98,0.25)', color: '#FAF6EE', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer', opacity: isProcessingExtension ? 0.5 : 1 }}
               >
                 Decline
               </button>
               <button
-                onClick={() => handleConsentResponse(true)}
-                disabled={isSubmittingConsent}
-                style={{
-                  padding: '12px 20px',
-                  borderRadius: '12px',
-                  background: 'linear-gradient(135deg, #0d9488 0%, #0f766e 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 14px rgba(13, 148, 136, 0.35)',
-                  opacity: isSubmittingConsent ? 0.7 : 1,
-                }}
+                onClick={() => handleExtensionConsent(true)}
+                disabled={isProcessingExtension}
+                style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: '#E2B467', border: 'none', color: '#2A170F', fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: isProcessingExtension ? 0.7 : 1 }}
               >
-                {isSubmittingConsent ? (
-                  <>
-                    <Loader2 size={16} className="animate-spin" />
-                    <span>Processing...</span>
-                  </>
-                ) : (
-                  <>
-                    <Check size={16} />
-                    <span>Approve & Extend</span>
-                  </>
-                )}
+                {isProcessingExtension ? <Loader2 size={16} className="animate-spin" /> : null}
+                <span>
+                  {isProcessingExtension
+                    ? 'Processing...'
+                    : pendingExtension.isFree || Number(pendingExtension.amount) <= 0
+                    ? 'Accept Free Extension'
+                    : `Approve & Pay R${Number(pendingExtension.amount).toFixed(2)}`}
+                </span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MAIN VIDEO AREA (Doctor / Remote Feed) */}
-      <div
-        style={{
-          flex: 1,
-          position: 'relative',
-          width: '100%',
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: '#0a0f1d',
-        }}
-      >
-        <video
-          ref={remoteVideoRef}
-          autoPlay
-          playsInline
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-            display: isDoctorPresent ? 'block' : 'none',
-          }}
-        />
-
-        {/* Remote participant placeholder if waiting */}
-        {!isDoctorPresent && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '32px',
-              textAlign: 'center',
-            }}
-          >
-            <div
-              style={{
-                width: '90px',
-                height: '90px',
-                borderRadius: '50%',
-                background: 'rgba(30, 41, 59, 0.8)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '16px',
-                border: '2px solid rgba(45, 212, 191, 0.3)',
-              }}
-            >
-              <User size={46} style={{ color: '#2dd4bf' }} />
+      {/* ====================================================================
+          END CONSULTATION CONFIRMATION MODAL
+          ==================================================================== */}
+      {showEndModal && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
+          <div style={{ maxWidth: '440px', width: '100%', backgroundColor: '#1E100A', borderRadius: '24px', border: '1.5px solid rgba(223,171,98,0.35)', padding: '30px', boxShadow: '0 25px 60px rgba(0,0,0,0.8)', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(220,38,38,0.15)', border: '1.5px solid rgba(239,68,68,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#EF4444' }}>
+              <PhoneOff size={26} />
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '6px' }}>
-              Waiting for {doctorName} to connect...
-            </h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem', maxWidth: '380px' }}>
-              Your doctor has been notified and will enter the consultation room momentarily.
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 8px' }}>End Consultation?</h3>
+            <p style={{ fontSize: '0.875rem', color: '#D5C7B8', margin: '0 0 24px', lineHeight: 1.4 }}>
+              Are you sure you want to leave your consultation with {doctorName}?
             </p>
-          </div>
-        )}
-
-        {/* Doctor Name Banner at Bottom-Left of Main Video */}
-        {isDoctorPresent && (
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '100px',
-              left: '24px',
-              background: 'rgba(15, 23, 42, 0.75)',
-              backdropFilter: 'blur(8px)',
-              padding: '6px 14px',
-              borderRadius: '10px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-            }}
-          >
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                background: '#10b981',
-                display: 'inline-block',
-              }}
-            />
-            <span>{doctorName}</span>
-          </div>
-        )}
-
-        {/* PIP LOCAL VIDEO (Patient Camera Preview) */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '100px',
-            right: '24px',
-            width: '240px',
-            aspectRatio: '16/9',
-            borderRadius: '16px',
-            overflow: 'hidden',
-            background: '#090d16',
-            border: '2px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
-            zIndex: 15,
-          }}
-        >
-          <video
-            ref={localVideoRef}
-            autoPlay
-            playsInline
-            muted
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              transform: 'scaleX(-1)', // mirror local view
-              display: isVideoMuted ? 'none' : 'block',
-            }}
-          />
-
-          {isVideoMuted && (
-            <div
-              style={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: '#1e293b',
-              }}
-            >
-              <VideoOff size={24} style={{ color: '#94a3b8' }} />
-              <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '4px' }}>
-                Camera Off
-              </span>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowEndModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(223,171,98,0.25)', color: '#FAF6EE', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}>
+                Resume Call
+              </button>
+              <button onClick={handleConfirmLeaveConsultation} disabled={isEndingCall} style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: '#DC2626', border: 'none', color: '#FFFFFF', fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: isEndingCall ? 0.7 : 1 }}>
+                {isEndingCall ? <Loader2 size={16} className="animate-spin" /> : null}
+                <span>{isEndingCall ? 'Leaving...' : 'Leave Room'}</span>
+              </button>
             </div>
-          )}
-
-          {/* Local Name Badge */}
-          <div
-            style={{
-              position: 'absolute',
-              bottom: '8px',
-              left: '8px',
-              background: 'rgba(0, 0, 0, 0.65)',
-              padding: '2px 8px',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            <span>You</span>
-            {isAudioMuted && <MicOff size={12} style={{ color: '#ef4444' }} />}
-            {isBlurActive && <Sparkles size={12} style={{ color: '#2dd4bf' }} />}
           </div>
         </div>
-      </div>
-
-      {/* BOTTOM CONTROL TOOLBAR HUD */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 25,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          background: 'rgba(15, 23, 42, 0.85)',
-          backdropFilter: 'blur(16px)',
-          padding: '10px 20px',
-          borderRadius: '24px',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          boxShadow: '0 16px 36px rgba(0, 0, 0, 0.4)',
-        }}
-      >
-        {/* Mute Mic Button */}
-        <button
-          onClick={toggleAudio}
-          title={isAudioMuted ? 'Unmute Microphone' : 'Mute Microphone'}
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '50%',
-            background: isAudioMuted ? '#dc2626' : 'rgba(255, 255, 255, 0.1)',
-            color: '#ffffff',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          {isAudioMuted ? <MicOff size={20} /> : <Mic size={20} />}
-        </button>
-
-        {/* Video Toggle Button */}
-        <button
-          onClick={toggleVideo}
-          title={isVideoMuted ? 'Turn Camera On' : 'Turn Camera Off'}
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '50%',
-            background: isVideoMuted ? '#dc2626' : 'rgba(255, 255, 255, 0.1)',
-            color: '#ffffff',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          {isVideoMuted ? <VideoOff size={20} /> : <Video size={20} />}
-        </button>
-
-        {/* Background Blur Toggle (PA-604) */}
-        <button
-          onClick={toggleBackgroundBlur}
-          title={isBlurActive ? 'Disable Background Blur' : 'Enable Background Blur'}
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '50%',
-            background: isBlurActive ? '#0d9488' : 'rgba(255, 255, 255, 0.1)',
-            color: '#ffffff',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.15s ease',
-            boxShadow: isBlurActive ? '0 0 12px rgba(13, 148, 136, 0.6)' : 'none',
-          }}
-        >
-          <Sparkles size={20} />
-        </button>
-
-        {/* Fullscreen Toggle */}
-        <button
-          onClick={toggleFullscreen}
-          title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-          style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '50%',
-            background: 'rgba(255, 255, 255, 0.1)',
-            color: '#ffffff',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {isFullscreen ? <Minimize2 size={20} /> : <Maximize2 size={20} />}
-        </button>
-
-        {/* End / Leave Call Button */}
-        <button
-          onClick={handleLeaveCall}
-          title="Leave Consultation"
-          style={{
-            padding: '0 20px',
-            height: '48px',
-            borderRadius: '24px',
-            background: '#dc2626',
-            color: '#ffffff',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontWeight: 700,
-            fontSize: '0.9rem',
-            boxShadow: '0 6px 16px rgba(220, 38, 38, 0.4)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <PhoneOff size={18} />
-          <span>Leave Call</span>
-        </button>
-      </div>
+      )}
     </div>
   );
 }

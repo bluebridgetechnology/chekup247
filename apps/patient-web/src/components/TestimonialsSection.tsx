@@ -43,6 +43,36 @@ export const TESTIMONIALS: Testimonial[] = [
 ];
 
 export function TestimonialsSection() {
+  const [testimonials, setTestimonials] = React.useState<Testimonial[]>(TESTIMONIALS);
+  const [isLoading, setIsLoading] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    async function loadTestimonials() {
+      setIsLoading(true);
+      try {
+        const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiBase = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
+        const res = await fetch(`${apiBase}/testimonials?type=patient&limit=6`);
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && data.testimonials && Array.isArray(data.testimonials) && data.testimonials.length > 0) {
+            setTestimonials(data.testimonials);
+          }
+        }
+      } catch {
+        // Graceful fallback to default verified records
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    }
+
+    loadTestimonials();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   return (
     <section className="testimonials-section" id="reviews">
       <div className="testimonials-container">
@@ -78,7 +108,7 @@ export function TestimonialsSection() {
 
         {/* Testimonials Cards Grid */}
         <div className="testimonials-grid">
-          {TESTIMONIALS.map((testi, i) => (
+          {testimonials.map((testi, i) => (
             <div key={i} className="testimonial-card">
               <div>
                 {/* Top Row: 5 Gold Stars + Verified Badge */}

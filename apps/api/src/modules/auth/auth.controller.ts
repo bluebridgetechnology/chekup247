@@ -17,6 +17,8 @@ import {
   RegisterPatientDto,
   LoginDto,
   VerifyEmailDto,
+  VerifyOtpDto,
+  ResendOtpDto,
   ForgotPasswordDto,
   ResetPasswordDto,
   LocumStaffCallbackDto,
@@ -35,8 +37,23 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  async register(@Body() dto: RegisterPatientDto) {
-    return this.authService.registerPatient(dto);
+  async register(
+    @Body() dto: RegisterPatientDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.registerPatient(dto);
+
+    if (result.accessToken) {
+      res.cookie('chekup_session', result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+    }
+
+    return result;
   }
 
   @Public()
@@ -86,6 +103,33 @@ export class AuthController {
     });
 
     return result;
+  }
+
+  @Public()
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  async verifyOtp(
+    @Body() dto: VerifyOtpDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.verifyOtp(dto);
+
+    res.cookie('chekup_session', result.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return result;
+  }
+
+  @Public()
+  @Post('resend-otp')
+  @HttpCode(HttpStatus.OK)
+  async resendOtp(@Body() dto: ResendOtpDto) {
+    return this.authService.resendOtp(dto);
   }
 
   @Public()

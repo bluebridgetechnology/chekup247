@@ -8,3 +8,4 @@ export * from './audit-log.entity';
 export * from './verification-token.entity';
 export * from './icd10-code.entity';
 export * from './doctor-blackout.entity';
+export * from './testimonial.entity';

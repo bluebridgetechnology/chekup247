@@ -1,7 +1,9 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
+import { SpecialtyIcon } from './SpecialtyIcons';
 
 interface SpecialtyItem {
   id: string;
@@ -12,42 +14,62 @@ interface SpecialtyItem {
 
 const SPECIALTIES: SpecialtyItem[] = [
   {
-    id: 'general-medicine',
-    name: 'General Medicine',
-    description: 'Common illnesses, wellness & more',
+    id: 'general-practitioner',
+    name: 'General Practitioner',
+    description: 'Everyday health, acute illness & primary care',
     iconName: 'user-circle-linear',
   },
   {
-    id: 'mental-health',
-    name: 'Mental Health',
-    description: 'Counselling & therapy support',
+    id: 'dentist',
+    name: 'Dentist',
+    description: 'Oral health, toothache & dental consultations',
+    iconName: 'smile-circle-linear',
+  },
+  {
+    id: 'psychologist',
+    name: 'Psychologist',
+    description: 'Mental health, anxiety & therapy support',
     iconName: 'brain-linear',
   },
   {
-    id: 'dermatology',
-    name: 'Dermatology',
-    description: 'Skin, hair & nail care',
+    id: 'podiatrist',
+    name: 'Podiatrist',
+    description: 'Foot, ankle & lower extremity medical care',
+    iconName: 'health-linear',
+  },
+  {
+    id: 'dermatologist',
+    name: 'Dermatologist',
+    description: 'Skin conditions, acne, rash & nail care',
     iconName: 'waterdrops-linear',
   },
   {
-    id: 'womens-health',
-    name: "Women's Health",
-    description: 'Reproductive health, family planning & more',
+    id: 'pediatrician',
+    name: 'Pediatrician',
+    description: 'Infant, child & adolescent healthcare',
+    iconName: 'smile-circle-linear',
+  },
+  {
+    id: 'physician',
+    name: 'Physician',
+    description: 'Internal medicine & complex medical management',
+    iconName: 'stethoscope-linear',
+  },
+  {
+    id: 'obstetrics-gynaecology',
+    name: 'Obstetrics & Gynaecology',
+    description: 'Maternal health, contraception & reproductive wellness',
     iconName: 'women-linear',
   },
   {
-    id: 'chronic-care',
-    name: 'Chronic Care',
-    description: 'Diabetes, hypertension, ongoing management',
+    id: 'dietician',
+    name: 'Dietician',
+    description: 'Nutritional therapy, metabolic & meal guidance',
     iconName: 'heart-pulse-2-linear',
   },
-  {
-    id: 'paediatrics',
-    name: 'Paediatrics',
-    description: 'Healthy kids, brighter futures',
-    iconName: 'smile-circle-linear',
-  },
 ];
+
+const HOMEPAGE_SPECIALTIES = SPECIALTIES.slice(0, 6);
 
 export function SpecialtiesSection() {
   return (
@@ -104,12 +126,16 @@ export function SpecialtiesSection() {
 
         {/* 6-Column Open Editorial Specialties Grid */}
         <div className="specialties-grid">
-          {SPECIALTIES.map((item) => (
-            <div key={item.id} className="specialty-item">
+          {HOMEPAGE_SPECIALTIES.map((item) => (
+            <Link
+              key={item.id}
+              href={`/doctors?specialty=${encodeURIComponent(item.name)}`}
+              className="specialty-item"
+            >
               {/* Circular Gold/Translucent Icon Container */}
               <div className="specialty-icon-box">
-                <SolarIcon
-                  name={item.iconName}
+                <SpecialtyIcon
+                  id={item.id}
                   size={28}
                   color="var(--color-gold-base)"
                 />
@@ -120,8 +146,16 @@ export function SpecialtiesSection() {
 
               {/* Short Description */}
               <p className="specialty-desc">{item.description}</p>
-            </div>
+            </Link>
           ))}
+        </div>
+
+        {/* Explore All Specialties CTA */}
+        <div className="specialties-cta-wrap">
+          <Link href="/doctors" className="specialties-view-more-btn">
+            <span>Explore All Specialties</span>
+            <SolarIcon name="arrow-right-linear" size={16} color="currentColor" />
+          </Link>
         </div>
       </div>
     </section>

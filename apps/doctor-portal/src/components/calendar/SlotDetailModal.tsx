@@ -9,12 +9,9 @@ import {
   Trash2,
   AlertCircle,
   CheckCircle2,
-  Video,
-  User,
-  ExternalLink,
-  ShieldCheck,
 } from 'lucide-react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { SolarIcon } from '../common/SolarIcon';
 
 export interface CalendarSlotItem {
   id: string;
@@ -52,7 +49,7 @@ export function SlotDetailModal({
   const startDate = new Date(slot.startTime);
   const endDate = new Date(slot.endTime);
 
-  const formattedDate = startDate.toLocaleDateString('en-US', {
+  const formattedDate = startDate.toLocaleDateString('en-ZA', {
     weekday: 'long',
     year: 'numeric',
     month: 'short',
@@ -109,67 +106,62 @@ export function SlotDetailModal({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.55)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-        padding: '20px',
+      className="portal-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
+        className="portal-modal-surface"
         style={{
-          background: '#ffffff',
-          borderRadius: '24px',
           width: '100%',
-          maxWidth: '480px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          maxWidth: '500px',
           overflow: 'hidden',
-          animation: 'fadeIn 0.2s ease-out',
+          background: 'var(--color-cream-surface, #FDFBF7)',
         }}
       >
         {/* Header */}
         <div
           style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--color-slate-100)',
+            padding: '22px 28px',
+            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            background: 'var(--color-cream-surface, #FDFBF7)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: slot.isBooked
-                  ? '#eff6ff'
-                  : isLocumStaff
-                  ? '#fdf4ff'
-                  : '#ecfdf5',
-                color: slot.isBooked
-                  ? '#2563eb'
-                  : isLocumStaff
-                  ? '#c026d3'
-                  : '#059669',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: 'var(--color-gold-pale, #F0E5D3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Clock size={20} />
+              <SolarIcon
+                name={slot.isBooked ? 'user-rounded-bold' : isLocumStaff ? 'lock-bold' : 'clock-circle-bold'}
+                size={22}
+                color="var(--color-chocolate-base, #2A170F)"
+              />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
+              <h2
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1.2rem',
+                  fontWeight: 800,
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  margin: 0,
+                }}
+              >
                 {slot.isBooked ? 'Booked Consultation' : 'Availability Slot'}
               </h2>
-              <span style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                 {durationMinutes} Minute Appointment Window
               </span>
             </div>
@@ -181,17 +173,20 @@ export function SlotDetailModal({
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--color-slate-400)',
+              color: 'var(--color-cream-text-muted, #6B5E55)',
               cursor: 'pointer',
               padding: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <X size={20} />
+            <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base, #DFAB62)" />
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ padding: '24px' }}>
+        <div style={{ padding: '24px 28px' }}>
           {errorMsg && (
             <div
               style={{
@@ -212,7 +207,7 @@ export function SlotDetailModal({
             </div>
           )}
 
-          {/* Cancelled Appointment Banner (DP-802) */}
+          {/* Cancelled Appointment Banner */}
           {slot.bookingStatus === 'cancelled' && (
             <div
               style={{
@@ -251,20 +246,20 @@ export function SlotDetailModal({
                 </div>
               ) : (
                 <div style={{ fontSize: '0.78rem', color: '#991b1b' }}>
-                  Cancelled &gt;24 hours in advance (No late cancellation fee). Slot is available for re-booking.
+                  Cancelled &gt;24 hours in advance (No late fee). Slot is open for re-booking.
                 </div>
               )}
             </div>
           )}
 
-          {/* LocumStaff Synced Badge (DP-404) */}
+          {/* LocumStaff Synced Notice */}
           {isLocumStaff && (
             <div
               style={{
                 padding: '14px 16px',
                 borderRadius: '14px',
-                background: '#fdf4ff',
-                border: '1px solid #f5d0fe',
+                background: '#faf5ff',
+                border: '1.5px solid #d8b4fe',
                 marginBottom: '18px',
                 display: 'flex',
                 alignItems: 'flex-start',
@@ -276,15 +271,15 @@ export function SlotDetailModal({
                   width: '32px',
                   height: '32px',
                   borderRadius: '8px',
-                  background: '#fae8ff',
-                  color: '#a21caf',
+                  background: '#f3e8ff',
+                  color: '#7e22ce',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
                 }}
               >
-                <Lock size={16} />
+                <SolarIcon name="lock-bold" size={16} color="#7e22ce" />
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
@@ -292,7 +287,7 @@ export function SlotDetailModal({
                     style={{
                       fontSize: '0.75rem',
                       fontWeight: 800,
-                      background: '#e879f9',
+                      background: '#7e22ce',
                       color: '#ffffff',
                       padding: '2px 8px',
                       borderRadius: '6px',
@@ -303,8 +298,8 @@ export function SlotDetailModal({
                     Synced from LocumStaff
                   </span>
                 </div>
-                <p style={{ fontSize: '0.8rem', color: '#86198f', margin: 0, lineHeight: 1.4 }}>
-                  This duty shift is synchronized automatically from the LocumStaff Partner Directory. Direct edits and deletions are locked. To modify your duty roster, please access the LocumStaff Partner Portal.
+                <p style={{ fontSize: '0.8rem', color: '#6b21a8', margin: 0, lineHeight: 1.4 }}>
+                  This duty shift is synchronized from the LocumStaff Partner Directory. Direct deletions are locked. Manage duty roster on LocumStaff.
                 </p>
               </div>
             </div>
@@ -313,68 +308,63 @@ export function SlotDetailModal({
           {/* Slot Details Card */}
           <div
             style={{
-              background: 'var(--color-slate-50)',
+              background: 'var(--color-cream-base, #FAF6EE)',
               borderRadius: '16px',
-              border: '1px solid var(--color-slate-200)',
-              padding: '18px',
-              marginBottom: '20px',
+              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
+              padding: '20px',
+              marginBottom: '22px',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
-              <Calendar size={18} style={{ color: 'var(--color-slate-500)' }} />
-              <span style={{ fontSize: '0.925rem', fontWeight: 700, color: 'var(--color-slate-900)' }}>
+              <SolarIcon name="calendar-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
+              <span
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1rem',
+                  fontWeight: 700,
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                }}
+              >
                 {formattedDate}
               </span>
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-              <Clock size={18} style={{ color: 'var(--color-slate-500)' }} />
-              <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-slate-800)' }}>
+              <SolarIcon name="clock-circle-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
+              <span
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1.1rem',
+                  fontWeight: 800,
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                }}
+              >
                 {timeRange}
               </span>
               <span
                 style={{
                   fontSize: '0.75rem',
-                  background: 'var(--color-slate-200)',
-                  color: 'var(--color-slate-700)',
+                  background: 'var(--color-gold-pale, #F0E5D3)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
                   padding: '2px 8px',
                   borderRadius: '6px',
-                  fontWeight: 600,
+                  fontWeight: 700,
+                  border: '1px solid rgba(223, 171, 98, 0.3)',
                 }}
               >
-                SAST / Local
+                SAST
               </span>
             </div>
 
             {/* Status Pill */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)' }}>Status:</span>
+              <span style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 600 }}>Status:</span>
               {slot.isBooked ? (
-                <span
-                  style={{
-                    padding: '3px 10px',
-                    borderRadius: '20px',
-                    background: '#eff6ff',
-                    color: '#1d4ed8',
-                    border: '1px solid #bfdbfe',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                  }}
-                >
+                <span className="badge-gold">
                   Booked Consultation
                 </span>
               ) : (
-                <span
-                  style={{
-                    padding: '3px 10px',
-                    borderRadius: '20px',
-                    background: '#ecfdf5',
-                    color: '#047857',
-                    border: '1px solid #a7f3d0',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                  }}
-                >
+                <span className="badge-success">
                   Available / Open for Booking
                 </span>
               )}
@@ -382,20 +372,12 @@ export function SlotDetailModal({
           </div>
 
           {/* Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
             <button
               type="button"
               onClick={onClose}
-              style={{
-                padding: '10px 16px',
-                borderRadius: '10px',
-                border: '1px solid var(--color-slate-300)',
-                background: '#ffffff',
-                color: 'var(--color-slate-700)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+              className="btn-secondary"
+              style={{ padding: '10px 20px', fontSize: '0.875rem' }}
             >
               Close
             </button>
@@ -405,21 +387,10 @@ export function SlotDetailModal({
                 type="button"
                 onClick={handleDelete}
                 disabled={isDeleting}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: '#ef4444',
-                  color: '#ffffff',
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                  cursor: isDeleting ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                }}
+                className="btn-danger"
+                style={{ padding: '10px 20px', fontSize: '0.875rem' }}
               >
-                <Trash2 size={16} />
+                <SolarIcon name="trash-bin-trash-linear" size={16} color="#ffffff" />
                 <span>{isDeleting ? 'Deleting...' : 'Delete Slot'}</span>
               </button>
             )}

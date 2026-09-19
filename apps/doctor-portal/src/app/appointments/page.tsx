@@ -22,6 +22,7 @@ import {
   X,
 } from 'lucide-react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { SolarIcon } from '../../components/common/SolarIcon';
 
 interface DoctorAppointment {
   id: string;
@@ -62,127 +63,25 @@ export default function DoctorAppointmentsPage() {
     async function loadAppointments() {
       try {
         setIsLoading(true);
-        if (token) {
-          const res = await fetch(`${API_BASE}/bookings/doctor`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (isMounted && Array.isArray(data) && data.length > 0) {
-              setAppointments(data);
-              return;
-            }
+        if (!token) {
+          if (isMounted) setAppointments([]);
+          return;
+        }
+
+        const res = await fetch(`${API_BASE}/bookings/doctor`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (isMounted && Array.isArray(data)) {
+            setAppointments(data);
+            return;
           }
         }
-
-        // Mock schedule appointments for preview / initial boot
-        if (isMounted) {
-          const now = new Date();
-          const todaySlot1 = new Date(now.getTime() + 45 * 60 * 1000);
-          const todaySlot1End = new Date(todaySlot1.getTime() + 45 * 60 * 1000);
-
-          const todaySlot2 = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-          const todaySlot2End = new Date(todaySlot2.getTime() + 45 * 60 * 1000);
-
-          const tomorrowSlot = new Date(now.getTime() + 26 * 60 * 60 * 1000);
-          const tomorrowSlotEnd = new Date(tomorrowSlot.getTime() + 45 * 60 * 1000);
-
-          const pastSlot = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-          const pastSlotEnd = new Date(pastSlot.getTime() + 45 * 60 * 1000);
-
-          setAppointments([
-            {
-              id: 'apt-001',
-              patient_id: 'pat-1',
-              doctor_id: doctor?.id || 'doc-1',
-              slot_id: 'slt-001',
-              status: 'confirmed',
-              price: 850.0,
-              commission_amount: 127.5,
-              payment_status: 'held',
-              created_at: new Date().toISOString(),
-              patient: {
-                id: 'pat-1',
-                fullName: 'Sipho Dlamini',
-                email: 'sipho.dlamini@example.com',
-                phone: '+27 82 459 1234',
-              },
-              slot: {
-                id: 'slt-001',
-                startTime: todaySlot1.toISOString(),
-                endTime: todaySlot1End.toISOString(),
-              },
-            },
-            {
-              id: 'apt-002',
-              patient_id: 'pat-2',
-              doctor_id: doctor?.id || 'doc-1',
-              slot_id: 'slt-002',
-              status: 'confirmed',
-              price: 850.0,
-              commission_amount: 127.5,
-              payment_status: 'held',
-              created_at: new Date().toISOString(),
-              patient: {
-                id: 'pat-2',
-                fullName: 'Lindiwe Khumalo',
-                email: 'lindiwe.k@example.com',
-                phone: '+27 71 830 5678',
-              },
-              slot: {
-                id: 'slt-002',
-                startTime: todaySlot2.toISOString(),
-                endTime: todaySlot2End.toISOString(),
-              },
-            },
-            {
-              id: 'apt-003',
-              patient_id: 'pat-3',
-              doctor_id: doctor?.id || 'doc-1',
-              slot_id: 'slt-003',
-              status: 'confirmed',
-              price: 850.0,
-              commission_amount: 127.5,
-              payment_status: 'held',
-              created_at: new Date().toISOString(),
-              patient: {
-                id: 'pat-3',
-                fullName: 'Johannes van Zyl',
-                email: 'johannes.vz@example.com',
-                phone: '+27 83 291 4455',
-              },
-              slot: {
-                id: 'slt-003',
-                startTime: tomorrowSlot.toISOString(),
-                endTime: tomorrowSlotEnd.toISOString(),
-              },
-            },
-            {
-              id: 'apt-004',
-              patient_id: 'pat-4',
-              doctor_id: doctor?.id || 'doc-1',
-              slot_id: 'slt-004',
-              status: 'completed',
-              price: 850.0,
-              commission_amount: 127.5,
-              payment_status: 'released',
-              created_at: pastSlot.toISOString(),
-              patient: {
-                id: 'pat-4',
-                fullName: 'Fatima Patel',
-                email: 'fatima.patel@example.com',
-                phone: '+27 84 901 2233',
-              },
-              slot: {
-                id: 'slt-004',
-                startTime: pastSlot.toISOString(),
-                endTime: pastSlotEnd.toISOString(),
-              },
-            },
-          ]);
-        }
+        if (isMounted) setAppointments([]);
       } catch (err) {
         console.warn('Error fetching doctor appointments:', err);
+        if (isMounted) setAppointments([]);
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -192,7 +91,7 @@ export default function DoctorAppointmentsPage() {
     return () => {
       isMounted = false;
     };
-  }, [token, doctor?.id, API_BASE]);
+  }, [token, API_BASE]);
 
   // Filter Appointments
   const filteredList = useMemo(() => {
@@ -225,62 +124,67 @@ export default function DoctorAppointmentsPage() {
   }, [appointments, filterTab, searchQuery]);
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+    <div style={{ maxWidth: '1240px', margin: '0 auto', paddingBottom: '48px' }}>
       {/* Page Title & Stats */}
       <div style={{ marginBottom: '28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div>
-            <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.08em',
+                  color: 'var(--color-gold-bronze, #B88647)',
+                }}
+              >
+                Telehealth Queue • Direct Daily.co Launcher
+              </span>
+            </div>
+            <h1
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: '1.95rem',
+                fontWeight: 800,
+                color: 'var(--color-chocolate-base, #2A170F)',
+                letterSpacing: '-0.02em',
+                margin: 0,
+              }}
+            >
               Consultation Queue & Appointments
             </h1>
-            <p style={{ color: 'var(--color-slate-500)', fontSize: '0.925rem', marginTop: '4px' }}>
-              Manage today's clinical consultations, connect to video rooms, and view scheduled patients
+            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.925rem', marginTop: '6px' }}>
+              Manage today's clinical consultations, connect to high-definition video rooms, and inspect scheduled patients
             </p>
           </div>
 
-          <Link
-            href="/calendar"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '10px 18px',
-              borderRadius: '12px',
-              background: '#ffffff',
-              border: '1px solid var(--color-slate-300)',
-              color: 'var(--color-slate-700)',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              textDecoration: 'none',
-              boxShadow: '0 2px 6px rgba(0,0,0,0.03)',
-            }}
-          >
-            <Calendar size={16} style={{ color: 'var(--color-brand-600)' }} />
+          <Link href="/calendar" className="btn-secondary">
+            <SolarIcon name="calendar-linear" size={17} color="var(--color-chocolate-base, #2A170F)" />
             <span>Manage Calendar Shifts</span>
           </Link>
         </div>
 
-        {/* Stats Row */}
+        {/* Stats Row in Cream Cards */}
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: '16px',
             marginTop: '24px',
           }}
         >
-          <div
-            style={{
-              background: '#ffffff',
-              padding: '20px',
-              borderRadius: '16px',
-              border: '1px solid var(--color-slate-200)',
-            }}
-          >
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', fontWeight: 600, textTransform: 'uppercase' }}>
-              Today's Patients
+          <div className="portal-card" style={{ padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Today's Patients
+              </span>
+              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--color-gold-pale, #F0E5D3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <SolarIcon name="user-rounded-bold" size={18} color="var(--color-chocolate-base, #2A170F)" />
+              </div>
             </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-slate-900)', marginTop: '6px' }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
               {
                 appointments.filter((a) => {
                   const d = a.slot?.startTime ? new Date(a.slot.startTime).toDateString() : '';
@@ -288,23 +192,21 @@ export default function DoctorAppointmentsPage() {
                 }).length
               }
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-brand-700)', marginTop: '4px' }}>
-              Confirmed & scheduled
+            <div style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 600, marginTop: '4px' }}>
+              Confirmed & queued for video
             </div>
           </div>
 
-          <div
-            style={{
-              background: '#ffffff',
-              padding: '20px',
-              borderRadius: '16px',
-              border: '1px solid var(--color-slate-200)',
-            }}
-          >
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', fontWeight: 600, textTransform: 'uppercase' }}>
-              Estimated Payout Today
+          <div className="portal-card" style={{ padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Estimated Payout Today
+              </span>
+              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--color-gold-pale, #F0E5D3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <SolarIcon name="wallet-money-bold" size={18} color="var(--color-chocolate-base, #2A170F)" />
+              </div>
             </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#059669', marginTop: '6px' }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, color: '#059669' }}>
               R
               {appointments
                 .filter((a) => {
@@ -314,38 +216,34 @@ export default function DoctorAppointmentsPage() {
                 .reduce((sum, a) => sum + (Number(a.price) - Number(a.commission_amount || a.price * 0.15)), 0)
                 .toFixed(2)}
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', marginTop: '4px' }}>
-              Net earnings (85% take-home)
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px' }}>
+              Net earnings (85% take-home settled)
             </div>
           </div>
 
-          <div
-            style={{
-              background: '#ffffff',
-              padding: '20px',
-              borderRadius: '16px',
-              border: '1px solid var(--color-slate-200)',
-            }}
-          >
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', fontWeight: 600, textTransform: 'uppercase' }}>
-              Upcoming Total
+          <div className="portal-card" style={{ padding: '20px 24px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Upcoming Total
+              </span>
+              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--color-gold-pale, #F0E5D3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <SolarIcon name="calendar-bold" size={18} color="var(--color-chocolate-base, #2A170F)" />
+              </div>
             </div>
-            <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--color-brand-700)', marginTop: '6px' }}>
+            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
               {appointments.filter((a) => a.status === 'confirmed').length}
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', marginTop: '4px' }}>
-              Future appointments
+            <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px' }}>
+              Future consultations on roster
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs & Search Bar */}
+      {/* Filter Tabs (specialty-chip) & Search Bar (doctors-search-pill) */}
       <div
+        className="portal-card"
         style={{
-          background: '#ffffff',
-          borderRadius: '16px',
-          border: '1px solid var(--color-slate-200)',
           padding: '16px 20px',
           display: 'flex',
           alignItems: 'center',
@@ -355,71 +253,111 @@ export default function DoctorAppointmentsPage() {
           marginBottom: '24px',
         }}
       >
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {(['today', 'upcoming', 'completed'] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setFilterTab(tab)}
-              style={{
-                padding: '8px 16px',
-                borderRadius: '10px',
-                border: 'none',
-                background: filterTab === tab ? 'var(--color-brand-50)' : 'transparent',
-                color: filterTab === tab ? 'var(--color-brand-700)' : 'var(--color-slate-600)',
-                fontWeight: filterTab === tab ? 700 : 500,
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                textTransform: 'capitalize',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {tab === 'today' ? "Today's Consultations" : tab}
-            </button>
-          ))}
+        {/* Specialty Chip Pill Buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          {(['today', 'upcoming', 'completed'] as const).map((tab) => {
+            const isActive = filterTab === tab;
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setFilterTab(tab)}
+                className={`specialty-chip ${isActive ? 'active' : ''}`}
+              >
+                <SolarIcon
+                  name={
+                    tab === 'today'
+                      ? 'clock-circle-bold'
+                      : tab === 'upcoming'
+                      ? 'calendar-bold'
+                      : 'check-circle-bold'
+                  }
+                  size={15}
+                  color={isActive ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-gold-bronze, #B88647)'}
+                />
+                <span>{tab === 'today' ? "Today's Consultations" : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+              </button>
+            );
+          })}
         </div>
 
-        {/* Search */}
-        <div style={{ position: 'relative', width: '280px' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '10px', color: 'var(--color-slate-400)' }} />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search patient name or email..."
-            style={{
-              width: '100%',
-              padding: '8px 12px 8px 36px',
-              borderRadius: '10px',
-              border: '1px solid var(--color-slate-300)',
-              fontSize: '0.85rem',
-              outline: 'none',
-            }}
-          />
+        {/* Doctors Search Pill with Solar Icon & Gold Action */}
+        <div style={{ width: '100%', maxWidth: '360px' }}>
+          <div className="doctors-search-pill">
+            <SolarIcon name="magnifer-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search patient name or email..."
+              className="doctors-search-input"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--color-cream-text-muted)' }}
+                aria-label="Clear search"
+              >
+                <X size={15} />
+              </button>
+            )}
+            <button
+              type="button"
+              className="doctors-search-submit"
+              onClick={() => {}}
+            >
+              <SolarIcon name="magnifer-bold" size={14} color="var(--color-chocolate-base)" />
+              <span>Search</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* Appointment Queue List */}
       {isLoading ? (
         <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-          <Loader2 size={36} className="animate-spin" style={{ color: 'var(--color-brand-600)' }} />
+          <Loader2 size={36} className="animate-spin" style={{ color: 'var(--color-gold-base, #DFAB62)' }} />
         </div>
       ) : filteredList.length === 0 ? (
         <div
+          className="portal-card"
           style={{
-            background: '#ffffff',
-            borderRadius: '18px',
-            border: '1px solid var(--color-slate-200)',
             padding: '56px 24px',
             textAlign: 'center',
           }}
         >
-          <Clock size={44} style={{ color: 'var(--color-slate-300)', margin: '0 auto 16px' }} />
-          <h3 style={{ fontSize: '1.2rem', color: 'var(--color-slate-800)', fontWeight: 700 }}>
-            No appointments found in this queue
+          <div
+            style={{
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: 'var(--color-gold-pale, #F0E5D3)',
+              margin: '0 auto 16px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <SolarIcon name="clock-circle-bold" size={30} color="var(--color-gold-bronze, #B88647)" />
+          </div>
+          <h3
+            style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: '1.25rem',
+              color: 'var(--color-chocolate-base, #2A170F)',
+              fontWeight: 800,
+            }}
+          >
+            No consultations found in this queue
           </h3>
-          <p style={{ color: 'var(--color-slate-500)', fontSize: '0.9rem', maxWidth: '400px', margin: '8px auto 0' }}>
-            Open your practice calendar to publish new availability slots for patients to book.
+          <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.9rem', maxWidth: '440px', margin: '8px auto 20px' }}>
+            Open your practice calendar to publish new bookable availability slots for patients.
           </p>
+          <Link href="/calendar" className="btn-primary">
+            <SolarIcon name="calendar-bold" size={17} color="var(--color-chocolate-base, #2A170F)" />
+            <span>Open Calendar Roster</span>
+          </Link>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -441,128 +379,121 @@ export default function DoctorAppointmentsPage() {
 
             const netPayout = Number(appointment.price) - Number(appointment.commission_amount || appointment.price * 0.15);
 
+            // Compute patient initials
+            const nameParts = (appointment.patient?.fullName || 'Patient Client').split(' ');
+            const initials = nameParts.length >= 2
+              ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+              : nameParts[0].substring(0, 2).toUpperCase();
+
             return (
               <div
                 key={appointment.id}
+                className="portal-card"
                 style={{
-                  background: '#ffffff',
-                  borderRadius: '16px',
-                  border: '1px solid var(--color-slate-200)',
-                  padding: '20px 24px',
+                  padding: '22px 26px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   flexWrap: 'wrap',
-                  gap: '16px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
+                  gap: '18px',
                 }}
               >
                 {/* Time & Patient Info */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', minWidth: '280px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '18px', minWidth: '280px', flex: '1 1 300px' }}>
+                  {/* Pale Gold Time Badge */}
                   <div
                     style={{
-                      background: 'var(--color-slate-50)',
-                      border: '1px solid var(--color-slate-200)',
-                      borderRadius: '12px',
-                      padding: '10px 14px',
+                      background: 'var(--color-gold-pale, #F0E5D3)',
+                      border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                      borderRadius: '16px',
+                      padding: '12px 16px',
                       textAlign: 'center',
-                      minWidth: '95px',
+                      minWidth: '105px',
                     }}
                   >
-                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-slate-500)', textTransform: 'uppercase' }}>
+                    <div style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--color-gold-bronze, #B88647)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       {dateStr}
                     </div>
-                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-slate-900)', marginTop: '2px' }}>
+                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)', marginTop: '2px' }}>
                       {startTimeStr}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-400)' }}>
+                    <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                       to {endTimeStr}
                     </div>
                   </div>
 
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--color-slate-900)' }}>
-                        {appointment.patient?.fullName || 'Patient Client'}
-                      </h3>
-                      <span
-                        style={{
-                          background: '#ecfdf5',
-                          color: '#065f46',
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          padding: '2px 8px',
-                          borderRadius: 'var(--radius-full)',
-                        }}
-                      >
-                        CONFIRMED
-                      </span>
+                  {/* Patient Avatar & Details */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div className="doctor-avatar-circle">
+                      {initials}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.825rem', color: 'var(--color-slate-500)', marginTop: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Mail size={14} />
-                        <span>{appointment.patient?.email || 'patient@chekup247.com'}</span>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h3
+                          style={{
+                            fontFamily: 'var(--font-heading)',
+                            fontSize: '1.15rem',
+                            fontWeight: 700,
+                            color: 'var(--color-chocolate-base, #2A170F)',
+                            margin: 0,
+                          }}
+                        >
+                          {appointment.patient?.fullName || 'Patient Client'}
+                        </h3>
+                        <span className="badge-gold">
+                          CONFIRMED
+                        </span>
                       </div>
-                      {appointment.patient?.phone && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Phone size={14} />
-                          <span>{appointment.patient.phone}</span>
+
+                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '14px', fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '5px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                          <SolarIcon name="letter-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
+                          <span>{appointment.patient?.email || 'patient@chekup247.com'}</span>
                         </div>
-                      )}
+                        {appointment.patient?.phone && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <SolarIcon name="phone-calling-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
+                            <span>{appointment.patient.phone}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Earnings */}
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-400)', textTransform: 'uppercase', fontWeight: 700 }}>
-                    Doctor Payout
+                {/* Bold Fee Breakdown */}
+                <div style={{ textAlign: 'right', minWidth: '130px' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
+                    Doctor Payout (85%)
                   </div>
-                  <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.35rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
                     R{netPayout.toFixed(2)}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-400)' }}>
-                    Gross: R{Number(appointment.price).toFixed(2)}
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    Gross Patient Fee: R{Number(appointment.price).toFixed(2)}
                   </div>
                 </div>
 
-                {/* Action CTAs */}
+                {/* Action CTAs - Start Consultation direct link to /consultations/${appointment.id} */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <Link
                     href={`/consultations/${appointment.id}`}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '10px 18px',
-                      borderRadius: '12px',
-                      background: 'linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-700) 100%)',
-                      color: '#ffffff',
-                      fontWeight: 700,
-                      fontSize: '0.875rem',
-                      textDecoration: 'none',
-                      boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
-                    }}
+                    className="btn-primary"
+                    style={{ padding: '10px 20px', fontSize: '0.875rem' }}
                   >
-                    <Video size={16} />
+                    <SolarIcon name="videocamera-record-bold" size={17} color="var(--color-chocolate-base, #2A170F)" />
                     <span>Start Consultation</span>
                   </Link>
 
                   <button
+                    type="button"
                     onClick={() => setSelectedAppointment(appointment)}
-                    style={{
-                      padding: '10px 16px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--color-slate-300)',
-                      background: '#ffffff',
-                      color: 'var(--color-slate-700)',
-                      fontWeight: 600,
-                      fontSize: '0.875rem',
-                      cursor: 'pointer',
-                    }}
+                    className="btn-secondary"
+                    style={{ padding: '10px 18px', fontSize: '0.875rem' }}
                   >
-                    Details
+                    <SolarIcon name="notes-minimalistic-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                    <span>Details</span>
                   </button>
                 </div>
               </div>
@@ -571,91 +502,137 @@ export default function DoctorAppointmentsPage() {
         </div>
       )}
 
-      {/* Appointment Details Modal (DP-502) */}
+      {/* Restyled Appointment Details Modal with Glassmorphism Backdrop */}
       {selectedAppointment && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(15, 23, 42, 0.5)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 100,
-            padding: '16px',
+          className="portal-modal-backdrop"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedAppointment(null);
           }}
         >
           <div
+            className="portal-modal-surface"
             style={{
-              background: '#ffffff',
-              borderRadius: '20px',
               padding: '32px',
-              maxWidth: '520px',
+              maxWidth: '540px',
               width: '100%',
-              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
               position: 'relative',
             }}
           >
             <button
+              type="button"
               onClick={() => setSelectedAppointment(null)}
+              aria-label="Close modal"
               style={{
                 position: 'absolute',
-                top: '20px',
-                right: '20px',
+                top: '22px',
+                right: '22px',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
-                color: 'var(--color-slate-400)',
+                color: 'var(--color-cream-text-muted, #6B5E55)',
+                padding: '4px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
-              <X size={20} />
+              <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base, #DFAB62)" />
             </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-              <User size={22} style={{ color: 'var(--color-brand-600)' }} />
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
-                Appointment Details
-              </h3>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '22px' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: 'var(--color-gold-pale, #F0E5D3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <SolarIcon name="user-rounded-bold" size={22} color="var(--color-chocolate-base, #2A170F)" />
+              </div>
+              <div>
+                <h3
+                  style={{
+                    fontFamily: 'var(--font-heading)',
+                    fontSize: '1.35rem',
+                    fontWeight: 800,
+                    color: 'var(--color-chocolate-base, #2A170F)',
+                    margin: 0,
+                  }}
+                >
+                  Appointment Details
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 600 }}>
+                  Booking Ref: #{selectedAppointment.id}
+                </span>
+              </div>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Patient Details */}
-              <div style={{ background: 'var(--color-slate-50)', padding: '16px', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-slate-500)', textTransform: 'uppercase' }}>
-                  Patient Information
+              {/* Patient Information Box */}
+              <div
+                style={{
+                  background: 'var(--color-cream-base, #FAF6EE)',
+                  border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+                  padding: '18px 20px',
+                  borderRadius: '16px',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-gold-bronze, #B88647)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Patient Client
                 </div>
-                <div style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--color-slate-900)', marginTop: '4px' }}>
+                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1.15rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '4px' }}>
                   {selectedAppointment.patient?.fullName || 'Patient Client'}
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-slate-600)', marginTop: '4px' }}>
-                  Email: {selectedAppointment.patient?.email || 'N/A'}
+                <div style={{ fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <SolarIcon name="letter-linear" size={14} color="var(--color-gold-bronze)" />
+                  <span>{selectedAppointment.patient?.email || 'N/A'}</span>
                 </div>
                 {selectedAppointment.patient?.phone && (
-                  <div style={{ fontSize: '0.85rem', color: 'var(--color-slate-600)' }}>
-                    Phone: {selectedAppointment.patient.phone}
+                  <div style={{ fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <SolarIcon name="phone-calling-linear" size={14} color="var(--color-gold-bronze)" />
+                    <span>{selectedAppointment.patient.phone}</span>
                   </div>
                 )}
               </div>
 
-              {/* Consultation Schedule */}
+              {/* Consultation Schedule Window */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ border: '1px solid var(--color-slate-200)', padding: '12px', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-400)', fontWeight: 700 }}>
-                    DATE
+                <div
+                  style={{
+                    border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
+                    background: 'var(--color-cream-surface, #FDFBF7)',
+                    padding: '14px',
+                    borderRadius: '14px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Date
                   </div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-slate-900)', marginTop: '2px' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '2px' }}>
                     {selectedAppointment.slot?.startTime
-                      ? new Date(selectedAppointment.slot.startTime).toLocaleDateString('en-ZA')
+                      ? new Date(selectedAppointment.slot.startTime).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
                       : 'Today'}
                   </div>
                 </div>
 
-                <div style={{ border: '1px solid var(--color-slate-200)', padding: '12px', borderRadius: '10px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-400)', fontWeight: 700 }}>
-                    TIME WINDOW
+                <div
+                  style={{
+                    border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
+                    background: 'var(--color-cream-surface, #FDFBF7)',
+                    padding: '14px',
+                    borderRadius: '14px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, textTransform: 'uppercase' }}>
+                    Time Window
                   </div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-slate-900)', marginTop: '2px' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '2px' }}>
                     {selectedAppointment.slot?.startTime
                       ? new Date(selectedAppointment.slot.startTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
                       : '10:00'}{' '}
@@ -665,20 +642,39 @@ export default function DoctorAppointmentsPage() {
               </div>
 
               {/* Fee Breakdown */}
-              <div style={{ border: '1px solid var(--color-slate-200)', padding: '16px', borderRadius: '12px' }}>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-400)', fontWeight: 700, marginBottom: '8px' }}>
-                  FINANCIAL SUMMARY (ZAR)
+              <div
+                style={{
+                  border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
+                  background: 'var(--color-cream-surface, #FDFBF7)',
+                  padding: '18px 20px',
+                  borderRadius: '16px',
+                }}
+              >
+                <div style={{ fontSize: '0.75rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Financial Breakdown (ZAR)
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--color-slate-600)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                   <span>Patient Total Charged:</span>
-                  <span style={{ fontWeight: 600 }}>R{Number(selectedAppointment.price).toFixed(2)}</span>
+                  <span style={{ fontWeight: 600, color: 'var(--color-chocolate-base)' }}>R{Number(selectedAppointment.price).toFixed(2)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--color-slate-600)', marginTop: '4px' }}>
-                  <span>Platform Commission (15%):</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '6px' }}>
+                  <span>ChekUp247 Platform Fee (15%):</span>
                   <span>-R{Number(selectedAppointment.commission_amount || selectedAppointment.price * 0.15).toFixed(2)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '1rem', fontWeight: 800, color: '#059669', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid var(--color-slate-100)' }}>
-                  <span>Net Doctor Payout:</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: '1.05rem',
+                    fontFamily: 'var(--font-heading)',
+                    fontWeight: 800,
+                    color: '#059669',
+                    marginTop: '10px',
+                    paddingTop: '10px',
+                    borderTop: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
+                  }}
+                >
+                  <span>Net Doctor Payout (85%):</span>
                   <span>
                     R
                     {(
@@ -690,38 +686,23 @@ export default function DoctorAppointmentsPage() {
               </div>
             </div>
 
-            {/* Launch CTA */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
+            {/* Launch CTA - Direct link to /consultations/${selectedAppointment.id} */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '26px' }}>
               <button
+                type="button"
                 onClick={() => setSelectedAppointment(null)}
-                style={{
-                  padding: '10px 18px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--color-slate-300)',
-                  background: '#ffffff',
-                  cursor: 'pointer',
-                  fontSize: '0.875rem',
-                }}
+                className="btn-secondary"
+                style={{ padding: '10px 20px', fontSize: '0.875rem' }}
               >
                 Close
               </button>
 
               <Link
-                href={`/consultation?booking=${selectedAppointment.id}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '10px 20px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-700) 100%)',
-                  color: '#ffffff',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                  textDecoration: 'none',
-                }}
+                href={`/consultations/${selectedAppointment.id}`}
+                className="btn-primary"
+                style={{ padding: '10px 22px', fontSize: '0.875rem' }}
               >
-                <Video size={16} />
+                <SolarIcon name="videocamera-record-bold" size={17} color="var(--color-chocolate-base, #2A170F)" />
                 <span>Launch Video Room</span>
               </Link>
             </div>

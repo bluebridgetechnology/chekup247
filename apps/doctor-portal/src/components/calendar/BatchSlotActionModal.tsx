@@ -2,13 +2,13 @@
 
 import React, { useState } from 'react';
 import {
-  X,
   Trash2,
   AlertTriangle,
   Calendar,
   CheckCircle2,
 } from 'lucide-react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { SolarIcon } from '../common/SolarIcon';
 
 interface BatchSlotActionModalProps {
   isOpen: boolean;
@@ -59,7 +59,7 @@ export function BatchSlotActionModal({
         throw new Error(data.message || 'Failed to batch delete slots');
       }
 
-      setSuccessMsg(data.message || 'Slots deleted successfully');
+      setSuccessMsg(data.message || 'Slots removed successfully');
       setTimeout(() => {
         onCleared();
         onClose();
@@ -73,44 +73,36 @@ export function BatchSlotActionModal({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.55)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-        padding: '20px',
+      className="portal-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
+        className="portal-modal-surface"
         style={{
-          background: '#ffffff',
-          borderRadius: '24px',
           width: '100%',
-          maxWidth: '480px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          maxWidth: '500px',
           overflow: 'hidden',
-          animation: 'fadeIn 0.2s ease-out',
+          background: 'var(--color-cream-surface, #FDFBF7)',
         }}
       >
         <div
           style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--color-slate-100)',
+            padding: '22px 28px',
+            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            background: 'var(--color-cream-surface, #FDFBF7)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
                 background: '#fee2e2',
                 color: '#dc2626',
                 display: 'flex',
@@ -118,13 +110,21 @@ export function BatchSlotActionModal({
                 justifyContent: 'center',
               }}
             >
-              <Trash2 size={20} />
+              <SolarIcon name="trash-bin-trash-bold" size={20} color="#dc2626" />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
-                Batch Clear Slots (DP-403)
+              <h2
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1.2rem',
+                  fontWeight: 800,
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  margin: 0,
+                }}
+              >
+                Batch Clear Slots
               </h2>
-              <span style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                 Remove multiple unbooked availability slots
               </span>
             </div>
@@ -136,16 +136,19 @@ export function BatchSlotActionModal({
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--color-slate-400)',
+              color: 'var(--color-cream-text-muted, #6B5E55)',
               cursor: 'pointer',
               padding: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <X size={20} />
+            <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base, #DFAB62)" />
           </button>
         </div>
 
-        <form onSubmit={handleBatchDelete} style={{ padding: '24px' }}>
+        <form onSubmit={handleBatchDelete} style={{ padding: '24px 28px' }}>
           {errorMsg && (
             <div
               style={{
@@ -185,24 +188,24 @@ export function BatchSlotActionModal({
           <div
             style={{
               padding: '14px 16px',
-              borderRadius: '12px',
-              background: '#fffbeb',
-              border: '1px solid #fde68a',
+              borderRadius: '14px',
+              background: 'var(--color-gold-pale, #F0E5D3)',
+              border: '1px solid rgba(223, 171, 98, 0.35)',
               marginBottom: '20px',
               display: 'flex',
               alignItems: 'flex-start',
               gap: '10px',
             }}
           >
-            <AlertTriangle size={18} style={{ color: '#d97706', flexShrink: 0, marginTop: '2px' }} />
-            <p style={{ fontSize: '0.825rem', color: '#92400e', margin: 0, lineHeight: 1.4 }}>
-              This action will remove all unbooked direct slots within the selected dates. Any booked consultations and LocumStaff-synced shifts will remain protected and untouched.
+            <SolarIcon name="danger-circle-bold" size={20} color="var(--color-gold-bronze, #B88647)" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <p style={{ fontSize: '0.825rem', color: 'var(--color-chocolate-base, #2A170F)', margin: 0, lineHeight: 1.45 }}>
+              This will safely remove unbooked direct slots within the selected date span. Booked consultations and LocumStaff-synced duty shifts remain protected and untouched.
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '24px' }}>
             <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+              <label className="portal-label">
                 From Date
               </label>
               <input
@@ -210,17 +213,11 @@ export function BatchSlotActionModal({
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--color-slate-300)',
-                  fontSize: '0.9rem',
-                }}
+                className="portal-input"
               />
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+              <label className="portal-label">
                 To Date
               </label>
               <input
@@ -228,53 +225,28 @@ export function BatchSlotActionModal({
                 value={endDate}
                 onChange={(e) => setEndDate(e.target.value)}
                 required
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--color-slate-300)',
-                  fontSize: '0.9rem',
-                }}
+                className="portal-input"
               />
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
             <button
               type="button"
               onClick={onClose}
-              style={{
-                padding: '10px 16px',
-                borderRadius: '10px',
-                border: '1px solid var(--color-slate-300)',
-                background: '#ffffff',
-                color: 'var(--color-slate-700)',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+              className="btn-secondary"
+              style={{ padding: '10px 20px', fontSize: '0.875rem' }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isDeleting}
-              style={{
-                padding: '10px 18px',
-                borderRadius: '10px',
-                border: 'none',
-                background: '#dc2626',
-                color: '#ffffff',
-                fontSize: '0.875rem',
-                fontWeight: 700,
-                cursor: isDeleting ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-              }}
+              className="btn-danger"
+              style={{ padding: '10px 20px', fontSize: '0.875rem' }}
             >
-              <Trash2 size={16} />
-              <span>{isDeleting ? 'Clearing...' : 'Clear Unbooked Slots'}</span>
+              <SolarIcon name="trash-bin-trash-linear" size={16} color="#ffffff" />
+              <span>{isDeleting ? 'Clearing Slots...' : 'Clear Unbooked Slots'}</span>
             </button>
           </div>
         </form>
