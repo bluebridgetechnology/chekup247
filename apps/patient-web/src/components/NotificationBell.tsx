@@ -2,18 +2,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import {
-  Bell,
-  CheckCircle2,
-  Calendar,
-  AlertTriangle,
-  FileText,
-  Clock,
-  ExternalLink,
-  Check,
-} from 'lucide-react';
+import { SolarIcon } from './SolarIcon';
 import { useAuth } from '../context/AuthContext';
-import { io, Socket } from 'socket.io-client';
+import type { Socket } from 'socket.io-client';
 
 export interface AppNotification {
   id: string;
@@ -28,7 +19,11 @@ export interface AppNotification {
   created_at: string;
 }
 
-export function NotificationBell() {
+export interface NotificationBellProps {
+  variant?: 'default' | 'portal';
+}
+
+export function NotificationBell({ variant = 'default' }: NotificationBellProps = {}) {
   const { user, token, isAuthenticated } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -61,31 +56,45 @@ export function NotificationBell() {
 
     fetchNotifications();
 
+    let activeSocket: Socket | null = null;
+    let isCancelled = false;
+
     // Setup WebSocket connection to /notifications namespace
     const socketUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace('/api/v1', '');
-    try {
-      const socket = io(`${socketUrl}/notifications`, {
-        transports: ['websocket'],
-        reconnection: true,
+
+    import('socket.io-client')
+      .then(({ io }) => {
+        if (isCancelled) return;
+        const socket = io(`${socketUrl}/notifications`, {
+          transports: ['websocket'],
+          reconnection: true,
+        });
+
+        socket.on('connect', () => {
+          socket.emit('subscribe_user', { userId: user.id });
+        });
+
+        socket.on('new_notification', (notif: AppNotification) => {
+          setNotifications((prev) => [notif, ...prev]);
+          setUnreadCount((prev) => prev + 1);
+        });
+
+        activeSocket = socket;
+        socketRef.current = socket;
+      })
+      .catch((err) => {
+        console.warn('WebSocket notification subscription failed:', err);
       });
 
-      socket.on('connect', () => {
-        socket.emit('subscribe_user', { userId: user.id });
-      });
-
-      socket.on('new_notification', (notif: AppNotification) => {
-        setNotifications((prev) => [notif, ...prev]);
-        setUnreadCount((prev) => prev + 1);
-      });
-
-      socketRef.current = socket;
-
-      return () => {
-        socket.disconnect();
-      };
-    } catch (err) {
-      console.warn('WebSocket notification subscription failed:', err);
-    }
+    return () => {
+      isCancelled = true;
+      if (activeSocket) {
+        activeSocket.disconnect();
+      }
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
   }, [isAuthenticated, token, user]);
 
   // Click outside to close
@@ -140,42 +149,60 @@ export function NotificationBell() {
           setIsOpen(!isOpen);
           if (!isOpen) fetchNotifications();
         }}
-        style={{
-          position: 'relative',
-          background: isOpen ? 'var(--color-slate-100)' : 'transparent',
-          border: '1px solid var(--color-slate-200)',
-          borderRadius: '12px',
-          padding: '8px 10px',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'var(--color-slate-700)',
-          transition: 'all 0.2s ease',
-        }}
+        style={
+          variant === 'portal'
+            ? {
+                position: 'relative',
+                background: isOpen ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
+                border: 'none',
+                borderRadius: '50%',
+                width: '44px',
+                height: '44px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FAF6EE',
+                transition: 'all 0.2s ease',
+              }
+            : {
+                position: 'relative',
+                background: isOpen ? 'var(--color-slate-100)' : 'transparent',
+                border: '1px solid var(--color-slate-200)',
+                borderRadius: '12px',
+                padding: '8px 10px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-slate-700)',
+                transition: 'all 0.2s ease',
+              }
+        }
+        className={variant === 'portal' ? 'portal-icon-btn' : undefined}
         title="Notifications"
         aria-label="View notifications"
       >
-        <Bell size={20} />
+        <SolarIcon name="bell-linear" size={20} color={variant === 'portal' ? '#FAF6EE' : 'currentColor'} />
         {unreadCount > 0 && (
           <span
             style={{
               position: 'absolute',
-              top: '-4px',
-              right: '-4px',
+              top: variant === 'portal' ? '6px' : '-4px',
+              right: variant === 'portal' ? '6px' : '-4px',
               background: '#ef4444',
               color: '#ffffff',
-              fontSize: '0.7rem',
+              fontSize: '0.68rem',
               fontWeight: 700,
-              minWidth: '18px',
-              height: '18px',
+              minWidth: '16px',
+              height: '16px',
               borderRadius: '999px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '0 4px',
+              padding: '0 3px',
               boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)',
-              border: '2px solid #ffffff',
+              border: variant === 'portal' ? '1.5px solid #23150D' : '2px solid #ffffff',
             }}
           >
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -194,8 +221,8 @@ export function NotificationBell() {
             maxWidth: '90vw',
             background: '#ffffff',
             borderRadius: '18px',
-            border: '1px solid var(--color-slate-200)',
-            boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.15)',
+            border: variant === 'portal' ? '1px solid #EDE4D4' : '1px solid var(--color-slate-200)',
+            boxShadow: '0 20px 40px -15px rgba(0, 0, 0, 0.18)',
             zIndex: 100,
             overflow: 'hidden',
             display: 'flex',
@@ -271,7 +298,7 @@ export function NotificationBell() {
                   fontSize: '0.875rem',
                 }}
               >
-                <Bell size={28} style={{ opacity: 0.3, marginBottom: '8px' }} />
+                <SolarIcon name="bell-linear" size={28} color="#A08F83" style={{ opacity: 0.4, margin: '0 auto 8px auto', display: 'block' }} />
                 <p style={{ margin: 0 }}>You're all caught up!</p>
                 <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: 'var(--color-slate-400)' }}>
                   No new notifications at this time.
@@ -317,13 +344,13 @@ export function NotificationBell() {
                       }}
                     >
                       {notif.template_id?.includes('cancelled') ? (
-                        <AlertTriangle size={16} />
+                        <SolarIcon name="danger-circle-bold" size={16} color={isUnread ? '#ffffff' : '#DC2626'} />
                       ) : notif.template_id?.includes('reminder') ? (
-                        <Clock size={16} />
+                        <SolarIcon name="clock-circle-linear" size={16} color={isUnread ? '#ffffff' : '#B88647'} />
                       ) : notif.template_id?.includes('prescription') ? (
-                        <FileText size={16} />
+                        <SolarIcon name="document-text-linear" size={16} color={isUnread ? '#ffffff' : '#0D9488'} />
                       ) : (
-                        <Calendar size={16} />
+                        <SolarIcon name="calendar-linear" size={16} color={isUnread ? '#ffffff' : '#2A170F'} />
                       )}
                     </div>
 
@@ -373,7 +400,7 @@ export function NotificationBell() {
                             }}
                           >
                             <span>View Details</span>
-                            <ExternalLink size={12} />
+                            <SolarIcon name="arrow-right-up-linear" size={12} color="#0D9488" />
                           </Link>
                         )}
 
@@ -392,7 +419,7 @@ export function NotificationBell() {
                               gap: '3px',
                             }}
                           >
-                            <Check size={12} />
+                            <SolarIcon name="check-read-linear" size={13} color="#A08F83" />
                             <span>Mark read</span>
                           </button>
                         )}

@@ -10,6 +10,7 @@ import {
 import { AvailabilitySlot, DoctorProfile, User } from '../../database/operational/entities';
 import { QUEUES } from '../queues/queue.constants';
 import { PaymentsModule } from '../payments/payments.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { ConsultationsController } from './consultations.controller';
 import { ConsultationsService } from './consultations.service';
 import { DailyService } from './daily.service';
@@ -30,6 +31,7 @@ import { NoShowProcessor } from './no-show.processor';
       name: QUEUES.NO_SHOW,
     }),
     forwardRef(() => PaymentsModule),
+    NotificationsModule,
   ],
   controllers: [ConsultationsController],
   providers: [

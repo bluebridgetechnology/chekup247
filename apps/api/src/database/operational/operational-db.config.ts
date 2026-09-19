@@ -11,6 +11,7 @@ import {
   VerificationToken,
   Icd10Code,
   DoctorBlackout,
+  Testimonial,
 } from './entities';
 
 export const operationalEntities = [
@@ -24,6 +25,7 @@ export const operationalEntities = [
   VerificationToken,
   Icd10Code,
   DoctorBlackout,
+  Testimonial,
 ];
 
 

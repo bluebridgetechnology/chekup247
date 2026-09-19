@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   User,
   Mail,
@@ -12,14 +12,36 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowRight,
-  ShieldCheck,
   Eye,
   EyeOff,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { ChekupCrossLogo } from '../../components/Navbar';
+import { SolarIcon } from '../../components/SolarIcon';
 
-export default function PatientRegisterPage() {
+const HIGHLIGHTS = [
+  {
+    icon: 'videocamera-record-bold-duotone',
+    text: 'Instant video consultations with HPCSA-registered GPs',
+  },
+  {
+    icon: 'document-medicine-bold-duotone',
+    text: 'Valid digital e-prescriptions sent to any pharmacy',
+  },
+  {
+    icon: 'bill-list-bold-duotone',
+    text: 'Medical aid claimable invoices & ICD-10 codes',
+  },
+  {
+    icon: 'shield-check-bold-duotone',
+    text: 'POPIA-compliant end-to-end encrypted medical records',
+  },
+];
+
+function RegisterContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams?.get('redirect') || '/appointments';
   const { register, googleLogin } = useAuth();
 
   const [fullName, setFullName] = useState('');
@@ -34,7 +56,7 @@ export default function PatientRegisterPage() {
   const [loading, setLoading] = useState(false);
   const [registeredSuccess, setRegisteredSuccess] = useState<string | null>(null);
 
-  // Password strength calculation
+  // Live password strength calculation
   const getPasswordStrength = () => {
     if (!password) return 0;
     let score = 0;
@@ -47,7 +69,13 @@ export default function PatientRegisterPage() {
 
   const strength = getPasswordStrength();
   const strengthColor =
-    strength <= 25 ? '#ef4444' : strength <= 50 ? '#f59e0b' : strength <= 75 ? '#0ea5e9' : '#10b981';
+    strength <= 25
+      ? 'var(--color-danger)'
+      : strength <= 50
+      ? 'var(--color-warning)'
+      : strength <= 75
+      ? 'var(--color-gold-base)'
+      : 'var(--color-success)';
   const strengthLabel =
     strength <= 25 ? 'Weak' : strength <= 50 ? 'Fair' : strength <= 75 ? 'Good' : 'Strong';
 
@@ -90,385 +118,577 @@ export default function PatientRegisterPage() {
     }
   };
 
+  const handleGoogleSignUp = () => {
+    setError(null);
+    googleLogin('mock-google-credential', email || 'patient@gmail.com', fullName || 'Google Patient')
+      .then(() => router.push(redirectUrl))
+      .catch((e: any) => setError(e.message || 'Google sign-up failed. Please try again.'));
+  };
+
   return (
-    <div
-      style={{
-        minHeight: 'calc(100vh - 72px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '48px 16px',
-        background: 'linear-gradient(180deg, var(--color-slate-50) 0%, #ffffff 100%)',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '520px',
-          background: '#ffffff',
-          borderRadius: 'var(--radius-xl)',
-          padding: '40px',
-          boxShadow: 'var(--shadow-xl)',
-          border: '1px solid var(--color-slate-200)',
-        }}
-      >
-        {registeredSuccess ? (
-          <div style={{ textAlign: 'center', padding: '20px 0' }}>
-            <div
-              style={{
-                width: '64px',
-                height: '64px',
-                borderRadius: '50%',
-                background: 'var(--color-brand-50)',
-                color: 'var(--color-brand-600)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 20px auto',
-              }}
-            >
-              <CheckCircle2 size={36} />
-            </div>
-            <h2 style={{ fontSize: '1.5rem', marginBottom: '8px', color: 'var(--color-slate-900)' }}>
-              Check Your Inbox!
-            </h2>
-            <p style={{ color: 'var(--color-slate-600)', fontSize: '0.95rem', lineHeight: 1.6, marginBottom: '24px' }}>
-              We have sent a secure email verification link to <strong>{email}</strong>. Please click the link to verify your account and begin booking consultations.
-            </p>
+    <div className="auth-split-layout">
+      {/* Left side: Branded Visual Pane */}
+      <div className="auth-visual-pane">
+        {/* Top: Brand Logo */}
+        <Link
+          href="/"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '10px',
+            textDecoration: 'none',
+            position: 'relative',
+            zIndex: 1,
+            width: 'fit-content',
+          }}
+          aria-label="Chekup247 Home"
+        >
+          <ChekupCrossLogo size={32} />
+          <span
+            style={{
+              fontSize: '1.38rem',
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              lineHeight: 1,
+              fontFamily: 'var(--font-heading), sans-serif',
+            }}
+          >
+            <span style={{ color: 'var(--color-white)' }}>Chekup</span>
+            <span style={{ color: 'var(--color-gold-base)' }}>247</span>
+          </span>
+        </Link>
 
-            <Link
-              href={`/verify-email?token=${registeredSuccess !== 'sent' ? registeredSuccess : ''}`}
-              className="btn-primary"
-              style={{ width: '100%', textDecoration: 'none' }}
-            >
-              <span>Continue to Email Verification</span>
-              <ArrowRight size={18} />
-            </Link>
+        {/* Center: Value Prop & Features List */}
+        <div style={{ position: 'relative', zIndex: 1, margin: '48px 0 36px 0' }}>
+          <div
+            style={{
+              color: 'var(--color-gold-base)',
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              marginBottom: '14px',
+              fontFamily: 'var(--font-sans)',
+            }}
+          >
+            JOIN CHEKUP247
           </div>
-        ) : (
-          <>
-            <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '4px 12px',
-                  borderRadius: 'var(--radius-full)',
-                  background: 'var(--color-brand-50)',
-                  color: 'var(--color-brand-700)',
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  marginBottom: '12px',
-                }}
-              >
-                <ShieldCheck size={14} />
-                <span>POPIA-Compliant Medical Records</span>
-              </div>
-              <h1 style={{ fontSize: '1.75rem', color: 'var(--color-slate-900)', marginBottom: '8px' }}>
-                Create Patient Account
-              </h1>
-              <p style={{ color: 'var(--color-slate-500)', fontSize: '0.9rem' }}>
-                Connect with verified HPCSA medical doctors across South Africa in minutes.
-              </p>
-            </div>
 
-            {error && (
+          <h1
+            style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: 'clamp(2rem, 3.2vw, 2.75rem)',
+              fontWeight: 700,
+              lineHeight: 1.18,
+              color: 'var(--color-white)',
+              letterSpacing: '-0.02em',
+              marginBottom: '36px',
+            }}
+          >
+            Skip the waiting room.
+            <br />
+            See a doctor today.
+          </h1>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {HIGHLIGHTS.map((item, idx) => (
               <div
+                key={idx}
+                className="hero-feature-item"
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '10px',
-                  padding: '12px 16px',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-danger-bg)',
-                  border: '1px solid #fecaca',
-                  color: 'var(--color-danger)',
-                  fontSize: '0.875rem',
-                  marginBottom: '20px',
+                  gap: '14px',
+                  fontSize: '0.9375rem',
+                  color: 'var(--color-white-90)',
+                  lineHeight: 1.45,
                 }}
               >
-                <AlertCircle size={18} style={{ flexShrink: 0 }} />
-                <span>{error}</span>
+                <div
+                  className="hero-feature-box"
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '9px',
+                    flexShrink: 0,
+                  }}
+                >
+                  <SolarIcon name={item.icon} size={18} color="var(--color-gold-base)" />
+                </div>
+                <span>{item.text}</span>
               </div>
-            )}
+            ))}
+          </div>
+        </div>
 
-            {/* Quick Google Sign In */}
-            <button
-              type="button"
-              onClick={() => {
-                googleLogin('mock-google-credential', email || 'patient@gmail.com', fullName || 'Google Patient')
-                  .then(() => router.push('/profile'))
-                  .catch((e) => setError(e.message));
-              }}
-              style={{
-                width: '100%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '12px',
-                padding: '12px',
-                borderRadius: 'var(--radius-md)',
-                background: '#ffffff',
-                border: '1px solid var(--color-slate-300)',
-                color: 'var(--color-slate-800)',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                marginBottom: '24px',
-                transition: 'background 0.2s',
-              }}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24">
-                <path
-                  fill="#4285F4"
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                />
-                <path
-                  fill="#EA4335"
-                  d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                />
-              </svg>
-              <span>Continue with Google</span>
-            </button>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: '20px 0',
-                color: 'var(--color-slate-400)',
-                fontSize: '0.8rem',
-              }}
-            >
-              <div style={{ flex: 1, height: '1px', background: 'var(--color-slate-200)' }} />
-              <span style={{ padding: '0 12px' }}>or sign up with email</span>
-              <div style={{ flex: 1, height: '1px', background: 'var(--color-slate-200)' }} />
+        {/* Bottom: Floating Trust Bubble */}
+        <div style={{ position: 'relative', zIndex: 1, paddingTop: '12px' }}>
+          <div
+            className="trust-floating-bubble"
+            style={{
+              position: 'relative',
+              top: 'unset',
+              right: 'unset',
+              display: 'inline-block',
+              zIndex: 2,
+            }}
+            aria-hidden="true"
+          >
+            <div className="trust-floating-text">
+              Real people.
+              <br />
+              Real care.
             </div>
+          </div>
+        </div>
+      </div>
 
-            <form onSubmit={handleSubmit}>
-              {/* Full Name */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                  Full Name (as per ID)
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                    <User size={18} />
-                  </span>
-                  <input
-                    type="text"
-                    required
-                    value={fullName}
-                    onChange={(e) => setFullName(e.target.value)}
-                    placeholder="e.g. Sipho Ndlovu"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 38px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
+      {/* Right side: Form Components Pane (NO CARD - on canvas directly) */}
+      <div className="auth-form-pane">
+        <div className="auth-form-wrapper">
+          {registeredSuccess ? (
+            /* Clean On-Page Verification Notification */
+            <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <div
+                style={{
+                  width: '72px',
+                  height: '72px',
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: 'var(--color-gold-pale)',
+                  border: '1.5px solid var(--color-gold-border)',
+                  color: 'var(--color-gold-dark)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '24px',
+                }}
+              >
+                <CheckCircle2 size={38} />
               </div>
 
-              {/* Email */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                  Email Address
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                    <Mail size={18} />
-                  </span>
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="sipho@example.co.za"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 38px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                </div>
+              <div
+                style={{
+                  color: 'var(--color-gold-base)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  marginBottom: '8px',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                ACCOUNT CREATED
               </div>
 
-              {/* Phone & Date of Birth row */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                    Mobile Phone
+              <h2
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: 'clamp(1.75rem, 2.5vw, 2.15rem)',
+                  fontWeight: 700,
+                  color: 'var(--color-chocolate-base)',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.2,
+                  marginBottom: '12px',
+                }}
+              >
+                Check Your Inbox!
+              </h2>
+
+              <p
+                style={{
+                  color: 'var(--color-cream-text-muted)',
+                  fontSize: '0.95rem',
+                  lineHeight: 1.6,
+                  marginBottom: '32px',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                We have sent a secure email verification link to{' '}
+                <strong style={{ color: 'var(--color-chocolate-base)' }}>{email}</strong>. Please
+                click the link to verify your account and begin booking consultations with our GP network.
+              </p>
+
+              <Link
+                href={`/verify-email?token=${registeredSuccess !== 'sent' ? registeredSuccess : ''}${redirectUrl && redirectUrl !== '/appointments' && redirectUrl !== '/portal' ? `&redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+                className="btn-primary"
+                style={{
+                  width: '100%',
+                  height: '48px',
+                  fontSize: '0.95rem',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <span>Continue to Email Verification</span>
+                <ArrowRight size={18} />
+              </Link>
+            </div>
+          ) : (
+            <>
+              {/* Eyebrow */}
+              <div
+                style={{
+                  color: 'var(--color-gold-base)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  letterSpacing: '0.12em',
+                  textTransform: 'uppercase',
+                  marginBottom: '8px',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                GET STARTED IN MINUTES
+              </div>
+
+              {/* Heading */}
+              <h2
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: 'clamp(1.75rem, 2.5vw, 2.15rem)',
+                  fontWeight: 700,
+                  color: 'var(--color-chocolate-base)',
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1.2,
+                  marginBottom: '8px',
+                }}
+              >
+                Create Patient Account
+              </h2>
+
+              {/* Subtitle */}
+              <p
+                style={{
+                  color: 'var(--color-cream-text-muted)',
+                  fontSize: '0.9375rem',
+                  lineHeight: 1.5,
+                  marginBottom: '28px',
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                Connect with verified HPCSA medical doctors across South Africa in minutes.
+              </p>
+
+              {/* Error Alert */}
+              {error && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '12px 16px',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--color-danger-bg)',
+                    border: '1px solid var(--color-danger)',
+                    color: 'var(--color-danger)',
+                    fontSize: '0.875rem',
+                    marginBottom: '20px',
+                    fontFamily: 'var(--font-sans)',
+                  }}
+                  role="alert"
+                >
+                  <AlertCircle size={18} style={{ flexShrink: 0 }} />
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Quick Google Sign-Up Button */}
+              <button
+                type="button"
+                onClick={handleGoogleSignUp}
+                className="auth-btn-google"
+                aria-label="Continue with Google"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                  <path
+                    fill="var(--color-google-blue)"
+                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  />
+                  <path
+                    fill="var(--color-google-green)"
+                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                  />
+                  <path
+                    fill="var(--color-google-yellow)"
+                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                  />
+                  <path
+                    fill="var(--color-google-red)"
+                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                  />
+                </svg>
+                <span>Continue with Google</span>
+              </button>
+
+              {/* Divider */}
+              <div className="auth-divider">
+                <span>or sign up with email</span>
+              </div>
+
+              {/* Patient Registration Form */}
+              <form onSubmit={handleSubmit} noValidate>
+                {/* Full Name */}
+                <div className="auth-input-group">
+                  <label htmlFor="fullName" className="auth-label">
+                    Full Name (as per ID)
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                      <Phone size={16} />
+                  <div className="auth-input-wrapper">
+                    <span className="auth-input-icon">
+                      <User size={18} />
                     </span>
                     <input
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+27 82 123 4567"
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px 10px 36px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--color-slate-300)',
-                        fontSize: '0.85rem',
-                        outline: 'none',
-                      }}
+                      id="fullName"
+                      name="fullName"
+                      type="text"
+                      required
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g. Sipho Ndlovu"
+                      className="auth-input"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                    Date of Birth
+                {/* Email Address */}
+                <div className="auth-input-group">
+                  <label htmlFor="email" className="auth-label">
+                    Email Address
                   </label>
-                  <div style={{ position: 'relative' }}>
-                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                      <Calendar size={16} />
+                  <div className="auth-input-wrapper">
+                    <span className="auth-input-icon">
+                      <Mail size={18} />
                     </span>
                     <input
-                      type="date"
-                      value={dateOfBirth}
-                      onChange={(e) => setDateOfBirth(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px 10px 36px',
-                        borderRadius: 'var(--radius-md)',
-                        border: '1px solid var(--color-slate-300)',
-                        fontSize: '0.85rem',
-                        outline: 'none',
-                      }}
+                      id="email"
+                      name="email"
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="sipho@example.co.za"
+                      className="auth-input"
                     />
                   </div>
                 </div>
-              </div>
 
-              {/* Password */}
-              <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                  Create Password
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                    <Lock size={18} />
-                  </span>
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="At least 8 characters"
-                    style={{
-                      width: '100%',
-                      padding: '10px 40px 10px 38px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    style={{
-                      position: 'absolute',
-                      right: '12px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--color-slate-400)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-
-                {password && (
-                  <div style={{ marginTop: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: '4px' }}>
-                      <span style={{ color: 'var(--color-slate-500)' }}>Password strength:</span>
-                      <span style={{ fontWeight: 600, color: strengthColor }}>{strengthLabel}</span>
-                    </div>
-                    <div style={{ height: '4px', background: 'var(--color-slate-200)', borderRadius: '2px', overflow: 'hidden' }}>
-                      <div
-                        style={{
-                          height: '100%',
-                          width: `${strength}%`,
-                          background: strengthColor,
-                          transition: 'width 0.3s ease',
-                        }}
+                {/* Phone & Date of Birth (2-col grid) */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '12px',
+                  }}
+                >
+                  {/* Phone */}
+                  <div className="auth-input-group">
+                    <label htmlFor="phone" className="auth-label">
+                      Phone Number
+                    </label>
+                    <div className="auth-input-wrapper">
+                      <span className="auth-input-icon">
+                        <Phone size={18} />
+                      </span>
+                      <input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value)}
+                        placeholder="+27 82 000 0000"
+                        className="auth-input"
                       />
                     </div>
                   </div>
-                )}
-              </div>
 
-              {/* Confirm Password */}
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-                  Confirm Password
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                    <Lock size={18} />
-                  </span>
-                  <input
-                    type="password"
-                    required
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="Repeat password"
-                    style={{
-                      width: '100%',
-                      padding: '10px 14px 10px 38px',
-                      borderRadius: 'var(--radius-md)',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      outline: 'none',
-                    }}
-                  />
+                  {/* Date of Birth */}
+                  <div className="auth-input-group">
+                    <label htmlFor="dateOfBirth" className="auth-label">
+                      Date of Birth
+                    </label>
+                    <div className="auth-input-wrapper">
+                      <span className="auth-input-icon">
+                        <Calendar size={18} />
+                      </span>
+                      <input
+                        id="dateOfBirth"
+                        name="dateOfBirth"
+                        type="date"
+                        value={dateOfBirth}
+                        onChange={(e) => setDateOfBirth(e.target.value)}
+                        className="auth-input"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary"
-                style={{ width: '100%', padding: '12px', fontSize: '0.95rem' }}
+                {/* Password Field */}
+                <div className="auth-input-group">
+                  <label htmlFor="password" className="auth-label">
+                    Password (min. 8 characters)
+                  </label>
+                  <div className="auth-input-wrapper">
+                    <span className="auth-input-icon">
+                      <Lock size={18} />
+                    </span>
+                    <input
+                      id="password"
+                      name="password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Create a strong password"
+                      className="auth-input"
+                      style={{ paddingRight: '46px' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="auth-password-toggle"
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+
+                  {/* Live Strength Bar */}
+                  {password && (
+                    <div style={{ marginTop: '8px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: '0.75rem',
+                          fontFamily: 'var(--font-sans)',
+                          marginBottom: '4px',
+                        }}
+                      >
+                        <span style={{ color: 'var(--color-cream-text-muted)' }}>Strength:</span>
+                        <span style={{ fontWeight: 600, color: strengthColor }}>{strengthLabel}</span>
+                      </div>
+                      <div
+                        style={{
+                          height: '4px',
+                          width: '100%',
+                          backgroundColor: 'var(--color-border)',
+                          borderRadius: 'var(--radius-full)',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        <div
+                          style={{
+                            height: '100%',
+                            width: `${strength}%`,
+                            backgroundColor: strengthColor,
+                            transition: 'width 0.3s ease, background-color 0.3s ease',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div className="auth-input-group" style={{ marginBottom: '26px' }}>
+                  <label htmlFor="confirmPassword" className="auth-label">
+                    Confirm Password
+                  </label>
+                  <div className="auth-input-wrapper">
+                    <span className="auth-input-icon">
+                      <Lock size={18} />
+                    </span>
+                    <input
+                      id="confirmPassword"
+                      name="confirmPassword"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Repeat password"
+                      className="auth-input"
+                      style={{ paddingRight: '46px' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Primary Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary"
+                  style={{
+                    width: '100%',
+                    height: '48px',
+                    fontSize: '0.95rem',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    opacity: loading ? 0.75 : 1,
+                  }}
+                >
+                  {loading ? 'Creating Account...' : 'Complete Patient Registration'}
+                </button>
+              </form>
+
+              {/* Link to /login */}
+              <div
+                style={{
+                  marginTop: '26px',
+                  textAlign: 'center',
+                  fontSize: '0.875rem',
+                  color: 'var(--color-cream-text-muted)',
+                  fontFamily: 'var(--font-sans)',
+                }}
               >
-                {loading ? 'Creating Account...' : 'Complete Patient Registration'}
-              </button>
-            </form>
-
-            <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-slate-600)' }}>
-              Already registered?{' '}
-              <Link href="/login" style={{ color: 'var(--color-brand-600)', fontWeight: 600 }}>
-                Sign In
-              </Link>
-            </div>
-          </>
-        )}
+                Already registered?{' '}
+                <Link
+                  href={redirectUrl && redirectUrl !== '/appointments' && redirectUrl !== '/portal' ? `/login?redirect=${encodeURIComponent(redirectUrl)}` : '/login'}
+                  style={{
+                    color: 'var(--color-chocolate-base)',
+                    fontWeight: 700,
+                    textDecoration: 'underline',
+                    textUnderlineOffset: '3px',
+                    textDecorationColor: 'var(--color-gold-base)',
+                    transition: 'color 0.18s ease',
+                  }}
+                >
+                  Sign In
+                </Link>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </div>
+  );
+}
+
+export default function PatientRegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div
+          style={{
+            minHeight: 'calc(100vh - 74px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'var(--color-cream-base)',
+          }}
+        >
+          <p
+            style={{
+              color: 'var(--color-cream-text-muted)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.95rem',
+            }}
+          >
+            Loading registration...
+          </p>
+        </div>
+      }
+    >
+      <RegisterContent />
+    </Suspense>
   );
 }

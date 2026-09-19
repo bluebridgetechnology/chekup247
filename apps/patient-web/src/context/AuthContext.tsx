@@ -32,6 +32,8 @@ interface AuthContextType {
     date_of_birth?: string;
   }) => Promise<any>;
   verifyEmail: (token: string) => Promise<any>;
+  verifyOtp: (email: string, otp: string) => Promise<any>;
+  resendOtp: (email: string) => Promise<any>;
   googleLogin: (credential: string, email?: string, name?: string) => Promise<any>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -125,6 +127,48 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.message || 'Registration failed.');
+    }
+
+    if (data.accessToken) {
+      localStorage.setItem('chekup_token', data.accessToken);
+      setToken(data.accessToken);
+      setUser(data.user);
+    }
+    return data;
+  };
+
+  const verifyOtp = async (email: string, otp: string) => {
+    const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Verification failed. Please check your 6-digit code.');
+    }
+
+    if (data.accessToken) {
+      localStorage.setItem('chekup_token', data.accessToken);
+      setToken(data.accessToken);
+      setUser(data.user);
+    }
+    return data;
+  };
+
+  const resendOtp = async (email: string) => {
+    const res = await fetch(`${API_BASE}/auth/resend-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Failed to resend code.');
     }
     return data;
   };
@@ -238,6 +282,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         register,
         verifyEmail,
+        verifyOtp,
+        resendOtp,
         googleLogin,
         logout,
         refreshUser,

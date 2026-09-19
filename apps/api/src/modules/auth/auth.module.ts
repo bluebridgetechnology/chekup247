@@ -12,6 +12,8 @@ import { TokenService } from './token.service';
 import { LocumStaffSsoService } from './locumstaff-sso.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
+import { BrevoEmailProvider } from '../notifications/providers/brevo.provider';
+import { SmsProvider } from '../notifications/providers/sms.provider';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { RolesGuard } from '../../common/guards/roles.guard';
     LocumStaffSsoService,
     JwtAuthGuard,
     RolesGuard,
+    BrevoEmailProvider,
+    SmsProvider,
   ],
   exports: [AuthService, TokenService, LocumStaffSsoService, JwtAuthGuard, RolesGuard],
 })

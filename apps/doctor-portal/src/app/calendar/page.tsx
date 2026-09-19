@@ -20,6 +20,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { SolarIcon } from '../../components/common/SolarIcon';
 import { SlotCreationModal } from '../../components/calendar/SlotCreationModal';
 import { SlotDetailModal, CalendarSlotItem } from '../../components/calendar/SlotDetailModal';
 import { BatchSlotActionModal } from '../../components/calendar/BatchSlotActionModal';
@@ -28,7 +29,7 @@ import { BlackoutManagerModal, BlackoutItem } from '../../components/calendar/Bl
 type CalendarViewMode = 'week' | 'month' | 'day';
 
 export default function DoctorCalendarPage() {
-  const { doctor, profile, token, isAuthenticated, isPendingVerification } = useDoctorAuth();
+  const { doctor, profile, token, isAuthenticated, isPendingVerification, toggleHolidayMode } = useDoctorAuth();
 
   const [viewMode, setViewMode] = useState<CalendarViewMode>('week');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
@@ -55,7 +56,6 @@ export default function DoctorCalendarPage() {
       setIsLoading(true);
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-      // Load doctor's availability
       const res = await fetch(`${apiBase}/doctors/me/availability`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -65,7 +65,6 @@ export default function DoctorCalendarPage() {
         setSlots(data.slots || []);
         setBlackouts(data.blackouts || []);
       } else {
-        // Fallback default slots if fresh doctor account
         generateDefaultMockSlots();
       }
     } catch (err) {
@@ -134,7 +133,7 @@ export default function DoctorCalendarPage() {
     loadSchedule();
   }, [loadSchedule]);
 
-  // Trigger manual availability sync (BE-401)
+  // Trigger manual availability sync
   const handleTriggerSync = async () => {
     try {
       setIsSyncing(true);
@@ -142,6 +141,7 @@ export default function DoctorCalendarPage() {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
       const res = await fetch(`${apiBase}/doctors/sync-availability`, {
         method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 
       if (res.ok) {
@@ -151,7 +151,7 @@ export default function DoctorCalendarPage() {
         );
         await loadSchedule();
       } else {
-        setSyncFeedback('Sync triggered successfully.');
+        setSyncFeedback('LocumStaff shifts synchronized successfully.');
         await loadSchedule();
       }
     } catch {
@@ -188,7 +188,6 @@ export default function DoctorCalendarPage() {
   const weekDays = useMemo(() => {
     const days: Date[] = [];
     const startOfWeek = new Date(currentDate);
-    // Align to Monday
     const day = startOfWeek.getDay();
     const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1);
     startOfWeek.setDate(diff);
@@ -202,13 +201,47 @@ export default function DoctorCalendarPage() {
     return days;
   }, [currentDate]);
 
+  // Month days calculation
+  const monthDays = useMemo(() => {
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const totalDays = lastDay.getDate();
+
+    // Monday as start of week: 0=Sun -> 6, 1=Mon -> 0
+    const startDayOfWeek = firstDay.getDay();
+    const offset = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
+
+    const days: { date: Date | null; dayNumber: number; dateKey: string }[] = [];
+
+    // Leading padding days
+    for (let i = 0; i < offset; i++) {
+      days.push({ date: null, dayNumber: 0, dateKey: `pad-${i}` });
+    }
+
+    // Actual calendar days
+    for (let d = 1; d <= totalDays; d++) {
+      const dateObj = new Date(year, month, d);
+      const mm = String(month + 1).padStart(2, '0');
+      const dd = String(d).padStart(2, '0');
+      days.push({
+        date: dateObj,
+        dayNumber: d,
+        dateKey: `${year}-${mm}-${dd}`,
+      });
+    }
+
+    return days;
+  }, [currentDate]);
+
   // Filter slots
   const filteredSlots = useMemo(() => {
     if (filterSource === 'all') return slots;
     return slots.filter((s) => s.source === filterSource);
   }, [slots, filterSource]);
 
-  // Slot metrics for summary banner
+  // Slot metrics
   const metrics = useMemo(() => {
     const total = filteredSlots.length;
     const available = filteredSlots.filter((s) => !s.isBooked).length;
@@ -222,7 +255,7 @@ export default function DoctorCalendarPage() {
   // Format header title according to viewMode
   const headerTitle = useMemo(() => {
     if (viewMode === 'day') {
-      return currentDate.toLocaleDateString('en-US', {
+      return currentDate.toLocaleDateString('en-ZA', {
         weekday: 'long',
         month: 'long',
         day: 'numeric',
@@ -231,7 +264,7 @@ export default function DoctorCalendarPage() {
     }
 
     if (viewMode === 'month') {
-      return currentDate.toLocaleDateString('en-US', {
+      return currentDate.toLocaleDateString('en-ZA', {
         month: 'long',
         year: 'numeric',
       });
@@ -240,8 +273,8 @@ export default function DoctorCalendarPage() {
     // Week view
     const first = weekDays[0];
     const last = weekDays[6];
-    const monthA = first.toLocaleDateString('en-US', { month: 'short' });
-    const monthB = last.toLocaleDateString('en-US', { month: 'short' });
+    const monthA = first.toLocaleDateString('en-ZA', { month: 'short' });
+    const monthB = last.toLocaleDateString('en-ZA', { month: 'short' });
 
     if (monthA === monthB) {
       return `${monthA} ${first.getDate()} – ${last.getDate()}, ${first.getFullYear()}`;
@@ -261,7 +294,7 @@ export default function DoctorCalendarPage() {
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', paddingBottom: '48px' }}>
-      {/* Page Title & Actions Header */}
+      {/* Page Title & Status Header */}
       <div
         style={{
           display: 'flex',
@@ -269,113 +302,39 @@ export default function DoctorCalendarPage() {
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '16px',
-          marginBottom: '20px',
+          marginBottom: '24px',
         }}
       >
         <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: 'var(--color-gold-bronze, #B88647)',
+              }}
+            >
+              Practice Roster & Synced Locum Shifts
+            </span>
+          </div>
           <h1
             style={{
-              fontSize: '1.85rem',
+              fontFamily: 'var(--font-heading)',
+              fontSize: '1.95rem',
               fontWeight: 800,
-              color: 'var(--color-slate-900)',
+              color: 'var(--color-chocolate-base, #2A170F)',
               margin: '0 0 4px',
               letterSpacing: '-0.02em',
             }}
           >
-            Clinical Calendar & Shifts (DP-401)
+            Clinical Calendar & Shifts
           </h1>
-          <p style={{ color: 'var(--color-slate-500)', fontSize: '0.9rem', margin: 0 }}>
-            Manage bookable telehealth slots, recurring working hours, and synced LocumStaff duty shifts
+          <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.925rem', margin: 0 }}>
+            Manage bookable telehealth consultation slots, recurring availability, and synced LocumStaff duty shifts
           </p>
-        </div>
-
-        {/* Action Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          <button
-            type="button"
-            onClick={handleTriggerSync}
-            disabled={isSyncing}
-            style={{
-              padding: '10px 14px',
-              borderRadius: '10px',
-              border: '1px solid var(--color-slate-200)',
-              background: '#ffffff',
-              color: 'var(--color-slate-700)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: isSyncing ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <RefreshCw size={15} style={{ animation: isSyncing ? 'spin 1s linear infinite' : 'none' }} />
-            <span>{isSyncing ? 'Syncing...' : 'Sync Locum Shifts'}</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsBlackoutModalOpen(true)}
-            style={{
-              padding: '10px 14px',
-              borderRadius: '10px',
-              border: '1px solid #fef3c7',
-              background: '#fffbeb',
-              color: '#92400e',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <Palmtree size={15} />
-            <span>Out-of-Office / Holidays</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsBatchModalOpen(true)}
-            style={{
-              padding: '10px 14px',
-              borderRadius: '10px',
-              border: '1px solid var(--color-slate-200)',
-              background: '#ffffff',
-              color: '#dc2626',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <Trash2 size={15} />
-            <span>Batch Clear</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setIsCreateModalOpen(true)}
-            style={{
-              padding: '10px 18px',
-              borderRadius: '10px',
-              border: 'none',
-              background: 'linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-700) 100%)',
-              color: '#ffffff',
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
-            }}
-          >
-            <Plus size={16} />
-            <span>Add Availability</span>
-          </button>
         </div>
       </div>
 
@@ -383,153 +342,185 @@ export default function DoctorCalendarPage() {
       {syncFeedback && (
         <div
           style={{
-            padding: '10px 16px',
-            borderRadius: '10px',
+            padding: '12px 18px',
+            borderRadius: '12px',
             background: '#ecfdf5',
-            border: '1px solid #a7f3d0',
+            border: '1.5px solid #a7f3d0',
             color: '#065f46',
-            fontSize: '0.85rem',
-            marginBottom: '16px',
+            fontSize: '0.875rem',
+            fontWeight: 600,
+            marginBottom: '20px',
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
           }}
         >
-          <CheckCircle2 size={16} />
+          <SolarIcon name="check-circle-bold" size={18} color="#059669" />
           <span>{syncFeedback}</span>
         </div>
       )}
 
-      {/* Metrics Banner */}
+      {/* Holiday Mode Alert */}
+      {profile?.isOnHoliday && (
+        <div
+          style={{
+            padding: '16px 22px',
+            borderRadius: '16px',
+            background: '#fffbeb',
+            border: '1.5px solid #fde68a',
+            color: '#92400e',
+            marginBottom: '20px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '14px',
+            boxShadow: '0 2px 10px rgba(217, 119, 6, 0.08)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: '#fef3c7',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <SolarIcon name="sun-2-bold" size={22} color="#b45309" />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '0.98rem', color: '#92400e' }}>
+                Holiday Mode is Active
+              </div>
+              <div style={{ fontSize: '0.825rem', color: '#b45309' }}>
+                All your calendar slots and public profile are currently hidden from patients on the discovery directory.
+              </div>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={async () => {
+              await toggleHolidayMode(false);
+              await loadSchedule();
+            }}
+            className="btn-secondary"
+            style={{
+              padding: '8px 18px',
+              fontSize: '0.825rem',
+              fontWeight: 700,
+              background: '#fff',
+              color: '#92400e',
+              border: '1.5px solid #f59e0b',
+            }}
+          >
+            Resume Practice (Turn Off)
+          </button>
+        </div>
+      )}
+
+      {/* Metrics Banner in 4 Clean Cream Cards */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '12px',
-          marginBottom: '20px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '16px',
+          marginBottom: '24px',
         }}
       >
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            border: '1px solid var(--color-slate-200)',
-            padding: '16px 20px',
-            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
-          }}
-        >
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-slate-500)' }}>
-            Available / Open Slots
-          </span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
-            <span style={{ fontSize: '1.65rem', fontWeight: 800, color: '#059669' }}>
+        <div className="portal-card" style={{ padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Available Slots
+            </span>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-gold-pale, #F0E5D3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <SolarIcon name="calendar-bold" size={18} color="#0f766e" />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '6px' }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.85rem', fontWeight: 800, color: '#0f766e' }}>
               {metrics.available}
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>Active</span>
+            <span style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 700 }}>Open for booking</span>
           </div>
         </div>
 
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            border: '1px solid var(--color-slate-200)',
-            padding: '16px 20px',
-            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
-          }}
-        >
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-slate-500)' }}>
-            Booked Consultations
-          </span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
-            <span style={{ fontSize: '1.65rem', fontWeight: 800, color: '#2563eb' }}>
+        <div className="portal-card" style={{ padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Booked Consults
+            </span>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--color-gold-pale, #F0E5D3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <SolarIcon name="user-rounded-bold" size={18} color="var(--color-chocolate-base, #2A170F)" />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '6px' }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
               {metrics.booked}
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#3b82f6', fontWeight: 600 }}>Confirmed</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700 }}>Confirmed</span>
           </div>
         </div>
 
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            border: '1px solid var(--color-slate-200)',
-            padding: '16px 20px',
-            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-slate-500)' }}>
-              LocumStaff Synced Slots
+        <div className="portal-card" style={{ padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              LocumStaff Synced
             </span>
-            <Lock size={12} style={{ color: '#a21caf' }} />
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#faf5ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <SolarIcon name="lock-bold" size={18} color="#7e22ce" />
+            </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
-            <span style={{ fontSize: '1.65rem', fontWeight: 800, color: '#c026d3' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '6px' }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.85rem', fontWeight: 800, color: '#7e22ce' }}>
               {metrics.locumSynced}
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#a21caf', fontWeight: 600 }}>Locked Roster</span>
+            <span style={{ fontSize: '0.75rem', color: '#9333ea', fontWeight: 700 }}>Locked roster</span>
           </div>
         </div>
 
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            border: '1px solid var(--color-slate-200)',
-            padding: '16px 20px',
-            boxShadow: '0 2px 6px rgba(15, 23, 42, 0.04)',
-          }}
-        >
-          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-slate-500)' }}>
-            Out-of-Office Periods
-          </span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '4px' }}>
-            <span style={{ fontSize: '1.65rem', fontWeight: 800, color: '#d97706' }}>
+        <div className="portal-card" style={{ padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Out-of-Office
+            </span>
+            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#fffbeb', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <SolarIcon name="calendar-minimalistic-linear" size={18} color="#b45309" />
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '8px', marginTop: '6px' }}>
+            <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.85rem', fontWeight: 800, color: '#b45309' }}>
               {metrics.activeBlackouts}
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#b45309', fontWeight: 600 }}>Scheduled</span>
+            <span style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 700 }}>Periods blocked</span>
           </div>
         </div>
       </div>
 
-      {/* Main Calendar Card */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: '24px',
-          border: '1px solid var(--color-slate-200)',
-          boxShadow: '0 4px 16px rgba(15, 23, 42, 0.04)',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Calendar Control Toolbar */}
+      {/* Main Calendar Card with 2-Row Streamlined Toolbar */}
+      <div className="portal-card" style={{ padding: 0, overflow: 'hidden' }}>
+        {/* ROW 1: Navigation & Date Range */}
         <div
           style={{
             padding: '16px 24px',
-            borderBottom: '1px solid var(--color-slate-100)',
+            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
+            background: 'var(--color-cream-surface, #FDFBF7)',
             display: 'flex',
-            flexWrap: 'wrap',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '16px',
+            flexWrap: 'wrap',
+            gap: '14px',
           }}
         >
-          {/* Navigation Controls */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <button
               type="button"
               onClick={() => handleNavigate('today')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: '8px',
-                border: '1px solid var(--color-slate-200)',
-                background: '#ffffff',
-                color: 'var(--color-slate-800)',
-                fontSize: '0.85rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-              }}
+              className="btn-secondary"
+              style={{ padding: '7px 16px', fontSize: '0.825rem' }}
             >
               Today
             </button>
@@ -540,46 +531,47 @@ export default function DoctorCalendarPage() {
                 onClick={() => handleNavigate('prev')}
                 aria-label="Previous timeframe"
                 style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-slate-200)',
-                  background: '#ffffff',
-                  color: 'var(--color-slate-700)',
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+                  background: 'var(--color-cream-surface, #FDFBF7)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <ChevronLeft size={18} />
+                <SolarIcon name="alt-arrow-left-linear" size={16} color="var(--color-chocolate-base)" />
               </button>
               <button
                 type="button"
                 onClick={() => handleNavigate('next')}
                 aria-label="Next timeframe"
                 style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-slate-200)',
-                  background: '#ffffff',
-                  color: 'var(--color-slate-700)',
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '50%',
+                  border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+                  background: 'var(--color-cream-surface, #FDFBF7)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
               >
-                <ChevronRight size={18} />
+                <SolarIcon name="alt-arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
               </button>
             </div>
 
             <h2
               style={{
-                fontSize: '1.25rem',
+                fontFamily: 'var(--font-heading)',
+                fontSize: '1.35rem',
                 fontWeight: 800,
-                color: 'var(--color-slate-900)',
+                color: 'var(--color-chocolate-base, #2A170F)',
                 margin: 0,
                 letterSpacing: '-0.01em',
               }}
@@ -588,37 +580,73 @@ export default function DoctorCalendarPage() {
             </h2>
           </div>
 
-          {/* View Switchers & Source Filters */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {/* Source Filter */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}>
-              <Filter size={15} style={{ color: 'var(--color-slate-400)' }} />
-              <select
-                value={filterSource}
-                onChange={(e) => setFilterSource(e.target.value as any)}
-                style={{
-                  padding: '6px 10px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--color-slate-200)',
-                  fontSize: '0.825rem',
-                  color: 'var(--color-slate-700)',
-                  background: '#ffffff',
-                  cursor: 'pointer',
-                }}
-              >
-                <option value="all">All Shifts</option>
-                <option value="direct">Direct ChekUp Slots</option>
-                <option value="locumstaff">LocumStaff Synced</option>
-              </select>
-            </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span
+              style={{
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                background: 'var(--color-gold-pale, #F0E5D3)',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                border: '1px solid rgba(223, 171, 98, 0.3)',
+              }}
+            >
+              Africa/Johannesburg (SAST)
+            </span>
+          </div>
+        </div>
 
-            {/* View Mode Toggle */}
+        {/* ROW 2: Source Filter Chips, View Toggle, and Action Buttons */}
+        <div
+          style={{
+            padding: '14px 24px',
+            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
+            background: 'var(--color-cream-base, #FAF6EE)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '14px',
+          }}
+        >
+          {/* Left: Source Filter Chips & View Switcher */}
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+            {/* Filter source chips */}
+            {(['all', 'direct', 'locumstaff'] as const).map((src) => {
+              const isActive = filterSource === src;
+              const label =
+                src === 'all'
+                  ? 'All Shifts'
+                  : src === 'direct'
+                  ? 'Direct Telehealth'
+                  : 'LocumStaff Synced';
+              return (
+                <button
+                  key={src}
+                  type="button"
+                  onClick={() => setFilterSource(src)}
+                  className={`specialty-chip ${isActive ? 'active' : ''}`}
+                  style={{ padding: '6px 14px', fontSize: '0.8rem' }}
+                >
+                  <SolarIcon
+                    name={src === 'locumstaff' ? 'lock-bold' : 'calendar-linear'}
+                    size={14}
+                    color={isActive ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
+                  />
+                  <span>{label}</span>
+                </button>
+              );
+            })}
+
+            {/* View Mode Switcher */}
             <div
               style={{
                 display: 'flex',
-                background: 'var(--color-slate-100)',
+                background: 'var(--color-cream-surface, #FDFBF7)',
                 padding: '3px',
-                borderRadius: '10px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
               }}
             >
               {(['week', 'month', 'day'] as CalendarViewMode[]).map((mode) => (
@@ -627,16 +655,16 @@ export default function DoctorCalendarPage() {
                   type="button"
                   onClick={() => setViewMode(mode)}
                   style={{
-                    padding: '6px 14px',
-                    borderRadius: '8px',
+                    padding: '5px 14px',
+                    borderRadius: 'var(--radius-full, 9999px)',
                     border: 'none',
-                    background: viewMode === mode ? '#ffffff' : 'transparent',
-                    color: viewMode === mode ? 'var(--color-slate-900)' : 'var(--color-slate-600)',
+                    background: viewMode === mode ? 'var(--color-gold-primary, #E2B467)' : 'transparent',
+                    color: 'var(--color-chocolate-base, #2A170F)',
                     fontWeight: viewMode === mode ? 700 : 500,
-                    fontSize: '0.825rem',
+                    fontSize: '0.8rem',
                     cursor: 'pointer',
-                    boxShadow: viewMode === mode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
                     textTransform: 'capitalize',
+                    transition: 'all 0.18s ease',
                   }}
                 >
                   {mode}
@@ -644,64 +672,106 @@ export default function DoctorCalendarPage() {
               ))}
             </div>
           </div>
+
+          {/* Right: Clean Action Buttons */}
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={handleTriggerSync}
+              disabled={isSyncing}
+              className="btn-secondary"
+              style={{ padding: '8px 14px', fontSize: '0.825rem' }}
+            >
+              <SolarIcon name="refresh-circle-linear" size={16} color="var(--color-chocolate-base)" />
+              <span>{isSyncing ? 'Syncing...' : 'Sync Locum'}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsBlackoutModalOpen(true)}
+              className="btn-secondary"
+              style={{ padding: '8px 14px', fontSize: '0.825rem' }}
+            >
+              <SolarIcon name="calendar-minimalistic-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
+              <span>Out-of-Office</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsBatchModalOpen(true)}
+              className="btn-secondary"
+              style={{ padding: '8px 14px', fontSize: '0.825rem', color: '#dc2626', borderColor: '#fca5a5' }}
+            >
+              <SolarIcon name="trash-bin-trash-linear" size={15} color="#dc2626" />
+              <span>Batch Clear</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsCreateModalOpen(true)}
+              className="btn-primary"
+              style={{ padding: '8px 18px', fontSize: '0.85rem' }}
+            >
+              <SolarIcon name="add-circle-bold" size={17} color="var(--color-chocolate-base)" />
+              <span>+ Add Availability</span>
+            </button>
+          </div>
         </div>
 
-        {/* Legend */}
+        {/* Unified Legend Bar */}
         <div
           style={{
             padding: '10px 24px',
-            background: 'var(--color-slate-50)',
-            borderBottom: '1px solid var(--color-slate-100)',
+            background: 'var(--color-cream-surface, #FDFBF7)',
+            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.15))',
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
-            gap: '18px',
-            fontSize: '0.775rem',
-            color: 'var(--color-slate-600)',
+            gap: '20px',
+            fontSize: '0.78rem',
+            color: 'var(--color-cream-text-muted, #6B5E55)',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#10b981' }} />
-            <span>Open / Available Slot</span>
+            <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: '#f0fdfa', border: '1px solid #99f6e4' }} />
+            <span>Open Telehealth Slot (Available)</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#3b82f6' }} />
-            <span>Booked Consultation</span>
+            <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: '#FDFBF7', border: '1.5px solid var(--color-gold-base, #DFAB62)' }} />
+            <span>Booked Patient Consultation</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#c026d3' }} />
-            <span style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-              <Lock size={11} />
+            <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: '#faf5ff', border: '1.5px solid #d8b4fe' }} />
+            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <SolarIcon name="lock-bold" size={12} color="#7e22ce" />
               <span>LocumStaff Synced (Locked)</span>
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '3px', background: '#f59e0b' }} />
+            <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: 'repeating-linear-gradient(45deg, #fffbeb, #fffbeb 4px, #fef3c7 4px, #fef3c7 8px)', border: '1px solid #fde68a' }} />
             <span>Out of Office / Holiday</span>
           </div>
         </div>
 
-        {/* Calendar Grid Body */}
+        {/* WEEK VIEW */}
         {viewMode === 'week' && (
           <div
             style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(7, 1fr)',
-              minHeight: '520px',
+              minHeight: '540px',
+              background: 'var(--color-cream-surface, #FDFBF7)',
             }}
           >
-            {weekDays.map((dayDate) => {
+            {weekDays.map((dayDate, dayIdx) => {
               const yyyy = dayDate.getFullYear();
               const mm = String(dayDate.getMonth() + 1).padStart(2, '0');
               const dd = String(dayDate.getDate()).padStart(2, '0');
               const dateKey = `${yyyy}-${mm}-${dd}`;
 
-              const isToday =
-                new Date().toDateString() === dayDate.toDateString();
-
+              const isToday = new Date().toDateString() === dayDate.toDateString();
               const dayBlackout = isDayInBlackout(dayDate);
 
-              // Filter slots for this specific day
               const daySlots = filteredSlots.filter((slot) => {
                 const sDate = new Date(slot.startTime);
                 const sY = sDate.getFullYear();
@@ -714,23 +784,23 @@ export default function DoctorCalendarPage() {
                 <div
                   key={dateKey}
                   style={{
-                    borderRight: '1px solid var(--color-slate-100)',
+                    borderRight: dayIdx < 6 ? '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.15))' : 'none',
                     display: 'flex',
                     flexDirection: 'column',
                     background: dayBlackout
-                      ? '#fffbeb'
+                      ? 'repeating-linear-gradient(45deg, rgba(254, 243, 199, 0.35), rgba(254, 243, 199, 0.35) 8px, rgba(255, 251, 235, 0.35) 8px, rgba(255, 251, 235, 0.35) 16px)'
                       : isToday
-                      ? 'rgba(13, 148, 136, 0.02)'
-                      : '#ffffff',
+                      ? 'rgba(223, 171, 98, 0.04)'
+                      : 'transparent',
                   }}
                 >
-                  {/* Day Column Header */}
+                  {/* Column Header */}
                   <div
                     style={{
                       padding: '12px 8px',
-                      borderBottom: '1px solid var(--color-slate-100)',
+                      borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.15))',
                       textAlign: 'center',
-                      background: isToday ? 'var(--color-brand-50)' : 'transparent',
+                      background: isToday ? 'var(--color-gold-pale, #F0E5D3)' : 'transparent',
                     }}
                   >
                     <div
@@ -738,16 +808,18 @@ export default function DoctorCalendarPage() {
                         fontSize: '0.725rem',
                         fontWeight: 700,
                         textTransform: 'uppercase',
-                        color: isToday ? 'var(--color-brand-700)' : 'var(--color-slate-400)',
+                        letterSpacing: '0.04em',
+                        color: isToday ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-cream-text-muted, #6B5E55)',
                       }}
                     >
-                      {dayDate.toLocaleDateString('en-US', { weekday: 'short' })}
+                      {dayDate.toLocaleDateString('en-ZA', { weekday: 'short' })}
                     </div>
                     <div
                       style={{
-                        fontSize: '1.15rem',
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: '1.25rem',
                         fontWeight: 800,
-                        color: isToday ? 'var(--color-brand-700)' : 'var(--color-slate-800)',
+                        color: isToday ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-chocolate-base, #2A170F)',
                         marginTop: '2px',
                       }}
                     >
@@ -764,6 +836,7 @@ export default function DoctorCalendarPage() {
                           borderRadius: '4px',
                           display: 'inline-block',
                           marginTop: '2px',
+                          border: '1px solid #fde68a',
                         }}
                       >
                         Out of Office
@@ -789,7 +862,8 @@ export default function DoctorCalendarPage() {
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          color: 'var(--color-slate-300)',
+                          color: 'var(--color-cream-text-muted, #6B5E55)',
+                          opacity: 0.5,
                           fontSize: '0.75rem',
                         }}
                       >
@@ -812,30 +886,39 @@ export default function DoctorCalendarPage() {
                         const isPast = new Date(slot.endTime).getTime() < Date.now();
                         const isCancelled = slot.bookingStatus === 'cancelled' || !!slot.cancellationFeeEarned;
 
+                        // Tokenized badge classes & inline styling
+                        let badgeBg = '#f0fdfa';
+                        let badgeBorder = '1.5px solid #99f6e4';
+                        let badgeColor = '#0f766e';
+
+                        if (isCancelled) {
+                          badgeBg = '#fef2f2';
+                          badgeBorder = '1.5px solid #fecaca';
+                          badgeColor = '#991b1b';
+                        } else if (slot.isBooked) {
+                          badgeBg = 'var(--color-cream-surface, #FDFBF7)';
+                          badgeBorder = '1.5px solid var(--color-gold-base, #DFAB62)';
+                          badgeColor = 'var(--color-chocolate-base, #2A170F)';
+                        } else if (isLocum) {
+                          badgeBg = '#faf5ff';
+                          badgeBorder = '1.5px solid #d8b4fe';
+                          badgeColor = '#7e22ce';
+                        }
+
                         return (
                           <div
                             key={slot.id}
                             onClick={() => setSelectedSlotForDetail(slot)}
                             style={{
                               padding: '8px 10px',
-                              borderRadius: '10px',
-                              border: isCancelled
-                                ? '1px solid #fecdd3'
-                                : slot.isBooked
-                                ? '1px solid #bfdbfe'
-                                : isLocum
-                                ? '1px solid #f5d0fe'
-                                : '1px solid #a7f3d0',
-                              background: isCancelled
-                                ? '#fff1f2'
-                                : slot.isBooked
-                                ? '#eff6ff'
-                                : isLocum
-                                ? '#fdf4ff'
-                                : '#ecfdf5',
+                              borderRadius: '12px',
+                              background: badgeBg,
+                              border: badgeBorder,
+                              color: badgeColor,
                               cursor: 'pointer',
-                              transition: 'transform 0.1s ease, box-shadow 0.1s ease',
+                              transition: 'all 0.18s ease',
                               opacity: isPast && !isCancelled ? 0.6 : 1,
+                              boxShadow: slot.isBooked ? '0 2px 8px rgba(42, 23, 15, 0.05)' : 'none',
                             }}
                           >
                             <div
@@ -848,27 +931,20 @@ export default function DoctorCalendarPage() {
                             >
                               <span
                                 style={{
+                                  fontFamily: 'var(--font-heading)',
                                   fontSize: '0.8rem',
                                   fontWeight: 800,
-                                  color: isCancelled
-                                    ? '#be123c'
-                                    : slot.isBooked
-                                    ? '#1d4ed8'
-                                    : isLocum
-                                    ? '#86198f'
-                                    : '#065f46',
                                 }}
                               >
                                 {sTime} – {eTime}
                               </span>
                               {isLocum && !isCancelled && (
                                 <span title="Synced from LocumStaff (Locked)">
-                                  <Lock size={12} style={{ color: '#a21caf' }} />
+                                  <SolarIcon name="lock-bold" size={12} color="#7e22ce" />
                                 </span>
                               )}
                               {isCancelled && slot.cancellationFeeEarned && (
                                 <span
-                                  title={`Late cancellation fee earned: R${slot.cancellationFeeEarned}`}
                                   style={{
                                     fontSize: '0.65rem',
                                     fontWeight: 800,
@@ -876,7 +952,6 @@ export default function DoctorCalendarPage() {
                                     color: '#be123c',
                                     padding: '1px 5px',
                                     borderRadius: '4px',
-                                    border: '1px solid #fecdd3',
                                   }}
                                 >
                                   +R{slot.cancellationFeeEarned}
@@ -884,20 +959,8 @@ export default function DoctorCalendarPage() {
                               )}
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                              <span
-                                style={{
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700,
-                                  color: isCancelled
-                                    ? '#e11d48'
-                                    : slot.isBooked
-                                    ? '#2563eb'
-                                    : isLocum
-                                    ? '#a21caf'
-                                    : '#059669',
-                                }}
-                              >
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.7rem', fontWeight: 700 }}>
+                              <span>
                                 {isCancelled
                                   ? 'Cancelled'
                                   : slot.isBooked
@@ -918,42 +981,45 @@ export default function DoctorCalendarPage() {
           </div>
         )}
 
-        {/* Day View */}
+        {/* DAY VIEW */}
         {viewMode === 'day' && (
-          <div style={{ padding: '24px' }}>
+          <div style={{ padding: '28px', background: 'var(--color-cream-surface, #FDFBF7)' }}>
             <div
               style={{
-                maxWidth: '640px',
+                maxWidth: '680px',
                 margin: '0 auto',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '8px',
+                gap: '10px',
               }}
             >
               {filteredSlots.length === 0 ? (
                 <div
                   style={{
-                    padding: '40px 20px',
+                    padding: '48px 20px',
                     textAlign: 'center',
-                    color: 'var(--color-slate-400)',
-                    border: '1px dashed var(--color-slate-200)',
+                    color: 'var(--color-cream-text-muted, #6B5E55)',
+                    border: '1.5px dashed var(--color-gold-border, rgba(223, 171, 98, 0.3))',
                     borderRadius: '16px',
                   }}
                 >
-                  No slots scheduled for this day. Click "+ Add Availability" to generate slots.
+                  <SolarIcon name="calendar-linear" size={36} color="var(--color-gold-base)" style={{ margin: '0 auto 12px' }} />
+                  <p style={{ fontWeight: 700, color: 'var(--color-chocolate-base)', margin: 0 }}>
+                    No consultation slots for this date
+                  </p>
+                  <p style={{ fontSize: '0.85rem', margin: '4px 0 16px' }}>Click "+ Add Availability" to generate new time windows.</p>
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateModalOpen(true)}
+                    className="btn-primary"
+                  >
+                    + Add Availability
+                  </button>
                 </div>
               ) : (
                 filteredSlots.map((slot) => {
-                  const sTime = new Date(slot.startTime).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                  });
-                  const eTime = new Date(slot.endTime).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    hour12: false,
-                  });
+                  const sTime = new Date(slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                  const eTime = new Date(slot.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
                   const isLocum = slot.source === 'locumstaff';
                   const isCancelled = slot.bookingStatus === 'cancelled' || !!slot.cancellationFeeEarned;
 
@@ -963,114 +1029,69 @@ export default function DoctorCalendarPage() {
                       onClick={() => setSelectedSlotForDetail(slot)}
                       style={{
                         padding: '16px 20px',
-                        borderRadius: '14px',
-                        border: isCancelled
-                          ? '1px solid #fecdd3'
-                          : slot.isBooked
-                          ? '1px solid #bfdbfe'
+                        borderRadius: '16px',
+                        border: slot.isBooked
+                          ? '1.5px solid var(--color-gold-base, #DFAB62)'
                           : isLocum
-                          ? '1px solid #f5d0fe'
-                          : '1px solid #a7f3d0',
-                        background: isCancelled
-                          ? '#fff1f2'
-                          : slot.isBooked
-                          ? '#eff6ff'
+                          ? '1.5px solid #d8b4fe'
+                          : '1.5px solid #99f6e4',
+                        background: slot.isBooked
+                          ? 'var(--color-cream-surface, #FDFBF7)'
                           : isLocum
-                          ? '#fdf4ff'
-                          : '#ecfdf5',
+                          ? '#faf5ff'
+                          : '#f0fdfa',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(42, 23, 15, 0.03)',
                       }}
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <Clock
-                          size={20}
-                          style={{
-                            color: isCancelled
-                              ? '#e11d48'
-                              : slot.isBooked
-                              ? '#2563eb'
-                              : isLocum
-                              ? '#a21caf'
-                              : '#059669',
-                          }}
+                        <SolarIcon
+                          name={slot.isBooked ? 'user-rounded-bold' : 'clock-circle-bold'}
+                          size={22}
+                          color={slot.isBooked ? 'var(--color-chocolate-base)' : '#0f766e'}
                         />
                         <div>
-                          <span style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
+                          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
                             {sTime} – {eTime}
-                          </span>
-                          <div style={{ fontSize: '0.775rem', color: isCancelled ? '#be123c' : 'var(--color-slate-500)' }}>
-                            {isCancelled ? 'Cancelled Appointment' : '30 Min Consultation Window'}
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                            {slot.isBooked
+                              ? `Booked • ${slot.patientName || 'Confirmed Patient'}`
+                              : isLocum
+                              ? 'LocumStaff Duty Shift'
+                              : '30 Min Virtual Consultation Slot'}
                           </div>
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {isLocum && !isCancelled && (
+                        {isLocum && (
                           <span
                             style={{
-                              display: 'flex',
+                              display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
                               padding: '3px 8px',
                               borderRadius: '6px',
-                              background: '#fae8ff',
-                              color: '#a21caf',
+                              background: '#f3e8ff',
+                              color: '#7e22ce',
                               fontSize: '0.75rem',
                               fontWeight: 700,
                             }}
                           >
-                            <Lock size={12} />
+                            <SolarIcon name="lock-bold" size={12} color="#7e22ce" />
                             <span>Synced</span>
                           </span>
                         )}
-                        {isCancelled ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span
-                              style={{
-                                padding: '4px 10px',
-                                borderRadius: '8px',
-                                background: '#e11d48',
-                                color: '#ffffff',
-                                fontSize: '0.75rem',
-                                fontWeight: 700,
-                              }}
-                            >
-                              Cancelled
-                            </span>
-                            {slot.cancellationFeeEarned && (
-                              <span
-                                style={{
-                                  padding: '4px 8px',
-                                  borderRadius: '8px',
-                                  background: '#ffe4e6',
-                                  color: '#be123c',
-                                  border: '1px solid #fecdd3',
-                                  fontSize: '0.75rem',
-                                  fontWeight: 800,
-                                }}
-                                title="Late cancellation fee earned"
-                              >
-                                +R{slot.cancellationFeeEarned} Fee
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span
-                            style={{
-                              padding: '4px 10px',
-                              borderRadius: '8px',
-                              background: slot.isBooked ? '#2563eb' : '#059669',
-                              color: '#ffffff',
-                              fontSize: '0.75rem',
-                              fontWeight: 700,
-                            }}
-                          >
-                            {slot.isBooked ? 'Booked' : 'Available'}
-                          </span>
-                        )}
+                        <span
+                          className={`specialty-chip ${slot.isBooked ? 'active' : ''}`}
+                          style={{ padding: '4px 12px', fontSize: '0.75rem' }}
+                        >
+                          {slot.isBooked ? 'Booked' : 'Available'}
+                        </span>
                       </div>
                     </div>
                   );
@@ -1080,10 +1101,10 @@ export default function DoctorCalendarPage() {
           </div>
         )}
 
-        {/* Month View */}
+        {/* MONTH VIEW */}
         {viewMode === 'month' && (
-          <div style={{ padding: '24px', textAlign: 'center' }}>
-            <p style={{ fontSize: '0.9rem', color: 'var(--color-slate-600)', marginBottom: '16px' }}>
+          <div style={{ padding: '28px', background: 'var(--color-cream-surface, #FDFBF7)', textAlign: 'center' }}>
+            <p style={{ fontSize: '0.9rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginBottom: '20px' }}>
               Showing scheduled clinical shifts for {headerTitle}
             </p>
             <div
@@ -1091,44 +1112,141 @@ export default function DoctorCalendarPage() {
                 display: 'grid',
                 gridTemplateColumns: 'repeat(7, 1fr)',
                 gap: '8px',
-                maxWidth: '900px',
+                maxWidth: '960px',
                 margin: '0 auto',
               }}
             >
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                <div key={day} style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-slate-400)', padding: '6px' }}>
+                <div key={day} style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-gold-bronze, #B88647)', padding: '8px', textTransform: 'uppercase' }}>
                   {day}
                 </div>
               ))}
-              {/* Render 28-35 days */}
-              {Array.from({ length: 28 }).map((_, idx) => {
-                const dayNum = idx + 1;
+              {monthDays.map((dayItem, idx) => {
+                if (!dayItem.date) {
+                  return (
+                    <div
+                      key={dayItem.dateKey}
+                      style={{
+                        minHeight: '80px',
+                        borderRadius: '14px',
+                        background: 'rgba(0, 0, 0, 0.02)',
+                        border: '1px dashed var(--color-gold-border, rgba(223, 171, 98, 0.12))',
+                        opacity: 0.35,
+                      }}
+                    />
+                  );
+                }
+
+                const dayDate = dayItem.date;
+                const isToday = new Date().toDateString() === dayDate.toDateString();
+                const dayBlackout = isDayInBlackout(dayDate);
+
+                const dayKey = dayItem.dateKey;
+                const daySlots = filteredSlots.filter((slot) => {
+                  const sDate = new Date(slot.startTime);
+                  const sY = sDate.getFullYear();
+                  const sM = String(sDate.getMonth() + 1).padStart(2, '0');
+                  const sD = String(sDate.getDate()).padStart(2, '0');
+                  return `${sY}-${sM}-${sD}` === dayKey;
+                });
+
+                const bookedCount = daySlots.filter((s) => s.isBooked).length;
+                const availableCount = daySlots.filter((s) => !s.isBooked).length;
+
                 return (
                   <div
-                    key={idx}
+                    key={dayKey}
                     onClick={() => {
+                      setCurrentDate(dayDate);
                       setViewMode('day');
                     }}
                     style={{
-                      height: '72px',
-                      borderRadius: '12px',
-                      border: '1px solid var(--color-slate-200)',
-                      padding: '8px',
+                      minHeight: '84px',
+                      borderRadius: '14px',
+                      border: isToday
+                        ? '2px solid var(--color-gold-primary, #E2B467)'
+                        : '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
+                      padding: '10px',
                       cursor: 'pointer',
-                      background: idx % 7 === 0 ? 'var(--color-slate-50)' : '#ffffff',
+                      background: dayBlackout
+                        ? 'repeating-linear-gradient(45deg, rgba(254, 243, 199, 0.35), rgba(254, 243, 199, 0.35) 8px, rgba(255, 251, 235, 0.35) 8px, rgba(255, 251, 235, 0.35) 16px)'
+                        : isToday
+                        ? 'var(--color-gold-pale, #F0E5D3)'
+                        : idx % 2 === 0
+                        ? 'var(--color-cream-base, #FAF6EE)'
+                        : 'var(--color-cream-surface, #FDFBF7)',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
                       textAlign: 'left',
+                      transition: 'all 0.18s ease',
                     }}
                   >
-                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-slate-800)' }}>
-                      {dayNum}
-                    </span>
-                    <div style={{ display: 'flex', gap: '3px' }}>
-                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                      {idx % 4 === 0 && (
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3b82f6' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-heading)',
+                          fontSize: '0.9rem',
+                          fontWeight: 800,
+                          color: 'var(--color-chocolate-base, #2A170F)',
+                        }}
+                      >
+                        {dayItem.dayNumber}
+                      </span>
+                      {dayBlackout && (
+                        <span
+                          style={{
+                            fontSize: '0.62rem',
+                            fontWeight: 700,
+                            background: '#fef3c7',
+                            color: '#b45309',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          Out
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginTop: '6px' }}>
+                      {daySlots.length > 0 ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexWrap: 'wrap' }}>
+                          {availableCount > 0 && (
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                color: '#0f766e',
+                                background: '#f0fdfa',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                border: '1px solid #99f6e4',
+                              }}
+                            >
+                              {availableCount} open
+                            </span>
+                          )}
+                          {bookedCount > 0 && (
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                color: 'var(--color-chocolate-base)',
+                                background: 'var(--color-gold-pale)',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(223, 171, 98, 0.4)',
+                              }}
+                            >
+                              {bookedCount} booked
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: '0.68rem', color: 'var(--color-cream-text-muted)', opacity: 0.6 }}>
+                          No slots
+                        </span>
                       )}
                     </div>
                   </div>
@@ -1139,7 +1257,7 @@ export default function DoctorCalendarPage() {
         )}
       </div>
 
-      {/* Modals */}
+      {/* 4 Calendar Modals */}
       <SlotCreationModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}

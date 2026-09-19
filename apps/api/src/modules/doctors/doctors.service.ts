@@ -5,9 +5,11 @@ import {
   BadRequestException,
   Logger,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, LessThan, MoreThan } from 'typeorm';
+import { NotificationsService } from '../notifications/notifications.service';
 import {
   DoctorProfile,
   AvailabilitySlot,
@@ -64,6 +66,8 @@ export class DoctorsService implements OnModuleInit {
     private readonly tokenService: TokenService,
     private readonly directorySyncService: DirectorySyncService,
     private readonly availabilitySyncService: AvailabilitySyncService,
+    @Optional()
+    private readonly notificationsService?: NotificationsService,
   ) {}
 
   async onModuleInit() {
@@ -114,10 +118,17 @@ export class DoctorsService implements OnModuleInit {
         user_id: user.id,
         hpcsa_number: 'MP 0689432',
         slug: 'dr-thabo-molefe',
-        specialty: 'General Practitioner & Family Health',
+        specialty: 'General Practitioner',
         rate_per_hour: 850.0,
         rating_avg: 4.95,
         reviews_count: 58,
+        experience_years: 12,
+        consultation_types: [
+          'Video Telehealth Consultation',
+          'Acute Infection Care',
+          'Chronic Script Renewal',
+          'Wellness',
+        ],
         facility_name: 'Netcare Sunninghill Hospital Suites',
         facility_address: 'Cnr Witkoppen & Nanyuki Rd, Sunninghill, Sandton, 2157',
         photo_url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80',
@@ -131,7 +142,16 @@ export class DoctorsService implements OnModuleInit {
     } else {
       profile.verification_status = VerificationStatus.VERIFIED;
       profile.slug = profile.slug || 'dr-thabo-molefe';
-      profile.specialty = profile.specialty || 'General Practitioner & Family Health';
+      profile.specialty = 'General Practitioner';
+      profile.experience_years = profile.experience_years || 12;
+      profile.consultation_types = profile.consultation_types?.length
+        ? profile.consultation_types
+        : [
+            'Video Telehealth Consultation',
+            'Acute Infection Care',
+            'Chronic Script Renewal',
+            'Wellness',
+          ];
       profile = await this.doctorRepository.save(profile);
     }
 
@@ -156,7 +176,8 @@ export class DoctorsService implements OnModuleInit {
       .leftJoinAndSelect('doctor.user', 'user')
       .where('doctor.verification_status = :status', {
         status: VerificationStatus.VERIFIED,
-      });
+      })
+      .andWhere('(doctor.is_on_holiday IS NULL OR doctor.is_on_holiday = false)');
 
     if (query.specialty && query.specialty !== 'All') {
       qb.andWhere('doctor.specialty ILIKE :specialty', {
@@ -414,6 +435,9 @@ export class DoctorsService implements OnModuleInit {
       rate_per_hour: dto.rate_per_hour,
       bio: dto.bio,
       documents_url: dto.documents_url || [],
+      offers_in_clinic: dto.offers_in_clinic ?? false,
+      facility_name: dto.facility_name,
+      facility_address: dto.facility_address,
       verification_status: VerificationStatus.PENDING,
       verification_source: VerificationSource.PLATFORM,
     });
@@ -425,6 +449,27 @@ export class DoctorsService implements OnModuleInit {
     this.logger.log(
       `Doctor profile onboarded: HPCSA ${dto.hpcsa_number} for user ${user.email} (Status: PENDING)`,
     );
+
+    if (this.notificationsService) {
+      this.notificationsService
+        .dispatchNotification({
+          recipientId: user.id,
+          title: 'Practitioner Application Received',
+          templateId: 'doctor_application_received',
+          payload: {
+            doctorName: user.full_name,
+            hpcsaNumber: dto.hpcsa_number,
+            specialty: dto.specialty || 'General Practitioner',
+            documentCount: dto.documents_url?.length || 1,
+            message: 'Your practitioner onboarding application has been submitted for HPCSA review.',
+          },
+          deepLink: '/doctor/status',
+          forceChannels: ['email'],
+        })
+        .catch((err) => {
+          this.logger.warn(`Could not dispatch doctor_application_received: ${err.message}`);
+        });
+    }
 
     const accessToken = this.tokenService.generateAccessToken({
       sub: user.id,
@@ -454,11 +499,59 @@ export class DoctorsService implements OnModuleInit {
       throw new NotFoundException('Doctor profile not found');
     }
 
-    if (dto.specialty) profile.specialty = dto.specialty;
-    if (dto.rate_per_hour !== undefined) profile.rate_per_hour = dto.rate_per_hour;
-    if (dto.bio !== undefined) profile.bio = dto.bio;
-    if (dto.documents_url) profile.documents_url = dto.documents_url;
+    const updatableFields = [
+      'specialty',
+      'rate_per_hour',
+      'bio',
+      'documents_url',
+      'consultation_types',
+      'offers_video',
+      'offers_audio',
+      'offers_in_clinic',
+      'facility_name',
+      'facility_address',
+      'accepts_medical_aid',
+      'experience_years',
+      'is_board_certified',
+      'board_certification_title',
+      'is_on_holiday',
+      'signature_url',
+      'secondary_specialties',
+      'bank_name',
+      'account_number',
+      'branch_code',
+      'account_type',
+      'account_holder',
+    ] as const satisfies readonly (keyof UpdateDoctorProfileDto & keyof DoctorProfile)[];
 
+    if (dto.signature_url && dto.signature_url !== profile.signature_url) {
+      profile.signature_uploaded_at = new Date();
+    }
+
+    for (const field of updatableFields) {
+      if (dto[field] !== undefined) {
+        (profile as any)[field] = dto[field];
+      }
+    }
+
+    return this.doctorRepository.save(profile);
+  }
+
+  /**
+   * Toggles doctor holiday mode ON/OFF
+   */
+  async toggleHolidayMode(userIdOrDoctorId: string, isOnHoliday: boolean): Promise<DoctorProfile> {
+    const profile = await this.resolveDoctorProfile(userIdOrDoctorId);
+    profile.is_on_holiday = isOnHoliday;
+    return this.doctorRepository.save(profile);
+  }
+
+  /**
+   * Updates real-time doctor clinical presence status (active, in_consultation, offline)
+   */
+  async updateDoctorPresenceStatus(userIdOrDoctorId: string, status: string): Promise<DoctorProfile> {
+    const profile = await this.resolveDoctorProfile(userIdOrDoctorId);
+    profile.presence_status = status;
     return this.doctorRepository.save(profile);
   }
 
@@ -773,6 +866,19 @@ export class DoctorsService implements OnModuleInit {
 
     if (!doctor) {
       throw new NotFoundException(`Doctor with identifier '${idOrSlug}' was not found`);
+    }
+
+    if (doctor.is_on_holiday) {
+      return {
+        doctor: {
+          id: doctor.id,
+          name: doctor.user?.full_name || 'Doctor',
+          specialty: doctor.specialty,
+          is_on_holiday: true,
+        },
+        slots: [],
+        message: 'Doctor is currently on holiday. Bookable appointments are temporarily paused.',
+      };
     }
 
     const now = new Date();

@@ -14,6 +14,7 @@ import {
   NotificationPreference,
   User,
 } from '../../database/operational/entities';
+import { envConfig } from '../../config/env.config';
 import { BrevoEmailProvider } from './providers/brevo.provider';
 import { SmsProvider } from './providers/sms.provider';
 import { WhatsAppProvider } from './providers/whatsapp.provider';
@@ -183,7 +184,7 @@ export class NotificationsService {
 
       if (ch === 'sms' && user?.phone) {
         try {
-          const smsText = `${title}: ${payload.message || 'Check your ChekUp247 account for details.'}`;
+          const smsText = this.renderSmsMessage(templateId, payload, title);
           const smsRes = await this.smsProvider.sendSms({
             to: user.phone,
             message: smsText,
@@ -195,7 +196,13 @@ export class NotificationsService {
               channel: 'sms',
               template_id: templateId,
               title,
-              payload,
+              payload: {
+                ...payload,
+                provider: 'smsportal',
+                sid: smsRes.sid,
+                eventId: smsRes.eventId || smsRes.sid,
+                destination: user.phone,
+              },
               status: smsRes.success
                 ? NotificationDeliveryStatus.SENT
                 : NotificationDeliveryStatus.FAILED,
@@ -376,5 +383,127 @@ export class NotificationsService {
       success: true,
       message: 'Your inquiry has been submitted. A support confirmation has been sent to your email.',
     };
+  }
+
+  /**
+   * Render concise, GSM-compliant SMS copy matching ChekUp247 standards.
+   */
+  private renderSmsMessage(
+    templateId: string,
+    payload: Record<string, any>,
+    title: string,
+  ): string {
+    const docName = payload.doctorName || 'Doctor';
+    const patientName = payload.patientName || 'Patient';
+    const appDate = payload.appointmentDate || 'Upcoming';
+    const appTime = payload.appointmentTime || '';
+    const bookingId = payload.bookingId || '';
+    const portalUrl = payload.portalUrl || envConfig.PATIENT_WEB_URL;
+    const amount = payload.amount || '0.00';
+    const ref = payload.payoutReference || payload.reference || bookingId;
+
+    switch (templateId) {
+      case 'otp_verification':
+        return `ChekUp247: Your clinical verification code is ${payload.otp || '000000'}. Valid for 15 mins. Do not share this code.`;
+
+      case 'booking_confirmed':
+        return `ChekUp247: Consultation with Dr. ${docName} confirmed for ${appDate}${appTime ? ' at ' + appTime : ''}. Details: ${portalUrl}/bookings/${bookingId}`;
+
+      case 'doctor_application_received':
+        return `ChekUp247: Dr. ${docName}, your practitioner onboarding application (HPCSA ${payload.hpcsaNumber || 'Submitted'}) has been received and is under clinical review.`;
+
+      case 'doctor_profile_approved':
+        return `ChekUp247: Congratulations Dr. ${docName}! Your practitioner account is verified and approved. Set your schedule: ${portalUrl}/calendar`;
+
+      case 'new_booking_doctor':
+        return `ChekUp247: New booking with ${patientName} on ${appDate} at ${appTime} (SAST). View details: ${portalUrl}/doctor/consultations/${bookingId}`;
+
+      case 'doctor_joined_room':
+        return `ChekUp247: Dr. ${docName} is waiting in your video consultation room. Join now: ${portalUrl}/consultations/${bookingId}`;
+
+      case 'patient_no_show_warning':
+        return `ChekUp247 URGENT: Dr. ${docName} is waiting in your room. Connect within 5 mins to avoid appointment cancellation: ${portalUrl}/consultations/${bookingId}`;
+
+      case 'prescription_issued':
+        return `ChekUp247: Dr. ${docName} issued your e-prescription. Access your digitally signed script: ${portalUrl}/prescriptions/${payload.prescriptionId || bookingId}`;
+
+      case 'medical_certificate_ready':
+        return `ChekUp247: Your medical certificate from Dr. ${docName} is ready. Access it at: ${portalUrl}/records`;
+
+      case 'review_request':
+        return `ChekUp247: How was your consultation with Dr. ${docName}? Rate your experience: ${portalUrl}/reviews/new?bookingId=${bookingId}`;
+
+      case 'doctor_earnings_credited':
+        return `ChekUp247: R${amount} net earnings credited to your wallet for consultation #${bookingId}.`;
+
+      case 'doctor_payout_dispatched':
+        return `ChekUp247: Payout of R${amount} dispatched to your bank account. Ref: ${ref}.`;
+
+      case 'appointment_reminder_24h':
+      case 'appointment_reminder_1h':
+      case 'appointment_reminder_15m': {
+        const timing = templateId.includes('24h')
+          ? '24 hours'
+          : templateId.includes('1h')
+          ? '1 hour'
+          : '15 minutes';
+        return `ChekUp247 Reminder: Consultation with Dr. ${docName} starts in ${timing} (${appDate} ${appTime}). Room: ${portalUrl}/consultations/${bookingId}`;
+      }
+
+      case 'booking_cancelled':
+        return `ChekUp247: Your appointment with Dr. ${docName} for ${appDate} has been cancelled. Details: ${portalUrl}/bookings`;
+
+      case 'booking_rescheduled':
+        return `ChekUp247: Consultation with Dr. ${docName} rescheduled to ${appDate} at ${appTime}. Details: ${portalUrl}/bookings/${bookingId}`;
+
+      default:
+        return `${title}: ${payload.message || 'Check your ChekUp247 account for details.'}`;
+    }
+  }
+
+  /**
+   * Processes incoming delivery reports (DLR) from SMS Portal webhooks.
+   */
+  async handleSmsPortalWebhook(body: any): Promise<{ received: boolean; status?: string }> {
+    this.logger.log(`[SMS Portal Webhook] Received DLR event: ${JSON.stringify(body)}`);
+
+    const eventId = body?.eventId || body?.EventId || body?.event_id;
+    const status = (body?.status || body?.Status || '').toLowerCase();
+
+    if (eventId) {
+      try {
+        const notif = await this.notificationRepository
+          .createQueryBuilder('n')
+          .where("n.channel = 'sms'")
+          .andWhere("n.payload->>'eventId' = :eventId", { eventId: String(eventId) })
+          .getOne();
+
+        if (notif) {
+          if (status.includes('deliver') || status === 'delivered') {
+            notif.status = NotificationDeliveryStatus.SENT;
+          } else if (status.includes('fail') || status.includes('reject') || status === 'expired') {
+            notif.status = NotificationDeliveryStatus.FAILED;
+          }
+          notif.payload = {
+            ...notif.payload,
+            dlrStatus: status,
+            dlrUpdatedAt: new Date().toISOString(),
+          };
+          await this.notificationRepository.save(notif);
+          this.logger.log(`[SMS Portal Webhook] Updated notification ${notif.id} status to: ${notif.status} (DLR: ${status})`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`[SMS Portal Webhook] Error updating status for eventId ${eventId}: ${err.message}`);
+      }
+    }
+
+    return { received: true, status: 'processed' };
+  }
+
+  /**
+   * Retrieves current SMS Portal account balance.
+   */
+  async getSmsBalance(): Promise<{ success: boolean; balance?: number; error?: string }> {
+    return this.smsProvider.checkBalance();
   }
 }

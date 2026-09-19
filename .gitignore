@@ -36,3 +36,7 @@ Thumbs.db
 # Docker volumes
 docker-data/
 minio-data/
+
+# Temporary design reference crops
+/images/
+

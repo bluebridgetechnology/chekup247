@@ -2,17 +2,15 @@
 
 import React, { useState, useMemo } from 'react';
 import {
-  X,
   Calendar,
   Clock,
   Repeat,
   Sparkles,
   AlertCircle,
   CheckCircle2,
-  Sliders,
-  ShieldAlert,
 } from 'lucide-react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { SolarIcon } from '../common/SolarIcon';
 
 interface SlotCreationModalProps {
   isOpen: boolean;
@@ -162,7 +160,7 @@ export function SlotCreationModal({
         throw new Error(data.message || 'Failed to create availability slots');
       }
 
-      setSuccessMsg(data.message || 'Availability slots created successfully!');
+      setSuccessMsg(data.message || 'Availability slots generated successfully!');
       setTimeout(() => {
         onCreated();
         onClose();
@@ -176,60 +174,59 @@ export function SlotCreationModal({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(15, 23, 42, 0.55)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100,
-        padding: '20px',
+      className="portal-modal-backdrop"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
+        className="portal-modal-surface"
         style={{
-          background: '#ffffff',
-          borderRadius: '24px',
           width: '100%',
-          maxWidth: '560px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+          maxWidth: '580px',
           overflow: 'hidden',
-          animation: 'fadeIn 0.2s ease-out',
+          background: 'var(--color-cream-surface, #FDFBF7)',
         }}
       >
         {/* Modal Header */}
         <div
           style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid var(--color-slate-100)',
+            padding: '22px 28px',
+            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            background: 'var(--color-cream-surface, #FDFBF7)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '10px',
-                background: 'var(--color-brand-50)',
-                color: 'var(--color-brand-600)',
+                width: '40px',
+                height: '40px',
+                borderRadius: '50%',
+                background: 'var(--color-gold-pale, #F0E5D3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
-              <Calendar size={20} />
+              <SolarIcon name="calendar-bold" size={22} color="var(--color-chocolate-base, #2A170F)" />
             </div>
             <div>
-              <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: 0 }}>
+              <h2
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  margin: 0,
+                }}
+              >
                 Add Doctor Availability
               </h2>
-              <p style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', margin: 0 }}>
-                Configure working hours and discrete appointment slots
+              <p style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', margin: 0 }}>
+                Configure clinical hours and discrete telehealth slots
               </p>
             </div>
           </div>
@@ -240,13 +237,15 @@ export function SlotCreationModal({
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--color-slate-400)',
+              color: 'var(--color-cream-text-muted, #6B5E55)',
               cursor: 'pointer',
               padding: '6px',
-              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <X size={20} />
+            <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base, #DFAB62)" />
           </button>
         </div>
 
@@ -254,56 +253,42 @@ export function SlotCreationModal({
         <div
           style={{
             display: 'flex',
-            padding: '8px 24px 0',
-            borderBottom: '1px solid var(--color-slate-200)',
-            background: 'var(--color-slate-50)',
-            gap: '12px',
+            padding: '12px 28px 0',
+            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
+            background: 'var(--color-cream-base, #FAF6EE)',
+            gap: '10px',
           }}
         >
           <button
             type="button"
             onClick={() => setMode('recurring')}
-            style={{
-              padding: '10px 16px',
-              border: 'none',
-              background: 'none',
-              borderBottom: mode === 'recurring' ? '2px solid var(--color-brand-600)' : '2px solid transparent',
-              color: mode === 'recurring' ? 'var(--color-brand-700)' : 'var(--color-slate-500)',
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className={`specialty-chip ${mode === 'recurring' ? 'active' : ''}`}
+            style={{ borderRadius: '12px 12px 0 0', borderBottom: 'none' }}
           >
-            <Repeat size={16} />
+            <SolarIcon
+              name="refresh-circle-linear"
+              size={16}
+              color={mode === 'recurring' ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
+            />
             <span>Recurring Weekly Schedule</span>
           </button>
           <button
             type="button"
             onClick={() => setMode('single')}
-            style={{
-              padding: '10px 16px',
-              border: 'none',
-              background: 'none',
-              borderBottom: mode === 'single' ? '2px solid var(--color-brand-600)' : '2px solid transparent',
-              color: mode === 'single' ? 'var(--color-brand-700)' : 'var(--color-slate-500)',
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
+            className={`specialty-chip ${mode === 'single' ? 'active' : ''}`}
+            style={{ borderRadius: '12px 12px 0 0', borderBottom: 'none' }}
           >
-            <Clock size={16} />
+            <SolarIcon
+              name="clock-circle-linear"
+              size={16}
+              color={mode === 'single' ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
+            />
             <span>Single Time Slot</span>
           </button>
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+        <form onSubmit={handleSubmit} style={{ padding: '24px 28px' }}>
           {errorMsg && (
             <div
               style={{
@@ -321,7 +306,7 @@ export function SlotCreationModal({
             >
               <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
               <div>
-                <strong>Conflict or Error:</strong> {errorMsg}
+                <strong>Schedule Conflict:</strong> {errorMsg}
               </div>
             </div>
           )}
@@ -348,9 +333,9 @@ export function SlotCreationModal({
 
           {mode === 'recurring' ? (
             <div>
-              {/* Days of Week (DP-402) */}
+              {/* Days of Week */}
               <div style={{ marginBottom: '18px' }}>
-                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '8px' }}>
+                <label className="portal-label">
                   Days of the Week
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
@@ -363,13 +348,16 @@ export function SlotCreationModal({
                         onClick={() => toggleDay(d.value)}
                         style={{
                           padding: '10px 4px',
-                          borderRadius: '10px',
-                          border: isSelected ? '2px solid var(--color-brand-600)' : '1px solid var(--color-slate-200)',
-                          background: isSelected ? 'var(--color-brand-600)' : '#ffffff',
-                          color: isSelected ? '#ffffff' : 'var(--color-slate-700)',
+                          borderRadius: '12px',
+                          border: isSelected
+                            ? '1.5px solid var(--color-gold-base, #DFAB62)'
+                            : '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
+                          background: isSelected ? 'var(--color-gold-primary, #E2B467)' : 'var(--color-cream-surface, #FDFBF7)',
+                          color: 'var(--color-chocolate-base, #2A170F)',
                           fontWeight: 700,
                           fontSize: '0.85rem',
                           cursor: 'pointer',
+                          boxShadow: isSelected ? '0 2px 8px var(--color-gold-cta-shadow)' : 'none',
                           transition: 'all 0.15s ease',
                         }}
                       >
@@ -381,9 +369,9 @@ export function SlotCreationModal({
               </div>
 
               {/* Working Hours */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '18px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+                  <label className="portal-label">
                     Shift Start Time
                   </label>
                   <input
@@ -391,18 +379,11 @@ export function SlotCreationModal({
                     value={shiftStartTime}
                     onChange={(e) => setShiftStartTime(e.target.value)}
                     required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      color: 'var(--color-slate-900)',
-                    }}
+                    className="portal-input"
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+                  <label className="portal-label">
                     Shift End Time
                   </label>
                   <input
@@ -410,36 +391,21 @@ export function SlotCreationModal({
                     value={shiftEndTime}
                     onChange={(e) => setShiftEndTime(e.target.value)}
                     required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      color: 'var(--color-slate-900)',
-                    }}
+                    className="portal-input"
                   />
                 </div>
               </div>
 
-              {/* Slot Slicing Engine Settings */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
+              {/* Slot Slicing Settings */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '18px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+                  <label className="portal-label">
                     Consult Duration
                   </label>
                   <select
                     value={slotDuration}
                     onChange={(e) => setSlotDuration(Number(e.target.value))}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      color: 'var(--color-slate-900)',
-                      background: '#ffffff',
-                    }}
+                    className="portal-select"
                   >
                     <option value={15}>15 minutes</option>
                     <option value={30}>30 minutes (Standard)</option>
@@ -448,21 +414,13 @@ export function SlotCreationModal({
                   </select>
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+                  <label className="portal-label">
                     Buffer Interval
                   </label>
                   <select
                     value={bufferTime}
                     onChange={(e) => setBufferTime(Number(e.target.value))}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      color: 'var(--color-slate-900)',
-                      background: '#ffffff',
-                    }}
+                    className="portal-select"
                   >
                     <option value={0}>0 minutes (Back-to-back)</option>
                     <option value={5}>5 minutes (Recommended)</option>
@@ -473,9 +431,9 @@ export function SlotCreationModal({
               </div>
 
               {/* Recurrence Date Range */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '20px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+                  <label className="portal-label">
                     Start Date
                   </label>
                   <input
@@ -483,18 +441,11 @@ export function SlotCreationModal({
                     value={recurrenceStartDate}
                     onChange={(e) => setRecurrenceStartDate(e.target.value)}
                     required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      color: 'var(--color-slate-900)',
-                    }}
+                    className="portal-input"
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+                  <label className="portal-label">
                     End Date
                   </label>
                   <input
@@ -502,14 +453,7 @@ export function SlotCreationModal({
                     value={recurrenceEndDate}
                     onChange={(e) => setRecurrenceEndDate(e.target.value)}
                     required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      color: 'var(--color-slate-900)',
-                    }}
+                    className="portal-input"
                   />
                 </div>
               </div>
@@ -518,7 +462,7 @@ export function SlotCreationModal({
             <div>
               {/* Single Slot Options */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+                <label className="portal-label">
                   Slot Date
                 </label>
                 <input
@@ -526,20 +470,13 @@ export function SlotCreationModal({
                   value={singleDate}
                   onChange={(e) => setSingleDate(e.target.value)}
                   required
-                  style={{
-                    width: '100%',
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    border: '1px solid var(--color-slate-300)',
-                    fontSize: '0.9rem',
-                    color: 'var(--color-slate-900)',
-                  }}
+                  className="portal-input"
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px', marginBottom: '20px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+                  <label className="portal-label">
                     Start Time
                   </label>
                   <input
@@ -547,32 +484,17 @@ export function SlotCreationModal({
                     value={singleStartTime}
                     onChange={(e) => setSingleStartTime(e.target.value)}
                     required
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      color: 'var(--color-slate-900)',
-                    }}
+                    className="portal-input"
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
+                  <label className="portal-label">
                     Duration
                   </label>
                   <select
                     value={singleDuration}
                     onChange={(e) => setSingleDuration(Number(e.target.value))}
-                    style={{
-                      width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      border: '1px solid var(--color-slate-300)',
-                      fontSize: '0.9rem',
-                      color: 'var(--color-slate-900)',
-                      background: '#ffffff',
-                    }}
+                    className="portal-select"
                   >
                     <option value={15}>15 minutes</option>
                     <option value={30}>30 minutes</option>
@@ -587,10 +509,10 @@ export function SlotCreationModal({
           {/* Live Slot Estimate Banner */}
           <div
             style={{
-              padding: '14px 16px',
-              borderRadius: '12px',
-              background: 'var(--color-brand-50)',
-              border: '1px solid var(--color-brand-100)',
+              padding: '14px 18px',
+              borderRadius: '16px',
+              background: 'var(--color-gold-pale, #F0E5D3)',
+              border: '1.5px solid rgba(223, 171, 98, 0.35)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -598,16 +520,17 @@ export function SlotCreationModal({
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Sparkles size={18} style={{ color: 'var(--color-brand-600)' }} />
-              <span style={{ fontSize: '0.85rem', color: 'var(--color-brand-900)', fontWeight: 600 }}>
-                Estimated Bookable Slots
+              <SolarIcon name="bolt-circle-bold" size={20} color="var(--color-gold-bronze, #B88647)" />
+              <span style={{ fontSize: '0.875rem', color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 600 }}>
+                Estimated Bookable Slots Generated
               </span>
             </div>
             <span
               style={{
-                fontSize: '1.1rem',
+                fontFamily: 'var(--font-heading)',
+                fontSize: '1.25rem',
                 fontWeight: 800,
-                color: 'var(--color-brand-700)',
+                color: 'var(--color-chocolate-base, #2A170F)',
               }}
             >
               {estimatedSlotCount} slots
@@ -615,41 +538,23 @@ export function SlotCreationModal({
           </div>
 
           {/* Form Actions */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '12px' }}>
             <button
               type="button"
               onClick={onClose}
-              style={{
-                padding: '11px 18px',
-                borderRadius: '10px',
-                border: '1px solid var(--color-slate-300)',
-                background: '#ffffff',
-                color: 'var(--color-slate-700)',
-                fontSize: '0.9rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+              className="btn-secondary"
+              style={{ padding: '10px 20px', fontSize: '0.875rem' }}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={isLoading || estimatedSlotCount === 0}
-              style={{
-                padding: '11px 22px',
-                borderRadius: '10px',
-                border: 'none',
-                background: estimatedSlotCount === 0 ? 'var(--color-slate-300)' : 'var(--color-brand-600)',
-                color: '#ffffff',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                cursor: estimatedSlotCount === 0 ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}
+              className="btn-primary"
+              style={{ padding: '10px 24px', fontSize: '0.875rem' }}
             >
-              {isLoading ? 'Generating...' : 'Create Availability'}
+              <SolarIcon name="add-circle-bold" size={17} color="var(--color-chocolate-base)" />
+              <span>{isLoading ? 'Generating Slots...' : 'Publish Availability'}</span>
             </button>
           </div>
         </form>

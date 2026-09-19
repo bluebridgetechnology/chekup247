@@ -30,8 +30,9 @@ function VerifyEmailContent() {
     try {
       await verifyEmail(tok.trim());
       setSuccess(true);
+      const redirectTarget = searchParams?.get('redirect') || '/appointments';
       setTimeout(() => {
-        router.push('/profile');
+        router.push(redirectTarget);
       }, 2500);
     } catch (err: any) {
       setError(err.message || 'Verification token is invalid or has expired.');
@@ -93,8 +94,8 @@ function VerifyEmailContent() {
             <p style={{ color: 'var(--color-slate-600)', fontSize: '0.95rem', marginBottom: '24px' }}>
               Your patient account is now fully active. Redirecting you to your profile dashboard...
             </p>
-            <Link href="/profile" className="btn-primary" style={{ width: '100%' }}>
-              <span>Go to Dashboard</span>
+            <Link href="/appointments" className="btn-primary" style={{ width: '100%' }}>
+              <span>Go to My Appointments</span>
               <ArrowRight size={18} />
             </Link>
           </div>

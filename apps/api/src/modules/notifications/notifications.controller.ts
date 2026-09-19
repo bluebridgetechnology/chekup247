@@ -127,4 +127,21 @@ export class NotificationsController {
   ) {
     return this.notificationsService.handleContactInquiry(dto);
   }
+
+  /**
+   * SMS Portal Delivery Report (DLR) Webhook.
+   */
+  @Post('smsportal/webhook')
+  handleSmsPortalWebhook(@Body() payload: any) {
+    return this.notificationsService.handleSmsPortalWebhook(payload);
+  }
+
+  /**
+   * Check SMS Portal Account Balance.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('smsportal/balance')
+  getSmsPortalBalance() {
+    return this.notificationsService.getSmsBalance();
+  }
 }

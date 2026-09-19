@@ -61,6 +61,15 @@ export class Booking {
   })
   payment_status: PaymentStatus;
 
+  @Column({ type: 'text', nullable: true })
+  notes?: string | null;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  reason_category?: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  attachments?: { name: string; url: string; fileType: string; sizeBytes?: number }[] | null;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 

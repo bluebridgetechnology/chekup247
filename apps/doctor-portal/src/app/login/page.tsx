@@ -3,7 +3,21 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, ShieldCheck, AlertCircle, ArrowRight, Smartphone, Eye, EyeOff } from 'lucide-react';
+import {
+  Mail,
+  Lock,
+  ShieldCheck,
+  AlertCircle,
+  ArrowRight,
+  Smartphone,
+  Eye,
+  EyeOff,
+  Stethoscope,
+  Clock,
+  Award,
+} from 'lucide-react';
+import { ChekupCrossLogo } from '../../components/common/ChekupCrossLogo';
+import { SolarIcon } from '../../components/common/SolarIcon';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 
 export default function DoctorLoginPage() {
@@ -37,211 +51,286 @@ export default function DoctorLoginPage() {
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '32px 16px',
-        background: 'linear-gradient(180deg, var(--color-slate-100) 0%, #ffffff 100%)',
-      }}
-    >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '460px',
-          background: '#ffffff',
-          borderRadius: 'var(--radius-xl)',
-          padding: '40px',
-          boxShadow: 'var(--shadow-xl)',
-          border: '1px solid var(--color-slate-200)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+    <div className="auth-split-layout">
+      {/* LEFT COLUMN: Deep Chocolate Brand Visual Panel */}
+      <div className="auth-visual-pane">
+        {/* Top Brand Mark */}
+        <div>
+          <Link
+            href="/"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '12px',
+              textDecoration: 'none',
+              marginBottom: '48px',
+            }}
+          >
+            <ChekupCrossLogo size={32} />
+            <span
+              style={{
+                fontFamily: 'var(--font-heading), sans-serif',
+                fontSize: '1.45rem',
+                fontWeight: 800,
+                letterSpacing: '-0.02em',
+                lineHeight: 1,
+              }}
+            >
+              <span style={{ color: '#ffffff' }}>Chekup</span>
+              <span style={{ color: 'var(--color-gold-base, #DFAB62)' }}>247</span>
+            </span>
+          </Link>
+
+          {/* Hero Content */}
+          <div style={{ maxWidth: '440px', position: 'relative', zIndex: 2 }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 14px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                backgroundColor: 'rgba(223, 171, 98, 0.16)',
+                border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
+                color: 'var(--color-gold-base, #DFAB62)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                marginBottom: '16px',
+              }}
+            >
+              <ShieldCheck size={14} />
+              <span>HPCSA Certified Telemedicine</span>
+            </span>
+
+            <h1
+              style={{
+                fontSize: '2.5rem',
+                fontWeight: 800,
+                color: '#ffffff',
+                lineHeight: 1.15,
+                letterSpacing: '-0.025em',
+                marginBottom: '16px',
+                fontFamily: 'var(--font-heading), sans-serif',
+              }}
+            >
+              South Africa&apos;s Digital Clinical Practice
+            </h1>
+
+            <p
+              style={{
+                color: 'rgba(255, 255, 255, 0.75)',
+                fontSize: '1rem',
+                lineHeight: 1.6,
+                marginBottom: '32px',
+              }}
+            >
+              Connect with patients nationwide, issue compliant e-prescriptions with ICD-10 diagnostic codes, and automate medical practice earnings.
+            </p>
+          </div>
+        </div>
+
+        {/* Doctor Trust Badges */}
+        <div className="auth-social-proof-grid">
+          <div className="auth-social-badge">
+            <div className="auth-social-badge-val">
+              <Award size={18} style={{ color: 'var(--color-gold-primary, #E2B467)' }} />
+              <span>100%</span>
+            </div>
+            <div className="auth-social-badge-lbl">HPCSA Act 101/1965 Compliant</div>
+          </div>
+
+          <div className="auth-social-badge">
+            <div className="auth-social-badge-val">
+              <Clock size={18} style={{ color: 'var(--color-gold-primary, #E2B467)' }} />
+              <span>R850+</span>
+            </div>
+            <div className="auth-social-badge-lbl">Average Hourly Rate</div>
+          </div>
+
+          <div className="auth-social-badge">
+            <div className="auth-social-badge-val">
+              <Stethoscope size={18} style={{ color: 'var(--color-gold-primary, #E2B467)' }} />
+              <span>Zero</span>
+            </div>
+            <div className="auth-social-badge-lbl">Admin Overhead</div>
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN: Warm Cream Form Panel */}
+      <div className="auth-form-pane">
+        <div className="auth-form-wrapper">
+          {/* Header */}
+          <div style={{ marginBottom: '32px' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '3px 10px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                border: '1px solid rgba(223, 171, 98, 0.3)',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                marginBottom: '12px',
+              }}
+            >
+              <span>Doctor Practice Suite</span>
+            </span>
+            <h2
+              style={{
+                fontSize: '2rem',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                marginBottom: '8px',
+                fontWeight: 800,
+                fontFamily: 'var(--font-heading), sans-serif',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Doctor Sign In
+            </h2>
+            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.925rem' }}>
+              Access your clinical consultations queue, schedule shifts, and manage prescriptions.
+            </p>
+          </div>
+
+          {/* LocumStaff Fast SSO Banner */}
           <div
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 12px',
-              borderRadius: 'var(--radius-full)',
-              background: 'var(--color-brand-50)',
-              color: 'var(--color-brand-700)',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              marginBottom: '12px',
+              backgroundColor: 'var(--color-cream-surface, #FDFBF7)',
+              border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+              borderRadius: '16px',
+              padding: '16px',
+              marginBottom: '24px',
+              boxShadow: '0 2px 8px rgba(42, 23, 15, 0.04)',
             }}
           >
-            <ShieldCheck size={14} />
-            <span>Doctor Practice Suite</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 700, fontSize: '0.9rem', marginBottom: '4px' }}>
+              <Smartphone size={16} style={{ color: 'var(--color-gold-bronze, #B88647)' }} />
+              <span>LocumStaff Verified Doctor?</span>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginBottom: '12px' }}>
+              One-tap federated sign in with your mobile LocumStaff medical provider credentials.
+            </p>
+            <Link
+              href="/callback?code=mock-locumstaff-sso-verified"
+              className="btn-secondary"
+              style={{ width: '100%', justifyContent: 'center', fontSize: '0.85rem' }}
+            >
+              <span>Sign In with LocumStaff SSO</span>
+              <ArrowRight size={15} />
+            </Link>
           </div>
-          <h1 style={{ fontSize: '1.75rem', color: 'var(--color-slate-900)', marginBottom: '8px' }}>
-            Doctor Portal Login
-          </h1>
-          <p style={{ color: 'var(--color-slate-500)', fontSize: '0.9rem' }}>
-            Sign in to manage your appointments, write e-prescriptions, and review patient clinical notes.
-          </p>
-        </div>
 
-        {/* LocumStaff Fast SSO Launcher */}
-        <div
-          style={{
-            background: 'var(--color-slate-50)',
-            border: '1px solid var(--color-slate-200)',
-            borderRadius: 'var(--radius-lg)',
-            padding: '16px',
-            marginBottom: '24px',
-            textAlign: 'center',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: 'var(--color-brand-700)', fontWeight: 700, fontSize: '0.95rem', marginBottom: '6px' }}>
-            <Smartphone size={18} />
-            <span>LocumStaff App Doctor?</span>
-          </div>
-          <p style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', marginBottom: '12px' }}>
-            Doctors registered on LocumStaff can sign in instantly with one-tap federated OIDC PKCE single sign-on.
-          </p>
-          <Link
-            href="/callback?code=mock-locumstaff-sso-verified"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              width: '100%',
-              padding: '10px',
-              borderRadius: 'var(--radius-md)',
-              background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)',
-              color: '#ffffff',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-              textDecoration: 'none',
-            }}
-          >
-            <span>Sign In with LocumStaff Mobile SSO</span>
-            <ArrowRight size={16} />
-          </Link>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            margin: '20px 0',
-            color: 'var(--color-slate-400)',
-            fontSize: '0.8rem',
-          }}
-        >
-          <div style={{ flex: 1, height: '1px', background: 'var(--color-slate-200)' }} />
-          <span style={{ padding: '0 12px' }}>or sign in directly</span>
-          <div style={{ flex: 1, height: '1px', background: 'var(--color-slate-200)' }} />
-        </div>
-
-        {error && (
+          {/* Divider */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '10px',
-              padding: '12px 16px',
-              borderRadius: 'var(--radius-md)',
-              background: 'var(--color-danger-bg)',
-              border: '1px solid #fecaca',
-              color: 'var(--color-danger)',
-              fontSize: '0.875rem',
-              marginBottom: '20px',
+              margin: '24px 0',
+              color: 'var(--color-cream-text-muted, #6B5E55)',
+              fontSize: '0.8rem',
             }}
           >
-            <AlertCircle size={18} style={{ flexShrink: 0 }} />
-            <span>{error}</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.2))' }} />
+            <span style={{ padding: '0 12px', fontWeight: 600 }}>or sign in directly</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.2))' }} />
           </div>
-        )}
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-              Practice Email Address
-            </label>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                <Mail size={18} />
-              </span>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="dr.smith@example.co.za"
-                style={{
-                  width: '100%',
-                  padding: '10px 14px 10px 38px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-slate-300)',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                }}
-              />
+          {error && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '12px 16px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--color-danger-bg, #fef2f2)',
+                border: '1px solid #fecaca',
+                color: 'var(--color-danger, #ef4444)',
+                fontSize: '0.875rem',
+                marginBottom: '20px',
+                fontWeight: 600,
+              }}
+            >
+              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <span>{error}</span>
             </div>
-          </div>
+          )}
 
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-slate-700)', marginBottom: '6px' }}>
-              Password
-            </label>
-            <div style={{ position: 'relative' }}>
-              <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-slate-400)' }}>
-                <Lock size={18} />
-              </span>
-              <input
-                type={showPassword ? 'text' : 'password'}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                style={{
-                  width: '100%',
-                  padding: '10px 40px 10px 38px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-slate-300)',
-                  fontSize: '0.9rem',
-                  outline: 'none',
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--color-slate-400)',
-                  cursor: 'pointer',
-                }}
-              >
-                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
+          {/* Direct Login Form */}
+          <form onSubmit={handleSubmit}>
+            <div className="auth-input-group">
+              <label className="auth-label">Practice Email Address</label>
+              <div className="auth-input-wrapper">
+                <span className="auth-input-icon">
+                  <Mail size={18} />
+                </span>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="dr.smith@example.co.za"
+                  className="auth-input"
+                />
+              </div>
             </div>
+
+            <div className="auth-input-group" style={{ marginBottom: '28px' }}>
+              <label className="auth-label">Password</label>
+              <div className="auth-input-wrapper">
+                <span className="auth-input-icon">
+                  <Lock size={18} />
+                </span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="auth-input"
+                  style={{ paddingRight: '44px' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: '14px',
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-cream-text-muted, #6B5E55)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary"
+              style={{ width: '100%', height: '48px', fontSize: '0.95rem' }}
+            >
+              {loading ? 'Signing In...' : 'Sign In to Practice Suite'}
+              <SolarIcon name="arrow-right-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
+            </button>
+          </form>
+
+          {/* Footer Navigation */}
+          <div style={{ marginTop: '28px', textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+            New medical practitioner?{' '}
+            <Link href="/register" style={{ color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 700, textDecoration: 'underline' }}>
+              Register HPCSA Practice
+            </Link>
           </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="btn-primary"
-            style={{ width: '100%', padding: '12px' }}
-          >
-            {loading ? 'Signing In...' : 'Sign In to Practice Suite'}
-          </button>
-        </form>
-
-        <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-slate-600)' }}>
-          New to ChekUp247?{' '}
-          <Link href="/register" style={{ color: 'var(--color-brand-600)', fontWeight: 600 }}>
-            Register as a Doctor
-          </Link>
         </div>
       </div>
     </div>

@@ -4,6 +4,38 @@
  */
 
 :root {
+  /* ChekUp247 Signature Healthcare Brand Palette */
+  --color-chocolate-base: #2A170F;      /* Primary dark chocolate (Hero, Navbar, Headings) */
+  --color-chocolate-hover: #3E2114;     /* Lighter/warmer chocolate hover */
+  --color-chocolate-dark: #1E100A;      /* Deep chocolate (Floating badge bg, Footer, Consultation HUD) */
+  --color-chocolate-mid: #3E2114;       /* Mid chocolate (Hero mini-badge box) */
+  --color-chocolate-accent: #4A2818;    /* Numbered badge dark brown */
+  --color-chocolate-border: #5B3722;    /* Timeline connecting lines */
+  --color-chocolate-deep: #6B3A1E;      /* Floating badge heart icon */
+
+  --color-gold-base: #DFAB62;          /* Signature warm champagne/gold */
+  --color-gold-primary: #E2B467;       /* Primary CTA gold button */
+  --color-gold-hover: #ECC076;         /* Gold button hover */
+  --color-gold-light: #ECC27E;         /* Gold gradient highlight */
+  --color-gold-dark: #C9944A;          /* Gold gradient dark */
+  --color-gold-bronze: #B88647;        /* Section eyebrows, shield accents */
+  --color-gold-pale: #F0E5D3;          /* Pale gold icon circle background */
+  --color-gold-pale-hover: #EBDDC7;    /* Pale gold hover */
+
+  --color-cream-base: #FAF6EE;         /* Warm cream section canvas */
+  --color-cream-surface: #FDFBF7;      /* Clean cream card surface */
+  --color-cream-text: #2A170F;         /* Cream section main text */
+  --color-cream-text-muted: #6B5E55;   /* Cream section supporting copy */
+  --color-cream-text-secondary: #7A6A60;
+
+  --color-white: #FFFFFF;
+  --color-gold-glow: rgba(223, 171, 98, 0.24);
+  --color-gold-border: rgba(223, 171, 98, 0.15);
+  --color-gold-cta-shadow: rgba(226, 180, 103, 0.28);
+  --color-gold-cta-shadow-hover: rgba(226, 180, 103, 0.42);
+  --color-chocolate-shadow: rgba(42, 23, 15, 0.18);
+  --color-status-online: #22C55E;
+
   /* Brand Teal Palette */
   --color-brand-50: #e6f7f5;
   --color-brand-100: #c2ece7;

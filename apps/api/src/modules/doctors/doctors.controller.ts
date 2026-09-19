@@ -77,6 +77,26 @@ export class DoctorsController {
     return this.doctorsService.updateDoctorProfile(user.sub, dto);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DOCTOR)
+  @Put('me/status')
+  async updateMyStatus(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { status: string },
+  ) {
+    return this.doctorsService.updateDoctorPresenceStatus(user.sub, body.status || 'active');
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.DOCTOR)
+  @Put('me/holiday-mode')
+  async updateMyHolidayMode(
+    @CurrentUser() user: JwtPayload,
+    @Body() body: { isOnHoliday: boolean },
+  ) {
+    return this.doctorsService.toggleHolidayMode(user.sub, Boolean(body.isOnHoliday));
+  }
+
   /**
    * BE-903: Doctor Earnings Computation API (GET /doctor/earnings or GET /doctors/me/earnings)
    */

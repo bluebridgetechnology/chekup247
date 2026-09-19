@@ -1,6 +1,8 @@
+'use client';
+
 import React from 'react';
 import Link from 'next/link';
-import { ChevronRight, Home } from 'lucide-react';
+import { SolarIcon } from './SolarIcon';
 
 export interface BreadcrumbItem {
   label: string;
@@ -13,28 +15,9 @@ interface BreadcrumbsProps {
 
 export function Breadcrumbs({ items }: BreadcrumbsProps) {
   return (
-    <nav
-      aria-label="Breadcrumb"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        fontSize: '0.875rem',
-        color: 'var(--color-slate-500)',
-        marginBottom: '24px',
-      }}
-    >
-      <Link
-        href="/"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '4px',
-          color: 'var(--color-slate-600)',
-          textDecoration: 'none',
-        }}
-      >
-        <Home size={14} />
+    <nav aria-label="Breadcrumb" className="doctor-breadcrumb-nav">
+      <Link href="/" className="doctor-breadcrumb-link">
+        <SolarIcon name="home-2-linear" size={15} color="currentColor" />
         <span>Home</span>
       </Link>
 
@@ -43,16 +26,13 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
 
         return (
           <React.Fragment key={index}>
-            <ChevronRight size={14} style={{ color: 'var(--color-slate-400)' }} />
+            <span className="doctor-breadcrumb-sep">
+              <SolarIcon name="alt-arrow-right-linear" size={12} color="currentColor" />
+            </span>
             {isLast || !item.href ? (
-              <span style={{ color: 'var(--color-brand-700)', fontWeight: 600 }}>
-                {item.label}
-              </span>
+              <span className="doctor-breadcrumb-current">{item.label}</span>
             ) : (
-              <Link
-                href={item.href}
-                style={{ color: 'var(--color-slate-600)', textDecoration: 'none' }}
-              >
+              <Link href={item.href} className="doctor-breadcrumb-link">
                 {item.label}
               </Link>
             )}

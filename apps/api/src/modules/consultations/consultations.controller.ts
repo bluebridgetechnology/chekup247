@@ -26,6 +26,7 @@ export class EndConsultationDto {
 
 export class RequestExtensionDto {
   durationMinutes: number;
+  isFree?: boolean;
   doctorId?: string;
 }
 
@@ -145,6 +146,7 @@ export class ConsultationsController {
       bookingId,
       Number(dto.durationMinutes),
       dto.doctorId,
+      dto.isFree === true,
     );
   }
 
@@ -174,5 +176,13 @@ export class ConsultationsController {
   @Get(':bookingId/extensions')
   getExtensions(@Param('bookingId') bookingId: string) {
     return this.consultationsService.getExtensions(bookingId);
+  }
+
+  /**
+   * Daily.co Webhook Handler (participant.joined, participant.left, etc.).
+   */
+  @Post('webhooks/daily')
+  handleDailyWebhook(@Body() payload: any) {
+    return this.consultationsService.handleDailyWebhook(payload);
   }
 }

@@ -4,6 +4,7 @@ import {
   IsNumber,
   IsArray,
   IsOptional,
+  IsBoolean,
   IsEmail,
   Min,
   MinLength,
@@ -30,6 +31,18 @@ export class OnboardDoctorDto {
   @IsArray()
   @IsOptional()
   documents_url?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  offers_in_clinic?: boolean;
+
+  @IsOptional()
+  @IsString()
+  facility_name?: string;
+
+  @IsOptional()
+  @IsString()
+  facility_address?: string;
 
   // If registering as a new user directly:
   @IsOptional()
@@ -66,6 +79,81 @@ export class UpdateDoctorProfileDto {
   @IsOptional()
   @IsArray()
   documents_url?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  consultation_types?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  offers_video?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  offers_audio?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  offers_in_clinic?: boolean;
+
+  @IsOptional()
+  @IsString()
+  facility_name?: string;
+
+  @IsOptional()
+  @IsString()
+  facility_address?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  accepts_medical_aid?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  experience_years?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  is_board_certified?: boolean;
+
+  @IsOptional()
+  @IsString()
+  board_certification_title?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  is_on_holiday?: boolean;
+
+  @IsOptional()
+  @IsString()
+  signature_url?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  secondary_specialties?: string[];
+
+  @IsOptional()
+  @IsString()
+  bank_name?: string;
+
+  @IsOptional()
+  @IsString()
+  account_number?: string;
+
+  @IsOptional()
+  @IsString()
+  branch_code?: string;
+
+  @IsOptional()
+  @IsString()
+  account_type?: string;
+
+  @IsOptional()
+  @IsString()
+  account_holder?: string;
 }
 
 export class GetDoctorsQueryDto {

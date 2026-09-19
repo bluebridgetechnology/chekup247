@@ -17,6 +17,7 @@ import { DirectorySyncProcessor } from './directory-sync.processor';
 import { AvailabilitySyncService } from './availability-sync.service';
 import { AvailabilitySyncProcessor } from './availability-sync.processor';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 import { QUEUES } from '../queues/queue.constants';
 
 @Module({
@@ -31,6 +32,7 @@ import { QUEUES } from '../queues/queue.constants';
       { name: QUEUES.AVAILABILITY_SYNC },
     ),
     AuthModule,
+    NotificationsModule,
   ],
   controllers: [DoctorsController],
   providers: [

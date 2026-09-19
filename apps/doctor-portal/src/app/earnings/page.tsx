@@ -19,8 +19,10 @@ import {
   FileSpreadsheet,
   ChevronRight,
   Loader2,
+  X,
 } from 'lucide-react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { SolarIcon } from '../../components/common/SolarIcon';
 
 interface EarningsSummary {
   totalGross: number;
@@ -206,7 +208,7 @@ export default function DoctorEarningsPage() {
 
       try {
         setIsLoading(true);
-        // 1. Fetch Doctor Earnings (BE-903)
+        // 1. Fetch Doctor Earnings
         const earnRes = await fetch(`${API_BASE}/doctors/me/earnings`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -225,7 +227,7 @@ export default function DoctorEarningsPage() {
           }
         }
 
-        // 2. Fetch Doctor Reviews (BE-901)
+        // 2. Fetch Doctor Reviews
         const doctorId = profile?.id || doctor?.id;
         if (doctorId) {
           const revRes = await fetch(`${API_BASE}/reviews/doctor/${doctorId}`);
@@ -259,7 +261,7 @@ export default function DoctorEarningsPage() {
     }
 
     loadData();
-  }, [token, profile?.id, doctor?.id]);
+  }, [token, profile?.id, doctor?.id, API_BASE]);
 
   const filteredConsultations = consultations.filter((c) =>
     c.patientInitial.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -291,204 +293,319 @@ export default function DoctorEarningsPage() {
         }}
       >
         <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                color: 'var(--color-gold-bronze, #B88647)',
+              }}
+            >
+              Practice Financial Ledger • 85% Net Doctor Split
+            </span>
+          </div>
           <h1
             style={{
-              fontSize: '1.85rem',
+              fontFamily: 'var(--font-heading)',
+              fontSize: '2rem',
               fontWeight: 800,
-              color: 'var(--color-slate-900)',
+              color: 'var(--color-chocolate-base, #2A170F)',
               margin: '0 0 6px',
               letterSpacing: '-0.02em',
             }}
           >
             Practice Earnings & Payouts
           </h1>
-          <p style={{ color: 'var(--color-slate-500)', margin: 0, fontSize: '0.95rem' }}>
-            Real-time consultation earnings ledger, platform commission transparency, and payout settlements.
+          <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', margin: 0, fontSize: '0.95rem' }}>
+            Real-time consultation revenue, transparent platform fee calculations, and automated EFT settlements.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <div
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              padding: '8px 14px',
-              borderRadius: '10px',
-              background: '#ecfdf5',
-              border: '1px solid #a7f3d0',
-              color: '#059669',
-              fontSize: '0.85rem',
+              padding: '6px 14px',
+              borderRadius: 'var(--radius-full, 9999px)',
+              background: 'var(--color-gold-pale, #F0E5D3)',
+              border: '1px solid rgba(223, 171, 98, 0.35)',
+              color: 'var(--color-chocolate-base, #2A170F)',
+              fontSize: '0.8rem',
               fontWeight: 700,
             }}
           >
-            <ShieldCheck size={16} />
-            <span>FSP Regulated Payouts</span>
-          </div>
+            <SolarIcon name="shield-check-bold" size={15} color="#059669" />
+            <span>Regulated Payout Gateway</span>
+          </span>
         </div>
       </div>
 
-      {/* DP-901: KPI Summary Cards */}
+      {/* 3 High-Impact Cream Cards with Pale Gold Circles & 85% Net Take-Home Display */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
           gap: '20px',
           marginBottom: '32px',
         }}
       >
-        {/* Total Earned Net */}
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '18px',
-            border: '1px solid var(--color-slate-200)',
-            padding: '24px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-slate-500)', textTransform: 'uppercase' }}>
-              Total Net Earned
-            </span>
-            <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(14, 147, 132, 0.1)', color: 'var(--color-brand-600)' }}>
-              <DollarSign size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--color-slate-900)', letterSpacing: '-0.02em', marginBottom: '4px' }}>
-            R{summary.totalNet.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
-          </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)' }}>
-            From {summary.completedConsultationsCount} completed consultations
-          </div>
-        </div>
-
-        {/* Available Balance */}
-        <div
-          style={{
-            background: 'linear-gradient(135deg, #0f766e 0%, #0d9488 100%)',
-            borderRadius: '18px',
-            padding: '24px',
-            color: '#ffffff',
-            boxShadow: '0 8px 20px -4px rgba(13, 148, 136, 0.35)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#ccfbf1', textTransform: 'uppercase' }}>
+        {/* Card 1: Available Balance for Payout */}
+        <div className="portal-card" style={{ padding: '28px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <span
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: 'var(--color-cream-text-muted, #6B5E55)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}
+            >
               Available Balance
             </span>
-            <div style={{ padding: '8px', borderRadius: '10px', background: 'rgba(255, 255, 255, 0.2)' }}>
-              <Wallet size={18} color="#ffffff" />
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                background: 'var(--color-gold-pale, #F0E5D3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <SolarIcon name="wallet-money-bold" size={22} color="var(--color-chocolate-base, #2A170F)" />
             </div>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: '2.5rem',
+              fontWeight: 900,
+              color: 'var(--color-chocolate-base, #2A170F)',
+              letterSpacing: '-0.02em',
+              marginBottom: '6px',
+            }}
+          >
             R{summary.availableBalance.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
           </div>
-          <div style={{ fontSize: '0.8rem', color: '#ccfbf1' }}>
-            Scheduled for release on {formattedNextPayout}
+          <div
+            style={{
+              fontSize: '0.825rem',
+              color: '#059669',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <SolarIcon name="calendar-bold" size={14} color="#059669" />
+            <span>Next settlement release: {formattedNextPayout}</span>
           </div>
         </div>
 
-        {/* Platform Commission Deducted */}
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '18px',
-            border: '1px solid var(--color-slate-200)',
-            padding: '24px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-slate-500)', textTransform: 'uppercase' }}>
-              Platform Fee Deducted
+        {/* Card 2: Total Net Earned (85% Take-Home) */}
+        <div className="portal-card" style={{ padding: '28px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <span
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: 'var(--color-cream-text-muted, #6B5E55)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}
+            >
+              Total Net Take-Home (85%)
             </span>
-            <div style={{ padding: '8px', borderRadius: '10px', background: '#f8fafc', color: 'var(--color-slate-600)', border: '1px solid var(--color-slate-200)' }}>
-              <TrendingUp size={18} />
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                background: 'var(--color-gold-pale, #F0E5D3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <SolarIcon name="card-bold" size={22} color="var(--color-chocolate-base, #2A170F)" />
             </div>
           </div>
-          <div style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--color-slate-900)', letterSpacing: '-0.02em', marginBottom: '4px' }}>
+          <div
+            style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: '2.5rem',
+              fontWeight: 900,
+              color: '#059669',
+              letterSpacing: '-0.02em',
+              marginBottom: '6px',
+            }}
+          >
+            R{summary.totalNet.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+          </div>
+          <div style={{ fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+            From <strong>{summary.completedConsultationsCount}</strong> completed patient consultations
+          </div>
+        </div>
+
+        {/* Card 3: Platform Commission Deducted & Gross Billing */}
+        <div className="portal-card" style={{ padding: '28px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <span
+              style={{
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: 'var(--color-cream-text-muted, #6B5E55)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.06em',
+              }}
+            >
+              Platform Fee (15%)
+            </span>
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '50%',
+                background: 'var(--color-gold-pale, #F0E5D3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <SolarIcon name="chart-bold" size={22} color="var(--color-chocolate-base, #2A170F)" />
+            </div>
+          </div>
+          <div
+            style={{
+              fontFamily: 'var(--font-heading)',
+              fontSize: '2.5rem',
+              fontWeight: 900,
+              color: 'var(--color-chocolate-base, #2A170F)',
+              letterSpacing: '-0.02em',
+              marginBottom: '6px',
+            }}
+          >
             R{summary.totalCommission.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
           </div>
-          <div style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)' }}>
-            Gross Billing: R{summary.totalGross.toLocaleString('en-ZA', { minimumFractionDigits: 2 })} (15% avg fee)
-          </div>
-        </div>
-
-        {/* Next Payout Settlement Date */}
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '18px',
-            border: '1px solid var(--color-slate-200)',
-            padding: '24px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-slate-500)', textTransform: 'uppercase' }}>
-              Next Settlement Date
-            </span>
-            <div style={{ padding: '8px', borderRadius: '10px', background: '#eff6ff', color: '#3b82f6' }}>
-              <Calendar size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 900, color: 'var(--color-slate-900)', letterSpacing: '-0.02em', marginBottom: '4px' }}>
-            {formattedNextPayout}
-          </div>
-          <div style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 600 }}>
-            Automated EFT Transfer to Bank Account
+          <div style={{ fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+            Gross Patient Billings: R{summary.totalGross.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
           </div>
         </div>
       </div>
 
-      {/* Monthly Trajectory Visual Chart */}
-      <div
-        style={{
-          background: '#ffffff',
-          borderRadius: '20px',
-          border: '1px solid var(--color-slate-200)',
-          padding: '28px',
-          marginBottom: '32px',
-          boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+      {/* Monthly Earnings Trajectory Visual Chart */}
+      <div className="portal-card" style={{ padding: '28px', marginBottom: '32px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '22px' }}>
           <div>
-            <h2 style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-slate-900)', margin: '0 0 4px' }}>
-              Monthly Earnings Trajectory (ZAR)
+            <h2
+              style={{
+                fontFamily: 'var(--font-heading)',
+                fontSize: '1.25rem',
+                fontWeight: 800,
+                color: 'var(--color-chocolate-base, #2A170F)',
+                margin: '0 0 4px',
+              }}
+            >
+              Monthly Revenue & Payout Trajectory (ZAR)
             </h2>
-            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-slate-500)' }}>
-              Gross Consultation Revenue vs Net Doctor Take-Home
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+              Gross Consultation Revenue vs Net 85% Doctor Take-Home
             </p>
           </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.85rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#0e9384' }} />
-              <span style={{ fontWeight: 600, color: 'var(--color-slate-700)' }}>Net Earning</span>
+              <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: 'var(--color-gold-primary, #E2B467)' }} />
+              <span style={{ fontWeight: 700, color: 'var(--color-chocolate-base)' }}>Net Doctor Earning (85%)</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#cbd5e1' }} />
-              <span style={{ fontWeight: 600, color: 'var(--color-slate-700)' }}>Platform Fee</span>
+              <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: 'var(--color-gold-pale, #F0E5D3)' }} />
+              <span style={{ fontWeight: 600, color: 'var(--color-cream-text-muted)' }}>Platform Fee (15%)</span>
             </div>
           </div>
         </div>
 
-        {/* SVG Chart */}
-        <div style={{ height: '180px', display: 'flex', alignItems: 'flex-end', gap: '24px', padding: '10px 0 0', borderBottom: '1px solid var(--color-slate-200)' }}>
+        {/* Visual Bar Graph */}
+        <div
+          style={{
+            height: '190px',
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: '24px',
+            padding: '10px 0 0',
+            borderBottom: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
+          }}
+        >
           {monthlyTrend.map((m) => {
             const grossHeightPct = Math.round((m.gross / maxGross) * 100);
             const netHeightPct = Math.round((m.net / maxGross) * 100);
             return (
-              <div key={m.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-brand-700)', marginBottom: '6px' }}>
+              <div
+                key={m.month}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  height: '100%',
+                  justifyContent: 'flex-end',
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: 'var(--font-heading)',
+                    fontSize: '0.825rem',
+                    fontWeight: 800,
+                    color: '#059669',
+                    marginBottom: '8px',
+                  }}
+                >
                   R{m.net.toLocaleString()}
                 </div>
-                <div style={{ width: '48px', height: `${grossHeightPct}%`, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', borderRadius: '8px 8px 0 0', overflow: 'hidden' }}>
-                  <div style={{ height: `${grossHeightPct - netHeightPct}%`, background: '#cbd5e1' }} title={`Commission: R${m.commission}`} />
-                  <div style={{ height: `${netHeightPct}%`, background: 'var(--color-brand-600)' }} title={`Net: R${m.net}`} />
+                <div
+                  style={{
+                    width: '52px',
+                    height: `${grossHeightPct}%`,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-end',
+                    borderRadius: '12px 12px 0 0',
+                    overflow: 'hidden',
+                    border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+                  }}
+                >
+                  {/* Platform Fee segment */}
+                  <div
+                    style={{
+                      height: `${grossHeightPct - netHeightPct}%`,
+                      background: 'var(--color-gold-pale, #F0E5D3)',
+                    }}
+                    title={`15% Platform Commission: R${m.commission}`}
+                  />
+                  {/* Net Doctor earning segment */}
+                  <div
+                    style={{
+                      height: `${netHeightPct}%`,
+                      background: 'var(--color-gold-primary, #E2B467)',
+                    }}
+                    title={`85% Net Take-Home: R${m.net}`}
+                  />
                 </div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--color-slate-600)', fontWeight: 600, marginTop: '8px' }}>
+                <div
+                  style={{
+                    fontSize: '0.8rem',
+                    color: 'var(--color-chocolate-base, #2A170F)',
+                    fontWeight: 700,
+                    marginTop: '10px',
+                  }}
+                >
                   {m.month}
                 </div>
               </div>
@@ -497,200 +614,149 @@ export default function DoctorEarningsPage() {
         </div>
       </div>
 
-      {/* Tabs Navigation */}
-      <div style={{ display: 'flex', gap: '12px', marginBottom: '24px', borderBottom: '1px solid var(--color-slate-200)', paddingBottom: '12px' }}>
-        <button
-          onClick={() => setActiveTab('consultations')}
-          style={{
-            padding: '10px 20px',
-            borderRadius: '12px',
-            border: 'none',
-            background: activeTab === 'consultations' ? 'var(--color-brand-600)' : 'transparent',
-            color: activeTab === 'consultations' ? '#ffffff' : 'var(--color-slate-600)',
-            fontWeight: 700,
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <Clock size={16} />
-          <span>Consultations Breakdown ({consultations.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('reviews')}
-          style={{
-            padding: '10px 20px',
-            borderRadius: '12px',
-            border: 'none',
-            background: activeTab === 'reviews' ? 'var(--color-brand-600)' : 'transparent',
-            color: activeTab === 'reviews' ? '#ffffff' : 'var(--color-slate-600)',
-            fontWeight: 700,
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <Star size={16} />
-          <span>Patient Reviews ({reviewsData.reviewsCount})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('payouts')}
-          style={{
-            padding: '10px 20px',
-            borderRadius: '12px',
-            border: 'none',
-            background: activeTab === 'payouts' ? 'var(--color-brand-600)' : 'transparent',
-            color: activeTab === 'payouts' ? '#ffffff' : 'var(--color-slate-600)',
-            fontWeight: 700,
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <Wallet size={16} />
-          <span>Settlement Payouts ({payouts.length})</span>
-        </button>
-      </div>
-
-      {/* TAB 1: DP-902 Consultation Earnings Breakdown Table */}
-      {activeTab === 'consultations' && (
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '20px',
-            border: '1px solid var(--color-slate-200)',
-            overflow: 'hidden',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-          }}
-        >
-          <div
-            style={{
-              padding: '20px 24px',
-              borderBottom: '1px solid var(--color-slate-200)',
-              display: 'flex',
-              flexWrap: 'wrap',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '16px',
-            }}
+      {/* Tabs Navigation & Search Bar */}
+      <div
+        className="portal-card"
+        style={{
+          padding: '16px 20px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          gap: '16px',
+          marginBottom: '24px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('consultations')}
+            className={`specialty-chip ${activeTab === 'consultations' ? 'active' : ''}`}
           >
-            <div style={{ position: 'relative', width: '320px' }}>
-              <Search
-                size={16}
-                style={{
-                  position: 'absolute',
-                  left: '14px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: 'var(--color-slate-400)',
-                }}
-              />
+            <SolarIcon
+              name="clock-circle-bold"
+              size={15}
+              color={activeTab === 'consultations' ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
+            />
+            <span>Consultations Breakdown ({consultations.length})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('reviews')}
+            className={`specialty-chip ${activeTab === 'reviews' ? 'active' : ''}`}
+          >
+            <SolarIcon
+              name="star-bold"
+              size={15}
+              color={activeTab === 'reviews' ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
+            />
+            <span>Patient Reviews ({reviewsData.reviewsCount})</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('payouts')}
+            className={`specialty-chip ${activeTab === 'payouts' ? 'active' : ''}`}
+          >
+            <SolarIcon
+              name="wallet-money-bold"
+              size={15}
+              color={activeTab === 'payouts' ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
+            />
+            <span>Settlement Payouts ({payouts.length})</span>
+          </button>
+        </div>
+
+        {activeTab === 'consultations' && (
+          <div style={{ width: '100%', maxWidth: '340px' }}>
+            <div className="doctors-search-pill">
+              <SolarIcon name="magnifer-linear" size={17} color="var(--color-gold-base, #DFAB62)" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search patient or booking ID..."
-                style={{
-                  width: '100%',
-                  padding: '10px 14px 10px 38px',
-                  borderRadius: '10px',
-                  border: '1px solid var(--color-slate-200)',
-                  fontSize: '0.875rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                }}
+                placeholder="Search patient or booking..."
+                className="doctors-search-input"
               />
-            </div>
-
-            <div style={{ fontSize: '0.85rem', color: 'var(--color-slate-500)' }}>
-              Showing {filteredConsultations.length} completed consultations
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => setSearchTerm('')}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--color-cream-text-muted)' }}
+                  aria-label="Clear search"
+                >
+                  <X size={15} />
+                </button>
+              )}
             </div>
           </div>
+        )}
+      </div>
 
+      {/* TAB 1: Consultations Breakdown Table (.clinical-table-container) */}
+      {activeTab === 'consultations' && (
+        <div className="clinical-table-container">
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+            <table className="clinical-table">
               <thead>
-                <tr style={{ background: 'var(--color-slate-50)', borderBottom: '1px solid var(--color-slate-200)' }}>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Patient</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Appointment Date</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Duration</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Gross Fee</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Platform Fee</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Net Earning</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Payout Status</th>
+                <tr>
+                  <th className="clinical-th">Patient Client</th>
+                  <th className="clinical-th">Consultation Date</th>
+                  <th className="clinical-th">Duration</th>
+                  <th className="clinical-th">Gross Charged</th>
+                  <th className="clinical-th">Platform Fee (15%)</th>
+                  <th className="clinical-th">Net Payout (85%)</th>
+                  <th className="clinical-th">Status</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredConsultations.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ padding: '40px', textAlign: 'center', color: 'var(--color-slate-400)' }}>
+                    <td colSpan={7} className="clinical-td" style={{ padding: '44px', textAlign: 'center', color: 'var(--color-cream-text-muted)' }}>
                       No consultations found matching your criteria.
                     </td>
                   </tr>
                 ) : (
                   filteredConsultations.map((c) => (
-                    <tr
-                      key={c.bookingId}
-                      style={{
-                        borderBottom: '1px solid var(--color-slate-100)',
-                        transition: 'background 0.15s ease',
-                      }}
-                    >
-                      <td style={{ padding: '16px 20px', fontWeight: 700, color: 'var(--color-slate-900)' }}>
-                        {c.patientInitial}
-                        <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-slate-400)' }}>
-                          ID: {c.bookingId.substring(0, 8)}
+                    <tr key={c.bookingId} className="clinical-tr">
+                      <td className="clinical-td">
+                        <div style={{ fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                          {c.patientInitial}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                          Ref: #{c.bookingId}
                         </div>
                       </td>
-                      <td style={{ padding: '16px 20px', color: 'var(--color-slate-700)' }}>
-                        {new Date(c.date).toLocaleDateString('en-ZA', {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-400)' }}>
-                          {new Date(c.date).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+                      <td className="clinical-td">
+                        <div style={{ fontWeight: 600 }}>
+                          {new Date(c.date).toLocaleDateString('en-ZA', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                          {new Date(c.date).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })} SAST
                         </div>
                       </td>
-                      <td style={{ padding: '16px 20px', color: 'var(--color-slate-600)' }}>
+                      <td className="clinical-td" style={{ color: 'var(--color-cream-text-muted)' }}>
                         {c.duration}
                       </td>
-                      <td style={{ padding: '16px 20px', fontWeight: 600, color: 'var(--color-slate-900)' }}>
+                      <td className="clinical-td" style={{ fontWeight: 600, color: 'var(--color-chocolate-base)' }}>
                         R{c.grossFee.toFixed(2)}
                       </td>
-                      <td style={{ padding: '16px 20px', color: '#dc2626', fontWeight: 600 }}>
+                      <td className="clinical-td" style={{ color: 'var(--color-gold-bronze, #B88647)', fontWeight: 600 }}>
                         -R{c.commission.toFixed(2)}
                       </td>
-                      <td style={{ padding: '16px 20px', fontWeight: 800, color: '#059669' }}>
-                        +R{c.netEarning.toFixed(2)}
+                      <td className="clinical-td">
+                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, color: '#059669', fontSize: '1rem' }}>
+                          +R{c.netEarning.toFixed(2)}
+                        </span>
                       </td>
-                      <td style={{ padding: '16px 20px' }}>
-                        <span
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            padding: '4px 10px',
-                            borderRadius: '20px',
-                            fontSize: '0.75rem',
-                            fontWeight: 700,
-                            background: '#ecfdf5',
-                            color: '#059669',
-                            border: '1px solid #a7f3d0',
-                          }}
-                        >
-                          <CheckCircle2 size={12} />
+                      <td className="clinical-td">
+                        <span className="badge-success">
+                          <SolarIcon name="check-circle-bold" size={12} color="#065f46" />
                           <span>Settled to Balance</span>
                         </span>
                       </td>
@@ -703,17 +769,9 @@ export default function DoctorEarningsPage() {
         </div>
       )}
 
-      {/* TAB 2: DP-903 Doctor Reviews & Feedback */}
+      {/* TAB 2: Doctor Reviews & Feedback */}
       {activeTab === 'reviews' && (
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '20px',
-            border: '1px solid var(--color-slate-200)',
-            padding: '32px',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-          }}
-        >
+        <div className="portal-card" style={{ padding: '32px' }}>
           {/* Header Summary */}
           <div
             style={{
@@ -721,192 +779,161 @@ export default function DoctorEarningsPage() {
               gridTemplateColumns: 'auto 1fr',
               gap: '36px',
               alignItems: 'center',
-              padding: '24px',
-              borderRadius: '16px',
-              background: 'var(--color-slate-50)',
-              border: '1px solid var(--color-slate-200)',
+              padding: '24px 28px',
+              borderRadius: '18px',
+              background: 'var(--color-cream-base, #FAF6EE)',
+              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
               marginBottom: '32px',
             }}
           >
-            <div style={{ textAlign: 'center', minWidth: '130px' }}>
-              <div style={{ fontSize: '3.2rem', fontWeight: 900, color: 'var(--color-slate-900)', lineHeight: 1 }}>
+            <div style={{ textAlign: 'center', minWidth: '140px' }}>
+              <div
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '3.6rem',
+                  fontWeight: 900,
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  lineHeight: 1,
+                }}
+              >
                 {Number(reviewsData.ratingAvg).toFixed(1)}
               </div>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '3px', margin: '8px 0 4px' }}>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', margin: '10px 0 6px' }}>
                 {[1, 2, 3, 4, 5].map((s) => (
-                  <Star
+                  <SolarIcon
                     key={s}
-                    size={18}
-                    style={{
-                      fill: s <= Math.round(reviewsData.ratingAvg) ? '#f59e0b' : '#cbd5e1',
-                      color: s <= Math.round(reviewsData.ratingAvg) ? '#f59e0b' : '#cbd5e1',
-                    }}
+                    name="star-bold"
+                    size={20}
+                    color={s <= Math.round(reviewsData.ratingAvg) ? 'var(--color-gold-primary, #E2B467)' : 'rgba(223, 171, 98, 0.3)'}
                   />
                 ))}
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--color-slate-500)', fontWeight: 600 }}>
-                Average from {reviewsData.reviewsCount} reviews
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 600 }}>
+                Average from {reviewsData.reviewsCount} verified patient consultations
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {/* Distribution bars */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
               {[5, 4, 3, 2, 1].map((stars) => {
                 const dist = reviewsData.distribution[stars] || { count: 0, percentage: 0 };
                 return (
-                  <div key={stars} style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '0.85rem' }}>
-                    <span style={{ width: '32px', fontWeight: 700, color: 'var(--color-slate-700)', display: 'flex', alignItems: 'center', gap: '3px' }}>
-                      {stars} <Star size={12} style={{ fill: '#f59e0b', color: '#f59e0b' }} />
-                    </span>
-                    <div style={{ flex: 1, height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div style={{ width: `${dist.percentage}%`, height: '100%', background: '#f59e0b', borderRadius: '4px' }} />
+                  <div key={stars} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8rem' }}>
+                    <span style={{ width: '44px', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>{stars} stars</span>
+                    <div style={{ flex: 1, height: '8px', borderRadius: '4px', background: 'var(--color-gold-pale, #F0E5D3)', overflow: 'hidden' }}>
+                      <div
+                        style={{
+                          width: `${dist.percentage}%`,
+                          height: '100%',
+                          background: 'var(--color-gold-primary, #E2B467)',
+                          borderRadius: '4px',
+                        }}
+                      />
                     </div>
-                    <span style={{ width: '65px', textAlign: 'right', color: 'var(--color-slate-500)', fontSize: '0.8rem' }}>
-                      {dist.percentage}% ({dist.count})
-                    </span>
+                    <span style={{ width: '30px', textAlign: 'right', color: 'var(--color-cream-text-muted)' }}>{dist.count}</span>
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* Reviews List */}
+          {/* Individual Reviews List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {reviewsData.reviews.map((rev: any) => (
               <div
                 key={rev.id}
                 style={{
                   padding: '20px 24px',
-                  borderRadius: '14px',
-                  border: '1px solid var(--color-slate-200)',
-                  background: '#ffffff',
+                  borderRadius: '16px',
+                  border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
+                  background: 'var(--color-cream-surface, #FDFBF7)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
-                      style={{
-                        width: '32px',
-                        height: '32px',
-                        borderRadius: '50%',
-                        background: 'rgba(14, 147, 132, 0.1)',
-                        color: 'var(--color-brand-700)',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.8rem',
-                      }}
-                    >
-                      {rev.author[0]}
+                    <div className="doctor-avatar-circle" style={{ width: '36px', height: '36px', fontSize: '0.85rem' }}>
+                      {rev.author.substring(0, 2).toUpperCase()}
                     </div>
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--color-slate-900)' }}>
-                      {rev.author}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: '0.7rem',
-                        color: '#059669',
-                        background: '#ecfdf5',
-                        border: '1px solid #a7f3d0',
-                        padding: '2px 8px',
-                        borderRadius: '10px',
-                        fontWeight: 700,
-                      }}
-                    >
-                      Verified Patient
-                    </span>
+                    <div>
+                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base)' }}>
+                        {rev.author}
+                      </span>
+                      <span className="badge-gold" style={{ marginLeft: '8px', fontSize: '0.7rem' }}>
+                        Verified Telehealth
+                      </span>
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '2px' }}>
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        size={14}
-                        style={{
-                          fill: s <= rev.rating ? '#f59e0b' : '#cbd5e1',
-                          color: s <= rev.rating ? '#f59e0b' : '#cbd5e1',
-                        }}
-                      />
-                    ))}
-                  </div>
+                  <span style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted)' }}>
+                    {rev.date}
+                  </span>
                 </div>
 
-                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-slate-700)', lineHeight: 1.6 }}>
+                <div style={{ display: 'flex', gap: '3px', marginBottom: '8px' }}>
+                  {[1, 2, 3, 4, 5].map((s) => (
+                    <SolarIcon
+                      key={s}
+                      name="star-bold"
+                      size={15}
+                      color={s <= rev.rating ? 'var(--color-gold-primary, #E2B467)' : 'rgba(223, 171, 98, 0.3)'}
+                    />
+                  ))}
+                </div>
+
+                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-cream-text-muted, #6B5E55)', lineHeight: 1.5 }}>
                   "{rev.text}"
                 </p>
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-slate-400)', marginTop: '8px' }}>
-                  Consultation on {rev.date}
-                </div>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      {/* TAB 3: Historical Payout Settlements */}
+      {/* TAB 3: Settlement Payouts Table (.clinical-table-container) */}
       {activeTab === 'payouts' && (
-        <div
-          style={{
-            background: '#ffffff',
-            borderRadius: '20px',
-            border: '1px solid var(--color-slate-200)',
-            overflow: 'hidden',
-            boxShadow: '0 2px 8px rgba(15, 23, 42, 0.04)',
-          }}
-        >
-          <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--color-slate-200)' }}>
-            <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
-              Settlement Payout History
-            </h3>
-            <p style={{ margin: '4px 0 0', fontSize: '0.85rem', color: 'var(--color-slate-500)' }}>
-              Bank transfers released to your registered account
-            </p>
-          </div>
-
+        <div className="clinical-table-container">
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.875rem' }}>
+            <table className="clinical-table">
               <thead>
-                <tr style={{ background: 'var(--color-slate-50)', borderBottom: '1px solid var(--color-slate-200)' }}>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Payout Reference</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Settlement Period</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Amount (ZAR)</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Status</th>
-                  <th style={{ padding: '14px 20px', fontWeight: 700, color: 'var(--color-slate-700)' }}>Processed On</th>
+                <tr>
+                  <th className="clinical-th">Settlement Ref</th>
+                  <th className="clinical-th">Payout Period</th>
+                  <th className="clinical-th">Transfer Date</th>
+                  <th className="clinical-th">Amount (ZAR)</th>
+                  <th className="clinical-th">Payment Status</th>
                 </tr>
               </thead>
               <tbody>
-                {payouts.map((p) => (
-                  <tr key={p.id} style={{ borderBottom: '1px solid var(--color-slate-100)' }}>
-                    <td style={{ padding: '16px 20px', fontWeight: 700, color: 'var(--color-slate-900)', fontFamily: 'monospace' }}>
-                      {p.reference}
+                {payouts.map((po) => (
+                  <tr key={po.id} className="clinical-tr">
+                    <td className="clinical-td">
+                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
+                        {po.reference}
+                      </span>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted)' }}>
+                        EFT Direct Deposit
+                      </div>
                     </td>
-                    <td style={{ padding: '16px 20px', color: 'var(--color-slate-700)' }}>
-                      {p.periodStart} to {p.periodEnd}
+                    <td className="clinical-td" style={{ color: 'var(--color-cream-text-muted)' }}>
+                      {po.periodStart} to {po.periodEnd}
                     </td>
-                    <td style={{ padding: '16px 20px', fontWeight: 800, color: 'var(--color-slate-900)' }}>
-                      R{p.amount.toFixed(2)}
+                    <td className="clinical-td">
+                      {new Date(po.createdAt).toLocaleDateString('en-ZA', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
                     </td>
-                    <td style={{ padding: '16px 20px' }}>
-                      <span
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          padding: '4px 10px',
-                          borderRadius: '20px',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                          background: '#ecfdf5',
-                          color: '#059669',
-                          border: '1px solid #a7f3d0',
-                        }}
-                      >
-                        <CheckCircle2 size={12} />
-                        <span>TRANSFERRED</span>
+                    <td className="clinical-td">
+                      <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 800, color: '#059669' }}>
+                        R{po.amount.toFixed(2)}
                       </span>
                     </td>
-                    <td style={{ padding: '16px 20px', color: 'var(--color-slate-500)' }}>
-                      {new Date(p.createdAt).toLocaleDateString('en-ZA')}
+                    <td className="clinical-td">
+                      <span className="badge-success">
+                        <SolarIcon name="check-circle-bold" size={12} color="#065f46" />
+                        <span>Transferred & Settled</span>
+                      </span>
                     </td>
                   </tr>
                 ))}

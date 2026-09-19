@@ -13,7 +13,7 @@ function ConsultationRedirectInner() {
     if (bookingId) {
       router.replace(`/consultations/${bookingId}`);
     } else {
-      router.replace('/bookings');
+      router.replace('/appointments');
     }
   }, [bookingId, router]);
 
@@ -25,11 +25,12 @@ function ConsultationRedirectInner() {
         alignItems: 'center',
         justifyContent: 'center',
         minHeight: '60vh',
+        backgroundColor: '#F8F4EC',
         gap: '16px',
       }}
     >
-      <Loader2 size={36} className="animate-spin" style={{ color: 'var(--color-brand-600)' }} />
-      <p style={{ color: 'var(--color-slate-600)', fontSize: '0.95rem' }}>
+      <Loader2 size={36} className="animate-spin" style={{ color: '#B88647' }} />
+      <p style={{ color: '#6B5E55', fontSize: '0.95rem' }}>
         Redirecting to consultation workspace...
       </p>
     </div>

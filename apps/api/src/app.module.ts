@@ -14,6 +14,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { AdminModule } from './modules/admin/admin.module';
 import { MedicalModule } from './modules/medical/medical.module';
 import { AuditModule } from './modules/audit/audit.module';
+import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { AuditModule } from './modules/audit/audit.module';
     NotificationsModule,
     AdminModule,
     MedicalModule,
+    TestimonialsModule,
   ],
 })
 

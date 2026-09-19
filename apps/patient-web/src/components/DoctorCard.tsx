@@ -1,14 +1,14 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Star, ShieldCheck, Clock, MapPin, Calendar, ArrowRight } from 'lucide-react';
+import { SolarIcon } from './SolarIcon';
 
 export interface DoctorCardProps {
   id: string;
   slug?: string;
   name: string;
-  hpcsa_number: string;
+  hpcsa_number?: string;
   specialty: string;
   bio?: string;
   rate_per_hour: number;
@@ -18,7 +18,16 @@ export interface DoctorCardProps {
   facility_address?: string;
   photo_url?: string;
   next_available_slot?: string;
+  tags?: string[];
+  experience_years?: number | string;
+  offers_in_clinic?: boolean;
 }
+
+const DEFAULT_DOCTOR_IMAGES = [
+  '/images/doctor_thabo.jpg',
+  '/images/doctor_sarah.jpg',
+  '/images/doctor_kevin.jpg',
+];
 
 export function DoctorCard({
   id,
@@ -31,170 +40,218 @@ export function DoctorCard({
   rating_avg,
   reviews_count = 0,
   facility_name,
+  facility_address,
   photo_url,
   next_available_slot,
+  tags,
+  experience_years,
+  offers_in_clinic,
 }: DoctorCardProps) {
   const profileUrl = `/doctors/${slug || id}`;
   const displayName = name.startsWith('Dr.') || name.startsWith('Dr ') ? name : `Dr. ${name}`;
 
+  // Fallback image selection based on id or name
+  const fallbackIndex = Math.abs(
+    (id || displayName).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+  ) % DEFAULT_DOCTOR_IMAGES.length;
+  const fallbackImg = DEFAULT_DOCTOR_IMAGES[fallbackIndex];
+
+  const [imgSrc, setImgSrc] = useState(photo_url || fallbackImg);
+
+  useEffect(() => {
+    if (photo_url) {
+      setImgSrc(photo_url);
+    }
+  }, [photo_url]);
+
+  const locationText = facility_address || facility_name;
+
   return (
-    <div
-      style={{
-        background: '#ffffff',
-        borderRadius: '16px',
-        border: '1px solid var(--color-slate-200)',
-        boxShadow: '0 4px 20px -2px rgba(15, 23, 42, 0.05)',
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease',
-      }}
-      className="doctor-card-hover"
-    >
-      {/* Top Banner / Avatar & Core Info */}
-      <div style={{ padding: '24px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-          {/* Avatar */}
-          <div
-            style={{
-              position: 'relative',
-              width: '72px',
-              height: '72px',
-              borderRadius: '16px',
-              overflow: 'hidden',
-              flexShrink: 0,
-              background: 'linear-gradient(135deg, var(--color-brand-100) 0%, var(--color-brand-200) 100%)',
-              border: '2px solid #ffffff',
-              boxShadow: '0 4px 12px rgba(14, 147, 132, 0.15)',
+    <div className="doctor-card" style={{ minWidth: 0, width: '100%' }}>
+      <div style={{ minWidth: 0, width: '100%' }}>
+        {/* Doctor Photograph with Floating Badges — strictly constrained height */}
+        <div
+          className="doctor-image-wrapper"
+          style={{
+            width: '100%',
+            height: '220px',
+            minHeight: '220px',
+            maxHeight: '220px',
+            overflow: 'hidden',
+            flexShrink: 0,
+          }}
+        >
+          <img
+            src={imgSrc}
+            alt={displayName}
+            onError={() => {
+              if (imgSrc !== fallbackImg) {
+                setImgSrc(fallbackImg);
+              }
             }}
-          >
-            {photo_url ? (
-              <img
-                src={photo_url}
-                alt={displayName}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
-              />
-            ) : null}
-            {/* Fallback Initials */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: '1.25rem',
-                color: 'var(--color-brand-700)',
-                zIndex: 0,
-              }}
-            >
-              {displayName.replace(/Dr\.?\s*/i, '').slice(0, 2).toUpperCase()}
-            </div>
+            style={{
+              width: '100%',
+              height: '100%',
+              maxHeight: '100%',
+              objectFit: 'cover',
+              objectPosition: 'center 20%',
+              display: 'block',
+            }}
+          />
+
+          {/* Floating Availability Badge (Upper-Right) */}
+          <div className="doctor-availability-badge">
+            <span className="doctor-availability-dot" />
+            <span>{next_available_slot || 'Available today'}</span>
           </div>
 
-          {/* Details */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <Link
-                href={profileUrl}
-                style={{
-                  fontWeight: 700,
-                  fontSize: '1.125rem',
-                  color: 'var(--color-slate-900)',
-                  textDecoration: 'none',
-                  letterSpacing: '-0.02em',
-                }}
-              >
+          {/* Floating Rating Badge (Lower-Left) */}
+          <div className="doctor-rating-badge">
+            <SolarIcon name="star-bold" size={13} color="var(--color-gold-primary)" />
+            <span>{Number(rating_avg).toFixed(1)}</span>
+            <span style={{ color: 'var(--color-chocolate-muted)', fontWeight: 500 }}>
+              ({reviews_count})
+            </span>
+          </div>
+        </div>
+
+        {/* Doctor Identity Area */}
+        <div style={{ marginBottom: '10px' }}>
+          {/* Name, Specialty & HPCSA Verification */}
+          <div>
+            <h3
+              style={{
+                fontFamily: 'var(--font-heading), sans-serif',
+                fontSize: '1.125rem',
+                fontWeight: 600,
+                color: 'var(--color-chocolate-base)',
+                marginBottom: '2px',
+                lineHeight: 1.25,
+              }}
+            >
+              <Link href={profileUrl} style={{ color: 'inherit', textDecoration: 'none' }}>
                 {displayName}
               </Link>
-            </div>
+            </h3>
 
             <p
               style={{
-                fontSize: '0.875rem',
+                fontFamily: 'var(--font-sans)',
+                fontSize: '0.8125rem',
                 fontWeight: 600,
-                color: 'var(--color-brand-600)',
-                marginTop: '2px',
+                color: 'var(--color-gold-base)',
+                marginBottom: '4px',
               }}
             >
               {specialty}
             </p>
 
-            {/* HPCSA Verified Badge */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                marginTop: '6px',
-                padding: '2px 8px',
-                borderRadius: '9999px',
-                background: 'rgba(14, 147, 132, 0.08)',
-                color: 'var(--color-brand-700)',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-              }}
-            >
-              <ShieldCheck size={13} style={{ color: 'var(--color-brand-600)' }} />
-              <span>HPCSA Verified • {hpcsa_number}</span>
-            </div>
+            {hpcsa_number && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  backgroundColor: 'var(--color-gold-pale)',
+                  color: 'var(--color-chocolate-mid)',
+                  border: '1px solid rgba(223, 171, 98, 0.25)',
+                  fontSize: '0.72rem',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-sans)',
+                }}
+              >
+                <SolarIcon name="shield-check-linear" size={12} color="var(--color-gold-bronze)" />
+                <span>HPCSA • {hpcsa_number}</span>
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Rating & Location snippet */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginTop: '16px',
-            paddingTop: '12px',
-            borderTop: '1px solid var(--color-slate-100)',
-            fontSize: '0.85rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-            <Star size={15} style={{ fill: '#f59e0b', color: '#f59e0b' }} />
-            <span style={{ fontWeight: 700, color: 'var(--color-slate-900)' }}>
-              {Number(rating_avg).toFixed(1)}
-            </span>
-            <span style={{ color: 'var(--color-slate-500)' }}>
-              ({reviews_count} {reviews_count === 1 ? 'review' : 'reviews'})
+        {/* Experience Row */}
+        {experience_years !== undefined && experience_years !== null && experience_years !== '' && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.8125rem',
+              color: 'var(--color-chocolate-muted)',
+              marginBottom: locationText ? '6px' : '10px',
+            }}
+          >
+            <SolarIcon name="diploma-verified-linear" size={14} color="var(--color-gold-base)" />
+            <span>
+              {typeof experience_years === 'number'
+                ? `${experience_years}+ yrs experience`
+                : experience_years.toString().includes('exp')
+                ? experience_years
+                : `${experience_years} experience`}
             </span>
           </div>
+        )}
 
-          {facility_name && (
-            <div
+        {/* In-Clinic Physical Location Row (ONLY shown if doctor offers In-Clinic visits) */}
+        {offers_in_clinic && locationText && !locationText.includes('yrs exp') && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.8125rem',
+              color: 'var(--color-chocolate-muted)',
+              marginBottom: '10px',
+              minWidth: 0,
+              width: '100%',
+              overflow: 'hidden',
+            }}
+          >
+            <SolarIcon name="map-point-linear" size={14} color="var(--color-gold-base)" style={{ flexShrink: 0 }} />
+            <span
+              title={`In-Clinic: ${locationText}`}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                color: 'var(--color-slate-500)',
-                maxWidth: '180px',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
+                minWidth: 0,
+                flex: 1,
               }}
-              title={facility_name}
             >
-              <MapPin size={13} style={{ flexShrink: 0, color: 'var(--color-slate-400)' }} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{facility_name}</span>
-            </div>
-          )}
-        </div>
+              In-Clinic: {locationText}
+            </span>
+          </div>
+        )}
 
-        {/* Bio summary */}
-        {bio && (
+        {/* Specialty Tags */}
+        {tags && tags.length > 0 && (
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '6px',
+              marginBottom: '10px',
+            }}
+          >
+            {tags.map((tag, idx) => (
+              <span key={idx} className="doctor-tag">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Bio summary snippet (when tags not present) */}
+        {bio && (!tags || tags.length === 0) && (
           <p
             style={{
-              fontSize: '0.85rem',
-              color: 'var(--color-slate-600)',
-              lineHeight: 1.5,
-              marginTop: '12px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.8125rem',
+              color: 'var(--color-chocolate-muted)',
+              lineHeight: 1.45,
+              marginBottom: '12px',
               display: '-webkit-box',
               WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
@@ -204,77 +261,72 @@ export function DoctorCard({
             {bio}
           </p>
         )}
-
-        {/* Next Available Slot indicator */}
-        <div
-          style={{
-            marginTop: 'auto',
-            paddingTop: '14px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            fontSize: '0.8rem',
-            color: 'var(--color-slate-600)',
-          }}
-        >
-          <Clock size={13} style={{ color: 'var(--color-brand-600)' }} />
-          <span>Next slot:</span>
-          <span style={{ fontWeight: 600, color: 'var(--color-slate-800)' }}>
-            {next_available_slot || 'Available Tomorrow, 09:00'}
-          </span>
-        </div>
       </div>
 
-      {/* Card Footer: Fee & Book CTA */}
-      <div
-        style={{
-          background: 'var(--color-slate-50)',
-          borderTop: '1px solid var(--color-slate-200)',
-          padding: '14px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-        }}
-      >
-        <div>
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-slate-500)', display: 'block' }}>
+      {/* Card Footer: Fee Callout & Booking Actions */}
+      <div style={{ minWidth: 0, width: '100%' }}>
+        {/* Consultation Fee Callout in bold chocolate text */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'baseline',
+            justifyContent: 'space-between',
+            paddingTop: '12px',
+            borderTop: '1px solid var(--color-gold-border)',
+            marginBottom: '12px',
+          }}
+        >
+          <span
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: '0.75rem',
+              color: 'var(--color-chocolate-muted)',
+              fontWeight: 500,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+            }}
+          >
             Consultation Fee
           </span>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px' }}>
             <span
               style={{
-                fontSize: '1.2rem',
-                fontWeight: 800,
-                color: 'var(--color-slate-900)',
+                fontFamily: 'var(--font-heading)',
+                fontSize: '1.25rem',
+                fontWeight: 700,
+                color: 'var(--color-chocolate-base)',
                 letterSpacing: '-0.02em',
               }}
             >
-              R{Number(rate_per_hour).toFixed(2)}
+              R{Number(rate_per_hour).toFixed(0)}
             </span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-slate-500)' }}>/ session</span>
+            <span
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: '0.75rem',
+                color: 'var(--color-chocolate-muted)',
+              }}
+            >
+              / session
+            </span>
           </div>
         </div>
 
-        <Link
-          href={profileUrl}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            padding: '8px 16px',
-            borderRadius: '10px',
-            background: 'var(--color-brand-600)',
-            color: '#ffffff',
-            fontWeight: 600,
-            fontSize: '0.875rem',
-            textDecoration: 'none',
-            boxShadow: '0 2px 6px rgba(14, 147, 132, 0.25)',
-            transition: 'background 0.2s, transform 0.1s',
-          }}
-        >
-          <span>Book Now</span>
-          <ArrowRight size={14} />
-        </Link>
+        {/* Booking Actions */}
+        <div className="doctor-booking-actions" style={{ marginTop: 0 }}>
+          <Link href={profileUrl} className="doctor-book-btn touch-target">
+            <span>Book Consultation</span>
+            <SolarIcon name="calendar-linear" size={16} color="var(--color-gold-base)" />
+          </Link>
+
+          <Link
+            href={profileUrl}
+            aria-label={`View profile for ${displayName}`}
+            className="doctor-arrow-btn touch-target"
+          >
+            <SolarIcon name="arrow-right-linear" size={18} color="var(--color-chocolate-base)" />
+          </Link>
+        </div>
       </div>
     </div>
   );

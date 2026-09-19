@@ -22,7 +22,8 @@
   "devDependencies": {
     "prettier": "^3.3.3"
   },
-  "dependencies": {
-    "@next/swc-win32-x64-msvc": "^14.2.10"
+  "overrides": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   }
 }

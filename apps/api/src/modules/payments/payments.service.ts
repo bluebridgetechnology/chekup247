@@ -4,6 +4,7 @@ import {
   BadRequestException,
   UnauthorizedException,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -15,8 +16,9 @@ import {
   PaymentStatus,
   WalletCredit,
 } from '../../database/patient/entities';
-import { User } from '../../database/operational/entities';
+import { User, AvailabilitySlot, DoctorProfile } from '../../database/operational/entities';
 import { PaystackService } from './paystack.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { envConfig } from '../../config/env.config';
 
 export interface InitiatePaymentDto {
@@ -38,6 +40,14 @@ export class PaymentsService {
     @InjectRepository(User, 'operational')
     private readonly userRepository: Repository<User>,
     private readonly paystackService: PaystackService,
+    @InjectRepository(AvailabilitySlot, 'operational')
+    @Optional()
+    private readonly slotRepository?: Repository<AvailabilitySlot>,
+    @InjectRepository(DoctorProfile, 'operational')
+    @Optional()
+    private readonly doctorRepository?: Repository<DoctorProfile>,
+    @Optional()
+    private readonly notificationsService?: NotificationsService,
   ) {}
 
   /**
@@ -132,6 +142,7 @@ export class PaymentsService {
             status: PaymentRecordStatus.SUCCESS,
           });
           await this.paymentRepository.save(creditPayment);
+          this.sendBookingConfirmationNotifications(booking.id).catch(() => {});
 
           return {
             success: true,
@@ -235,6 +246,7 @@ export class PaymentsService {
           payment.booking.payment_status = PaymentStatus.HELD;
           await this.bookingRepository.save(payment.booking);
           this.logger.log(`Booking ${payment.booking_id} confirmed via Paystack charge.success`);
+          this.sendBookingConfirmationNotifications(payment.booking_id).catch(() => {});
         }
       }
     } else if (eventName === 'refund.processed' && data?.reference) {
@@ -300,6 +312,7 @@ export class PaymentsService {
         payment.booking.status = BookingStatus.CONFIRMED;
         payment.booking.payment_status = PaymentStatus.HELD;
         await this.bookingRepository.save(payment.booking);
+        this.sendBookingConfirmationNotifications(payment.booking_id).catch(() => {});
       }
     }
 
@@ -466,5 +479,97 @@ export class PaymentsService {
     return this.paymentRepository.find({
       where: { booking_id: bookingId },
     });
+  }
+
+  /**
+   * Dispatches booking_confirmed (to patient) and new_booking_doctor (to doctor).
+   */
+  private async sendBookingConfirmationNotifications(bookingId: string): Promise<void> {
+    if (!this.notificationsService) return;
+    try {
+      const booking = await this.bookingRepository.findOne({ where: { id: bookingId } });
+      if (!booking) return;
+
+      let slot: AvailabilitySlot | null = null;
+      if (this.slotRepository && booking.slot_id) {
+        slot = await this.slotRepository.findOne({
+          where: { id: booking.slot_id },
+          relations: ['doctor', 'doctor.user'],
+        });
+      }
+
+      let doctorName = slot?.doctor?.user?.full_name;
+      let doctorUserId = slot?.doctor?.user_id || booking.doctor_id;
+
+      if (!doctorName && this.doctorRepository && booking.doctor_id) {
+        const docProfile = await this.doctorRepository.findOne({
+          where: [{ user_id: booking.doctor_id }, { id: booking.doctor_id }],
+          relations: ['user'],
+        });
+        if (docProfile) {
+          doctorName = docProfile.user?.full_name || 'Practitioner';
+          doctorUserId = docProfile.user_id;
+        }
+      }
+
+      if (!doctorName) doctorName = 'Practitioner';
+
+      const patientUser = await this.userRepository.findOne({ where: { id: booking.patient_id } });
+      const patientName = patientUser?.full_name || 'Patient';
+
+      const formattedDate = slot?.start_time
+        ? new Date(slot.start_time).toLocaleDateString('en-ZA', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+          })
+        : 'Scheduled Date';
+      const formattedTime = slot?.start_time
+        ? new Date(slot.start_time).toLocaleTimeString('en-ZA', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : '';
+
+      // 1. Dispatch confirmation to patient
+      await this.notificationsService.dispatchNotification({
+        recipientId: booking.patient_id,
+        title: 'Appointment Confirmed',
+        templateId: 'booking_confirmed',
+        payload: {
+          bookingId: booking.id,
+          doctorName,
+          patientName,
+          appointmentDate: formattedDate,
+          appointmentTime: formattedTime,
+          message: `Your consultation with Dr. ${doctorName} is confirmed for ${formattedDate} at ${formattedTime}.`,
+        },
+        deepLink: `/bookings/${booking.id}`,
+      });
+
+      // 2. Dispatch alert to doctor
+      if (doctorUserId) {
+        await this.notificationsService.dispatchNotification({
+          recipientId: doctorUserId,
+          title: 'New Appointment Booked',
+          templateId: 'new_booking_doctor',
+          payload: {
+            bookingId: booking.id,
+            doctorName,
+            patientName,
+            appointmentDate: formattedDate,
+            appointmentTime: formattedTime,
+            clinicalReason: booking.notes || 'General Telehealth Consultation',
+            message: `New booking with ${patientName} on ${formattedDate} at ${formattedTime}.`,
+          },
+          deepLink: `/doctor/consultations/${booking.id}`,
+        });
+      }
+    } catch (err: any) {
+      this.logger.warn(
+        `Could not dispatch booking confirmation notifications for ${bookingId}: ${err.message}`,
+      );
+    }
   }
 }

@@ -5,7 +5,9 @@ import {
   BadRequestException,
   OnModuleInit,
   Logger,
+  Optional,
 } from '@nestjs/common';
+import { NotificationsService } from '../notifications/notifications.service';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -62,6 +64,8 @@ export class AdminService implements OnModuleInit {
     private readonly prescriptionRepository: Repository<Prescription>,
     private readonly tokenService: TokenService,
     private readonly auditService: AuditService,
+    @Optional()
+    private readonly notificationsService?: NotificationsService,
   ) {}
 
   /**
@@ -772,6 +776,27 @@ export class AdminService implements OnModuleInit {
     );
 
     this.logger.log(`Doctor ${doctor.hpcsa_number} verified by admin ${adminId || 'system'}`);
+
+    if (this.notificationsService && doctor.user_id) {
+      this.notificationsService
+        .dispatchNotification({
+          recipientId: doctor.user_id,
+          title: 'Practitioner Profile Approved',
+          templateId: 'doctor_profile_approved',
+          payload: {
+            doctorName: doctor.user?.full_name || doctor.hpcsa_number,
+            hpcsaNumber: doctor.hpcsa_number,
+            specialty: doctor.specialty || 'General Practitioner',
+            message: 'Your practitioner profile has been approved! You can now set your consultation availability.',
+          },
+          deepLink: '/calendar',
+          forceChannels: ['email', 'sms'],
+        })
+        .catch((err) => {
+          this.logger.warn(`Could not dispatch doctor_profile_approved: ${err.message}`);
+        });
+    }
+
     return saved;
   }
 
