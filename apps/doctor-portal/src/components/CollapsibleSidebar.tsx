@@ -3,12 +3,6 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  ChevronLeft,
-  ChevronRight,
-  ShieldCheck,
-  LogOut,
-} from 'lucide-react';
 import { SolarIcon } from './common/SolarIcon';
 import { ChekupCrossLogo } from './common/ChekupCrossLogo';
 import { useDoctorAuth } from '../context/DoctorAuthContext';
@@ -50,7 +44,8 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Brand Header */}
       <div
         style={{
-          height: '74px',
+          height: 'var(--doctor-topbar-h, 76px)',
+          minHeight: 'var(--doctor-topbar-h, 76px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: collapsed ? 'center' : 'space-between',
@@ -120,13 +115,14 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
             }}
             title="Collapse navigation"
           >
-            <ChevronLeft size={18} />
+            <SolarIcon name="alt-arrow-left-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
           </button>
         )}
       </div>
 
       {/* Nav List */}
       <nav
+        className="no-scrollbar"
         style={{
           flex: 1,
           padding: '20px 12px',
@@ -134,6 +130,8 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
           flexDirection: 'column',
           gap: '6px',
           overflowY: 'auto',
+          scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
         }}
       >
         {navItems.map((item) => {
@@ -215,7 +213,91 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
             }}
             title="Expand sidebar"
           >
-            <ChevronRight size={18} />
+            <SolarIcon name="alt-arrow-right-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+          </button>
+        ) : (
+          <button
+            onClick={onToggle}
+            style={{
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '10px',
+              padding: '7px 12px',
+              cursor: 'pointer',
+              color: 'rgba(255, 255, 255, 0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.78rem',
+              width: '100%',
+            }}
+          >
+            <span>Collapse Menu</span>
+            <SolarIcon name="alt-arrow-left-linear" size={16} color="rgba(255, 255, 255, 0.7)" />
+          </button>
+        )}
+
+        {!doctor ? (
+          collapsed ? (
+            <Link
+              href="/login"
+              style={{
+                width: '100%',
+                padding: '10px 0',
+                borderRadius: '10px',
+                background: 'transparent',
+                border: 'none',
+                color: 'var(--color-gold-base, #DFAB62)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'color 0.18s ease',
+              }}
+              title="Sign In"
+            >
+              <SolarIcon name="login-2-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+            </Link>
+          ) : (
+            <Link
+              href="/login"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '10px 14px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                background: 'var(--color-gold-base, #DFAB62)',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                fontWeight: 700,
+                fontSize: '0.825rem',
+                textDecoration: 'none',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.18)',
+              }}
+            >
+              <SolarIcon name="login-2-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
+              <span>Sign In</span>
+            </Link>
+          )
+        ) : collapsed ? (
+          <button
+            onClick={() => logout()}
+            style={{
+              width: '100%',
+              padding: '10px 0',
+              borderRadius: '10px',
+              background: 'transparent',
+              border: 'none',
+              color: 'rgba(255, 255, 255, 0.6)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'color 0.18s ease',
+            }}
+            title="Sign out of practice suite"
+          >
+            <SolarIcon name="logout-2-linear" size={17} color="rgba(255, 255, 255, 0.6)" />
           </button>
         ) : (
           <>
@@ -271,7 +353,7 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
                     gap: '4px',
                   }}
                 >
-                  <ShieldCheck size={11} />
+                  <SolarIcon name="shield-check-linear" size={12} color="var(--color-gold-base, #DFAB62)" />
                   <span>HPCSA Active</span>
                 </div>
               </div>
@@ -294,7 +376,7 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
               }}
               title="Sign out of practice suite"
             >
-              <LogOut size={13} />
+              <SolarIcon name="logout-2-linear" size={14} color="rgba(255, 255, 255, 0.6)" />
               <span>Sign Out Practice</span>
             </button>
           </>

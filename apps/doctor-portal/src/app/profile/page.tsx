@@ -16,6 +16,7 @@ import {
   Landmark,
 } from 'lucide-react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import { SolarIcon } from '../../components/common/SolarIcon';
 
 const AVAILABLE_SPECIALTIES = [
@@ -178,8 +179,14 @@ export default function DoctorProfilePage() {
           ? 'Holiday Mode activated: Your public calendar slots are now hidden from patients.'
           : 'Holiday Mode deactivated: Your calendar slots are live for patient booking.',
       });
+      toastSuccess(
+        nextStatus ? 'Holiday mode on' : 'Holiday mode off',
+        nextStatus ? 'Your slots are hidden from patients.' : 'Your slots are live for booking.',
+      );
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Failed to update holiday mode.' });
+      const msg = errorMessage(err, 'Failed to update holiday mode.');
+      setMessage({ type: 'error', text: msg });
+      toastError('Could not update holiday mode', msg);
     } finally {
       setTogglingHoliday(false);
     }
@@ -273,8 +280,11 @@ export default function DoctorProfilePage() {
         accountHolder,
       });
       setMessage({ type: 'success', text: 'Practice profile, clinical settings, signature and banking details updated successfully!' });
+      toastSuccess('Profile updated', 'Your practice details have been saved.');
     } catch (err: any) {
-      setMessage({ type: 'error', text: err.message || 'Failed to update profile settings.' });
+      const msg = errorMessage(err, 'Failed to update profile settings.');
+      setMessage({ type: 'error', text: msg });
+      toastError('Could not update profile', msg);
     } finally {
       setSaving(false);
     }
@@ -781,6 +791,25 @@ export default function DoctorProfilePage() {
               <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px', display: 'block' }}>
                 Net 85% practitioner take-home: R{(Number(ratePerHour || 0) * 0.85).toFixed(2)}/hr
               </span>
+              <div
+                style={{
+                  marginTop: '8px',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  background: 'var(--color-gold-pale, #F0E5D3)',
+                  border: '1px solid rgba(223, 171, 98, 0.35)',
+                }}
+              >
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#2A170F', display: 'block', marginBottom: '2px' }}>
+                  This rate also prices in-call time extensions
+                </span>
+                <span style={{ fontSize: '0.72rem', color: 'var(--color-cream-text-muted, #6B5E55)', display: 'block' }}>
+                  When you extend a live consultation, the patient is charged pro-rata from this
+                  hourly rate: +10&nbsp;min = R{(Number(ratePerHour || 0) / 6).toFixed(2)}, +20&nbsp;min = R
+                  {(Number(ratePerHour || 0) / 3).toFixed(2)}, +30&nbsp;min = R
+                  {(Number(ratePerHour || 0) / 2).toFixed(2)}.
+                </span>
+              </div>
             </div>
           </div>
 

@@ -6,6 +6,7 @@ import {
   BadRequestException,
   Logger,
   OnModuleInit,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -18,6 +19,7 @@ import {
   TokenType,
   NotificationPreference,
 } from '../../database/operational/entities';
+import { PatientMedicalProfile } from '../../database/patient/entities';
 import { TokenService } from './token.service';
 import {
   RegisterPatientDto,
@@ -34,17 +36,21 @@ import { SmsProvider } from '../notifications/providers/sms.provider';
 
 export interface AuthSessionResponse {
   accessToken: string;
+  refreshToken?: string;
   user: {
     id: string;
     email: string;
     fullName: string;
     role: UserRole;
     status: UserStatus;
-    phone?: string;
     isEmailVerified: boolean;
+    phone?: string;
     avatarUrl?: string | null;
     dateOfBirth?: Date | null;
     doctorProfile?: DoctorProfile | null;
+    bloodGroup?: string | null;
+    genotype?: string | null;
+    allergies?: string | null;
   };
 }
 
@@ -52,6 +58,12 @@ export interface RegisterPatientResponse {
   message: string;
   userId: string;
   accessToken: string;
+  user: AuthSessionResponse['user'];
+  verificationToken?: string;
+  otp?: string;
+}
+
+export interface RegisterResult {
   user: AuthSessionResponse['user'];
   verificationToken?: string;
   otp?: string;
@@ -70,6 +82,8 @@ export class AuthService implements OnModuleInit {
     private readonly tokenRepository: Repository<VerificationToken>,
     @InjectRepository(NotificationPreference, 'operational')
     private readonly notificationPreferenceRepository: Repository<NotificationPreference>,
+    @InjectRepository(PatientMedicalProfile, 'patient')
+    private readonly patientMedicalProfileRepository: Repository<PatientMedicalProfile>,
     private readonly tokenService: TokenService,
     private readonly brevoEmailProvider: BrevoEmailProvider,
     private readonly smsProvider: SmsProvider,
@@ -680,6 +694,13 @@ export class AuthService implements OnModuleInit {
       });
     }
 
+    let medicalProfile: PatientMedicalProfile | null = null;
+    if (user.role === UserRole.PATIENT) {
+      medicalProfile = await this.patientMedicalProfileRepository.findOne({
+        where: { patient_id: user.id },
+      });
+    }
+
     const preferences = await this.notificationPreferenceRepository.findOne({
       where: { user_id: user.id },
     });
@@ -696,6 +717,10 @@ export class AuthService implements OnModuleInit {
       dateOfBirth: user.date_of_birth,
       createdAt: user.created_at,
       doctorProfile,
+      bloodGroup: medicalProfile?.blood_group || null,
+      genotype: medicalProfile?.genotype || null,
+      allergies: medicalProfile?.allergies || null,
+      chronicConditions: medicalProfile?.chronic_conditions || null,
       notificationPreferences: preferences
         ? {
             channels: preferences.channels,
@@ -710,7 +735,16 @@ export class AuthService implements OnModuleInit {
    */
   async updateProfile(
     userId: string,
-    dto: { full_name?: string; phone?: string; date_of_birth?: string; avatar_url?: string },
+    dto: {
+      full_name?: string;
+      phone?: string;
+      date_of_birth?: string;
+      avatar_url?: string;
+      blood_group?: string;
+      genotype?: string;
+      allergies?: string;
+      chronic_conditions?: string;
+    },
   ): Promise<any> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
@@ -721,6 +755,34 @@ export class AuthService implements OnModuleInit {
     if (dto.date_of_birth) user.date_of_birth = new Date(dto.date_of_birth);
 
     const saved = await this.userRepository.save(user);
+
+    // Update or insert medical profile if medical fields are provided
+    if (
+      dto.blood_group !== undefined ||
+      dto.genotype !== undefined ||
+      dto.allergies !== undefined ||
+      dto.chronic_conditions !== undefined
+    ) {
+      let med = await this.patientMedicalProfileRepository.findOne({
+        where: { patient_id: userId },
+      });
+      if (!med) {
+        med = this.patientMedicalProfileRepository.create({
+          patient_id: userId,
+          blood_group: dto.blood_group || null,
+          genotype: dto.genotype || null,
+          allergies: dto.allergies || null,
+          chronic_conditions: dto.chronic_conditions || null,
+        });
+      } else {
+        if (dto.blood_group !== undefined) med.blood_group = dto.blood_group || null;
+        if (dto.genotype !== undefined) med.genotype = dto.genotype || null;
+        if (dto.allergies !== undefined) med.allergies = dto.allergies || null;
+        if (dto.chronic_conditions !== undefined) med.chronic_conditions = dto.chronic_conditions || null;
+      }
+      await this.patientMedicalProfileRepository.save(med);
+    }
+
     return this.getCurrentUser(saved.id);
   }
 

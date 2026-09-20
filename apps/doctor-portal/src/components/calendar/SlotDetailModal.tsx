@@ -1,15 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  X,
-  Clock,
-  Calendar,
-  Lock,
-  Trash2,
-  AlertCircle,
-  CheckCircle2,
-} from 'lucide-react';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { SolarIcon } from '../common/SolarIcon';
 
@@ -43,6 +35,7 @@ export function SlotDetailModal({
   const { token } = useDoctorAuth();
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   if (!isOpen || !slot) return null;
 
@@ -73,8 +66,9 @@ export function SlotDetailModal({
   const isPast = endDate.getTime() < Date.now();
   const isLocumStaff = slot.source === 'locumstaff' || slot.isLocked;
 
-  const handleDelete = async () => {
-    if (!confirm('Are you sure you want to remove this availability slot?')) {
+  const executeDelete = async () => {
+    if (!token) {
+      setErrorMsg('You must be signed in to delete an availability slot.');
       return;
     }
 
@@ -86,8 +80,9 @@ export function SlotDetailModal({
       const res = await fetch(`${apiBase}/doctors/availability/${slot.id}`, {
         method: 'DELETE',
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
       });
 
       const data = await res.json();
@@ -95,10 +90,14 @@ export function SlotDetailModal({
         throw new Error(data.message || 'Failed to delete availability slot');
       }
 
+      setShowDeleteConfirm(false);
       onDeleted();
       onClose();
+      toastSuccess('Slot updated', 'The availability slot was removed.');
     } catch (err: any) {
-      setErrorMsg(err.message);
+      const msg = errorMessage(err, 'Failed to delete availability slot');
+      setErrorMsg(msg);
+      toastError('Could not update slot', msg);
     } finally {
       setIsDeleting(false);
     }
@@ -116,36 +115,43 @@ export function SlotDetailModal({
         style={{
           width: '100%',
           maxWidth: '500px',
+          maxHeight: 'min(88vh, 680px)',
+          display: 'flex',
+          flexDirection: 'column',
           overflow: 'hidden',
           background: 'var(--color-cream-surface, #FDFBF7)',
+          borderRadius: '16px',
+          boxShadow: '0 20px 50px rgba(42, 23, 15, 0.16)',
         }}
       >
         {/* Header */}
         <div
           style={{
-            padding: '22px 28px',
-            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
+            padding: '16px 22px',
+            borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.18))',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             background: 'var(--color-cream-surface, #FDFBF7)',
+            flexShrink: 0,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div
               style={{
-                width: '40px',
-                height: '40px',
+                width: '36px',
+                height: '36px',
                 borderRadius: '50%',
                 background: 'var(--color-gold-pale, #F0E5D3)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                flexShrink: 0,
               }}
             >
               <SolarIcon
                 name={slot.isBooked ? 'user-rounded-bold' : isLocumStaff ? 'lock-bold' : 'clock-circle-bold'}
-                size={22}
+                size={18}
                 color="var(--color-chocolate-base, #2A170F)"
               />
             </div>
@@ -153,15 +159,16 @@ export function SlotDetailModal({
               <h2
                 style={{
                   fontFamily: 'var(--font-heading)',
-                  fontSize: '1.2rem',
-                  fontWeight: 800,
+                  fontSize: '1.125rem',
+                  fontWeight: 600,
                   color: 'var(--color-chocolate-base, #2A170F)',
                   margin: 0,
+                  letterSpacing: '-0.01em',
                 }}
               >
                 {slot.isBooked ? 'Booked Consultation' : 'Availability Slot'}
               </h2>
-              <span style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 400 }}>
                 {durationMinutes} Minute Appointment Window
               </span>
             </div>
@@ -179,14 +186,15 @@ export function SlotDetailModal({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              borderRadius: '6px',
             }}
           >
-            <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base, #DFAB62)" />
+            <SolarIcon name="close-circle-linear" size={22} color="var(--color-gold-base, #DFAB62)" />
           </button>
         </div>
 
         {/* Content */}
-        <div style={{ padding: '24px 28px' }}>
+        <div style={{ padding: '20px 22px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column' }}>
           {errorMsg && (
             <div
               style={{
@@ -202,7 +210,7 @@ export function SlotDetailModal({
                 marginBottom: '18px',
               }}
             >
-              <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+              <SolarIcon name="danger-circle-linear" size={18} color="#b91c1c" style={{ flexShrink: 0, marginTop: '2px' }} />
               <div>{errorMsg}</div>
             </div>
           )}
@@ -220,7 +228,7 @@ export function SlotDetailModal({
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.95rem', marginBottom: '6px' }}>
-                <AlertCircle size={18} color="#dc2626" />
+                <SolarIcon name="danger-circle-linear" size={18} color="#dc2626" />
                 <span>Appointment Cancelled by Patient</span>
               </div>
               <p style={{ margin: '0 0 8px', fontSize: '0.85rem', color: '#7f1d1d' }}>
@@ -241,7 +249,7 @@ export function SlotDetailModal({
                     gap: '6px',
                   }}
                 >
-                  <CheckCircle2 size={16} />
+                  <SolarIcon name="check-circle-linear" size={16} color="#065f46" />
                   <span>Late Cancellation Fee Earned: +R{Number(slot.cancellationFeeEarned).toFixed(2)} (Credited to Practice)</span>
                 </div>
               ) : (
@@ -320,8 +328,8 @@ export function SlotDetailModal({
               <span
                 style={{
                   fontFamily: 'var(--font-heading)',
-                  fontSize: '1rem',
-                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  fontWeight: 600,
                   color: 'var(--color-chocolate-base, #2A170F)',
                 }}
               >
@@ -334,8 +342,8 @@ export function SlotDetailModal({
               <span
                 style={{
                   fontFamily: 'var(--font-heading)',
-                  fontSize: '1.1rem',
-                  fontWeight: 800,
+                  fontSize: '1.05rem',
+                  fontWeight: 600,
                   color: 'var(--color-chocolate-base, #2A170F)',
                 }}
               >
@@ -343,12 +351,12 @@ export function SlotDetailModal({
               </span>
               <span
                 style={{
-                  fontSize: '0.75rem',
+                  fontSize: '0.72rem',
                   background: 'var(--color-gold-pale, #F0E5D3)',
                   color: 'var(--color-chocolate-base, #2A170F)',
-                  padding: '2px 8px',
+                  padding: '2px 7px',
                   borderRadius: '6px',
-                  fontWeight: 700,
+                  fontWeight: 500,
                   border: '1px solid rgba(223, 171, 98, 0.3)',
                 }}
               >
@@ -385,18 +393,169 @@ export function SlotDetailModal({
             {!isLocumStaff && !slot.isBooked && !isPast && (
               <button
                 type="button"
-                onClick={handleDelete}
+                onClick={() => {
+                  setErrorMsg(null);
+                  setShowDeleteConfirm(true);
+                }}
                 disabled={isDeleting}
                 className="btn-danger"
                 style={{ padding: '10px 20px', fontSize: '0.875rem' }}
               >
                 <SolarIcon name="trash-bin-trash-linear" size={16} color="#ffffff" />
-                <span>{isDeleting ? 'Deleting...' : 'Delete Slot'}</span>
+                <span>Delete Slot</span>
               </button>
             )}
           </div>
         </div>
       </div>
+
+      {/* Custom Confirmation Prompt Window */}
+      {showDeleteConfirm && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 100,
+            backgroundColor: 'rgba(42, 23, 15, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isDeleting) setShowDeleteConfirm(false);
+          }}
+        >
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '410px',
+              backgroundColor: '#ffffff',
+              borderRadius: '20px',
+              border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
+              boxShadow: '0 24px 60px rgba(42, 23, 15, 0.28)',
+              padding: '26px 24px',
+              textAlign: 'center',
+            }}
+          >
+            {/* Warning Icon */}
+            <div
+              style={{
+                width: '54px',
+                height: '54px',
+                borderRadius: '50%',
+                backgroundColor: '#fef2f2',
+                border: '1.5px solid #fecaca',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}
+            >
+              <SolarIcon name="trash-bin-trash-linear" size={26} color="#dc2626" />
+            </div>
+
+            {/* Title & Body */}
+            <h3
+              style={{
+                fontFamily: 'var(--font-heading), sans-serif',
+                fontSize: '1.25rem',
+                fontWeight: 600,
+                color: 'var(--color-chocolate-base, #2A170F)',
+                margin: '0 0 8px',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              Delete Availability Slot?
+            </h3>
+            <p
+              style={{
+                color: 'var(--color-cream-text-muted, #6B5E55)',
+                fontSize: '0.85rem',
+                lineHeight: 1.5,
+                margin: '0 0 18px',
+              }}
+            >
+              Are you sure you want to remove this availability slot? Patients will no longer be able to book this consultation window.
+            </p>
+
+            {/* Slot Details Card */}
+            <div
+              style={{
+                padding: '12px 16px',
+                borderRadius: '12px',
+                backgroundColor: 'var(--color-cream-surface, #FDFBF7)',
+                border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                marginBottom: '20px',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.825rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                <SolarIcon name="calendar-linear" size={15} color="var(--color-gold-bronze, #B88647)" />
+                <span>{formattedDate}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                <SolarIcon name="clock-circle-linear" size={15} color="var(--color-gold-bronze, #B88647)" />
+                <span>{timeRange} ({durationMinutes} mins)</span>
+              </div>
+            </div>
+
+            {/* Error Message if API fails */}
+            {errorMsg && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: '#fef2f2',
+                  border: '1px solid #fecaca',
+                  color: '#b91c1c',
+                  fontSize: '0.8rem',
+                  marginBottom: '16px',
+                  textAlign: 'left',
+                }}
+              >
+                {errorMsg}
+              </div>
+            )}
+
+            {/* Action Buttons */}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => {
+                  setShowDeleteConfirm(false);
+                  setErrorMsg(null);
+                }}
+                className="btn-secondary"
+                style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={executeDelete}
+                className="btn-danger"
+                style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem' }}
+              >
+                {isDeleting ? (
+                  <span>Deleting...</span>
+                ) : (
+                  <>
+                    <SolarIcon name="trash-bin-trash-linear" size={15} color="#ffffff" />
+                    <span>Yes, Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

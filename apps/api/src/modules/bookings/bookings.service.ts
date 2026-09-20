@@ -297,6 +297,8 @@ export class BookingsService {
    * Stitches RDS bookings with Patient User and AvailabilitySlot data.
    */
   async getDoctorBookings(doctorIdOrUserId: string): Promise<StitchedBookingResponse[]> {
+    if (!doctorIdOrUserId) return [];
+
     const conditions: Array<{ doctor_id: string }> = [{ doctor_id: doctorIdOrUserId }];
 
     const doctorProfile = await this.doctorRepository.findOne({
@@ -310,10 +312,31 @@ export class BookingsService {
       }
     }
 
-    const bookings = await this.bookingRepository.find({
-      where: conditions,
-      order: { created_at: 'DESC' },
-    });
+    // Also include any bookings tied to slots owned by this doctor
+    let slotIds: string[] = [];
+    if (doctorProfile) {
+      const doctorSlots = await this.slotRepository.find({
+        where: { doctor_id: doctorProfile.id },
+        select: ['id'],
+      });
+      slotIds = doctorSlots.map((s) => s.id);
+    }
+
+    let bookings: Booking[] = [];
+    if (slotIds.length > 0) {
+      bookings = await this.bookingRepository.find({
+        where: [
+          ...conditions,
+          { slot_id: In(slotIds) },
+        ],
+        order: { created_at: 'DESC' },
+      });
+    } else {
+      bookings = await this.bookingRepository.find({
+        where: conditions,
+        order: { created_at: 'DESC' },
+      });
+    }
 
     if (bookings.length === 0) return [];
     return this.enrichBookings(bookings);

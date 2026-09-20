@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { toastSuccess, toastError, errorMessage } from '../lib/toast';
 import {
   ShieldCheck,
   Lock,
@@ -129,13 +130,16 @@ export function ClinicalVerificationModal({
     try {
       await verifyOtp(emailToUse, code);
       setSuccessMsg('Clinical clearance active! Accessing consultation room...');
+      toastSuccess('Verified', 'Clinical clearance active — entering the consultation room.');
       if (refreshUser) await refreshUser();
       setTimeout(() => {
         onVerified();
         onClose();
       }, 900);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Verification failed. The code may be invalid or expired.');
+      const msg = errorMessage(err, 'Verification failed. The code may be invalid or expired.');
+      setErrorMsg(msg);
+      toastError('Verification failed', msg);
     } finally {
       setIsVerifying(false);
     }
@@ -150,9 +154,12 @@ export function ClinicalVerificationModal({
       await resendOtp(emailToUse);
       setResendCountdown(60);
       setSuccessMsg('A new 6-digit code has been dispatched to your email.');
+      toastSuccess('Code sent', 'A new verification code is on its way.');
       setTimeout(() => setSuccessMsg(null), 4000);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to resend code. Please try again.');
+      const msg = errorMessage(err, 'Failed to resend code. Please try again.');
+      setErrorMsg(msg);
+      toastError('Could not resend code', msg);
     } finally {
       setIsResending(false);
     }

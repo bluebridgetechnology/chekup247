@@ -8,7 +8,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, MoreThan } from 'typeorm';
+import { Repository, LessThan, MoreThan, In } from 'typeorm';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   DoctorProfile,
@@ -986,17 +986,45 @@ export class DoctorsService implements OnModuleInit {
       order: { start_time: 'ASC' },
     });
 
+    // Cross-database stitching: Fetch bookings attached to these slots from AWS patient DB
+    const slotIds = slots.map((s) => s.id);
+    const bookings = slotIds.length > 0
+      ? await this.bookingRepository.find({
+          where: { slot_id: In(slotIds) },
+        })
+      : [];
+
+    const patientIds = [...new Set(bookings.map((b) => b.patient_id))];
+    const patients = patientIds.length > 0
+      ? await this.userRepository.find({
+          where: { id: In(patientIds) },
+        })
+      : [];
+    const patientMap = new Map<string, User>();
+    patients.forEach((p) => patientMap.set(p.id, p));
+
+    const bookingMap = new Map<string, Booking>();
+    bookings.forEach((b) => bookingMap.set(b.slot_id, b));
+
     return {
       doctorId: profile.id,
-      slots: slots.map((s) => ({
-        id: s.id,
-        startTime: s.start_time.toISOString(),
-        endTime: s.end_time.toISOString(),
-        isBooked: s.is_booked,
-        isRecurring: s.is_recurring,
-        source: s.source,
-        isLocked: s.is_locked,
-      })),
+      slots: slots.map((s) => {
+        const booking = bookingMap.get(s.id);
+        const patient = booking ? patientMap.get(booking.patient_id) : undefined;
+        return {
+          id: s.id,
+          startTime: s.start_time.toISOString(),
+          endTime: s.end_time.toISOString(),
+          isBooked: s.is_booked || (booking ? booking.status !== BookingStatus.CANCELLED : false),
+          isRecurring: s.is_recurring,
+          source: s.source,
+          isLocked: s.is_locked,
+          bookingStatus: booking?.status,
+          patientName: patient?.full_name,
+          cancellationReason: booking?.status === BookingStatus.CANCELLED ? (booking.notes || 'Patient cancelled') : undefined,
+          cancellationFeeEarned: booking?.status === BookingStatus.CANCELLED ? Number(booking.commission_amount || 0) : undefined,
+        };
+      }),
       blackouts: blackouts.map((b) => ({
         id: b.id,
         startTime: b.start_time.toISOString(),

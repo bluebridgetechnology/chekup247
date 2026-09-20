@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { SolarIcon } from '../SolarIcon';
+import { SupportContactModal } from '../SupportContactModal';
 
 interface SidebarItem {
   label: string;
@@ -30,7 +31,7 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
     groupTitle: 'MY HEALTH',
     items: [
       { label: 'Prescriptions', href: '/prescriptions', iconName: 'pill-linear', key: 'prescriptions' },
-      { label: 'Health Records', href: '/appointments?view=records', iconName: 'solar:document-medicine-outline', key: 'health-records' },
+      { label: 'Health Notes', href: '/appointments?view=notes', iconName: 'solar:notes-minimalistic-outline', key: 'health-notes' },
       { label: 'Medical Documents', href: '/appointments?view=documents', iconName: 'document-text-linear', key: 'documents' },
     ],
   },
@@ -58,6 +59,7 @@ export function PatientPortalSidebar({
 }: PatientPortalSidebarProps) {
   const pathname = usePathname();
   const [currentNavKey, setCurrentNavKey] = useState<string>(activeNavKey);
+  const [supportOpen, setSupportOpen] = useState(false);
 
   useEffect(() => {
     let key = activeNavKey;
@@ -67,8 +69,8 @@ export function PatientPortalSidebar({
         const viewParam = search.get('view');
         if (viewParam === 'doctors') {
           key = 'my-doctors';
-        } else if (viewParam === 'records') {
-          key = 'health-records';
+        } else if (viewParam === 'records' || viewParam === 'notes' || viewParam === 'health-notes') {
+          key = 'health-notes';
         } else if (viewParam === 'documents') {
           key = 'documents';
         } else if (viewParam === 'find-doctor' || viewParam === 'search') {
@@ -298,8 +300,9 @@ export function PatientPortalSidebar({
               Our support team is here for you 24/7.
             </div>
 
-            <Link
-              href="/contact"
+            <button
+              type="button"
+              onClick={() => setSupportOpen(true)}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -315,15 +318,18 @@ export function PatientPortalSidebar({
                 minHeight: '36px',
                 boxShadow: '0 1px 2px rgba(42, 23, 15, 0.04)',
                 transition: 'all 0.16s ease',
+                cursor: 'pointer',
               }}
               className="portal-support-btn"
             >
               <span>Contact Support</span>
               <SolarIcon name="arrow-right-linear" size={12} color="#2A170F" />
-            </Link>
+            </button>
           </div>
         </div>
       </aside>
+
+      <SupportContactModal isOpen={supportOpen} onClose={() => setSupportOpen(false)} />
     </>
   );
 }

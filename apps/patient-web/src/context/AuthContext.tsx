@@ -12,6 +12,10 @@ export interface UserProfile {
   isEmailVerified: boolean;
   avatarUrl?: string | null;
   dateOfBirth?: string | null;
+  bloodGroup?: string | null;
+  genotype?: string | null;
+  allergies?: string | null;
+  chronicConditions?: string | null;
   notificationPreferences?: {
     channels: string[];
     remindersEnabled: boolean;
@@ -37,7 +41,16 @@ interface AuthContextType {
   googleLogin: (credential: string, email?: string, name?: string) => Promise<any>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
-  updateProfile: (data: { full_name?: string; phone?: string; date_of_birth?: string; avatar_url?: string }) => Promise<any>;
+  updateProfile: (data: {
+    full_name?: string;
+    phone?: string;
+    date_of_birth?: string;
+    avatar_url?: string;
+    blood_group?: string;
+    genotype?: string;
+    allergies?: string;
+    chronic_conditions?: string;
+  }) => Promise<any>;
   updatePreferences: (channels: string[], remindersEnabled?: boolean) => Promise<any>;
 }
 
@@ -234,6 +247,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     phone?: string;
     date_of_birth?: string;
     avatar_url?: string;
+    blood_group?: string;
+    genotype?: string;
+    allergies?: string;
+    chronic_conditions?: string;
   }) => {
     if (!token) throw new Error('Not authenticated');
     const res = await fetch(`${API_BASE}/auth/me`, {

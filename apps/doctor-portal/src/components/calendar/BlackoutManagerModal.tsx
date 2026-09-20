@@ -1,15 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import {
-  Calendar,
-  AlertTriangle,
-  Plus,
-  Trash2,
-  CheckCircle2,
-  AlertCircle,
-  Clock,
-} from 'lucide-react';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { SolarIcon } from '../common/SolarIcon';
 
@@ -47,14 +39,18 @@ export function BlackoutManagerModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [blackoutToDelete, setBlackoutToDelete] = useState<BlackoutItem | null>(null);
+  const [isDeletingBlackout, setIsDeletingBlackout] = useState(false);
 
   // Fetch blackouts
   const loadBlackouts = async () => {
+    if (!token) return;
     try {
       setIsLoading(true);
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
       const res = await fetch(`${apiBase}/doctors/me/blackouts`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -84,6 +80,12 @@ export function BlackoutManagerModal({
 
   const handleCreateBlackout = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!token) {
+      setErrorMsg('You must be signed in to manage out-of-office blackouts.');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -94,8 +96,9 @@ export function BlackoutManagerModal({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           startTime: `${startDate}T00:00:00.000Z`,
           endTime: `${endDate}T23:59:59.999Z`,
@@ -109,23 +112,38 @@ export function BlackoutManagerModal({
       }
 
       setSuccessMsg(data.message || 'Out-of-office period created successfully');
+      toastSuccess('Blackout added', 'This out-of-office period is now blocked.');
       await loadBlackouts();
       onUpdated();
     } catch (err: any) {
-      setErrorMsg(err.message);
+      const msg = errorMessage(err, 'Failed to create blackout range');
+      setErrorMsg(msg);
+      toastError('Could not update blackouts', msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDeleteBlackout = async (blackoutId: string) => {
-    if (!confirm('Are you sure you want to remove this out-of-office period?')) return;
+  const promptDeleteBlackout = (blackout: BlackoutItem) => {
+    setBlackoutToDelete(blackout);
+    setErrorMsg(null);
+  };
 
+  const executeDeleteBlackout = async () => {
+    if (!blackoutToDelete) return;
+
+    if (!token) {
+      setErrorMsg('You must be signed in to remove a blackout.');
+      return;
+    }
+
+    setIsDeletingBlackout(true);
     try {
       const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-      const res = await fetch(`${apiBase}/doctors/me/blackouts/${blackoutId}`, {
+      const res = await fetch(`${apiBase}/doctors/me/blackouts/${blackoutToDelete.id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: 'include',
       });
 
       if (!res.ok) {
@@ -135,8 +153,14 @@ export function BlackoutManagerModal({
 
       await loadBlackouts();
       onUpdated();
+      toastSuccess('Blackout removed', 'This out-of-office period has been cleared.');
+      setBlackoutToDelete(null);
     } catch (err: any) {
-      setErrorMsg(err.message);
+      const msg = errorMessage(err, 'Failed to remove blackout');
+      setErrorMsg(msg);
+      toastError('Could not update blackouts', msg);
+    } finally {
+      setIsDeletingBlackout(false);
     }
   };
 
@@ -156,6 +180,7 @@ export function BlackoutManagerModal({
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
+          position: 'relative',
           background: 'var(--color-cream-surface, #FDFBF7)',
         }}
       >
@@ -253,7 +278,7 @@ export function BlackoutManagerModal({
                 gap: '8px',
               }}
             >
-              <CheckCircle2 size={18} />
+              <SolarIcon name="check-circle-linear" size={18} color="#065f46" />
               <span>{successMsg}</span>
             </div>
           )}
@@ -425,7 +450,7 @@ export function BlackoutManagerModal({
 
                       <button
                         type="button"
-                        onClick={() => handleDeleteBlackout(b.id)}
+                        onClick={() => promptDeleteBlackout(b)}
                         aria-label="Remove blackout"
                         style={{
                           background: 'none',
@@ -468,6 +493,138 @@ export function BlackoutManagerModal({
             Close
           </button>
         </div>
+
+        {/* Custom Confirmation Modal for Removing Blackout */}
+        {blackoutToDelete && (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              zIndex: 110,
+              backgroundColor: 'rgba(42, 23, 15, 0.45)',
+              backdropFilter: 'blur(4px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+              borderRadius: '20px',
+            }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget && !isDeletingBlackout) {
+                setBlackoutToDelete(null);
+              }
+            }}
+          >
+            <div
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                padding: '24px',
+                maxWidth: '380px',
+                width: '100%',
+                boxShadow: '0 20px 40px -8px rgba(42, 23, 15, 0.25)',
+                border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
+                textAlign: 'center',
+                animation: 'modalSlideUp 0.2s ease-out',
+              }}
+            >
+              {/* Warning Icon */}
+              <div
+                style={{
+                  width: '52px',
+                  height: '52px',
+                  borderRadius: '50%',
+                  backgroundColor: '#fee2e2',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  margin: '0 auto 16px',
+                }}
+              >
+                <SolarIcon name="trash-bin-trash-linear" size={24} color="#dc2626" />
+              </div>
+
+              <h3
+                style={{
+                  fontFamily: 'var(--font-heading), sans-serif',
+                  fontSize: '1.2rem',
+                  fontWeight: 600,
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  margin: '0 0 8px',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Remove Out-of-Office Period?
+              </h3>
+              <p
+                style={{
+                  color: 'var(--color-cream-text-muted, #6B5E55)',
+                  fontSize: '0.85rem',
+                  lineHeight: 1.5,
+                  margin: '0 0 18px',
+                }}
+              >
+                Are you sure you want to remove this out-of-office period? This date range will become available for appointment scheduling again.
+              </p>
+
+              {/* Blackout Details Card */}
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: '12px',
+                  backgroundColor: 'var(--color-cream-surface, #FDFBF7)',
+                  border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  marginBottom: '20px',
+                  textAlign: 'left',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.825rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                  <span className="badge-gold">{blackoutToDelete.reason}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                  <SolarIcon name="calendar-linear" size={15} color="var(--color-gold-bronze, #B88647)" />
+                  <span>
+                    {new Date(blackoutToDelete.startTime).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {' — '}
+                    {new Date(blackoutToDelete.endTime).toLocaleDateString('en-ZA', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  disabled={isDeletingBlackout}
+                  onClick={() => setBlackoutToDelete(null)}
+                  className="btn-secondary"
+                  style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeletingBlackout}
+                  onClick={executeDeleteBlackout}
+                  className="btn-danger"
+                  style={{ flex: 1, padding: '10px 16px', fontSize: '0.85rem' }}
+                >
+                  {isDeletingBlackout ? (
+                    <span>Removing...</span>
+                  ) : (
+                    <>
+                      <SolarIcon name="trash-bin-trash-linear" size={15} color="#ffffff" />
+                      <span>Yes, Remove</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

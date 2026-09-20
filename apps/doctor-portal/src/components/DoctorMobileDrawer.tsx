@@ -169,57 +169,83 @@ export function DoctorMobileDrawer({ isOpen, onClose }: DoctorMobileDrawerProps)
             marginTop: 'auto',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
-            <div
-              style={{
-                width: '38px',
-                height: '38px',
-                borderRadius: '50%',
-                background: 'var(--color-gold-pale, #F0E5D3)',
-                color: 'var(--color-chocolate-base, #2A170F)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                border: '1.5px solid rgba(223, 171, 98, 0.35)',
-              }}
-            >
-              {doctor?.fullName ? doctor.fullName.substring(0, 2).toUpperCase() : 'DR'}
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {doctor?.fullName || 'Dr. Practitioner'}
-              </div>
-              <div style={{ color: 'var(--color-gold-base, #DFAB62)', fontSize: '0.72rem' }}>
-                HPCSA: {profile?.hpcsaNumber || 'MP Verified'}
-              </div>
-            </div>
-          </div>
-
-          <button
-            onClick={() => {
-              onClose();
-              logout();
-            }}
+        {!doctor ? (
+          <Link
+            href="/login"
+            onClick={onClose}
             style={{
               width: '100%',
-              padding: '10px',
+              padding: '12px 18px',
               borderRadius: 'var(--radius-full, 9999px)',
-              background: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: 'rgba(255, 255, 255, 0.85)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
+              background: 'var(--color-gold-base, #DFAB62)',
+              color: 'var(--color-chocolate-base, #2A170F)',
+              fontSize: '0.9rem',
+              fontWeight: 700,
+              textDecoration: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px',
+              gap: '8px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
             }}
           >
-            <span>Sign Out Practice</span>
-          </button>
+            <span>Sign In to Practice Suite</span>
+          </Link>
+        ) : (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  background: 'var(--color-gold-pale, #F0E5D3)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                }}
+              >
+                {doctor?.fullName ? doctor.fullName.substring(0, 2).toUpperCase() : 'DR'}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {doctor?.fullName || 'Dr. Practitioner'}
+                </div>
+                <div style={{ color: 'var(--color-gold-base, #DFAB62)', fontSize: '0.72rem' }}>
+                  HPCSA: {profile?.hpcsaNumber || 'MP Verified'}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => {
+                onClose();
+                logout();
+              }}
+              style={{
+                width: '100%',
+                padding: '10px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                background: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.15)',
+                color: 'rgba(255, 255, 255, 0.85)',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+              }}
+            >
+              <span>Sign Out Practice</span>
+            </button>
+          </>
+        )}
         </div>
       </div>
     </div>

@@ -97,6 +97,11 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
         last4: '4081',
       },
     }),
+    initializeTransaction: jest.fn().mockResolvedValue({
+      authorization_url: 'https://checkout.paystack.com/ext_redirect',
+      access_code: 'acc_ext_123',
+      reference: 'chk_ext_ext-approve-1',
+    }),
   };
 
   beforeEach(async () => {
@@ -359,18 +364,24 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
         start_time: new Date(Date.now() - 15 * 60 * 1000),
         end_time: new Date(Date.now() + 15 * 60 * 1000),
       });
+      // Doctor's published hourly rate drives pro-rata extension pricing.
+      mockDoctorProfileRepo.findOne.mockResolvedValue({
+        user_id: 'doc-user-1',
+        rate_per_hour: 600,
+      });
 
       const spyBroadcast = jest.spyOn(gateway, 'broadcastExtensionRequested');
 
-      const result = await service.requestExtension('booking-ext-1', 15);
+      // 20 min at R600/hr = R200 (pro-rata).
+      const result = await service.requestExtension('booking-ext-1', 20);
 
-      expect(result.amount).toBe(150);
-      expect(result.duration_minutes).toBe(15);
+      expect(result.amount).toBe(200);
+      expect(result.duration_minutes).toBe(20);
       expect(spyBroadcast).toHaveBeenCalledWith(
         'booking-ext-1',
         expect.objectContaining({
-          durationMinutes: 15,
-          amount: 150,
+          durationMinutes: 20,
+          amount: 200,
         }),
       );
     });
@@ -396,6 +407,10 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
         start_time: new Date(),
         end_time: new Date(Date.now() + 10 * 60 * 1000),
       });
+      mockDoctorProfileRepo.findOne.mockResolvedValue({
+        user_id: 'doc-user-1',
+        rate_per_hour: 600,
+      });
 
       // Next slot is booked!
       mockSlotRepo.createQueryBuilder.mockReturnValueOnce({
@@ -404,7 +419,7 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
         getOne: jest.fn().mockResolvedValue({ id: 'next-slot-booked', is_booked: true }),
       });
 
-      await expect(service.requestExtension('booking-ext-2', 15)).rejects.toThrow(
+      await expect(service.requestExtension('booking-ext-2', 20)).rejects.toThrow(
         'Next slot is booked',
       );
     });
@@ -428,7 +443,7 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       expect(spyDeclined).toHaveBeenCalled();
     });
 
-    it('should execute Paystack auto-debit on patient approve and extend timers', async () => {
+    it('should initialize a redirect payment on approve and NOT extend the room yet', async () => {
       const mockBooking: any = {
         id: 'b-paid-1',
         patient_id: 'pat-1',
@@ -443,21 +458,59 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       const mockExt: any = {
         id: 'ext-approve-1',
         consultation_id: 'cons-paid-1',
-        duration_minutes: 15,
-        amount: 150,
+        duration_minutes: 20,
+        amount: 200,
         status: ExtensionStatus.REQUESTED,
         consultation: mockCons,
       };
 
       mockExtensionRepo.findOne.mockResolvedValue(mockExt);
-      mockPaymentRepo.findOne.mockResolvedValue({
-        id: 'orig-pay-1',
-        authorization_code: 'AUTH_token_123',
-        card_type: 'visa',
-        last4: '4081',
-      });
+      mockPaymentRepo.findOne.mockResolvedValue(null); // no existing pending payment
+      mockUserRepo.findOne.mockResolvedValue({ id: 'pat-1', email: 'pat@example.com' });
+
+      const spyExtendRoom = jest.spyOn(dailyService, 'extendRoomExpiry');
+      const spyConfirmed = jest.spyOn(gateway, 'broadcastExtensionConfirmed');
+
+      const result = await service.consentExtension('b-paid-1', 'ext-approve-1', true);
+
+      expect(result.approved).toBe(true);
+      expect(result.requires_payment).toBe(true);
+      expect(result.authorization_url).toBe('https://checkout.paystack.com/ext_redirect');
+      expect(result.status).toBe(ExtensionStatus.APPROVED);
+      expect(mockPaystackService.initializeTransaction).toHaveBeenCalledWith(
+        expect.objectContaining({
+          amountInCents: 20000,
+          reference: 'chk_ext_ext-approve-1',
+        }),
+      );
+      // The room must NOT be extended before payment confirms.
+      expect(spyExtendRoom).not.toHaveBeenCalled();
+      expect(spyConfirmed).not.toHaveBeenCalled();
+      // No auto-debit — the vaulted-card path is gone.
+      expect(mockPaystackService.chargeAuthorization).not.toHaveBeenCalled();
+    });
+
+    it('should extend the room and broadcast confirmation only in finalizeExtensionPayment', async () => {
+      const mockBooking: any = { id: 'b-paid-1', patient_id: 'pat-1', doctor_id: 'doc-1' };
+      const mockCons: any = {
+        id: 'cons-paid-1',
+        booking_id: 'b-paid-1',
+        video_room_id: 'chekup-room-1',
+        booking: mockBooking,
+        started_at: new Date(Date.now() - 10 * 60 * 1000),
+      };
+      const mockExt: any = {
+        id: 'ext-approve-1',
+        consultation_id: 'cons-paid-1',
+        duration_minutes: 20,
+        amount: 200,
+        status: ExtensionStatus.APPROVED,
+        consultation: mockCons,
+      };
+
+      mockExtensionRepo.findOne.mockResolvedValue(mockExt);
       mockExtensionRepo.find.mockResolvedValue([
-        { ...mockExt, status: ExtensionStatus.PAID, duration_minutes: 15 },
+        { ...mockExt, status: ExtensionStatus.PAID, duration_minutes: 20 },
       ]);
 
       const spyExtendRoom = jest.spyOn(dailyService, 'extendRoomExpiry').mockResolvedValue({
@@ -466,24 +519,45 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       });
       const spyConfirmed = jest.spyOn(gateway, 'broadcastExtensionConfirmed');
 
-      const result = await service.consentExtension('b-paid-1', 'ext-approve-1', true);
+      const result = await service.finalizeExtensionPayment('ext-approve-1', 'pay-ext-1');
 
-      expect(result.approved).toBe(true);
-      expect(result.status).toBe(ExtensionStatus.PAID);
-      expect(mockPaystackService.chargeAuthorization).toHaveBeenCalledWith(
-        expect.objectContaining({
-          authorizationCode: 'AUTH_token_123',
-          amountInCents: 15000,
-        }),
-      );
-      expect(spyExtendRoom).toHaveBeenCalledWith('chekup-room-1', 15);
+      expect(result.already_finalized).toBe(false);
+      expect(result.added_minutes).toBe(20);
+      expect(spyExtendRoom).toHaveBeenCalledWith('chekup-room-1', 20);
       expect(spyConfirmed).toHaveBeenCalledWith(
         'b-paid-1',
         expect.objectContaining({
-          addedMinutes: 15,
-          amount: 150,
+          addedMinutes: 20,
+          amount: 200,
         }),
       );
+    });
+
+    it('should be idempotent when finalizing an already-PAID extension', async () => {
+      const mockCons: any = {
+        id: 'cons-paid-1',
+        booking_id: 'b-paid-1',
+        video_room_id: 'chekup-room-1',
+        started_at: new Date(Date.now() - 10 * 60 * 1000),
+      };
+      const mockExt: any = {
+        id: 'ext-approve-1',
+        consultation_id: 'cons-paid-1',
+        duration_minutes: 20,
+        amount: 200,
+        status: ExtensionStatus.PAID, // already finalized
+        consultation: mockCons,
+      };
+      mockExtensionRepo.findOne.mockResolvedValue(mockExt);
+      mockExtensionRepo.find.mockResolvedValue([mockExt]);
+
+      const spyExtendRoom = jest.spyOn(dailyService, 'extendRoomExpiry');
+
+      const result = await service.finalizeExtensionPayment('ext-approve-1', 'pay-ext-1');
+
+      expect(result.already_finalized).toBe(true);
+      // No double extension on a webhook retry.
+      expect(spyExtendRoom).not.toHaveBeenCalled();
     });
   });
 });

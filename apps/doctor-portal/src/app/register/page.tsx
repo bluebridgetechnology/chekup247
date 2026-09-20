@@ -3,27 +3,10 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import {
-  User,
-  Mail,
-  Lock,
-  Phone,
-  Award,
-  FileText,
-  DollarSign,
-  UploadCloud,
-  CheckCircle2,
-  AlertCircle,
-  ArrowRight,
-  ArrowLeft,
-  ShieldCheck,
-  Check,
-  Clock,
-  Stethoscope,
-} from 'lucide-react';
 import { ChekupCrossLogo } from '../../components/common/ChekupCrossLogo';
 import { SolarIcon } from '../../components/common/SolarIcon';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 
 const SPECIALTIES = [
   'General Practitioner',
@@ -140,8 +123,11 @@ export default function DoctorRegisterPage() {
       });
 
       router.push('/');
+      toastSuccess('Registration submitted', 'Your credentials are pending verification.');
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Please review your details.');
+      const msg = errorMessage(err, 'Registration failed. Please review your details.');
+      setError(msg);
+      toastError('Registration failed', msg);
     } finally {
       setLoading(false);
     }
@@ -195,7 +181,7 @@ export default function DoctorRegisterPage() {
                 marginBottom: '16px',
               }}
             >
-              <ShieldCheck size={14} />
+              <SolarIcon name="shield-check-linear" size={15} color="var(--color-gold-base, #DFAB62)" />
               <span>Medical Practice Onboarding</span>
             </span>
 
@@ -230,7 +216,7 @@ export default function DoctorRegisterPage() {
         <div className="auth-social-proof-grid">
           <div className="auth-social-badge">
             <div className="auth-social-badge-val">
-              <Award size={18} style={{ color: 'var(--color-gold-primary, #E2B467)' }} />
+              <SolarIcon name="diploma-verified-linear" size={18} color="var(--color-gold-primary, #E2B467)" />
               <span>HPCSA</span>
             </div>
             <div className="auth-social-badge-lbl">Direct Register Verification</div>
@@ -238,7 +224,7 @@ export default function DoctorRegisterPage() {
 
           <div className="auth-social-badge">
             <div className="auth-social-badge-val">
-              <Clock size={18} style={{ color: 'var(--color-gold-primary, #E2B467)' }} />
+              <SolarIcon name="clock-circle-linear" size={18} color="var(--color-gold-primary, #E2B467)" />
               <span>Flexible</span>
             </div>
             <div className="auth-social-badge-lbl">Set Your Own Shifts</div>
@@ -246,7 +232,7 @@ export default function DoctorRegisterPage() {
 
           <div className="auth-social-badge">
             <div className="auth-social-badge-val">
-              <Stethoscope size={18} style={{ color: 'var(--color-gold-primary, #E2B467)' }} />
+              <SolarIcon name="stethoscope-linear" size={18} color="var(--color-gold-primary, #E2B467)" />
               <span>Bi-Weekly</span>
             </div>
             <div className="auth-social-badge-lbl">Automated Direct Payouts</div>
@@ -330,7 +316,7 @@ export default function DoctorRegisterPage() {
                   boxShadow: step >= s ? '0 2px 8px var(--color-gold-cta-shadow)' : 'none',
                 }}
               >
-                {step > s ? <Check size={16} /> : s}
+                {step > s ? <SolarIcon name="check-circle-linear" size={18} color="var(--color-chocolate-base, #2A170F)" /> : s}
               </div>
             ))}
           </div>
@@ -351,7 +337,7 @@ export default function DoctorRegisterPage() {
                 fontWeight: 600,
               }}
             >
-              <AlertCircle size={18} style={{ flexShrink: 0 }} />
+              <SolarIcon name="danger-circle-linear" size={18} color="var(--color-danger, #ef4444)" style={{ flexShrink: 0 }} />
               <span>{error}</span>
             </div>
           )}
@@ -364,7 +350,7 @@ export default function DoctorRegisterPage() {
                   <label className="auth-label">Full Name & Title</label>
                   <div className="auth-input-wrapper">
                     <span className="auth-input-icon">
-                      <User size={18} />
+                      <SolarIcon name="user-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
                     </span>
                     <input
                       type="text"
@@ -381,7 +367,7 @@ export default function DoctorRegisterPage() {
                   <label className="auth-label">Professional Practice Email</label>
                   <div className="auth-input-wrapper">
                     <span className="auth-input-icon">
-                      <Mail size={18} />
+                      <SolarIcon name="letter-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
                     </span>
                     <input
                       type="email"
@@ -398,7 +384,7 @@ export default function DoctorRegisterPage() {
                   <label className="auth-label">Practice Mobile Phone</label>
                   <div className="auth-input-wrapper">
                     <span className="auth-input-icon">
-                      <Phone size={18} />
+                      <SolarIcon name="phone-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
                     </span>
                     <input
                       type="tel"
@@ -444,7 +430,7 @@ export default function DoctorRegisterPage() {
                   style={{ width: '100%', height: '48px' }}
                 >
                   <span>Continue to Step 2</span>
-                  <ArrowRight size={18} />
+                  <SolarIcon name="arrow-right-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
                 </button>
               </div>
             )}
@@ -456,7 +442,7 @@ export default function DoctorRegisterPage() {
                   <label className="auth-label">HPCSA Registration Number</label>
                   <div className="auth-input-wrapper">
                     <span className="auth-input-icon">
-                      <Award size={18} />
+                      <SolarIcon name="diploma-verified-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
                     </span>
                     <input
                       type="text"
@@ -496,7 +482,7 @@ export default function DoctorRegisterPage() {
                     className="btn-secondary"
                     style={{ flex: 1, height: '48px' }}
                   >
-                    <ArrowLeft size={18} />
+                    <SolarIcon name="arrow-left-linear" size={18} />
                     <span>Back</span>
                   </button>
                   <button
@@ -506,7 +492,7 @@ export default function DoctorRegisterPage() {
                     style={{ flex: 2, height: '48px' }}
                   >
                     <span>Continue to Step 3</span>
-                    <ArrowRight size={18} />
+                    <SolarIcon name="arrow-right-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
                   </button>
                 </div>
               </div>
@@ -577,7 +563,7 @@ export default function DoctorRegisterPage() {
                     className="btn-secondary"
                     style={{ flex: 1, height: '48px' }}
                   >
-                    <ArrowLeft size={18} />
+                    <SolarIcon name="arrow-left-linear" size={18} />
                     <span>Back</span>
                   </button>
                   <button
@@ -587,7 +573,7 @@ export default function DoctorRegisterPage() {
                     style={{ flex: 2, height: '48px' }}
                   >
                     <span>Continue to Step 4</span>
-                    <ArrowRight size={18} />
+                    <SolarIcon name="arrow-right-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
                   </button>
                 </div>
               </div>
@@ -713,7 +699,7 @@ export default function DoctorRegisterPage() {
                     className="btn-secondary"
                     style={{ flex: 1, height: '48px' }}
                   >
-                    <ArrowLeft size={18} />
+                    <SolarIcon name="arrow-left-linear" size={18} />
                     <span>Back</span>
                   </button>
                   <button

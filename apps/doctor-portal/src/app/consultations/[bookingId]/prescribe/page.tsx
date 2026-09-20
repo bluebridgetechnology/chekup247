@@ -1,39 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import {
-  FileText,
-  Search,
-  Plus,
-  Trash2,
-  Shield,
-  AlertTriangle,
-  CheckCircle2,
-  Lock,
-  Download,
-  ArrowLeft,
-  Loader2,
-  User,
-  Calendar,
-  Check,
-  ChevronRight,
-  ExternalLink,
-  Eye,
-  Edit3,
-  Stethoscope,
-  Sparkles,
-  Printer,
-  FileCheck,
-  Hash,
-  Clock,
-  Building,
-  MapPin,
-  Award,
-} from 'lucide-react';
 import { useDoctorAuth } from '../../../../context/DoctorAuthContext';
-import { ChekupCrossLogo } from '../../../../components/common/ChekupCrossLogo';
+import { toastSuccess, toastError, errorMessage } from '../../../../lib/toast';
 import { SolarIcon } from '../../../../components/common/SolarIcon';
 
 interface Icd10Result {
@@ -76,6 +47,11 @@ const FREQUENCY_OPTIONS = [
 
 const DURATION_PRESETS = ['3 days', '5 days', '7 days', '10 days', '14 days', '30 days (1 month)'];
 
+const cleanDoctorName = (name?: string) => {
+  if (!name) return 'Dr. Practitioner';
+  return name.startsWith('Dr.') || name.startsWith('Dr ') ? name : `Dr. ${name}`;
+};
+
 export default function EPrescriptionBuilderPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -113,6 +89,23 @@ export default function EPrescriptionBuilderPage() {
   const [showIcd10Dropdown, setShowIcd10Dropdown] = useState<boolean>(false);
   const icd10DebounceRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Symptoms & Clinical Presentation
+  const [symptoms, setSymptoms] = useState<string[]>([]);
+  const [symptomInput, setSymptomInput] = useState<string>('');
+
+  const addSymptom = (sym: string) => {
+    const trimmed = sym.trim();
+    if (!trimmed) return;
+    if (!symptoms.includes(trimmed)) {
+      setSymptoms((prev) => [...prev, trimmed]);
+    }
+    setSymptomInput('');
+  };
+
+  const removeSymptom = (sym: string) => {
+    setSymptoms((prev) => prev.filter((s) => s !== sym));
+  };
+
   // 2. Medication Repeater Items
   const [medications, setMedications] = useState<MedicationRow[]>([
     {
@@ -132,6 +125,22 @@ export default function EPrescriptionBuilderPage() {
   const [medicationSearchResults, setMedicationSearchResults] = useState<MedicationResult[]>([]);
   const [isSearchingMed, setIsSearchingMed] = useState<boolean>(false);
   const medSearchDebounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Medication Sidesheet State (DP-704)
+  const [editingMedicationId, setEditingMedicationId] = useState<string | null>(null);
+
+  // Close sidesheet on Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && editingMedicationId) {
+        setEditingMedicationId(null);
+        setActiveSearchRowId(null);
+        setMedicationSearchResults([]);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [editingMedicationId]);
 
   // 3. Schedule 5 & 6 Supervision Declaration Modal (DP-703, BE-703)
   const [showSupervisionModal, setShowSupervisionModal] = useState<boolean>(false);
@@ -164,16 +173,18 @@ export default function EPrescriptionBuilderPage() {
         if (bookingId && token) {
           const res = await fetch(`${API_BASE}/consultations/${bookingId}`, {
             headers: { Authorization: `Bearer ${token}` },
+            credentials: 'include',
           });
           if (res.ok) {
             const data = await res.json();
             if (isMounted) {
               setConsultation(data);
-              if (data.booking?.patient) {
+              const p = data.patient || data.booking?.patient;
+              if (p) {
                 setPatient({
-                  name: data.booking.patient.fullName || 'Patient',
-                  email: data.booking.patient.email || '',
-                  phone: data.booking.patient.phone || '',
+                  name: p.fullName || p.name || 'Patient',
+                  email: p.email || '',
+                  phone: p.phone || '',
                 });
               }
             }
@@ -309,8 +320,14 @@ export default function EPrescriptionBuilderPage() {
     setMedicationSearchResults([]);
   };
 
-  // Add & Remove Medication rows
-  const addMedicationRow = () => {
+  // Add & Remove Medication rows & Sidesheet Handlers
+  const openEditSidesheet = (id: string) => {
+    setEditingMedicationId(id);
+    setActiveSearchRowId(null);
+    setMedicationSearchResults([]);
+  };
+
+  const addMedicationAndOpenSidesheet = () => {
     const newId = `med-${Date.now()}`;
     setMedications((prev) => [
       ...prev,
@@ -319,15 +336,31 @@ export default function EPrescriptionBuilderPage() {
         name: '',
         nappi_code: '',
         schedule_flag: 'S4',
-        dosage: '',
+        dosage: '1 tablet',
         frequency: 'Once daily',
         duration: '5 days',
         instructions: '',
       },
     ]);
+    setEditingMedicationId(newId);
+    setActiveSearchRowId(null);
+    setMedicationSearchResults([]);
+  };
+
+  const closeSidesheet = () => {
+    setEditingMedicationId(null);
+    setActiveSearchRowId(null);
+    setMedicationSearchResults([]);
+  };
+
+  const addMedicationRow = () => {
+    addMedicationAndOpenSidesheet();
   };
 
   const removeMedicationRow = (id: string) => {
+    if (editingMedicationId === id) {
+      setEditingMedicationId(null);
+    }
     if (medications.length <= 1) {
       setMedications([
         {
@@ -335,7 +368,7 @@ export default function EPrescriptionBuilderPage() {
           name: '',
           nappi_code: '',
           schedule_flag: 'S4',
-          dosage: '',
+          dosage: '1 tablet',
           frequency: 'Once daily',
           duration: '5 days',
           instructions: '',
@@ -351,6 +384,9 @@ export default function EPrescriptionBuilderPage() {
       prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
     );
   };
+
+  const activeMedication = medications.find((m) => m.id === editingMedicationId) || null;
+  const activeMedicationIndex = medications.findIndex((m) => m.id === editingMedicationId);
 
   // Schedule 5/6 Verification confirm
   const handleConfirmSupervision = () => {
@@ -400,6 +436,8 @@ export default function EPrescriptionBuilderPage() {
         consultationId: consultation?.id,
         doctorId: doctor?.id,
         icd10Code: icdCode,
+        symptoms: symptoms,
+        clinicalNotes: symptoms.length > 0 ? `Symptoms: ${symptoms.join(', ')}` : undefined,
         medications: validMeds.map((m) => ({
           name: m.name,
           dosage: m.dosage || 'As directed',
@@ -420,6 +458,7 @@ export default function EPrescriptionBuilderPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           'x-doctor-id': doctor?.id || 'system-doctor',
         },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
@@ -431,21 +470,24 @@ export default function EPrescriptionBuilderPage() {
       const saved = await res.json();
       setIssuedPrescription(saved);
       setActiveTab('success');
+      toastSuccess('Prescription issued', 'The patient has been notified.');
     } catch (err: any) {
-      setSubmitError(err.message || 'Error issuing electronic prescription');
+      const msg = errorMessage(err, 'Error issuing electronic prescription');
+      setSubmitError(msg);
+      toastError('Could not issue prescription', msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const prescriberName = doctor?.fullName ? `Dr. ${doctor.fullName}` : 'Dr. M. D. Khumalo';
-  const hpcsaReg = profile?.hpcsaNumber || 'MP 0789012';
+  const prescriberName = cleanDoctorName(doctor?.fullName);
+  const hpcsaReg = profile?.hpcsaNumber || 'MP 0689432';
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-cream-base, #FAF6EE)', padding: '28px 20px' }}>
-      <div style={{ maxWidth: '1040px', margin: '0 auto' }}>
+    <div className="prescribe-page" style={{ minHeight: '100vh', background: 'var(--color-cream-base, #FAF6EE)', padding: '24px 16px', boxSizing: 'border-box' }}>
+      <div style={{ maxWidth: '1080px', margin: '0 auto', width: '100%' }}>
         {/* Top Header & Breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
           <div>
             <Link
               href={`/consultations/${bookingId}`}
@@ -454,18 +496,18 @@ export default function EPrescriptionBuilderPage() {
                 alignItems: 'center',
                 gap: '6px',
                 color: 'var(--color-cream-text-muted, #6B5E55)',
-                fontSize: '0.875rem',
+                fontSize: '0.85rem',
                 textDecoration: 'none',
                 marginBottom: '8px',
                 fontWeight: 600,
                 transition: 'color 0.15s',
               }}
             >
-              <ArrowLeft size={16} />
+              <SolarIcon name="arrow-left-linear" size={16} color="var(--color-cream-text-muted, #6B5E55)" />
               <span>Back to Live Consultation Suite</span>
             </Link>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <ChekupCrossLogo size={28} />
+              <SolarIcon name="document-medicine-linear" size={26} color="var(--color-gold-bronze, #B88647)" />
               <h1
                 style={{
                   fontFamily: 'var(--font-heading)',
@@ -480,7 +522,7 @@ export default function EPrescriptionBuilderPage() {
               </h1>
             </div>
             <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.875rem', margin: '6px 0 0 0' }}>
-              South African HPCSA & Medicines Act (Act 101/1965) compliant digital prescription stationary
+              South African HPCSA &amp; Medicines Act (Act 101/1965) compliant digital prescription stationary
             </p>
           </div>
 
@@ -499,7 +541,7 @@ export default function EPrescriptionBuilderPage() {
                 border: '1px solid rgba(223, 171, 98, 0.4)',
               }}
             >
-              <Shield size={14} style={{ color: 'var(--color-gold-dark, #C9944A)' }} />
+              <SolarIcon name="shield-check-linear" size={15} color="var(--color-gold-bronze, #B88647)" />
               <span>HPCSA Telemedicine Verified</span>
             </span>
           </div>
@@ -508,221 +550,200 @@ export default function EPrescriptionBuilderPage() {
         {/* Numbered Step Progress Header Matching Patient System */}
         {activeTab !== 'success' && (
           <div
+            className="portal-card prescribe-steps-container"
             style={{
-              background: 'var(--color-cream-surface, #FDFBF7)',
-              border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
-              borderRadius: '16px',
-              padding: '16px 24px',
+              padding: '16px 20px',
               marginBottom: '22px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              boxShadow: '0 2px 10px rgba(42, 23, 15, 0.04)',
             }}
           >
-            {/* Step 1 */}
             <div
-              onClick={() => {
-                setActiveTab('form');
-                setActiveStep(1);
-              }}
+              className="prescribe-steps-inner"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
-                cursor: 'pointer',
+                justifyContent: 'space-between',
               }}
             >
+              {/* Step 1 */}
               <div
+                onClick={() => {
+                  setActiveTab('form');
+                  setActiveStep(1);
+                }}
                 style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  background:
-                    activeStep === 1
-                      ? 'var(--color-gold-primary, #E2B467)'
-                      : selectedIcd10 || icd10Query
-                      ? 'var(--color-chocolate-base, #2A170F)'
-                      : 'var(--color-gold-pale, #F0E5D3)',
-                  color:
-                    activeStep === 1
-                      ? 'var(--color-chocolate-base, #2A170F)'
-                      : selectedIcd10 || icd10Query
-                      ? '#ffffff'
-                      : 'var(--color-chocolate-base, #2A170F)',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  border: activeStep === 1 ? '2px solid var(--color-gold-base, #DFAB62)' : 'none',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  flexShrink: 0,
                 }}
               >
-                1
-              </div>
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                  ICD-10 Diagnosis
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background:
+                      activeStep === 1
+                        ? 'var(--color-gold-primary, #E2B467)'
+                        : selectedIcd10 || icd10Query
+                        ? 'var(--color-chocolate-base, #2A170F)'
+                        : 'var(--color-gold-pale, #F0E5D3)',
+                    color:
+                      activeStep === 1
+                        ? 'var(--color-chocolate-base, #2A170F)'
+                        : selectedIcd10 || icd10Query
+                        ? '#ffffff'
+                        : 'var(--color-chocolate-base, #2A170F)',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: activeStep === 1 ? '2px solid var(--color-gold-base, #DFAB62)' : 'none',
+                  }}
+                >
+                  1
                 </div>
-                <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                  SA MIT Diagnostic Table
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                    Mandatory Diagnostic ICD-10
+                  </div>
+                  <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    Primary Diagnosis &amp; Symptoms
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div style={{ height: '1px', flex: 1, background: 'rgba(223, 171, 98, 0.3)', margin: '0 16px' }} />
+              <div style={{ height: '1px', flex: 1, background: 'rgba(223, 171, 98, 0.3)', margin: '0 16px', minWidth: '24px' }} />
 
-            {/* Step 2 */}
-            <div
-              onClick={() => {
-                setActiveTab('form');
-                setActiveStep(2);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                cursor: 'pointer',
-              }}
-            >
+              {/* Step 2 */}
               <div
+                onClick={() => {
+                  setActiveTab('form');
+                  setActiveStep(2);
+                }}
                 style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  background:
-                    activeStep === 2
-                      ? 'var(--color-gold-primary, #E2B467)'
-                      : medications.length > 0 && medications[0].name
-                      ? 'var(--color-chocolate-base, #2A170F)'
-                      : 'var(--color-gold-pale, #F0E5D3)',
-                  color:
-                    activeStep === 2
-                      ? 'var(--color-chocolate-base, #2A170F)'
-                      : medications.length > 0 && medications[0].name
-                      ? '#ffffff'
-                      : 'var(--color-chocolate-base, #2A170F)',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  border: activeStep === 2 ? '2px solid var(--color-gold-base, #DFAB62)' : 'none',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  flexShrink: 0,
                 }}
               >
-                2
-              </div>
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                  Medication Items (Rx)
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background:
+                      activeStep === 2
+                        ? 'var(--color-gold-primary, #E2B467)'
+                        : medications.length > 0 && medications[0].name
+                        ? 'var(--color-chocolate-base, #2A170F)'
+                        : 'var(--color-gold-pale, #F0E5D3)',
+                    color:
+                      activeStep === 2
+                        ? 'var(--color-chocolate-base, #2A170F)'
+                        : medications.length > 0 && medications[0].name
+                        ? '#ffffff'
+                        : 'var(--color-chocolate-base, #2A170F)',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: activeStep === 2 ? '2px solid var(--color-gold-base, #DFAB62)' : 'none',
+                  }}
+                >
+                  2
                 </div>
-                <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                  NAPPI Code & Presets
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                    Medication Items (Rx)
+                  </div>
+                  <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    NAPPI Code &amp; Presets
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div style={{ height: '1px', flex: 1, background: 'rgba(223, 171, 98, 0.3)', margin: '0 16px' }} />
+              <div style={{ height: '1px', flex: 1, background: 'rgba(223, 171, 98, 0.3)', margin: '0 16px', minWidth: '24px' }} />
 
-            {/* Step 3 */}
-            <div
-              onClick={() => {
-                setActiveTab('preview');
-                setActiveStep(3);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                cursor: 'pointer',
-              }}
-            >
+              {/* Step 3 */}
               <div
+                onClick={() => {
+                  setActiveTab('preview');
+                  setActiveStep(3);
+                }}
                 style={{
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  background:
-                    activeStep === 3
-                      ? 'var(--color-gold-primary, #E2B467)'
-                      : 'var(--color-gold-pale, #F0E5D3)',
-                  color: 'var(--color-chocolate-base, #2A170F)',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  border: activeStep === 3 ? '2px solid var(--color-gold-base, #DFAB62)' : 'none',
+                  gap: '10px',
+                  cursor: 'pointer',
+                  flexShrink: 0,
                 }}
               >
-                3
-              </div>
-              <div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                  Stationary & Signature
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background:
+                      activeStep === 3
+                        ? 'var(--color-gold-primary, #E2B467)'
+                        : 'var(--color-gold-pale, #F0E5D3)',
+                    color: 'var(--color-chocolate-base, #2A170F)',
+                    fontWeight: 800,
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: activeStep === 3 ? '2px solid var(--color-gold-base, #DFAB62)' : 'none',
+                  }}
+                >
+                  3
                 </div>
-                <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                  Official SA Medical PDF
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                    Stationary &amp; Signature
+                  </div>
+                  <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    Official SA Medical PDF
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Patient Summary Header Card */}
+        {/* Patient Summary Header Card (Clean - No Avatar Circle) */}
         <div
+          className="portal-card"
           style={{
-            background: 'var(--color-cream-surface, #FDFBF7)',
-            borderRadius: '16px',
-            padding: '18px 22px',
-            border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
-            boxShadow: '0 2px 8px rgba(42, 23, 15, 0.03)',
+            padding: '16px 20px',
             marginBottom: '22px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             flexWrap: 'wrap',
-            gap: '14px',
+            gap: '16px',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                background: 'var(--color-gold-pale, #F0E5D3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--color-chocolate-base, #2A170F)',
-                fontWeight: 800,
-                fontSize: '1rem',
-                border: '1.5px solid var(--color-gold-base, #DFAB62)',
-              }}
-            >
-              {patient.name
-                .split(' ')
-                .map((n) => n[0])
-                .join('')
-                .substring(0, 2)
-                .toUpperCase()}
+          <div>
+            <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              Consultation Patient
             </div>
-            <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase' }}>
-                Consultation Patient
-              </div>
-              <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                {patient.name}
-              </div>
+            <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)', marginTop: '2px' }}>
+              {patient.name}
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '22px', fontSize: '0.85rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '16px 24px', fontSize: '0.85rem' }}>
             <div>
               <span style={{ color: 'var(--color-cream-text-muted, #6B5E55)' }}>Booking ID: </span>
-              <span style={{ fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                #{bookingId.substring(0, 8).toUpperCase()}
+              <span style={{ fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)', fontFamily: 'monospace' }}>
+                #{bookingId ? bookingId.substring(0, 8).toUpperCase() : 'N/A'}
               </span>
             </div>
             <div>
@@ -748,7 +769,7 @@ export default function EPrescriptionBuilderPage() {
 
         {/* Tab Selection: Form vs Preview */}
         {activeTab !== 'success' && (
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={() => {
@@ -756,23 +777,22 @@ export default function EPrescriptionBuilderPage() {
                 setActiveStep(1);
               }}
               style={{
-                padding: '10px 22px',
+                padding: '10px 20px',
                 borderRadius: '9999px',
                 border: activeTab === 'form' ? 'none' : '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
                 background: activeTab === 'form' ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-cream-surface, #FDFBF7)',
                 color: activeTab === 'form' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
                 fontWeight: 700,
-                fontSize: '0.875rem',
+                fontSize: '0.85rem',
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                boxShadow: activeTab === 'form' ? '0 4px 14px rgba(42, 23, 15, 0.2)' : 'none',
                 transition: 'all 0.2s ease',
               }}
             >
-              <Edit3 size={16} />
-              <span>1. Prescription Form & Items</span>
+              <SolarIcon name="pen-new-square-linear" size={16} color={activeTab === 'form' ? '#DFAB62' : 'var(--color-chocolate-base, #2A170F)'} />
+              <span>1. Prescription Form &amp; Items</span>
             </button>
             <button
               type="button"
@@ -781,22 +801,21 @@ export default function EPrescriptionBuilderPage() {
                 setActiveStep(3);
               }}
               style={{
-                padding: '10px 22px',
+                padding: '10px 20px',
                 borderRadius: '9999px',
                 border: activeTab === 'preview' ? 'none' : '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
                 background: activeTab === 'preview' ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-cream-surface, #FDFBF7)',
                 color: activeTab === 'preview' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
                 fontWeight: 700,
-                fontSize: '0.875rem',
+                fontSize: '0.85rem',
                 cursor: 'pointer',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
                 gap: '8px',
-                boxShadow: activeTab === 'preview' ? '0 4px 14px rgba(42, 23, 15, 0.2)' : 'none',
                 transition: 'all 0.2s ease',
               }}
             >
-              <Eye size={16} />
+              <SolarIcon name="eye-linear" size={16} color={activeTab === 'preview' ? '#DFAB62' : 'var(--color-chocolate-base, #2A170F)'} />
               <span>2. Official SA Medical Stationary Preview</span>
             </button>
           </div>
@@ -818,7 +837,7 @@ export default function EPrescriptionBuilderPage() {
               marginBottom: '20px',
             }}
           >
-            <AlertTriangle size={18} style={{ color: '#dc2626' }} />
+            <SolarIcon name="danger-circle-linear" size={18} color="#dc2626" />
             <span>{submitError}</span>
           </div>
         )}
@@ -828,19 +847,24 @@ export default function EPrescriptionBuilderPage() {
             ====================================================================== */}
         {activeTab === 'form' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
-            {/* Step 1: ICD-10 Search Section */}
+            {/* Step 1: ICD-10 Search & Symptoms Section */}
             <div className="portal-card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <label className="portal-label" style={{ fontSize: '1rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-                  <Stethoscope size={18} style={{ color: 'var(--color-gold-base, #DFAB62)' }} />
-                  <span>Mandatory Diagnostic ICD-10 Code (SA MIT Table)</span>
-                  <span style={{ color: '#dc2626' }}>*</span>
-                </label>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '12px' }}>
+                <div>
+                  <label className="portal-label" style={{ fontSize: '0.95rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+                    <SolarIcon name="stethoscope-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+                    <span>Mandatory Diagnostic ICD-10</span>
+                    <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    Select primary diagnosis code and document patient presentation.
+                  </p>
+                </div>
                 <Link
                   href="/icd10"
                   target="_blank"
                   style={{
-                    fontSize: '0.8rem',
+                    fontSize: '0.78rem',
                     color: 'var(--color-chocolate-base, #2A170F)',
                     fontWeight: 700,
                     textDecoration: 'none',
@@ -849,24 +873,28 @@ export default function EPrescriptionBuilderPage() {
                     gap: '4px',
                   }}
                 >
-                  <span>Open ICD-10 Assistant</span>
-                  <ExternalLink size={12} />
+                  <span>ICD-10 Helper</span>
+                  <SolarIcon name="link-broken-linear" size={13} color="var(--color-chocolate-base, #2A170F)" />
                 </Link>
               </div>
 
               <div style={{ position: 'relative' }}>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <Search size={18} style={{ position: 'absolute', left: '14px', color: 'var(--color-gold-base, #DFAB62)' }} />
+                  <span style={{ position: 'absolute', left: '14px', pointerEvents: 'none', display: 'flex', alignItems: 'center' }}>
+                    <SolarIcon name="magnifer-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+                  </span>
                   <input
                     type="text"
                     value={icd10Query}
                     onChange={(e) => handleIcd10Search(e.target.value)}
-                    placeholder="Search South African ICD-10 MIT table (e.g. Acute bronchitis, Pharyngitis J06.9, Hypertension I10)..."
+                    placeholder="Search diagnosis or ICD-10 code (e.g. Hypertension, J06.9, Acute bronchitis)..."
                     className="portal-input"
                     style={{ paddingLeft: '44px' }}
                   />
                   {isSearchingIcd10 && (
-                    <Loader2 size={18} className="animate-spin" style={{ position: 'absolute', right: '14px', color: 'var(--color-gold-base, #DFAB62)' }} />
+                    <span style={{ position: 'absolute', right: '14px', display: 'flex', alignItems: 'center' }}>
+                      <SolarIcon name="refresh-linear" size={18} color="var(--color-gold-base, #DFAB62)" style={{ animation: 'spin 1s linear infinite' }} />
+                    </span>
                   )}
                 </div>
 
@@ -910,7 +938,7 @@ export default function EPrescriptionBuilderPage() {
                               style={{
                                 fontFamily: 'monospace',
                                 fontWeight: 800,
-                                fontSize: '0.9rem',
+                                fontSize: '0.88rem',
                                 color: 'var(--color-chocolate-base, #2A170F)',
                                 background: 'rgba(223, 171, 98, 0.2)',
                                 padding: '2px 6px',
@@ -925,12 +953,12 @@ export default function EPrescriptionBuilderPage() {
                               </span>
                             )}
                           </div>
-                          <div style={{ fontSize: '0.875rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '3px' }}>
+                          <div style={{ fontSize: '0.85rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '3px' }}>
                             {item.description}
                           </div>
                         </div>
 
-                        <span className="badge-gold">Select</span>
+                        <span className="badge-gold" style={{ flexShrink: 0 }}>Select</span>
                       </div>
                     ))}
                   </div>
@@ -948,309 +976,400 @@ export default function EPrescriptionBuilderPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
+                    gap: '10px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Check size={16} style={{ color: '#16a34a' }} />
-                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                      Selected Primary Code: [{selectedIcd10.code}] {selectedIcd10.description}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                    <SolarIcon name="check-circle-linear" size={16} color="#059669" />
+                    <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      Primary Code: [{selectedIcd10.code}] {selectedIcd10.description}
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setSelectedIcd10(null)}
-                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}
+                    style={{ background: 'none', border: 'none', color: '#dc2626', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}
                   >
-                    Clear
+                    Change
                   </button>
                 </div>
               )}
+
+              {/* Symptoms & Clinical Findings (Multi-Symptom Support) */}
+              <div style={{ marginTop: '20px', paddingTop: '16px', borderTop: '1px solid rgba(223, 171, 98, 0.2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px', marginBottom: '10px' }}>
+                  <label className="portal-label" style={{ fontSize: '0.85rem', fontWeight: 800, margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>Symptoms &amp; Clinical Findings</span>
+                    {symptoms.length > 0 && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 800,
+                          padding: '1px 6px',
+                          borderRadius: '9999px',
+                          background: 'var(--color-gold-pale, #F0E5D3)',
+                          color: 'var(--color-chocolate-base, #2A170F)',
+                        }}
+                      >
+                        {symptoms.length}
+                      </span>
+                    )}
+                  </label>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    Add multiple patient symptoms or presentation signs
+                  </span>
+                </div>
+
+                {/* Symptoms Input */}
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                  <input
+                    type="text"
+                    value={symptomInput}
+                    onChange={(e) => setSymptomInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        addSymptom(symptomInput);
+                      }
+                    }}
+                    placeholder="Type a symptom and press Enter (e.g. Dry cough, Fever, Severe headache)..."
+                    className="portal-input"
+                    style={{ height: '40px', fontSize: '0.85rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => addSymptom(symptomInput)}
+                    className="btn-secondary"
+                    style={{ padding: '0 16px', height: '40px', fontSize: '0.825rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <SolarIcon name="add-circle-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
+                    <span>Add</span>
+                  </button>
+                </div>
+
+                {/* Quick Suggestion Chips */}
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: symptoms.length > 0 ? '12px' : '0' }}>
+                  {[
+                    'Cough',
+                    'Fever',
+                    'Headache',
+                    'Sore throat',
+                    'Fatigue',
+                    'Body aches',
+                    'Nausea',
+                    'Nasal congestion',
+                    'Shortness of breath',
+                  ].map((chip) => {
+                    const isSelected = symptoms.includes(chip);
+                    return (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => (isSelected ? removeSymptom(chip) : addSymptom(chip))}
+                        style={{
+                          padding: '3px 9px',
+                          borderRadius: '6px',
+                          border: isSelected
+                            ? '1px solid var(--color-gold-base, #DFAB62)'
+                            : '1px solid rgba(223, 171, 98, 0.25)',
+                          background: isSelected ? 'var(--color-gold-pale, #F0E5D3)' : 'var(--color-cream-surface, #FDFBF7)',
+                          color: 'var(--color-chocolate-base, #2A170F)',
+                          fontSize: '0.725rem',
+                          fontWeight: isSelected ? 800 : 600,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <span>{isSelected ? '✓ ' + chip : '+ ' + chip}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Added Symptoms Tags List */}
+                {symptoms.length > 0 && (
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                    {symptoms.map((sym) => (
+                      <span
+                        key={sym}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '4px 10px',
+                          borderRadius: '6px',
+                          background: 'var(--color-chocolate-base, #2A170F)',
+                          color: '#ffffff',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                        }}
+                      >
+                        <span>{sym}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeSymptom(sym)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ffffff',
+                            cursor: 'pointer',
+                            padding: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            opacity: 0.8,
+                          }}
+                          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.opacity = '1')}
+                          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.opacity = '0.8')}
+                        >
+                          <SolarIcon name="close-circle-linear" size={13} color="#ffffff" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            {/* Step 2: Medication Repeater Items */}
+            {/* Step 2: Medication Items List (Sane, Clean & Compact) */}
             <div className="portal-card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '18px' }}>
                 <div>
-                  <h3
-                    style={{
-                      fontFamily: 'var(--font-heading)',
-                      fontSize: '1.15rem',
-                      fontWeight: 800,
-                      color: 'var(--color-chocolate-base, #2A170F)',
-                      margin: 0,
-                    }}
-                  >
-                    Medication Items (Rx Formulary)
-                  </h3>
-                  <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                    Add medications, specify NAPPI code, schedule classification, dosage, frequency, and duration.
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h3
+                      style={{
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: '1.15rem',
+                        fontWeight: 800,
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                        margin: 0,
+                      }}
+                    >
+                      Prescribed Medication Items (Rx Formulary)
+                    </h3>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        background: 'var(--color-gold-pale, #F0E5D3)',
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                      }}
+                    >
+                      {medications.length} {medications.length === 1 ? 'item' : 'items'}
+                    </span>
+                  </div>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    Click any medication item to review or edit its details in the sidesheet.
                   </p>
                 </div>
 
                 <button
                   type="button"
-                  onClick={addMedicationRow}
-                  className="btn-secondary"
-                  style={{ padding: '8px 16px', fontSize: '0.825rem' }}
+                  onClick={addMedicationAndOpenSidesheet}
+                  className="btn-primary"
+                  style={{ padding: '8px 18px', fontSize: '0.825rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <Plus size={16} />
-                  <span>Add Another Medication</span>
+                  <SolarIcon name="add-circle-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                  <span>Add Medication</span>
                 </button>
               </div>
 
-              {/* Medication Item Repeater Cards */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Sane & Clean Medication List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {medications.map((row, index) => (
                   <div
                     key={row.id}
-                    style={{
-                      background: '#ffffff',
-                      borderRadius: '14px',
-                      border: '1.5px solid rgba(223, 171, 98, 0.28)',
-                      padding: '18px 20px',
-                      boxShadow: '0 2px 10px rgba(42, 23, 15, 0.03)',
-                    }}
+                    className="rx-med-card"
+                    onClick={() => openEditSidesheet(row.id)}
                   >
-                    {/* Item Row Header */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span
-                          style={{
-                            width: '26px',
-                            height: '26px',
-                            borderRadius: '50%',
-                            background: 'var(--color-chocolate-base, #2A170F)',
-                            color: '#ffffff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 800,
-                            fontSize: '0.8rem',
-                          }}
-                        >
-                          {index + 1}
-                        </span>
-                        <span style={{ fontWeight: 800, fontSize: '0.925rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
-                          Medication #{index + 1}
-                        </span>
-                        {row.schedule_flag && (
+                    {/* Left: Index badge & Medication Overview */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                      <span
+                        style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '50%',
+                          background: row.name ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-gold-pale, #F0E5D3)',
+                          color: row.name ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 800,
+                          fontSize: '0.85rem',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {index + 1}
+                      </span>
+
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        {/* Title & Badges */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
                           <span
                             style={{
-                              fontSize: '0.725rem',
                               fontWeight: 800,
-                              padding: '2px 8px',
-                              borderRadius: '9999px',
-                              background:
-                                row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
-                                  ? '#fee2e2'
-                                  : 'var(--color-gold-pale, #F0E5D3)',
-                              color:
-                                row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
-                                  ? '#dc2626'
-                                  : 'var(--color-chocolate-base, #2A170F)',
-                              border:
-                                row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
-                                  ? '1px solid #fca5a5'
-                                  : '1px solid rgba(223, 171, 98, 0.4)',
+                              fontSize: '0.95rem',
+                              color: row.name ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-cream-text-muted, #6B5E55)',
+                              fontStyle: row.name ? 'normal' : 'italic',
                             }}
                           >
-                            Schedule {row.schedule_flag}
+                            {row.name || 'Unnamed medication — click to configure details'}
                           </span>
-                        )}
+
+                          {row.schedule_flag && (
+                            <span
+                              style={{
+                                fontSize: '0.725rem',
+                                fontWeight: 800,
+                                padding: '2px 8px',
+                                borderRadius: '9999px',
+                                background:
+                                  row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
+                                    ? '#fee2e2'
+                                    : 'var(--color-gold-pale, #F0E5D3)',
+                                color:
+                                  row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
+                                    ? '#dc2626'
+                                    : 'var(--color-chocolate-base, #2A170F)',
+                                border:
+                                  row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
+                                    ? '1px solid #fca5a5'
+                                    : '1px solid rgba(223, 171, 98, 0.4)',
+                              }}
+                            >
+                              Schedule {row.schedule_flag}
+                            </span>
+                          )}
+
+                          {row.nappi_code && (
+                            <span
+                              style={{
+                                fontSize: '0.725rem',
+                                fontFamily: 'monospace',
+                                fontWeight: 700,
+                                color: 'var(--color-cream-text-muted, #6B5E55)',
+                                background: 'rgba(223, 171, 98, 0.15)',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                              }}
+                            >
+                              NAPPI: {row.nappi_code}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Dosage, Frequency, Duration & Instructions snippet */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px 12px', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                          <span>
+                            <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Dosage:</strong> {row.dosage || '1 dose'}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Frequency:</strong> {row.frequency || 'Daily'}
+                          </span>
+                          <span>•</span>
+                          <span>
+                            <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Duration:</strong> {row.duration || '5 days'}
+                          </span>
+                          {row.instructions && (
+                            <>
+                              <span>•</span>
+                              <span style={{ fontStyle: 'italic', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                &ldquo;{row.instructions}&rdquo;
+                              </span>
+                            </>
+                          )}
+                        </div>
                       </div>
+                    </div>
+
+                    {/* Right: Actions */}
+                    <div className="rx-med-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditSidesheet(row.id);
+                        }}
+                        className="btn-secondary"
+                        style={{
+                          padding: '6px 12px',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <SolarIcon name="pen-new-square-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
+                        <span>Edit Details</span>
+                      </button>
 
                       {medications.length > 1 && (
                         <button
                           type="button"
-                          onClick={() => removeMedicationRow(row.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeMedicationRow(row.id);
+                          }}
+                          title="Remove medication"
                           style={{
                             background: 'none',
                             border: 'none',
+                            padding: '6px',
+                            borderRadius: '8px',
                             color: '#dc2626',
                             cursor: 'pointer',
                             display: 'flex',
                             alignItems: 'center',
-                            gap: '4px',
-                            fontSize: '0.78rem',
-                            fontWeight: 700,
+                            justifyContent: 'center',
+                            transition: 'background 0.15s',
                           }}
+                          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = '#fee2e2')}
+                          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'none')}
                         >
-                          <Trash2 size={14} />
-                          <span>Remove Item</span>
+                          <SolarIcon name="trash-bin-trash-linear" size={17} color="#dc2626" />
                         </button>
                       )}
-                    </div>
 
-                    {/* Inputs Grid */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: '14px' }}>
-                      {/* Medication Name & Typeahead (Col 6) */}
-                      <div style={{ gridColumn: 'span 6', position: 'relative' }}>
-                        <label className="portal-label">Medication / Generic Name *</label>
-                        <input
-                          type="text"
-                          value={row.name}
-                          onChange={(e) => handleMedicationSearch(row.id, e.target.value)}
-                          placeholder="e.g. Amoxicillin / Clavulanic Acid 1000mg"
-                          className="portal-input"
-                        />
-
-                        {/* Search Dropdown */}
-                        {activeSearchRowId === row.id && medicationSearchResults.length > 0 && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              top: '100%',
-                              left: 0,
-                              right: 0,
-                              zIndex: 40,
-                              background: 'var(--color-cream-surface, #FDFBF7)',
-                              border: '1.5px solid var(--color-gold-base, #DFAB62)',
-                              borderRadius: '10px',
-                              boxShadow: '0 8px 24px rgba(42, 23, 15, 0.15)',
-                              marginTop: '4px',
-                              maxHeight: '220px',
-                              overflowY: 'auto',
-                            }}
-                          >
-                            {medicationSearchResults.map((med, i) => (
-                              <div
-                                key={i}
-                                onClick={() => selectMedication(row.id, med)}
-                                style={{
-                                  padding: '10px 14px',
-                                  cursor: 'pointer',
-                                  borderBottom: '1px solid rgba(223, 171, 98, 0.15)',
-                                }}
-                                onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--color-gold-pale, #F0E5D3)')}
-                                onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
-                              >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <span style={{ fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', fontSize: '0.875rem' }}>
-                                    {med.name}
-                                  </span>
-                                  <span className={med.schedule === 'S5' || med.schedule === 'S6' ? 'badge-danger' : 'badge-gold'}>
-                                    {med.schedule}
-                                  </span>
-                                </div>
-                                <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '2px' }}>
-                                  NAPPI: {med.nappi_code} • {med.category}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* NAPPI Code (Col 3) */}
-                      <div style={{ gridColumn: 'span 3' }}>
-                        <label className="portal-label">NAPPI Code</label>
-                        <input
-                          type="text"
-                          value={row.nappi_code}
-                          onChange={(e) => updateMedicationRow(row.id, 'nappi_code', e.target.value)}
-                          placeholder="e.g. 706035001"
-                          className="portal-input"
-                        />
-                      </div>
-
-                      {/* Schedule (Col 3) */}
-                      <div style={{ gridColumn: 'span 3' }}>
-                        <label className="portal-label">Schedule Flag *</label>
-                        <select
-                          value={row.schedule_flag}
-                          onChange={(e) => updateMedicationRow(row.id, 'schedule_flag', e.target.value)}
-                          className="portal-select"
-                          style={{
-                            fontWeight: 700,
-                            color: row.schedule_flag === 'S5' || row.schedule_flag === 'S6' ? '#dc2626' : 'var(--color-chocolate-base, #2A170F)',
-                          }}
-                        >
-                          <option value="S0">Schedule 0 (General OTC)</option>
-                          <option value="S1">Schedule 1 (Pharmacy Only)</option>
-                          <option value="S2">Schedule 2 (Behind Counter)</option>
-                          <option value="S3">Schedule 3 (Chronic Care)</option>
-                          <option value="S4">Schedule 4 (Standard Rx)</option>
-                          <option value="S5">Schedule 5 (Sedative / Anxiolytic)</option>
-                          <option value="S6">Schedule 6 (Narcotic / Controlled)</option>
-                        </select>
-                      </div>
-
-                      {/* Dosage (Col 4) */}
-                      <div style={{ gridColumn: 'span 4' }}>
-                        <label className="portal-label">Dosage / Quantity *</label>
-                        <input
-                          type="text"
-                          value={row.dosage}
-                          onChange={(e) => updateMedicationRow(row.id, 'dosage', e.target.value)}
-                          placeholder="e.g. 1 tablet, 500mg, 10ml"
-                          className="portal-input"
-                        />
-                      </div>
-
-                      {/* Frequency (Col 4) */}
-                      <div style={{ gridColumn: 'span 4' }}>
-                        <label className="portal-label">Frequency</label>
-                        <select
-                          value={row.frequency}
-                          onChange={(e) => updateMedicationRow(row.id, 'frequency', e.target.value)}
-                          className="portal-select"
-                        >
-                          {FREQUENCY_OPTIONS.map((opt) => (
-                            <option key={opt.val} value={opt.val}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      {/* Duration (Col 4) */}
-                      <div style={{ gridColumn: 'span 4' }}>
-                        <label className="portal-label">Duration</label>
-                        <input
-                          type="text"
-                          value={row.duration}
-                          onChange={(e) => updateMedicationRow(row.id, 'duration', e.target.value)}
-                          placeholder="e.g. 5 days, 1 month, 30 days"
-                          className="portal-input"
-                        />
-                        {/* Duration presets */}
-                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', marginTop: '6px' }}>
-                          {DURATION_PRESETS.map((dur) => (
-                            <button
-                              key={dur}
-                              type="button"
-                              onClick={() => updateMedicationRow(row.id, 'duration', dur)}
-                              style={{
-                                padding: '2px 6px',
-                                borderRadius: '4px',
-                                border: '1px solid rgba(223, 171, 98, 0.3)',
-                                background: row.duration === dur ? 'var(--color-gold-pale, #F0E5D3)' : '#ffffff',
-                                color: 'var(--color-chocolate-base, #2A170F)',
-                                fontSize: '0.675rem',
-                                fontWeight: 700,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              {dur}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Special Instructions (Col 12) */}
-                      <div style={{ gridColumn: 'span 12' }}>
-                        <label className="portal-label">Special Instructions / Food & Alcohol Warnings</label>
-                        <input
-                          type="text"
-                          value={row.instructions}
-                          onChange={(e) => updateMedicationRow(row.id, 'instructions', e.target.value)}
-                          placeholder="e.g. Take immediately after meals; complete full antibiotic course; avoid driving or alcohol."
-                          className="portal-input"
-                        />
-                      </div>
+                      <SolarIcon name="alt-arrow-right-linear" size={16} color="var(--color-gold-base, #DFAB62)" />
                     </div>
                   </div>
                 ))}
+
+                {/* Quick Add Another Medication Dashed Card */}
+                <button
+                  type="button"
+                  onClick={addMedicationAndOpenSidesheet}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    padding: '14px',
+                    borderRadius: '12px',
+                    border: '1.5px dashed var(--color-gold-base, #DFAB62)',
+                    background: 'rgba(223, 171, 98, 0.04)',
+                    color: 'var(--color-chocolate-base, #2A170F)',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    transition: 'all 0.18s ease',
+                    width: '100%',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = 'var(--color-gold-pale, #F0E5D3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLElement).style.background = 'rgba(223, 171, 98, 0.04)';
+                  }}
+                >
+                  <SolarIcon name="add-circle-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
+                  <span>Add Another Medication Item</span>
+                </button>
               </div>
             </div>
 
@@ -1265,12 +1384,16 @@ export default function EPrescriptionBuilderPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  flexWrap: 'wrap',
                   gap: '16px',
-                  boxShadow: '0 4px 14px rgba(42, 23, 15, 0.04)',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <Shield size={28} style={{ color: hasConfirmedSupervision ? '#16a34a' : 'var(--color-gold-dark, #C9944A)' }} />
+                  <SolarIcon
+                    name={hasConfirmedSupervision ? 'shield-check-linear' : 'shield-warning-linear'}
+                    size={28}
+                    color={hasConfirmedSupervision ? '#059669' : 'var(--color-gold-bronze, #B88647)'}
+                  />
                   <div>
                     <h4
                       style={{
@@ -1312,10 +1435,10 @@ export default function EPrescriptionBuilderPage() {
                   setActiveStep(3);
                 }}
                 className="btn-primary"
-                style={{ padding: '12px 28px', fontSize: '0.95rem' }}
+                style={{ padding: '12px 28px', fontSize: '0.95rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
                 <span>Proceed to Official Stationary Preview</span>
-                <ChevronRight size={18} />
+                <SolarIcon name="arrow-right-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </button>
             </div>
           </div>
@@ -1328,18 +1451,19 @@ export default function EPrescriptionBuilderPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
             {/* Authentic South African Stationary Sheet */}
             <div
+              className="prescribe-stationary-sheet"
               style={{
                 background: '#ffffff',
                 borderRadius: '16px',
                 border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
-                padding: '44px 48px',
-                boxShadow: '0 12px 36px rgba(42, 23, 15, 0.08)',
+                padding: '40px 44px',
                 color: 'var(--color-chocolate-base, #2A170F)',
                 position: 'relative',
               }}
             >
               {/* Authentic Header with Brand & Practice stationary */}
               <div
+                className="prescribe-stationary-header"
                 style={{
                   borderBottom: '2.5px solid var(--color-chocolate-base, #2A170F)',
                   paddingBottom: '20px',
@@ -1350,12 +1474,12 @@ export default function EPrescriptionBuilderPage() {
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                    <ChekupCrossLogo size={32} />
+                    <SolarIcon name="document-medicine-linear" size={30} color="var(--color-gold-bronze, #B88647)" />
                     <div>
                       <h2
                         style={{
                           fontFamily: 'var(--font-heading)',
-                          fontSize: '1.6rem',
+                          fontSize: '1.55rem',
                           fontWeight: 900,
                           color: 'var(--color-chocolate-base, #2A170F)',
                           letterSpacing: '-0.02em',
@@ -1365,7 +1489,7 @@ export default function EPrescriptionBuilderPage() {
                       >
                         ChekUp<span style={{ color: 'var(--color-gold-base, #DFAB62)' }}>247</span>
                       </h2>
-                      <div style={{ fontSize: '0.725rem', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--color-gold-dark, #C9944A)', textTransform: 'uppercase' }}>
+                      <div style={{ fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.08em', color: 'var(--color-gold-dark, #C9944A)', textTransform: 'uppercase' }}>
                         Healthcare Virtual Consulting Practice
                       </div>
                     </div>
@@ -1390,7 +1514,7 @@ export default function EPrescriptionBuilderPage() {
                     OFFICIAL MEDICAL PRESCRIPTION
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '3px' }}>
-                    Medicines & Related Substances Act (Act 101/1965)
+                    Medicines &amp; Related Substances Act (Act 101/1965)
                   </div>
                   <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', marginTop: '4px' }}>
                     Date: {new Date().toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })}
@@ -1400,6 +1524,7 @@ export default function EPrescriptionBuilderPage() {
 
               {/* Doctor & Patient Credentials Panel */}
               <div
+                className="prescribe-stationary-creds"
                 style={{
                   display: 'grid',
                   gridTemplateColumns: '1fr 1fr',
@@ -1422,7 +1547,7 @@ export default function EPrescriptionBuilderPage() {
                     HPCSA Reg: <strong>{hpcsaReg}</strong> • Qualification: <strong>MBChB, FCFP (SA)</strong>
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                    Discipline: General Practice & Telehealth Medicine
+                    Discipline: General Practice &amp; Telehealth Medicine
                   </div>
                 </div>
 
@@ -1437,31 +1562,38 @@ export default function EPrescriptionBuilderPage() {
                     Contact: {patient.email || patient.phone || 'On verified patient file'}
                   </div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                    Session Ref: #{bookingId.substring(0, 10).toUpperCase()}
+                    Session Ref: #{bookingId ? bookingId.substring(0, 10).toUpperCase() : 'N/A'}
                   </div>
                 </div>
               </div>
 
-              {/* Mandatory South African Diagnostic ICD-10 Box */}
+              {/* Mandatory Diagnostic ICD-10 Box */}
               <div
                 style={{
                   background: 'var(--color-cream-surface, #FDFBF7)',
                   border: '1.5px solid var(--color-gold-base, #DFAB62)',
                   borderRadius: '10px',
-                  padding: '12px 18px',
+                  padding: '14px 18px',
                   marginBottom: '28px',
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
+                  flexWrap: 'wrap',
+                  gap: '12px',
                 }}
               >
                 <div>
                   <div style={{ fontSize: '0.7rem', fontWeight: 800, color: 'var(--color-gold-dark, #C9944A)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Mandatory Diagnostic Code (South African MIT ICD-10 Table)
+                    Diagnostic ICD-10 &amp; Clinical Presentation
                   </div>
                   <div style={{ fontSize: '0.975rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)', marginTop: '2px' }}>
                     {selectedIcd10 ? `${selectedIcd10.code} — ${selectedIcd10.description}` : icd10Query || 'Not specified'}
                   </div>
+                  {symptoms.length > 0 && (
+                    <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px' }}>
+                      <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Symptoms on Record:</strong> {symptoms.join(', ')}
+                    </div>
+                  )}
                 </div>
 
                 {hasSchedule5or6 && (
@@ -1487,60 +1619,62 @@ export default function EPrescriptionBuilderPage() {
                     Rx
                   </span>
                   <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase' }}>
-                    Prescribed Medicines & Dispensing Directions
+                    Prescribed Medicines &amp; Dispensing Directions
                   </span>
                 </div>
 
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--color-cream-base, #FAF6EE)', borderBottom: '2px solid rgba(223, 171, 98, 0.35)', textAlign: 'left', fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase' }}>
-                      <th style={{ padding: '10px 14px' }}>Item & Medication Name</th>
-                      <th style={{ padding: '10px 14px' }}>NAPPI Code</th>
-                      <th style={{ padding: '10px 14px' }}>Sched</th>
-                      <th style={{ padding: '10px 14px' }}>Dosage & Frequency</th>
-                      <th style={{ padding: '10px 14px' }}>Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {medications.map((item, idx) => (
-                      <tr key={item.id} style={{ borderBottom: '1px solid rgba(223, 171, 98, 0.18)', fontSize: '0.875rem' }}>
-                        <td style={{ padding: '12px 14px' }}>
-                          <div style={{ fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                            {idx + 1}. {item.name || 'Unnamed medication'}
-                          </div>
-                          {item.instructions && (
-                            <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontStyle: 'italic', marginTop: '2px' }}>
-                              Signatura: {item.instructions}
-                            </div>
-                          )}
-                        </td>
-                        <td style={{ padding: '12px 14px', color: 'var(--color-cream-text-muted, #6B5E55)', fontFamily: 'monospace', fontSize: '0.8rem' }}>
-                          {item.nappi_code || '—'}
-                        </td>
-                        <td style={{ padding: '12px 14px' }}>
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              fontWeight: 800,
-                              padding: '2px 8px',
-                              borderRadius: '4px',
-                              background: item.schedule_flag === 'S5' || item.schedule_flag === 'S6' ? '#fee2e2' : 'var(--color-gold-pale, #F0E5D3)',
-                              color: item.schedule_flag === 'S5' || item.schedule_flag === 'S6' ? '#b91c1c' : 'var(--color-chocolate-base, #2A170F)',
-                            }}
-                          >
-                            {item.schedule_flag}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                          {item.dosage || '1 dose'} ({item.frequency})
-                        </td>
-                        <td style={{ padding: '12px 14px', color: 'var(--color-chocolate-base, #2A170F)' }}>
-                          {item.duration}
-                        </td>
+                <div className="doctor-table-scroll">
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '580px' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--color-cream-base, #FAF6EE)', borderBottom: '2px solid rgba(223, 171, 98, 0.35)', textAlign: 'left', fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase' }}>
+                        <th style={{ padding: '10px 14px' }}>Item &amp; Medication Name</th>
+                        <th style={{ padding: '10px 14px' }}>NAPPI Code</th>
+                        <th style={{ padding: '10px 14px' }}>Sched</th>
+                        <th style={{ padding: '10px 14px' }}>Dosage &amp; Frequency</th>
+                        <th style={{ padding: '10px 14px' }}>Duration</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {medications.map((item, idx) => (
+                        <tr key={item.id} style={{ borderBottom: '1px solid rgba(223, 171, 98, 0.18)', fontSize: '0.875rem' }}>
+                          <td style={{ padding: '12px 14px' }}>
+                            <div style={{ fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                              {idx + 1}. {item.name || 'Unnamed medication'}
+                            </div>
+                            {item.instructions && (
+                              <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontStyle: 'italic', marginTop: '2px' }}>
+                                Signatura: {item.instructions}
+                              </div>
+                            )}
+                          </td>
+                          <td style={{ padding: '12px 14px', color: 'var(--color-cream-text-muted, #6B5E55)', fontFamily: 'monospace', fontSize: '0.8rem' }}>
+                            {item.nappi_code || '—'}
+                          </td>
+                          <td style={{ padding: '12px 14px' }}>
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 800,
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                background: item.schedule_flag === 'S5' || item.schedule_flag === 'S6' ? '#fee2e2' : 'var(--color-gold-pale, #F0E5D3)',
+                                color: item.schedule_flag === 'S5' || item.schedule_flag === 'S6' ? '#b91c1c' : 'var(--color-chocolate-base, #2A170F)',
+                              }}
+                            >
+                              {item.schedule_flag}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px 14px', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                            {item.dosage || '1 dose'} ({item.frequency})
+                          </td>
+                          <td style={{ padding: '12px 14px', color: 'var(--color-chocolate-base, #2A170F)' }}>
+                            {item.duration}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* Schedule 5 & 6 Telehealth Supervision Declaration (If Applicable) */}
@@ -1555,7 +1689,7 @@ export default function EPrescriptionBuilderPage() {
                   }}
                 >
                   <div style={{ fontSize: '0.775rem', fontWeight: 800, color: '#b45309', marginBottom: '4px' }}>
-                    STATUTORY SCHEDULE 5 & 6 TELEHEALTH SUPERVISION DECLARATION
+                    STATUTORY SCHEDULE 5 &amp; 6 TELEHEALTH SUPERVISION DECLARATION
                   </div>
                   <div style={{ fontSize: '0.775rem', color: '#78350f', lineHeight: 1.5 }}>
                     {supervisionDeclarationText}
@@ -1572,12 +1706,14 @@ export default function EPrescriptionBuilderPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '16px',
                   background: 'var(--color-cream-base, #FAF6EE)',
                 }}
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Shield size={16} style={{ color: 'var(--color-gold-dark, #C9944A)' }} />
+                    <SolarIcon name="shield-check-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
                     <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-gold-dark, #C9944A)', textTransform: 'uppercase' }}>
                       Digitally Certified Telehealth Practitioner
                     </span>
@@ -1609,7 +1745,7 @@ export default function EPrescriptionBuilderPage() {
             </div>
 
             {/* Preview Action Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -1619,7 +1755,7 @@ export default function EPrescriptionBuilderPage() {
                 className="btn-secondary"
                 style={{ padding: '12px 24px', fontSize: '0.9rem' }}
               >
-                <ArrowLeft size={16} />
+                <SolarIcon name="arrow-left-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
                 <span>Back to Edit Form</span>
               </button>
 
@@ -1632,13 +1768,13 @@ export default function EPrescriptionBuilderPage() {
               >
                 {isSubmitting ? (
                   <>
-                    <Loader2 size={18} className="animate-spin" />
-                    <span>Signing & Issuing E-Prescription...</span>
+                    <SolarIcon name="refresh-linear" size={18} color="var(--color-chocolate-base, #2A170F)" style={{ animation: 'spin 1s linear infinite' }} />
+                    <span>Signing &amp; Issuing E-Prescription...</span>
                   </>
                 ) : (
                   <>
-                    <Check size={18} />
-                    <span>Sign & Issue Electronic Prescription</span>
+                    <SolarIcon name="check-circle-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
+                    <span>Sign &amp; Issue Electronic Prescription</span>
                   </>
                 )}
               </button>
@@ -1663,7 +1799,7 @@ export default function EPrescriptionBuilderPage() {
                 height: '74px',
                 borderRadius: '50%',
                 background: '#ecfdf5',
-                color: '#16a34a',
+                color: '#059669',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1671,7 +1807,7 @@ export default function EPrescriptionBuilderPage() {
                 border: '2px solid #86efac',
               }}
             >
-              <CheckCircle2 size={44} />
+              <SolarIcon name="check-circle-linear" size={44} color="#059669" />
             </div>
 
             <h2
@@ -1703,8 +1839,8 @@ export default function EPrescriptionBuilderPage() {
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <span style={{ color: 'var(--color-cream-text-muted, #6B5E55)' }}>Prescription ID:</span>
-                <span style={{ fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                  {issuedPrescription.id?.substring(0, 12).toUpperCase()}
+                <span style={{ fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)', fontFamily: 'monospace' }}>
+                  #{issuedPrescription.id?.substring(0, 8).toUpperCase()}
                 </span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -1715,28 +1851,29 @@ export default function EPrescriptionBuilderPage() {
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--color-cream-text-muted, #6B5E55)' }}>Digital Verification:</span>
-                <span style={{ fontWeight: 800, color: '#16a34a' }}>HPCSA & Act 101 Compliant</span>
+                <span style={{ fontWeight: 800, color: '#047857' }}>HPCSA &amp; Act 101 Compliant</span>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '14px' }}>
               <a
                 href={`${API_BASE}/prescriptions/${issuedPrescription.id}/download`}
                 target="_blank"
                 rel="noreferrer"
                 className="btn-primary"
-                style={{ padding: '12px 24px', fontSize: '0.95rem', gap: '8px' }}
+                style={{ padding: '12px 24px', fontSize: '0.95rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
-                <Download size={18} />
+                <SolarIcon name="download-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
                 <span>Download Signed Stationary PDF</span>
               </a>
 
               <Link
                 href="/appointments"
                 className="btn-secondary"
-                style={{ padding: '12px 24px', fontSize: '0.95rem' }}
+                style={{ padding: '12px 24px', fontSize: '0.95rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
               >
-                Return to Appointments
+                <SolarIcon name="arrow-left-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                <span>Return to Appointments</span>
               </Link>
             </div>
           </div>
@@ -1745,26 +1882,18 @@ export default function EPrescriptionBuilderPage() {
         {/* DP-703: Schedule 5 & 6 Supervision Declaration Modal */}
         {showSupervisionModal && (
           <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              zIndex: 100,
-              background: 'rgba(30, 16, 10, 0.75)',
-              backdropFilter: 'blur(8px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '16px',
+            className="portal-modal-backdrop"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowSupervisionModal(false);
             }}
           >
             <div
-              className="portal-card"
+              className="portal-modal-surface"
               style={{
                 maxWidth: '620px',
                 width: '100%',
                 padding: '32px',
-                border: '1.5px solid var(--color-gold-base, #DFAB62)',
-                boxShadow: '0 24px 48px rgba(42, 23, 15, 0.25)',
+                borderRadius: '20px',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
@@ -1779,13 +1908,14 @@ export default function EPrescriptionBuilderPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     border: '1.5px solid var(--color-gold-base, #DFAB62)',
+                    flexShrink: 0,
                   }}
                 >
-                  <Shield size={26} />
+                  <SolarIcon name="shield-warning-linear" size={26} color="var(--color-gold-bronze, #B88647)" />
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                    Schedule 5 & 6 Telehealth Supervision Declaration
+                    Schedule 5 &amp; 6 Telehealth Supervision Declaration
                   </h3>
                   <p style={{ margin: '2px 0 0 0', fontSize: '0.8rem', color: '#b45309', fontWeight: 700 }}>
                     Mandatory statutory compliance under HPCSA Telemedicine Ethical Guidelines
@@ -1794,7 +1924,7 @@ export default function EPrescriptionBuilderPage() {
               </div>
 
               <p style={{ fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)', lineHeight: 1.5, marginBottom: '18px' }}>
-                Under South African medical law (Medicines and Related Substances Act, 1965), Schedule 5 & 6
+                Under South African medical law (Medicines and Related Substances Act, 1965), Schedule 5 &amp; 6
                 substances issued via telemedicine require a verified practitioner clinical declaration to be
                 appended to the prescription and recorded in the audit log.
               </p>
@@ -1821,7 +1951,7 @@ export default function EPrescriptionBuilderPage() {
                     }
                     style={{ marginTop: '3px', accentColor: 'var(--color-chocolate-base, #2A170F)' }}
                   />
-                  <span>I have verified the patient's medical history, current medications, and past substance reactions.</span>
+                  <span>I have verified the patient&apos;s medical history, current medications, and past substance reactions.</span>
                 </label>
 
                 <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', fontSize: '0.875rem', color: 'var(--color-chocolate-base, #2A170F)', cursor: 'pointer' }}>
@@ -1852,7 +1982,7 @@ export default function EPrescriptionBuilderPage() {
               {/* Editable Declaration Statement */}
               <div style={{ marginBottom: '22px' }}>
                 <label className="portal-label">
-                  Declaration Text (Appears on Official Stationary & Audit Ledger)
+                  Declaration Text (Appears on Official Stationary &amp; Audit Ledger)
                 </label>
                 <textarea
                   value={supervisionDeclarationText}
@@ -1883,8 +2013,386 @@ export default function EPrescriptionBuilderPage() {
                   }
                   className="btn-primary"
                 >
-                  Sign & Confirm Supervision Declaration
+                  Sign &amp; Confirm Supervision Declaration
                 </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ======================================================================
+            MEDICATION DETAILS SIDESHEET (SLIDE-OVER DRAWER)
+            ====================================================================== */}
+        {editingMedicationId && activeMedication && (
+          <div
+            className="portal-sidesheet-backdrop"
+            onClick={closeSidesheet}
+          >
+            <div
+              className="portal-sidesheet"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Sidesheet Header */}
+              <div className="portal-sidesheet-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '40px',
+                      height: '40px',
+                      borderRadius: '10px',
+                      background: 'var(--color-gold-pale, #F0E5D3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      border: '1px solid var(--color-gold-base, #DFAB62)',
+                    }}
+                  >
+                    <SolarIcon name="pill-linear" size={22} color="var(--color-gold-bronze, #B88647)" />
+                  </div>
+                  <div>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: '1.15rem',
+                        fontWeight: 800,
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                        letterSpacing: '-0.01em',
+                      }}
+                    >
+                      {activeMedication.name || `Medication #${activeMedicationIndex + 1}`}
+                    </h3>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                      Item #{activeMedicationIndex + 1} • South African Formulary &amp; Act 101 Compliance
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeSidesheet}
+                  title="Close sidesheet (Esc)"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--color-cream-text-muted, #6B5E55)',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--color-chocolate-base, #2A170F)')}
+                  onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.color = 'var(--color-cream-text-muted, #6B5E55)')}
+                >
+                  <SolarIcon name="close-circle-linear" size={22} color="currentColor" />
+                </button>
+              </div>
+
+              {/* Sidesheet Body */}
+              <div className="portal-sidesheet-body">
+                {/* 1. Medication Name & Typeahead Search */}
+                <div style={{ position: 'relative' }}>
+                  <label className="portal-label" style={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <SolarIcon name="magnifer-linear" size={15} color="var(--color-gold-base, #DFAB62)" />
+                    <span>Medication / Generic Name</span>
+                    <span style={{ color: '#dc2626' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      type="text"
+                      value={activeMedication.name}
+                      onChange={(e) => handleMedicationSearch(activeMedication.id, e.target.value)}
+                      placeholder="Search or enter medication (e.g. Amoxicillin, Paracetamol, Metformin)..."
+                      className="portal-input"
+                      autoFocus
+                    />
+                    {isSearchingMed && (
+                      <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center' }}>
+                        <SolarIcon name="refresh-linear" size={16} color="var(--color-gold-base, #DFAB62)" style={{ animation: 'spin 1s linear infinite' }} />
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Autocomplete dropdown */}
+                  {activeSearchRowId === activeMedication.id && medicationSearchResults.length > 0 && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: 0,
+                        right: 0,
+                        zIndex: 50,
+                        background: 'var(--color-cream-surface, #FDFBF7)',
+                        border: '1.5px solid var(--color-gold-base, #DFAB62)',
+                        borderRadius: '10px',
+                        boxShadow: '0 10px 28px rgba(42, 23, 15, 0.18)',
+                        marginTop: '4px',
+                        maxHeight: '240px',
+                        overflowY: 'auto',
+                      }}
+                    >
+                      {medicationSearchResults.map((med, i) => (
+                        <div
+                          key={i}
+                          onClick={() => selectMedication(activeMedication.id, med)}
+                          style={{
+                            padding: '10px 14px',
+                            cursor: 'pointer',
+                            borderBottom: '1px solid rgba(223, 171, 98, 0.15)',
+                          }}
+                          onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = 'var(--color-gold-pale, #F0E5D3)')}
+                          onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'transparent')}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', fontSize: '0.875rem' }}>
+                              {med.name}
+                            </span>
+                            <span className={med.schedule === 'S5' || med.schedule === 'S6' ? 'badge-danger' : 'badge-gold'}>
+                              {med.schedule}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '2px' }}>
+                            NAPPI: {med.nappi_code} • {med.dosage_form} • {med.category}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. Schedule Classification */}
+                <div>
+                  <label className="portal-label" style={{ fontWeight: 800 }}>
+                    Schedule Classification *
+                  </label>
+                  <select
+                    value={activeMedication.schedule_flag}
+                    onChange={(e) => updateMedicationRow(activeMedication.id, 'schedule_flag', e.target.value)}
+                    className="portal-select"
+                    style={{
+                      fontWeight: 700,
+                      color:
+                        activeMedication.schedule_flag === 'S5' || activeMedication.schedule_flag === 'S6'
+                          ? '#dc2626'
+                          : 'var(--color-chocolate-base, #2A170F)',
+                    }}
+                  >
+                    <option value="S0">Schedule 0 (General OTC - Unscheduled)</option>
+                    <option value="S1">Schedule 1 (Pharmacy Only)</option>
+                    <option value="S2">Schedule 2 (Behind the Counter Pharmacist Dispensed)</option>
+                    <option value="S3">Schedule 3 (Prescription Required - Chronic Care)</option>
+                    <option value="S4">Schedule 4 (Standard Prescription Only)</option>
+                    <option value="S5">Schedule 5 (Sedative / Anxiolytic - Telehealth Verified)</option>
+                    <option value="S6">Schedule 6 (Narcotic / Controlled - Telehealth Verified)</option>
+                  </select>
+
+                  {(activeMedication.schedule_flag === 'S5' || activeMedication.schedule_flag === 'S6') && (
+                    <div
+                      style={{
+                        marginTop: '8px',
+                        padding: '10px 12px',
+                        borderRadius: '8px',
+                        background: '#fffbeb',
+                        border: '1px solid #fde68a',
+                        color: '#92400e',
+                        fontSize: '0.75rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                      }}
+                    >
+                      <SolarIcon name="shield-warning-linear" size={16} color="#d97706" />
+                      <span>
+                        Schedule 5/6 controlled substance selected. An HPCSA Telemedicine Supervision Declaration is mandatory prior to issuance.
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. NAPPI Code */}
+                <div>
+                  <label className="portal-label">
+                    NAPPI Code
+                    <span style={{ fontSize: '0.72rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 500, marginLeft: '6px' }}>
+                      (South African National Pharmaceutical Product Index)
+                    </span>
+                  </label>
+                  <input
+                    type="text"
+                    value={activeMedication.nappi_code}
+                    onChange={(e) => updateMedicationRow(activeMedication.id, 'nappi_code', e.target.value)}
+                    placeholder="e.g. 706035001"
+                    className="portal-input"
+                  />
+                </div>
+
+                {/* 4. Dosage & Quantity */}
+                <div>
+                  <label className="portal-label" style={{ fontWeight: 800 }}>
+                    Dosage / Strength / Quantity *
+                  </label>
+                  <input
+                    type="text"
+                    value={activeMedication.dosage}
+                    onChange={(e) => updateMedicationRow(activeMedication.id, 'dosage', e.target.value)}
+                    placeholder="e.g. 1 tablet (1000mg), 2 capsules, 10ml"
+                    className="portal-input"
+                  />
+                </div>
+
+                {/* 5. Frequency */}
+                <div>
+                  <label className="portal-label" style={{ fontWeight: 800 }}>
+                    Frequency of Administration *
+                  </label>
+                  <select
+                    value={activeMedication.frequency}
+                    onChange={(e) => updateMedicationRow(activeMedication.id, 'frequency', e.target.value)}
+                    className="portal-select"
+                  >
+                    {FREQUENCY_OPTIONS.map((opt) => (
+                      <option key={opt.val} value={opt.val}>
+                        {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* 6. Duration & Presets */}
+                <div>
+                  <label className="portal-label" style={{ fontWeight: 800 }}>
+                    Duration of Course *
+                  </label>
+                  <input
+                    type="text"
+                    value={activeMedication.duration}
+                    onChange={(e) => updateMedicationRow(activeMedication.id, 'duration', e.target.value)}
+                    placeholder="e.g. 5 days, 1 month, 30 days"
+                    className="portal-input"
+                  />
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                    {DURATION_PRESETS.map((dur) => (
+                      <button
+                        key={dur}
+                        type="button"
+                        onClick={() => updateMedicationRow(activeMedication.id, 'duration', dur)}
+                        style={{
+                          padding: '4px 9px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(223, 171, 98, 0.3)',
+                          background: activeMedication.duration === dur ? 'var(--color-gold-pale, #F0E5D3)' : '#ffffff',
+                          color: 'var(--color-chocolate-base, #2A170F)',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {dur}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 7. Special Instructions & Warning Chips */}
+                <div>
+                  <label className="portal-label">
+                    Special Instructions / Signatura (Food, Driving &amp; Alcohol Warnings)
+                  </label>
+                  <textarea
+                    value={activeMedication.instructions}
+                    onChange={(e) => updateMedicationRow(activeMedication.id, 'instructions', e.target.value)}
+                    placeholder="e.g. Take with food or a large glass of water. Complete full course. Do not consume alcohol."
+                    rows={3}
+                    className="portal-textarea"
+                    style={{ fontSize: '0.85rem' }}
+                  />
+
+                  {/* Quick instructions chips */}
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                    {[
+                      'Take with food',
+                      'Take before meals',
+                      'Complete full course',
+                      'Avoid alcohol',
+                      'May cause drowsiness',
+                      'Take with plenty of water',
+                    ].map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => {
+                          const current = activeMedication.instructions.trim();
+                          const updated = current ? `${current}. ${chip}` : chip;
+                          updateMedicationRow(activeMedication.id, 'instructions', updated);
+                        }}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(223, 171, 98, 0.25)',
+                          background: 'var(--color-cream-base, #FAF6EE)',
+                          color: 'var(--color-cream-text-muted, #6B5E55)',
+                          fontSize: '0.72rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        + {chip}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sidesheet Footer */}
+              <div className="portal-sidesheet-footer">
+                <div>
+                  {medications.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        removeMedicationRow(activeMedication.id);
+                        closeSidesheet();
+                      }}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#dc2626',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      <SolarIcon name="trash-bin-trash-linear" size={16} color="#dc2626" />
+                      <span>Remove Item</span>
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={closeSidesheet}
+                    className="btn-secondary"
+                    style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={closeSidesheet}
+                    className="btn-primary"
+                    style={{ padding: '8px 20px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <SolarIcon name="check-circle-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                    <span>Done &amp; Apply</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>

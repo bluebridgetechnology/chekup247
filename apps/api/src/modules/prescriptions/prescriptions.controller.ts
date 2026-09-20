@@ -8,14 +8,14 @@ import {
   Res,
   Headers,
   BadRequestException,
+  UseGuards,
+  Req,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Response, Request } from 'express';
 import { PrescriptionsService, CreatePrescriptionDto } from './prescriptions.service';
-import { Public } from '../../common/decorators/auth.decorators';
-
+import { Public, CurrentUser } from '../../common/decorators/auth.decorators';
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
-import { Req } from '@nestjs/common';
-import { Request } from 'express';
 
 export class CreatePrescriptionRequestDto {
   consultationId?: string;
@@ -33,6 +33,8 @@ export class CreatePrescriptionRequestDto {
   }>;
   scheduleFlag?: string;
   supervisionDeclaration?: string;
+  symptoms?: string[];
+  clinicalNotes?: string;
 }
 
 @Controller('prescriptions')
@@ -75,13 +77,15 @@ export class PrescriptionsController {
   /**
    * Retrieves all prescriptions issued by the doctor (DR-701).
    */
+  @UseGuards(JwtAuthGuard)
   @Get()
   async getDoctorPrescriptions(
     @Query('doctorId') queryDoctorId?: string,
     @Headers('x-doctor-id') headerDoctorId?: string,
+    @CurrentUser('id') currentUserId?: string,
     @Req() req?: Request,
   ) {
-    const doctorId = queryDoctorId || headerDoctorId || (req as any)?.user?.sub;
+    const doctorId = queryDoctorId || headerDoctorId || currentUserId || (req as any)?.user?.sub;
     return this.prescriptionsService.getDoctorPrescriptions(doctorId);
   }
 

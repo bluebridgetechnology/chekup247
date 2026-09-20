@@ -12,6 +12,7 @@
     "lint": "npm run lint --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "dev:api": "npm run start:dev --workspace=@chekup247/api",
+    "start:api": "npm run start:prod --workspace=@chekup247/api",
     "dev:patient": "npm run dev --workspace=@chekup247/patient-web",
     "dev:doctor": "npm run dev --workspace=@chekup247/doctor-portal",
     "dev:admin": "npm run dev --workspace=@chekup247/admin-panel",

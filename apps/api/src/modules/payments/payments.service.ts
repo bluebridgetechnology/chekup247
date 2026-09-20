@@ -5,6 +5,8 @@ import {
   UnauthorizedException,
   Logger,
   Optional,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -19,6 +21,7 @@ import {
 import { User, AvailabilitySlot, DoctorProfile } from '../../database/operational/entities';
 import { PaystackService } from './paystack.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ConsultationsService } from '../consultations/consultations.service';
 import { envConfig } from '../../config/env.config';
 
 export interface InitiatePaymentDto {
@@ -48,6 +51,9 @@ export class PaymentsService {
     private readonly doctorRepository?: Repository<DoctorProfile>,
     @Optional()
     private readonly notificationsService?: NotificationsService,
+    @Optional()
+    @Inject(forwardRef(() => ConsultationsService))
+    private readonly consultationsService?: ConsultationsService,
   ) {}
 
   /**
@@ -227,6 +233,30 @@ export class PaymentsService {
         where: { provider_ref: data.reference },
         relations: ['booking'],
       });
+
+      // Consultation time-extension payment (redirect flow, no vaulted card).
+      // Identified by the deterministic `chk_ext_<extensionId>` reference.
+      if (data.reference.startsWith('chk_ext_')) {
+        if (payment && payment.status !== PaymentRecordStatus.SUCCESS) {
+          payment.status = PaymentRecordStatus.SUCCESS;
+          await this.paymentRepository.save(payment);
+        }
+        const extensionId = data.reference.replace('chk_ext_', '');
+        if (this.consultationsService) {
+          try {
+            await this.consultationsService.finalizeExtensionPayment(
+              extensionId,
+              payment?.id ?? null,
+            );
+            this.logger.log(`Extension ${extensionId} finalized via Paystack charge.success`);
+          } catch (err: any) {
+            this.logger.error(`Failed to finalize extension ${extensionId}: ${err.message}`);
+          }
+        } else {
+          this.logger.warn('ConsultationsService unavailable; extension not finalized from webhook');
+        }
+        return { received: true };
+      }
 
       if (payment) {
         payment.status = PaymentRecordStatus.SUCCESS;

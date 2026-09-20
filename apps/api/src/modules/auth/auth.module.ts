@@ -6,6 +6,7 @@ import {
   VerificationToken,
   NotificationPreference,
 } from '../../database/operational/entities';
+import { PatientMedicalProfile } from '../../database/patient/entities';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
@@ -14,13 +15,13 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { BrevoEmailProvider } from '../notifications/providers/brevo.provider';
 import { SmsProvider } from '../notifications/providers/sms.provider';
-
 @Module({
   imports: [
     TypeOrmModule.forFeature(
       [User, DoctorProfile, VerificationToken, NotificationPreference],
       'operational',
     ),
+    TypeOrmModule.forFeature([PatientMedicalProfile], 'patient'),
   ],
   controllers: [AuthController],
   providers: [

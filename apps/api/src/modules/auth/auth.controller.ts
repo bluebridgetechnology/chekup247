@@ -231,7 +231,17 @@ export class AuthController {
   @Put('me')
   async updateProfile(
     @CurrentUser() user: JwtPayload,
-    @Body() dto: { full_name?: string; phone?: string; date_of_birth?: string; avatar_url?: string },
+    @Body()
+    dto: {
+      full_name?: string;
+      phone?: string;
+      date_of_birth?: string;
+      avatar_url?: string;
+      blood_group?: string;
+      genotype?: string;
+      allergies?: string;
+      chronic_conditions?: string;
+    },
   ) {
     return this.authService.updateProfile(user.sub, dto);
   }

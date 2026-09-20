@@ -15,6 +15,7 @@ import {
   VerificationStatus,
   VerificationSource,
 } from '../../database/operational/entities';
+import { PatientMedicalProfile } from '../../database/patient/entities';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 
 describe('AuthService & LocumStaffSsoService', () => {
@@ -150,6 +151,14 @@ describe('AuthService & LocumStaffSsoService', () => {
         {
           provide: getRepositoryToken(NotificationPreference, 'operational'),
           useValue: mockPrefRepository,
+        },
+        {
+          provide: getRepositoryToken(PatientMedicalProfile, 'patient'),
+          useValue: {
+            findOne: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockImplementation((dto) => ({ ...dto })),
+            save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity })),
+          },
         },
         {
           provide: BrevoEmailProvider,

@@ -90,6 +90,9 @@ const envSchema = z.object({
   BREVO_API_KEY: z.string().optional().default(''),
   BREVO_SENDER_EMAIL: z.string().default('notifications@chekup247.co.za'),
   BREVO_SENDER_NAME: z.string().default('ChekUp247 Telehealth'),
+  // Destination inbox for patient/visitor contact-support inquiries.
+  SUPPORT_EMAIL: z.string().default('support@chekup247.co.za'),
+  SUPPORT_EMAIL_NAME: z.string().default('ChekUp247 Support'),
 
   // SMS Gateway Integration (SMS Portal primary, Twilio fallback)
   SMSPORTAL_API_KEY: z.string().optional().default(''),

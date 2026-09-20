@@ -102,99 +102,10 @@ export default function PatientPrescriptionsPage() {
         }
       }
 
-      // Mock data fallback if none found
-      if (!data || data.length === 0) {
-        data = [
-          {
-            id: 'rx-demo-101',
-            consultation_id: 'cons-88231',
-            doctor_id: 'doc-1',
-            patient_id: patientId || 'pat-1',
-            icd10_code: 'J06.9',
-            icd10_description: 'Acute upper respiratory infection, unspecified',
-            clinical_notes:
-              'Patient reports persistent cough, mild fever and congestion for 4 days. Advised resting, oral hydration, and prescribed antibiotic course.',
-            max_schedule: 4,
-            supervision_declared: false,
-            pdf_hash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
-            created_at: new Date(Date.now() - 86400000 * 2).toISOString(),
-            doctor: {
-              fullName: 'Dr. Thabo Mokoena',
-              hpcsa_number: 'MP 0712345',
-              practice_number: 'PR 0148291',
-              specialty: 'Family Medicine & General Practitioner',
-            },
-            items: [
-              {
-                medication_name: 'Amoxicillin 500mg capsules',
-                nappi_code: '703412001',
-                dosage: '500mg',
-                frequency: 'Three times daily (8-hourly)',
-                duration: '5 days',
-                schedule: 4,
-                instructions: 'Take with food and finish the entire course.',
-                repeats: 0,
-              },
-              {
-                medication_name: 'Paracetamol 500mg tablets',
-                nappi_code: '824102001',
-                dosage: '1000mg',
-                frequency: 'Every 6 hours as needed for pain/fever',
-                duration: '5 days',
-                schedule: 1,
-                instructions: 'Do not exceed 4000mg in 24 hours.',
-                repeats: 0,
-              },
-            ],
-          },
-          {
-            id: 'rx-demo-102',
-            consultation_id: 'cons-99124',
-            doctor_id: 'doc-2',
-            patient_id: patientId || 'pat-1',
-            icd10_code: 'F41.1',
-            icd10_description: 'Generalized anxiety disorder',
-            clinical_notes:
-              'Patient experiences episodic heightened anxiety, insomnia, and acute autonomic agitation. Short-term supervised bridging protocol initiated.',
-            max_schedule: 5,
-            supervision_declared: true,
-            pdf_hash: 'a98b4112e4fbc829443219aa018247ce981290312019488bcfae190348719223',
-            created_at: new Date(Date.now() - 86400000 * 14).toISOString(),
-            doctor: {
-              fullName: 'Dr. Zanele Khumalo',
-              hpcsa_number: 'MP 0689912',
-              practice_number: 'PR 0831102',
-              specialty: 'Psychiatry & Behavioral Health',
-            },
-            items: [
-              {
-                medication_name: 'Lorazepam 1mg tablets',
-                nappi_code: '741299002',
-                dosage: '1mg',
-                frequency: 'Once daily at bedtime as needed',
-                duration: '7 days',
-                schedule: 5,
-                instructions: 'Avoid alcohol. Do not drive or operate machinery while taking this medication.',
-                repeats: 0,
-              },
-              {
-                medication_name: 'Escitalopram 10mg tablets',
-                nappi_code: '710041001',
-                dosage: '10mg',
-                frequency: 'Once daily in the morning',
-                duration: '30 days',
-                schedule: 4,
-                instructions: 'Take consistently every morning with or without food.',
-                repeats: 2,
-              },
-            ],
-          },
-        ];
-      }
-
-      setPrescriptions(data);
+      setPrescriptions(Array.isArray(data) ? data : []);
     } catch (err) {
       console.warn('Failed to load prescriptions:', err);
+      setPrescriptions([]);
     } finally {
       setIsLoading(false);
     }
@@ -323,7 +234,6 @@ export default function PatientPrescriptionsPage() {
       border: '1.5px solid #DDD0BC',
       borderRadius: '16px',
       overflow: 'hidden',
-      boxShadow: '0 10px 30px -5px rgba(42, 23, 15, 0.09), 0 3px 10px -2px rgba(42, 23, 15, 0.05)',
     },
     tableScrollWrapper: {
       overflowX: 'auto' as const,
@@ -792,7 +702,6 @@ export default function PatientPrescriptionsPage() {
                         border: '1.5px solid #DDD0BC',
                         borderRadius: '16px',
                         padding: '16px',
-                        boxShadow: '0 4px 16px -2px rgba(42, 23, 15, 0.07)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: '10px',
@@ -1002,6 +911,9 @@ export default function PatientPrescriptionsPage() {
                 width: '100%',
                 maxHeight: '94vh',
                 overflowY: 'auto',
+                overflowX: 'hidden',
+                scrollbarGutter: 'stable',
+                boxSizing: 'border-box',
                 background: '#FFFFFF',
                 borderRadius: '24px',
                 padding: '36px',

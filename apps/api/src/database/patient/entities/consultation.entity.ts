@@ -44,6 +44,9 @@ export class Consultation {
   @Column({ type: 'text', nullable: true })
   doctor_notes: string | null;
 
+  @Column({ type: 'text', nullable: true })
+  patient_notes: string | null;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 

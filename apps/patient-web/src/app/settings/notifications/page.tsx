@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SolarIcon } from '../../../components/SolarIcon';
 import { useAuth } from '../../../context/AuthContext';
+import { toastSuccess, toastError, errorMessage } from '../../../lib/toast';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { PatientPortalLayout } from '../../../components/portal/PatientPortalLayout';
 
@@ -92,9 +93,12 @@ export default function NotificationPreferencesPage() {
       }
 
       setSaveSuccess(true);
+      toastSuccess('Preferences saved', 'Your notification settings have been updated.');
       setTimeout(() => setSaveSuccess(false), 4000);
     } catch (err: any) {
-      setErrorMsg(err.message || 'Error saving notification preferences');
+      const msg = errorMessage(err, 'Error saving notification preferences');
+      setErrorMsg(msg);
+      toastError('Could not save preferences', msg);
     } finally {
       setIsSaving(false);
     }

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CheckCircle2, AlertCircle, Mail, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 
 function VerifyEmailContent() {
   const router = useRouter();
@@ -30,12 +31,15 @@ function VerifyEmailContent() {
     try {
       await verifyEmail(tok.trim());
       setSuccess(true);
+      toastSuccess('Email verified', 'Your account is now active.');
       const redirectTarget = searchParams?.get('redirect') || '/appointments';
       setTimeout(() => {
         router.push(redirectTarget);
       }, 2500);
     } catch (err: any) {
-      setError(err.message || 'Verification token is invalid or has expired.');
+      const msg = errorMessage(err, 'Verification token is invalid or has expired.');
+      setError(msg);
+      toastError('Verification failed', msg);
     } finally {
       setLoading(false);
     }

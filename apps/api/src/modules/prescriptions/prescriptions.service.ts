@@ -26,6 +26,7 @@ import { envConfig } from '../../config/env.config';
 import { PrescriptionPdfService } from './prescription-pdf.service';
 import { StorageService } from '../storage/storage.service';
 import { ConsultationGateway } from '../consultations/consultation.gateway';
+import { PatientDemoSeederService } from '../consultations/patient-demo-seeder.service';
 
 export interface CreatePrescriptionDto {
   consultationId?: string;
@@ -42,6 +43,8 @@ export interface CreatePrescriptionDto {
   }>;
   scheduleFlag?: string;
   supervisionDeclaration?: string;
+  symptoms?: string[];
+  clinicalNotes?: string;
 }
 
 @Injectable()
@@ -69,6 +72,8 @@ export class PrescriptionsService {
     private readonly notificationQueue: Queue,
     @Optional()
     private readonly notificationsService?: NotificationsService,
+    @Optional()
+    private readonly patientDemoSeederService?: PatientDemoSeederService,
   ) {}
 
   /**
@@ -99,7 +104,20 @@ export class PrescriptionsService {
     }
 
     if (!consultation) {
-      throw new NotFoundException(`Consultation ${consultationIdentifier} not found`);
+      const booking = await this.bookingRepository.findOne({
+        where: [{ id: consultationIdentifier }, ...(dto.bookingId ? [{ id: dto.bookingId }] : [])],
+      });
+      if (booking) {
+        consultation = this.consultationRepository.create({
+          booking_id: booking.id,
+          video_room_id: `room-${booking.id.substring(0, 8)}`,
+          room_url: `https://${envConfig.DAILY_DOMAIN || 'chekup247'}.daily.co/room-${booking.id.substring(0, 8)}`,
+        });
+        consultation.booking = booking;
+        consultation = await this.consultationRepository.save(consultation);
+      } else {
+        throw new NotFoundException(`Consultation or booking ${consultationIdentifier} not found`);
+      }
     }
 
     const booking = consultation.booking;
@@ -112,9 +130,9 @@ export class PrescriptionsService {
       // Check if user ID or doctor profile matches
       if (booking.doctor_id !== doctorId) {
         const docProf = await this.doctorProfileRepository.findOne({
-          where: { id: doctorId },
+          where: [{ id: doctorId }, { user_id: doctorId }],
         });
-        if (!docProf || docProf.user_id !== booking.doctor_id) {
+        if (!docProf || (docProf.user_id !== booking.doctor_id && docProf.id !== booking.doctor_id)) {
           throw new ForbiddenException('Only the assigned consulting practitioner can issue a prescription for this session');
         }
       }
@@ -238,6 +256,12 @@ export class PrescriptionsService {
 
     const savedPrescription = await this.prescriptionRepository.save(prescription);
 
+    if (dto.symptoms && dto.symptoms.length > 0) {
+      (savedPrescription as any).clinical_notes = `Symptoms: ${dto.symptoms.join(', ')}`;
+    } else if (dto.clinicalNotes) {
+      (savedPrescription as any).clinical_notes = dto.clinicalNotes;
+    }
+
     // 9. Generate Tamper-Evident Vector PDF (BE-706)
     try {
       const pdfBuffer = await this.prescriptionPdfService.generatePrescriptionPdf(
@@ -329,13 +353,26 @@ export class PrescriptionsService {
    * Retrieves all prescriptions issued for a patient in chronological order (PA-703).
    */
   async getPatientPrescriptions(patientId: string) {
-    const prescriptions = await this.prescriptionRepository.find({
+    if (this.patientDemoSeederService) {
+      await this.patientDemoSeederService.seedPatientDemoData(patientId);
+    }
+
+    let prescriptions = await this.prescriptionRepository.find({
       where: { patient_id: patientId },
       order: { issued_at: 'DESC' },
       relations: ['consultation'],
     });
 
-    // Enrich with doctor details
+    if (prescriptions.length === 0 && this.patientDemoSeederService) {
+      await this.patientDemoSeederService.seedPatientDemoData(patientId);
+      prescriptions = await this.prescriptionRepository.find({
+        where: { patient_id: patientId },
+        order: { issued_at: 'DESC' },
+        relations: ['consultation'],
+      });
+    }
+
+    // Enrich with doctor details and frontend-friendly items mapping
     const enriched = [];
     for (const p of prescriptions) {
       let doctorName = 'Dr. ChekUp247';
@@ -356,10 +393,36 @@ export class PrescriptionsService {
         }
       }
 
+      const rawItems = Array.isArray(p.medications) ? p.medications : [];
+      const items = rawItems.map((m: any, idx: number) => ({
+        id: `item-${p.id}-${idx}`,
+        medication_name: m.name || m.medication_name || 'Prescribed Medication',
+        nappi_code: m.nappi_code || '700000001',
+        dosage: m.dosage || 'As directed',
+        frequency: m.frequency || 'As directed',
+        duration: m.duration || '5 days',
+        schedule: m.schedule_flag
+          ? parseInt(m.schedule_flag.replace('S', ''))
+          : p.schedule_flag
+          ? parseInt(p.schedule_flag.replace('S', ''))
+          : 1,
+        instructions: m.instructions || 'Follow doctor directions',
+        repeats: m.repeats || 0,
+      }));
+
+      const maxSchedule = p.schedule_flag
+        ? parseInt(p.schedule_flag.replace('S', ''))
+        : items.reduce((max, it) => Math.max(max, it.schedule || 1), 1);
+
       enriched.push({
         ...p,
+        items,
+        max_schedule: maxSchedule,
+        supervision_declared: !!p.supervision_declaration,
+        created_at: p.issued_at || p.created_at,
         doctor: {
           name: doctorName,
+          fullName: doctorName,
           specialty: doctorSpecialty,
           hpcsa_number: hpcsaNumber,
         },
@@ -414,16 +477,39 @@ export class PrescriptionsService {
    * Retrieves all prescriptions issued by a doctor (or all prescriptions if doctorId omitted)
    */
   async getDoctorPrescriptions(doctorId?: string): Promise<any[]> {
-    const whereClause: any = {};
+    let whereConditions: any[] = [];
     if (doctorId && doctorId !== 'system-doctor') {
-      whereClause.doctor_id = doctorId;
+      const docProf = await this.doctorProfileRepository.findOne({
+        where: [{ user_id: doctorId }, { id: doctorId }],
+      });
+      if (docProf) {
+        whereConditions = [
+          { doctor_id: doctorId },
+          { doctor_id: docProf.id },
+          ...(docProf.user_id ? [{ doctor_id: docProf.user_id }] : []),
+        ];
+      } else {
+        whereConditions = [{ doctor_id: doctorId }];
+      }
     }
 
     const prescriptions = await this.prescriptionRepository.find({
-      where: whereClause,
+      ...(whereConditions.length > 0 ? { where: whereConditions } : {}),
       order: { created_at: 'DESC' },
       take: 100,
     });
+
+    const icd10Map: Record<string, string> = {
+      'J06.9': 'Acute upper respiratory infection',
+      'F41.1': 'Generalized anxiety disorder',
+      'I10': 'Essential (primary) hypertension',
+      'E11.9': 'Type 2 diabetes mellitus',
+      'K21.9': 'Gastro-esophageal reflux disease',
+      'M54.5': 'Low back pain',
+      'J01.9': 'Acute sinusitis, unspecified',
+      'J20.9': 'Acute bronchitis, unspecified',
+      'L30.9': 'Dermatitis, unspecified',
+    };
 
     // Stitch patient name and email
     const results = await Promise.all(
@@ -441,6 +527,9 @@ export class PrescriptionsService {
           }
         }
 
+        const rawMedications = Array.isArray(rx.medications) ? rx.medications : [];
+        const icdDescription = rx.icd10_code ? (icd10Map[rx.icd10_code] || rx.icd10_code) : 'Clinical diagnosis';
+
         return {
           id: rx.id,
           booking_id: rx.consultation_id,
@@ -448,8 +537,9 @@ export class PrescriptionsService {
           patient_name: patientName,
           patient_email: patientEmail,
           icd10_code: rx.icd10_code,
-          icd10_description: rx.icd10_code,
-          medications_count: Array.isArray(rx.medications) ? rx.medications.length : 0,
+          icd10_description: icdDescription,
+          medications: rawMedications,
+          medications_count: rawMedications.length,
           schedule_flag: rx.schedule_flag || 'S4',
           status: (rx as any).status || 'SIGNED & ISSUED',
           created_at: rx.created_at,

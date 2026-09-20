@@ -4,6 +4,7 @@ import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Lock, CheckCircle2, AlertCircle, Eye, EyeOff, ArrowRight } from 'lucide-react';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -50,11 +51,14 @@ function ResetPasswordContent() {
       if (!res.ok) throw new Error(data.message || 'Password reset failed');
 
       setSuccess(true);
+      toastSuccess('Password updated', 'You can now sign in with your new password.');
       setTimeout(() => {
         router.push('/login');
       }, 3000);
     } catch (err: any) {
-      setError(err.message || 'Reset token is invalid or has expired.');
+      const msg = errorMessage(err, 'Reset token is invalid or has expired.');
+      setError(msg);
+      toastError('Password reset failed', msg);
     } finally {
       setLoading(false);
     }

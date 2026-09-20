@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { toastSuccess, toastError, errorMessage } from '../lib/toast';
 import {
   Star,
   X,
@@ -19,6 +20,7 @@ interface ReviewModalProps {
   doctorSpecialty?: string;
   doctorAvatar?: string;
   token?: string | null;
+  initialRating?: number;
   onReviewSubmitted?: (review: any) => void;
 }
 
@@ -47,15 +49,21 @@ export function ReviewModal({
   doctorSpecialty = 'General Practitioner',
   doctorAvatar,
   token,
+  initialRating = 5,
   onReviewSubmitted,
 }: ReviewModalProps) {
-  const [rating, setRating] = useState<number>(5);
+  const [rating, setRating] = useState<number>(initialRating);
   const [hoverRating, setHoverRating] = useState<number | null>(null);
   const [comment, setComment] = useState<string>('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+
+  // Sync the star rating when the modal is (re)opened with a chosen initial value.
+  React.useEffect(() => {
+    if (isOpen) setRating(initialRating);
+  }, [isOpen, initialRating]);
 
   if (!isOpen) return null;
 
@@ -113,11 +121,14 @@ export function ReviewModal({
 
       const savedReview = await res.json();
       setIsSuccess(true);
+      toastSuccess('Review submitted', 'Thank you for your feedback.');
       if (onReviewSubmitted) {
         onReviewSubmitted(savedReview);
       }
     } catch (err: any) {
-      setErrorMsg(err.message || 'Unable to submit review. Please try again.');
+      const msg = errorMessage(err, 'Unable to submit review. Please try again.');
+      setErrorMsg(msg);
+      toastError('Could not submit review', msg);
     } finally {
       setIsSubmitting(false);
     }

@@ -30,6 +30,7 @@ lerna-debug.log*
 Thumbs.db
 .idea/
 .vscode/
+.kiro/
 *.tsbuildinfo
 *.swp
 

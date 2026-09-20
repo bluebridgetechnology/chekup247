@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ChekupCrossLogo } from '../../components/Navbar';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 
 function LoginContent() {
   const router = useRouter();
@@ -43,10 +44,13 @@ function LoginContent() {
 
     setLoading(true);
     try {
-      await login(email.trim(), password, rememberMe);
+      const data = await login(email.trim(), password, rememberMe);
+      toastSuccess('Welcome back', data?.user?.fullName ? `Signed in as ${data.user.fullName}.` : 'You are now signed in.');
       router.push(redirectUrl);
     } catch (err: any) {
-      setError(err.message || 'Invalid credentials. Please verify your email and password.');
+      const msg = errorMessage(err, 'Invalid credentials. Please verify your email and password.');
+      setError(msg);
+      toastError('Sign in failed', msg);
     } finally {
       setLoading(false);
     }
@@ -297,8 +301,15 @@ function LoginContent() {
             type="button"
             onClick={() => {
               googleLogin('mock-google-credential', email || 'patient@gmail.com', 'Google Patient')
-                .then(() => router.push(redirectUrl))
-                .catch((e: any) => setError(e.message));
+                .then(() => {
+                  toastSuccess('Signed in with Google');
+                  router.push(redirectUrl);
+                })
+                .catch((e: any) => {
+                  const msg = errorMessage(e, 'Google sign-in failed.');
+                  setError(msg);
+                  toastError('Google sign-in failed', msg);
+                });
             }}
             className="auth-btn-google"
           >

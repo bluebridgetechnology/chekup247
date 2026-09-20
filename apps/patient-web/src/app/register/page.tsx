@@ -16,6 +16,7 @@ import {
   EyeOff,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import { ChekupCrossLogo } from '../../components/Navbar';
 import { SolarIcon } from '../../components/SolarIcon';
 
@@ -111,8 +112,11 @@ function RegisterContent() {
       });
 
       setRegisteredSuccess(res.verificationToken || 'sent');
+      toastSuccess('Account created', 'Check your email for a verification code to activate your account.');
     } catch (err: any) {
-      setError(err.message || 'Registration failed. Please try again.');
+      const msg = errorMessage(err, 'Registration failed. Please try again.');
+      setError(msg);
+      toastError('Registration failed', msg);
     } finally {
       setLoading(false);
     }
@@ -121,8 +125,15 @@ function RegisterContent() {
   const handleGoogleSignUp = () => {
     setError(null);
     googleLogin('mock-google-credential', email || 'patient@gmail.com', fullName || 'Google Patient')
-      .then(() => router.push(redirectUrl))
-      .catch((e: any) => setError(e.message || 'Google sign-up failed. Please try again.'));
+      .then(() => {
+        toastSuccess('Account created with Google');
+        router.push(redirectUrl);
+      })
+      .catch((e: any) => {
+        const msg = errorMessage(e, 'Google sign-up failed. Please try again.');
+        setError(msg);
+        toastError('Google sign-up failed', msg);
+      });
   };
 
   return (

@@ -53,6 +53,7 @@ import {
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
 import { useDoctorAuth } from '../../../context/DoctorAuthContext';
+import { toastSuccess, toastError, errorMessage } from '../../../lib/toast';
 import { ChekupCrossLogo } from '../../../components/common/ChekupCrossLogo';
 
 interface ConsultationDetail {
@@ -63,6 +64,7 @@ interface ConsultationDetail {
   started_at: string | null;
   ended_at: string | null;
   doctor_notes: string | null;
+  patient_notes?: string | null;
   booking?: {
     id: string;
     patient_id: string;
@@ -76,6 +78,28 @@ interface ConsultationDetail {
       phone?: string;
     };
   };
+  patient?: {
+    id: string;
+    fullName: string;
+    email: string;
+    phone?: string;
+    dateOfBirth?: string | null;
+  };
+  patientMedicalProfile?: {
+    blood_group?: string | null;
+    genotype?: string | null;
+    allergies?: string | null;
+    chronic_conditions?: string | null;
+  } | null;
+  patientDocuments?: Array<{
+    id: string;
+    title: string;
+    original_filename: string;
+    category: string;
+    downloadUrl?: string | null;
+    file_size?: number;
+    created_at?: string;
+  }>;
 }
 
 interface MedicationItem {
@@ -127,7 +151,7 @@ export default function DoctorConsultationWorkspace() {
 
   // Time Extension Modal & Socket State
   const [showExtendModal, setShowExtendModal] = useState<boolean>(false);
-  const [extensionDuration, setExtensionDuration] = useState<15 | 20 | 30>(15);
+  const [extensionDuration, setExtensionDuration] = useState<10 | 20 | 30>(10);
   const [extensionIsFree, setExtensionIsFree] = useState<boolean>(false);
   const [extensionReason, setExtensionReason] = useState<string>('');
   const [extensionStatus, setExtensionStatus] = useState<'idle' | 'submitting' | 'waiting_patient' | 'confirmed' | 'declined' | 'error'>('idle');
@@ -236,6 +260,7 @@ export default function DoctorConsultationWorkspace() {
             },
             body: JSON.stringify({
               notes: JSON.stringify({ chiefComplaint, hpi, assessment, plan, patientInstructions }),
+              patientNotes: patientInstructions,
             }),
           }).catch(() => {});
         }
@@ -282,6 +307,9 @@ export default function DoctorConsultationWorkspace() {
               } catch {
                 setChiefComplaint(data.doctor_notes);
               }
+            }
+            if (data?.patient_notes) {
+              setPatientInstructions(data.patient_notes);
             }
             if (data?.room_url) {
               dailyCall = DailyIframe.createCallObject({
@@ -415,9 +443,12 @@ export default function DoctorConsultationWorkspace() {
 
       setExtensionStatus('waiting_patient');
       setExtensionMessage(`Extension prompt sent to patient (+${extensionDuration} mins, ${extensionIsFree ? 'Free / Complimentary' : 'Standard Rate'}). Waiting for patient consent...`);
+      toastSuccess('Extension offered', `Waiting for the patient to consent to +${extensionDuration} minutes.`);
     } catch (err: any) {
       setExtensionStatus('error');
-      setExtensionMessage(err.message || 'Network error while requesting consultation extension.');
+      const msg = errorMessage(err, 'Network error while requesting consultation extension.');
+      setExtensionMessage(msg);
+      toastError('Could not request extension', msg);
     }
   };
 
@@ -550,8 +581,10 @@ export default function DoctorConsultationWorkspace() {
         }).catch(() => {});
       }
       setIsConsultationEnded(true);
+      toastSuccess('Consultation ended', 'You can now issue a prescription or clinical note.');
     } catch (e) {
       setIsConsultationEnded(true);
+      toastError('Ended with a warning', errorMessage(e, 'The call closed but the server may not have recorded the end cleanly.'));
     }
   };
 
@@ -940,7 +973,7 @@ export default function DoctorConsultationWorkspace() {
               }}
               onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.3)')}
               onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.18)')}
-              title="Offer Consultation Time Extension (+15, +20, +30 min)"
+              title="Offer Consultation Time Extension (+10, +20, +30 min)"
             >
               <Plus size={13} color="#DFAB62" />
               <span>Extend Call</span>
@@ -2222,7 +2255,7 @@ export default function DoctorConsultationWorkspace() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div>
                 <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#8C7768', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  PATIENT
+                  PATIENT RECORD
                 </span>
                 <h2
                   style={{
@@ -2234,35 +2267,40 @@ export default function DoctorConsultationWorkspace() {
                     letterSpacing: '-0.02em',
                   }}
                 >
-                  Lerato Khumalo
+                  {consultation?.patient?.fullName || consultation?.booking?.patient?.fullName || 'Patient'}
                 </h2>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#6B5E55' }}>
-                  <span>Age: 38</span>
-                  <span>•</span>
-                  <span>Female</span>
+                  {consultation?.patient?.phone ? <span>{consultation.patient.phone}</span> : null}
+                  {consultation?.patient?.email ? (
+                    <>
+                      <span>•</span>
+                      <span>{consultation.patient.email}</span>
+                    </>
+                  ) : null}
                 </div>
               </div>
 
               {/* Patient Summary Icons & Text */}
               <div style={{ textAlign: 'right' }}>
                 <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#8C7768', textTransform: 'uppercase' }}>
-                  Patient Summary
+                  Clinical Profile
                 </span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', alignItems: 'flex-end' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#6B5E55' }}>
                     <Shield size={12} color="#10B981" />
-                    <span>No known allergies</span>
+                    <span>
+                      {consultation?.patientMedicalProfile?.allergies
+                        ? `Allergies: ${consultation.patientMedicalProfile.allergies}`
+                        : 'No known allergies'}
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#6B5E55' }}>
-                    <Pill size={12} color="#B88647" />
-                    <span>2 active medications</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#2A170F', fontWeight: 700 }}>
+                    <Heart size={12} color="#DC2626" />
+                    <span>Blood Group: {consultation?.patientMedicalProfile?.blood_group || 'Not recorded'}</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#6B5E55' }}>
-                    <Calendar size={12} color="#B88647" />
-                    <span>4 consultations</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', color: '#8C7768' }}>
-                    <span>Last: 12 Aug 2026</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#8E5A1C', fontWeight: 700 }}>
+                    <Activity size={12} color="#B88647" />
+                    <span>Genotype: {consultation?.patientMedicalProfile?.genotype || 'Not recorded'}</span>
                   </div>
                 </div>
               </div>
@@ -2378,6 +2416,113 @@ export default function DoctorConsultationWorkspace() {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Patient Uploaded Test Reports & Documents Section */}
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: '12px',
+              backgroundColor: '#FAF6EE',
+              border: '1px solid rgba(223, 171, 98, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <FileText size={15} color="#B88647" />
+                <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#2A170F', textTransform: 'uppercase' }}>
+                  Patient Test Reports & Records
+                </span>
+              </div>
+              <span style={{ fontSize: '0.7rem', color: '#8C7768', fontWeight: 600 }}>
+                {consultation?.patientDocuments?.length || 0} file{(consultation?.patientDocuments?.length || 0) === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            {consultation?.patientDocuments && consultation.patientDocuments.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '160px', overflowY: 'auto' }}>
+                {consultation.patientDocuments.map((doc) => (
+                  <div
+                    key={doc.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '8px 10px',
+                      borderRadius: '8px',
+                      backgroundColor: '#FFFFFF',
+                      border: '1px solid rgba(223, 171, 98, 0.2)',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span
+                          style={{
+                            fontSize: '0.62rem',
+                            fontWeight: 700,
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            backgroundColor: '#F3EAD8',
+                            color: '#8C7768',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          {doc.category.replace('_', ' ')}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            color: '#2A170F',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                          title={doc.title || doc.original_filename}
+                        >
+                          {doc.title || doc.original_filename}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.68rem', color: '#8C7768', marginTop: '2px' }}>
+                        {doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB • ` : ''}
+                        {doc.created_at ? new Date(doc.created_at).toLocaleDateString() : ''}
+                      </div>
+                    </div>
+                    {doc.downloadUrl ? (
+                      <a
+                        href={doc.downloadUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          backgroundColor: '#E2B467',
+                          color: '#2A170F',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          textDecoration: 'none',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <Eye size={12} />
+                        <span>View</span>
+                      </a>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.72rem', color: '#8C7768', fontStyle: 'italic', padding: '4px 0' }}>
+                No external lab reports or test files uploaded by patient.
+              </div>
+            )}
           </div>
 
           {/* Clinical Notes & Tabs Header */}
@@ -2621,14 +2766,17 @@ export default function DoctorConsultationWorkspace() {
                 </div>
               </div>
 
-              {/* Patient Instructions Section */}
+              {/* Patient Instructions & Health Note Section */}
               <div style={{ borderTop: '1px solid rgba(223, 171, 98, 0.2)', paddingTop: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                   <label style={{ fontSize: '0.68rem', fontWeight: 800, color: '#2A170F', textTransform: 'uppercase' }}>
-                    Patient Instructions
+                    Patient Instructions & Health Note
                   </label>
                   <span style={{ fontSize: '0.68rem', color: '#8C7768' }}>{patientInstructions.length}/1000</span>
                 </div>
+                <p style={{ fontSize: '0.68rem', color: '#8C7768', margin: '0 0 6px 0', lineHeight: 1.35 }}>
+                  This guidance is shared directly with the patient under their <strong>Health Notes</strong> section. Prescriptions are kept distinct and managed in the Prescriptions tab.
+                </p>
                 <textarea
                   value={patientInstructions}
                   maxLength={1000}
@@ -2636,7 +2784,7 @@ export default function DoctorConsultationWorkspace() {
                     setPatientInstructions(e.target.value);
                     triggerAutoSave();
                   }}
-                  placeholder="Enter instructions, recommendations or lifestyle guidance for the patient..."
+                  placeholder="Enter lifestyle guidance, dietary recommendations, warning signs, or next steps for the patient..."
                   rows={3}
                   style={{
                     width: '100%',
@@ -2674,7 +2822,7 @@ export default function DoctorConsultationWorkspace() {
                   }}
                 >
                   <Save size={14} />
-                  <span>Save Instructions</span>
+                  <span>Save Health Note</span>
                 </button>
               </div>
             </div>
@@ -3660,7 +3808,7 @@ export default function DoctorConsultationWorkspace() {
                   Select Additional Duration
                 </label>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                  {([15, 20, 30] as const).map((mins) => {
+                  {([10, 20, 30] as const).map((mins) => {
                     const isSelected = extensionDuration === mins;
                     return (
                       <button
@@ -3712,10 +3860,10 @@ export default function DoctorConsultationWorkspace() {
                     }}
                   >
                     <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#2A170F' }}>
-                      Paid (Card on File)
+                      Paid (My Rate)
                     </div>
                     <div style={{ fontSize: '0.75rem', color: '#6B5E55', marginTop: '2px' }}>
-                      Auto-debit patient card upon consent
+                      Priced from your hourly rate; patient pays via secure link
                     </div>
                   </button>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
@@ -29,6 +30,11 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
 
   const [bookings, setBookings] = useState<PortalBooking[]>([]);
   const [prescriptions, setPrescriptions] = useState<any[]>([]);
+  const [healthNotes, setHealthNotes] = useState<any[]>([]);
+  const [uploadedDocuments, setUploadedDocuments] = useState<any[]>([]);
+  const [selectedHealthNote, setSelectedHealthNote] = useState<any | null>(null);
+  const [notesSearchQuery, setNotesSearchQuery] = useState('');
+  const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -96,6 +102,36 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
           } catch {
             // non-blocking
           }
+        }
+
+        // 3. Fetch doctor health notes & recommendations for this patient
+        try {
+          const notesRes = await fetch(`${API_BASE}/consultations/patient-notes/mine`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (notesRes.ok) {
+            const notesData = await notesRes.json();
+            if (Array.isArray(notesData) && isMounted) {
+              setHealthNotes(notesData);
+            }
+          }
+        } catch {
+          // non-blocking
+        }
+
+        // 4. Fetch patient medical documents & test reports
+        try {
+          const docsRes = await fetch(`${API_BASE}/storage/documents/mine`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (docsRes.ok) {
+            const docsData = await docsRes.json();
+            if (Array.isArray(docsData) && isMounted) {
+              setUploadedDocuments(docsData);
+            }
+          }
+        } catch {
+          // non-blocking
         }
       } catch (err) {
         console.error('Error fetching bookings:', err);
@@ -189,8 +225,10 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
       );
       setCancellingBooking(null);
       setCancelReason('');
+      toastSuccess('Booking cancelled', 'Your appointment has been cancelled.');
     } catch (err) {
       console.error('Cancellation error:', err);
+      toastError('Could not cancel', errorMessage(err, 'Error cancelling booking. Please try again.'));
     } finally {
       setIsProcessingCancel(false);
     }
@@ -450,30 +488,34 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
     );
   };
 
-  // 2. Health Records View
-  const renderHealthRecords = () => {
-    const records = prescriptions.map((p, index) => {
-      const meds = Array.isArray(p.medications)
-        ? p.medications.map((m: any) => m.name).join(', ')
-        : 'Consultation Treatment Plan';
-      return {
-        id: p.id || `rec-${index}`,
-        title: `Clinical Prescription Record #${(p.id || '').substring(0, 8).toUpperCase()}`,
-        doctor: p.doctor?.fullName || 'Attending Telehealth Practitioner',
-        date: p.created_at
-          ? new Date(p.created_at).toLocaleDateString('en-ZA', { day: 'numeric', month: 'long', year: 'numeric' })
-          : 'Recent Consultation',
-        category: p.icd10_code ? `ICD-10: ${p.icd10_code}` : 'Clinical Record',
-        notes: `Prescribed medications: ${meds}. Official clinical summary recorded under HPCSA electronic standards.`,
-        icon: 'document-medicine-bold',
-        iconColor: '#0E7039',
-        iconBg: '#EAF7EE',
-        downloadUrl: `${API_BASE}/prescriptions/${p.id}/download`,
-      };
+  // 2. Health Notes View (Matching Prescriptions Page Table Layout)
+  const renderHealthNotes = () => {
+    const filteredNotes = healthNotes.filter((note) => {
+      const q = notesSearchQuery.toLowerCase().trim();
+      if (!q) return true;
+      const docName = (note.doctor?.name || '').toLowerCase();
+      const specialty = (note.doctor?.specialty || '').toLowerCase();
+      const noteText = (note.notes || '').toLowerCase();
+      const diag = (note.diagnosis || '').toLowerCase();
+      return docName.includes(q) || specialty.includes(q) || noteText.includes(q) || diag.includes(q);
     });
+
+    const fmtDate = (iso?: string) => {
+      if (!iso) return 'Recent';
+      try {
+        return new Date(iso).toLocaleDateString('en-ZA', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        });
+      } catch {
+        return 'Recent';
+      }
+    };
 
     return (
       <div>
+        {/* Page Header */}
         <div
           style={{
             display: 'flex',
@@ -488,15 +530,19 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
           <div>
             <div
               style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: '#B88647',
                 fontSize: '0.74rem',
                 fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: '#B88647',
+                letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 marginBottom: '4px',
               }}
             >
-              ELECTRONIC HEALTH RECORDS
+              <SolarIcon name="shield-check-linear" size={14} color="#B88647" />
+              <span>HPCSA Doctor Care Guidance</span>
             </div>
             <h1
               style={{
@@ -509,65 +555,140 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                 lineHeight: 1.2,
               }}
             >
-              Health Records & Clinical Notes
+              Health Notes & Recommendations
             </h1>
-            <p style={{ fontSize: '0.88rem', color: '#6B5E55', margin: 0, lineHeight: 1.45 }}>
-              Confidential consultation notes, vital sign logs, and diagnostic laboratory summaries.
+            <p style={{ fontSize: '0.88rem', color: '#6B5E55', margin: 0, lineHeight: 1.45, maxWidth: '640px' }}>
+              Post-consultation recovery instructions and lifestyle guidance provided directly by your attending doctors. Prescriptions are kept distinct and linked below.
             </p>
           </div>
 
-          <Link
-            href="/appointments"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              backgroundColor: '#FFFFFF',
-              border: '1px solid #D5C1A7',
-              color: '#2A170F',
-              fontSize: '0.84rem',
-              fontWeight: 600,
-              padding: '8px 16px',
-              borderRadius: '20px',
-              textDecoration: 'none',
-              minHeight: '40px',
-            }}
-            className="portal-details-btn"
-          >
-            <SolarIcon name="calendar-linear" size={14} color="#2A170F" />
-            <span>View Appointments</span>
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <Link
+              href="/appointments"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: '#FFFFFF',
+                border: '1px solid #D5C1A7',
+                color: '#2A170F',
+                fontSize: '0.84rem',
+                fontWeight: 600,
+                padding: '8px 16px',
+                borderRadius: '20px',
+                textDecoration: 'none',
+                minHeight: '40px',
+              }}
+              className="portal-details-btn"
+            >
+              <SolarIcon name="calendar-linear" size={14} color="#2A170F" />
+              <span>Appointments</span>
+            </Link>
+            <Link
+              href="/prescriptions"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                backgroundColor: '#EDD5B3',
+                color: '#2A170F',
+                fontSize: '0.84rem',
+                fontWeight: 700,
+                padding: '8px 16px',
+                borderRadius: '20px',
+                textDecoration: 'none',
+                minHeight: '40px',
+              }}
+            >
+              <SolarIcon name="pill-bold" size={14} color="#2A170F" />
+              <span>Prescriptions</span>
+            </Link>
+          </div>
         </div>
 
-        {records.length === 0 ? (
+        {/* Search and Filters Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            marginBottom: '16px',
+          }}
+        >
+          <div style={{ position: 'relative', width: '100%', maxWidth: '380px' }}>
+            <span
+              style={{
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                display: 'flex',
+                alignItems: 'center',
+                pointerEvents: 'none',
+                color: '#8C7768',
+              }}
+            >
+              <SolarIcon name="magnifer-linear" size={16} color="#8C7768" />
+            </span>
+            <input
+              type="text"
+              placeholder="Search notes, doctors, diagnoses..."
+              value={notesSearchQuery}
+              onChange={(e) => setNotesSearchQuery(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '9px 12px 9px 36px',
+                borderRadius: '10px',
+                border: '1.5px solid #DDD0BC',
+                backgroundColor: '#FFFFFF',
+                fontSize: '0.85rem',
+                color: '#2A170F',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{ fontSize: '0.78rem', color: '#6B5E55', fontWeight: 600 }}>
+              Showing {filteredNotes.length} of {healthNotes.length} notes
+            </span>
+          </div>
+        </div>
+
+        {filteredNotes.length === 0 ? (
           <div
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '16px',
               border: '1px solid #EDE4D4',
-              padding: '40px 20px',
+              padding: '48px 20px',
               textAlign: 'center',
             }}
           >
             <div
               style={{
-                width: '46px',
-                height: '46px',
+                width: '48px',
+                height: '48px',
                 borderRadius: '50%',
                 backgroundColor: '#F7EFE1',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                margin: '0 auto 12px auto',
+                margin: '0 auto 14px auto',
               }}
             >
-              <SolarIcon name="document-medicine-linear" size={22} color="#B88647" />
+              <SolarIcon name="notes-minimalistic-linear" size={24} color="#B88647" />
             </div>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#2A170F', marginBottom: '6px' }}>
-              No Clinical Health Records Yet
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#2A170F', marginBottom: '6px' }}>
+              {notesSearchQuery ? 'No Matching Health Notes' : 'No Health Notes Yet'}
             </h3>
-            <p style={{ fontSize: '0.84rem', color: '#6B5E55', maxWidth: '400px', margin: '0 auto 16px auto' }}>
-              Official medical records and electronic prescription notes from your consultations will appear here automatically.
+            <p style={{ fontSize: '0.85rem', color: '#6B5E55', maxWidth: '420px', margin: '0 auto 18px auto', lineHeight: 1.5 }}>
+              {notesSearchQuery
+                ? 'No notes matched your search query. Try searching by doctor name or specialty.'
+                : 'Personalized post-consultation care advice and recommendations shared by your doctor will appear here automatically.'}
             </p>
             <Link
               href="/appointments?view=find-doctor"
@@ -579,7 +700,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                 color: '#2A170F',
                 fontSize: '0.84rem',
                 fontWeight: 600,
-                padding: '8px 18px',
+                padding: '9px 20px',
                 borderRadius: '20px',
                 textDecoration: 'none',
                 minHeight: '40px',
@@ -590,89 +711,803 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
             </Link>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {records.map((rec) => (
+          <>
+            {/* Desktop Table View */}
+            <div className="rx-desktop-table-view">
               <div
-                key={rec.id}
                 style={{
-                  backgroundColor: '#FFFFFF',
-                  border: '1px solid #EDE4D4',
-                  borderRadius: '18px',
-                  padding: '20px',
-                  boxShadow: '0 2px 10px rgba(42, 23, 15, 0.03)',
                   display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '16px',
-                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '10px',
+                  padding: '0 4px',
                 }}
               >
-                <div
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontWeight: 800, color: '#2A170F', fontSize: '0.92rem' }}>
+                    Consultation Health Notes
+                  </span>
+                  <span
+                    style={{
+                      background: '#EDE4D4',
+                      color: '#2A170F',
+                      fontSize: '0.74rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid #DDD0BC',
+                    }}
+                  >
+                    {filteredNotes.length}
+                  </span>
+                </div>
+                <span
                   style={{
-                    width: '46px',
-                    height: '46px',
-                    borderRadius: '12px',
-                    backgroundColor: rec.iconBg,
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
+                    gap: '5px',
+                    fontSize: '0.76rem',
+                    color: '#047857',
+                    fontWeight: 700,
                   }}
                 >
-                  <SolarIcon name={rec.icon} size={22} color={rec.iconColor} />
-                </div>
+                  <SolarIcon name="shield-check-linear" size={14} color="#059669" />
+                  <span>Verified Clinical Records</span>
+                </span>
+              </div>
 
-                <div style={{ flex: 1, minWidth: '240px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '0.72rem', color: '#B88647', backgroundColor: '#FAF5ED', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
-                      {rec.category}
-                    </span>
-                    <span style={{ fontSize: '0.74rem', color: '#7A6A5E' }}>{rec.date}</span>
-                  </div>
-                  <h3 style={{ fontSize: '1.02rem', fontWeight: 700, color: '#2A170F', margin: '0 0 4px 0', fontFamily: 'var(--font-heading), sans-serif' }}>
-                    {rec.title}
-                  </h3>
-                  <div style={{ fontSize: '0.78rem', color: '#B88647', fontWeight: 600, marginBottom: '6px' }}>
-                    Issued by {rec.doctor}
-                  </div>
-                  <p style={{ fontSize: '0.8rem', color: '#6B5E55', margin: 0, lineHeight: 1.45 }}>
-                    {rec.notes}
-                  </p>
-                </div>
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: '1.5px solid #DDD0BC',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '780px', fontSize: '0.875rem' }}>
+                    <thead>
+                      <tr>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            fontSize: '0.73rem',
+                            fontWeight: 700,
+                            color: '#3D2B20',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            textAlign: 'left',
+                            borderBottom: '1.5px solid #D8CCB8',
+                            background: '#EBE2D3',
+                            width: '105px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Date
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            fontSize: '0.73rem',
+                            fontWeight: 700,
+                            color: '#3D2B20',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            textAlign: 'left',
+                            borderBottom: '1.5px solid #D8CCB8',
+                            background: '#EBE2D3',
+                            width: '180px',
+                          }}
+                        >
+                          Doctor
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            fontSize: '0.73rem',
+                            fontWeight: 700,
+                            color: '#3D2B20',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            textAlign: 'left',
+                            borderBottom: '1.5px solid #D8CCB8',
+                            background: '#EBE2D3',
+                            width: '140px',
+                          }}
+                        >
+                          Diagnosis
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            fontSize: '0.73rem',
+                            fontWeight: 700,
+                            color: '#3D2B20',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            textAlign: 'left',
+                            borderBottom: '1.5px solid #D8CCB8',
+                            background: '#EBE2D3',
+                          }}
+                        >
+                          Care Recommendations & Guidance
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            fontSize: '0.73rem',
+                            fontWeight: 700,
+                            color: '#3D2B20',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            textAlign: 'center',
+                            borderBottom: '1.5px solid #D8CCB8',
+                            background: '#EBE2D3',
+                            width: '160px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Prescription
+                        </th>
+                        <th
+                          style={{
+                            padding: '12px 16px',
+                            fontSize: '0.73rem',
+                            fontWeight: 700,
+                            color: '#3D2B20',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.06em',
+                            textAlign: 'right',
+                            borderBottom: '1.5px solid #D8CCB8',
+                            background: '#EBE2D3',
+                            width: '90px',
+                            paddingRight: '18px',
+                          }}
+                        >
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredNotes.map((note) => {
+                        const isHovered = hoveredNoteId === note.id;
+                        const docName = note.doctor?.name || 'Attending Doctor';
+                        const specialty = note.doctor?.specialty || 'General Practitioner';
+                        const diagText = note.diagnosis || (note.prescription?.icd10_code ? `ICD-10 ${note.prescription.icd10_code}` : 'Clinical Consultation');
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'center' }}>
-                  <button
-                    onClick={() => window.open(rec.downloadUrl, '_blank')}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      backgroundColor: '#FAF5ED',
-                      border: '1px solid #EDE4D4',
-                      color: '#2A170F',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      padding: '8px 14px',
-                      borderRadius: '18px',
-                      cursor: 'pointer',
-                      minHeight: '38px',
-                    }}
-                    className="portal-details-btn"
-                  >
-                    <SolarIcon name="download-linear" size={14} color="#B88647" />
-                    <span>Download PDF</span>
-                  </button>
+                        return (
+                          <tr
+                            key={note.id}
+                            onMouseEnter={() => setHoveredNoteId(note.id)}
+                            onMouseLeave={() => setHoveredNoteId(null)}
+                            style={{
+                              backgroundColor: isHovered ? '#FAF5EB' : '#FFFFFF',
+                              transition: 'background-color 0.12s ease',
+                            }}
+                          >
+                            {/* Date */}
+                            <td
+                              style={{
+                                padding: '14px 16px',
+                                fontSize: '0.84rem',
+                                color: '#5C4F46',
+                                fontWeight: 600,
+                                borderBottom: '1px solid #F0E6D8',
+                                whiteSpace: 'nowrap',
+                                verticalAlign: 'top',
+                              }}
+                            >
+                              {fmtDate(note.date)}
+                            </td>
+
+                            {/* Doctor */}
+                            <td
+                              style={{
+                                padding: '14px 16px',
+                                borderBottom: '1px solid #F0E6D8',
+                                verticalAlign: 'top',
+                              }}
+                            >
+                              <div style={{ fontWeight: 700, color: '#2A170F', fontSize: '0.88rem' }}>
+                                {docName}
+                              </div>
+                              <div style={{ fontSize: '0.75rem', color: '#B88647', marginTop: '2px' }}>
+                                {specialty}
+                              </div>
+                            </td>
+
+                            {/* Diagnosis */}
+                            <td
+                              style={{
+                                padding: '14px 16px',
+                                borderBottom: '1px solid #F0E6D8',
+                                verticalAlign: 'top',
+                              }}
+                            >
+                              <span
+                                title={diagText}
+                                style={{
+                                  display: 'block',
+                                  maxWidth: '150px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 600,
+                                  color: '#5C3D0E',
+                                  backgroundColor: '#F0E5D3',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  lineHeight: 1.3,
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                              >
+                                {diagText}
+                              </span>
+                            </td>
+
+                            {/* Health Note Content */}
+                            <td
+                              style={{
+                                padding: '14px 16px',
+                                fontSize: '0.85rem',
+                                color: '#2A170F',
+                                lineHeight: 1.5,
+                                borderBottom: '1px solid #F0E6D8',
+                                verticalAlign: 'top',
+                              }}
+                            >
+                              <p
+                                style={{
+                                  margin: 0,
+                                  display: '-webkit-box',
+                                  WebkitLineClamp: 2,
+                                  WebkitBoxOrient: 'vertical',
+                                  overflow: 'hidden',
+                                }}
+                                title={note.notes}
+                              >
+                                {note.notes}
+                              </p>
+                            </td>
+
+                            {/* Associated Prescription */}
+                            <td
+                              style={{
+                                padding: '14px 16px',
+                                borderBottom: '1px solid #F0E6D8',
+                                textAlign: 'center',
+                                verticalAlign: 'top',
+                              }}
+                            >
+                              {note.prescription ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedHealthNote(note)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '5px',
+                                    padding: '4px 10px',
+                                    borderRadius: '12px',
+                                    backgroundColor: '#ECFDF5',
+                                    color: '#047857',
+                                    border: '1px solid #A7F3D0',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                  title="View prescription details"
+                                >
+                                  <SolarIcon name="pill-bold" size={12} color="#047857" />
+                                  <span>Rx Issued ({note.prescription.medications_count || 1})</span>
+                                </button>
+                              ) : (
+                                <span
+                                  style={{
+                                    fontSize: '0.75rem',
+                                    color: '#8C7768',
+                                    fontStyle: 'italic',
+                                  }}
+                                >
+                                  None Required
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Actions */}
+                            <td
+                              style={{
+                                padding: '14px 16px',
+                                borderBottom: '1px solid #F0E6D8',
+                                textAlign: 'right',
+                                paddingRight: '16px',
+                                verticalAlign: 'top',
+                              }}
+                            >
+                              <button
+                                type="button"
+                                onClick={() => setSelectedHealthNote(note)}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '6px 12px',
+                                  borderRadius: '8px',
+                                  background: '#FFFFFF',
+                                  border: '1.5px solid #DDD2C1',
+                                  color: '#2A170F',
+                                  fontSize: '0.8rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
+                                }}
+                              >
+                                <SolarIcon name="eye-linear" size={14} color="#2A170F" />
+                                View
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* Mobile Compact Rows View -- tappable, no duplicated body text */}
+            <div className="rx-mobile-cards-view" style={{ display: 'none', flexDirection: 'column' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '10px',
+                  padding: '0 2px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontWeight: 800, color: '#2A170F', fontSize: '0.9rem' }}>
+                    Consultation Health Notes
+                  </span>
+                  <span
+                    style={{
+                      background: '#EDE4D4',
+                      color: '#2A170F',
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      border: '1px solid #DDD0BC',
+                    }}
+                  >
+                    {filteredNotes.length}
+                  </span>
+                </div>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    fontSize: '0.72rem',
+                    color: '#047857',
+                    fontWeight: 700,
+                  }}
+                >
+                  <SolarIcon name="shield-check-linear" size={13} color="#059669" />
+                  <span>Verified</span>
+                </span>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  border: '1.5px solid #DDD0BC',
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  boxShadow: '0 4px 16px rgba(42, 23, 15, 0.06)',
+                }}
+              >
+                {filteredNotes.map((note, idx) => {
+                  const docName = note.doctor?.name || 'Attending Doctor';
+                  const specialty = note.doctor?.specialty || 'General Practitioner';
+                  const diagText = note.diagnosis || (note.prescription?.icd10_code ? `ICD-10 ${note.prescription.icd10_code}` : 'Clinical Consultation');
+
+                  return (
+                    <button
+                      key={note.id}
+                      type="button"
+                      onClick={() => setSelectedHealthNote(note)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        width: '100%',
+                        textAlign: 'left',
+                        background: '#FFFFFF',
+                        border: 'none',
+                        borderTop: idx === 0 ? 'none' : '1px solid #F0E6D8',
+                        padding: '13px 14px',
+                        cursor: 'pointer',
+                        minHeight: '64px',
+                      }}
+                    >
+                      {/* Rx status dot */}
+                      <span
+                        style={{
+                          width: '8px',
+                          height: '8px',
+                          borderRadius: '50%',
+                          flexShrink: 0,
+                          backgroundColor: note.prescription ? '#059669' : '#D8CCB8',
+                        }}
+                        title={note.prescription ? 'Prescription issued' : 'No prescription'}
+                      />
+
+                      {/* Main info */}
+                      <span style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <span style={{ display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+                          <span style={{ fontWeight: 700, color: '#2A170F', fontSize: '0.9rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {docName}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: '#7A6A5E', fontWeight: 600, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                            {fmtDate(note.date)}
+                          </span>
+                        </span>
+                        <span
+                          style={{
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            color: '#5C3D0E',
+                            backgroundColor: '#F0E5D3',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            lineHeight: 1.3,
+                            alignSelf: 'flex-start',
+                            maxWidth: '100%',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                          }}
+                        >
+                          {diagText}
+                        </span>
+                      </span>
+
+                      {/* Chevron */}
+                      <SolarIcon name="alt-arrow-right-linear" size={18} color="#B88647" />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Detail: centered modal on desktop, bottom sheet on mobile */}
+        {selectedHealthNote && (
+          <div
+            className="hn-sheet-overlay"
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(26, 15, 10, 0.65)',
+              backdropFilter: 'blur(3px)',
+              zIndex: 9999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '16px',
+            }}
+            onClick={() => setSelectedHealthNote(null)}
+          >
+            <div
+              className="hn-sheet-panel"
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '18px',
+                border: '1.5px solid #DDD0BC',
+                width: '100%',
+                maxWidth: '560px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                scrollbarGutter: 'stable',
+                boxSizing: 'border-box',
+                padding: '24px',
+                boxShadow: '0 20px 40px rgba(42, 23, 15, 0.25)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Mobile grab handle */}
+              <div className="hn-sheet-grabber" aria-hidden="true" />
+              {/* Modal Header */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div
+                    style={{
+                      width: '44px',
+                      height: '44px',
+                      borderRadius: '50%',
+                      backgroundColor: '#F5E6D0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#8E5A1C',
+                      fontWeight: 700,
+                      fontSize: '0.95rem',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {selectedHealthNote.doctor?.name
+                      ? selectedHealthNote.doctor.name
+                          .replace('Dr. ', '')
+                          .split(' ')
+                          .map((n: string) => n[0])
+                          .slice(0, 2)
+                          .join('')
+                      : 'DR'}
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#2A170F', margin: 0 }}>
+                      {selectedHealthNote.doctor?.name || 'Attending Doctor'}
+                    </h3>
+                    <div style={{ fontSize: '0.8rem', color: '#B88647', fontWeight: 600 }}>
+                      {selectedHealthNote.doctor?.specialty || 'General Practitioner'} • {fmtDate(selectedHealthNote.date)}
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedHealthNote(null)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: '#8C7768',
+                    padding: '4px',
+                  }}
+                >
+                  <SolarIcon name="close-circle-linear" size={24} color="#8C7768" />
+                </button>
+              </div>
+
+              {/* Diagnosis focus */}
+              <div
+                style={{
+                  backgroundColor: '#FAF6EE',
+                  border: '1px solid rgba(223, 171, 98, 0.25)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <SolarIcon name="stethoscope-bold" size={16} color="#B88647" />
+                <div>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#8C7768', textTransform: 'uppercase' }}>
+                    Consultation Focus / Diagnosis
+                  </div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#2A170F' }}>
+                    {selectedHealthNote.diagnosis || (selectedHealthNote.prescription?.icd10_code ? `ICD-10: ${selectedHealthNote.prescription.icd10_code}` : 'General Telehealth Consultation')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Full Instructions Content */}
+              <div>
+                <div style={{ fontSize: '0.72rem', fontWeight: 800, color: '#8C7768', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  Doctor Care Guidance & Lifestyle Recommendations
+                </div>
+                <div
+                  style={{
+                    backgroundColor: '#FAF6EE',
+                    border: '1px solid rgba(223, 171, 98, 0.24)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    fontSize: '0.88rem',
+                    color: '#2A170F',
+                    lineHeight: 1.6,
+                    whiteSpace: 'pre-line',
+                  }}
+                >
+                  {selectedHealthNote.notes}
+                </div>
+              </div>
+
+              {/* Associated Prescription */}
+              {selectedHealthNote.prescription ? (
+                <div
+                  style={{
+                    backgroundColor: '#F3F9F5',
+                    border: '1px solid #D1EAD9',
+                    borderRadius: '12px',
+                    padding: '14px 16px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <SolarIcon name="pill-bold" size={18} color="#14633E" />
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#14633E' }}>
+                        Associated Digital Prescription
+                      </span>
+                    </div>
+                    {selectedHealthNote.prescription.schedule_flag && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          backgroundColor: '#E6F4EA',
+                          color: '#0D652D',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          border: '1px solid #A8DAB5',
+                        }}
+                      >
+                        {selectedHealthNote.prescription.schedule_flag}
+                      </span>
+                    )}
+                  </div>
+
+                  {Array.isArray(selectedHealthNote.prescription.medications) && selectedHealthNote.prescription.medications.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {selectedHealthNote.prescription.medications.map((m: any, idx: number) => (
+                        <div
+                          key={idx}
+                          style={{
+                            backgroundColor: '#FFFFFF',
+                            borderRadius: '8px',
+                            padding: '8px 12px',
+                            border: '1px solid #D1EAD9',
+                            fontSize: '0.8rem',
+                          }}
+                        >
+                          <div style={{ fontWeight: 700, color: '#2A170F' }}>
+                            {m.name || m.medication_name} ({m.dosage})
+                          </div>
+                          <div style={{ fontSize: '0.74rem', color: '#5C4F46', marginTop: '2px' }}>
+                            {m.instructions || m.frequency} • Duration: {m.duration}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const rxId = selectedHealthNote.prescription?.id;
+                        if (!rxId) return;
+                        try {
+                          const res = await fetch(`${API_BASE}/prescriptions/${rxId}/download`, {
+                            headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+                          });
+                          if (res.ok) {
+                            const blob = await res.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = `ChekUp247_Prescription_${rxId.toUpperCase()}.pdf`;
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                            toastSuccess('Prescription downloaded');
+                          } else {
+                            toastError('Download unavailable', 'Opening the print view instead.');
+                            window.print();
+                          }
+                        } catch {
+                          toastError('Download failed', 'Opening the print view instead.');
+                          window.print();
+                        }
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '8px 16px',
+                        borderRadius: '20px',
+                        backgroundColor: '#DFAB62',
+                        color: '#2A170F',
+                        fontSize: '0.8rem',
+                        fontWeight: 700,
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(223, 171, 98, 0.28)',
+                      }}
+                    >
+                      <SolarIcon name="download-linear" size={14} color="#2A170F" />
+                      <span>Download Prescription PDF</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div
+                  style={{
+                    backgroundColor: '#FAF6EE',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    fontSize: '0.78rem',
+                    color: '#8C7768',
+                    fontStyle: 'italic',
+                  }}
+                >
+                  No pharmacological prescription was required for this visit. Follow the non-pharmacological care advice outlined above.
+                </div>
+              )}
+
+              {/* Close Button */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedHealthNote(null)}
+                  style={{
+                    padding: '8px 20px',
+                    borderRadius: '10px',
+                    border: '1.5px solid #DDD0BC',
+                    backgroundColor: '#FFFFFF',
+                    color: '#2A170F',
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>
     );
   };
 
-  // 3. Medical Documents View (Dynamic from Real Prescriptions & Booking Receipts)
+  // 3. Medical Documents View (Dynamic from Uploaded Reports, Prescriptions & Booking Receipts)
   const renderMedicalDocuments = () => {
-    // Generate document list dynamically from real prescriptions and bookings
+    // Generate document list dynamically from patient uploaded documents, prescriptions and bookings
+    const uploadedMedicalDocs = uploadedDocuments.map((doc: any) => {
+      const dDate = doc.created_at
+        ? new Date(doc.created_at).toLocaleDateString('en-ZA', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+          })
+        : 'Recent';
+      const categoryLabels: Record<string, string> = {
+        lab_report: 'Laboratory Test Report',
+        imaging: 'Radiology / Diagnostic Scan',
+        prescription: 'External Prescription',
+        discharge_summary: 'Hospital Discharge Summary',
+        other: 'Medical Document',
+      };
+      return {
+        id: `upload-${doc.id}`,
+        title: doc.title || doc.original_filename,
+        issuer: categoryLabels[doc.category] || 'Diagnostic Facility / Hospital',
+        date: dDate,
+        period: doc.notes || (doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB • Encrypted Storage` : 'Verified Clinical Record'),
+        type: categoryLabels[doc.category] || 'Medical Document',
+        fileSize: doc.file_size ? `${(doc.file_size / 1024).toFixed(0)} KB` : 'PDF',
+        downloadUrl: doc.downloadUrl || null,
+        icon: doc.category === 'imaging' ? 'gallery-bold' : 'document-text-bold',
+        iconColor: '#2B5742',
+      };
+    });
+
     const prescriptionDocs = prescriptions.map((p: any) => {
       const pDate = p.created_at
         ? new Date(p.created_at).toLocaleDateString('en-ZA', {
@@ -681,7 +1516,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
             year: 'numeric',
           })
         : 'Recent';
-      const docName = p.doctor?.fullName ? `Dr. ${p.doctor.fullName}` : 'Attending Doctor (HPCSA)';
+      const docName = p.doctor?.fullName || p.doctor?.name ? `Dr. ${p.doctor?.fullName || p.doctor?.name}` : 'Attending Doctor (HPCSA)';
       const itemCount = (p.items || []).length;
       return {
         id: `presc-${p.id}`,
@@ -712,7 +1547,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
         iconColor: '#2B5742',
       }));
 
-    const allDocs = [...prescriptionDocs, ...receiptDocs];
+    const allDocs = [...uploadedMedicalDocs, ...prescriptionDocs, ...receiptDocs];
 
     return (
       <div>
@@ -934,8 +1769,8 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
       <div style={{ maxWidth: '1060px', margin: '0 auto' }}>
         {currentView === 'doctors' ? (
           renderMyDoctors()
-        ) : currentView === 'records' ? (
-          renderHealthRecords()
+        ) : currentView === 'records' || currentView === 'notes' || currentView === 'health-notes' ? (
+          renderHealthNotes()
         ) : currentView === 'documents' ? (
           renderMedicalDocuments()
         ) : currentView === 'find-doctor' || currentView === 'search' ? (
@@ -968,7 +1803,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                 marginBottom: '4px',
               }}
             >
-              WELCOME BACK
+              WELCOME BACK{user?.fullName ? `, ${user.fullName.split(' ')[0].toUpperCase()}` : ''}
             </div>
 
             {/* Main Heading */}

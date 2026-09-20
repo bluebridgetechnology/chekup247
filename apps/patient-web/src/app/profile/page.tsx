@@ -5,18 +5,29 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { SolarIcon } from '../../components/SolarIcon';
 import { useAuth } from '../../context/AuthContext';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import { PatientPortalLayout } from '../../components/portal/PatientPortalLayout';
 
 export default function PatientProfilePage() {
   const router = useRouter();
   const { user, isAuthenticated, isLoading, updateProfile, updatePreferences } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'notifications'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'documents' | 'notifications'>('profile');
 
   // Profile fields
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [bloodGroup, setBloodGroup] = useState('');
+  const [genotype, setGenotype] = useState('');
+  const [allergies, setAllergies] = useState('');
+
+  // Medical documents & test reports
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+  const [docCategory, setDocCategory] = useState('lab_report');
+  const [docTitle, setDocTitle] = useState('');
 
   // Notification fields (1 or 2 channels constraint)
   const [channels, setChannels] = useState<string[]>(['email', 'whatsapp']);
@@ -24,6 +35,8 @@ export default function PatientProfilePage() {
 
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -38,12 +51,41 @@ export default function PatientProfilePage() {
       if (user.dateOfBirth) {
         setDateOfBirth(new Date(user.dateOfBirth).toISOString().split('T')[0]);
       }
+      setBloodGroup(user.bloodGroup || '');
+      setGenotype(user.genotype || '');
+      setAllergies(user.allergies || '');
       if (user.notificationPreferences?.channels) {
         setChannels(user.notificationPreferences.channels);
       }
       if (user.notificationPreferences?.remindersEnabled !== undefined) {
         setRemindersEnabled(user.notificationPreferences.remindersEnabled);
       }
+    }
+  }, [user]);
+
+  // Load uploaded documents when on documents tab or user is ready
+  const loadDocuments = async () => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('chekup_token') : null;
+    if (!token) return;
+    try {
+      setLoadingDocs(true);
+      const res = await fetch(`${API_BASE}/storage/documents/mine`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) setDocuments(data);
+      }
+    } catch {
+      // non-blocking
+    } finally {
+      setLoadingDocs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user) {
+      loadDocuments();
     }
   }, [user]);
 
@@ -57,12 +99,128 @@ export default function PatientProfilePage() {
         full_name: fullName.trim(),
         phone: phone.trim() || undefined,
         date_of_birth: dateOfBirth || undefined,
+        blood_group: bloodGroup || undefined,
+        genotype: genotype || undefined,
+        allergies: allergies.trim() || undefined,
       });
-      setFeedback({ type: 'success', message: 'Personal demographics updated successfully!' });
+      setFeedback({ type: 'success', message: 'Personal demographics & medical profile updated successfully!' });
+      toastSuccess('Profile updated', 'Your changes have been saved.');
     } catch (err: any) {
-      setFeedback({ type: 'error', message: err.message || 'Failed to update personal details.' });
+      const msg = errorMessage(err, 'Failed to update personal details.');
+      setFeedback({ type: 'error', message: msg });
+      toastError('Could not update profile', msg);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const token = typeof window !== 'undefined' ? localStorage.getItem('chekup_token') : null;
+    if (!token) {
+      setFeedback({ type: 'error', message: 'You must be logged in to upload medical documents.' });
+      return;
+    }
+
+    if (file.size > 15 * 1024 * 1024) {
+      setFeedback({ type: 'error', message: 'File size exceeds maximum 15MB limit.' });
+      return;
+    }
+
+    try {
+      setUploadingDoc(true);
+      setFeedback(null);
+
+      // 1. Get presigned upload URL
+      const presignRes = await fetch(`${API_BASE}/storage/presigned-upload`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type || 'application/pdf',
+          category: docCategory,
+        }),
+      });
+
+      if (!presignRes.ok) {
+        throw new Error('Failed to generate secure upload credentials.');
+      }
+      const { uploadUrl, key } = await presignRes.json();
+
+      // 2. Direct S3 upload
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'application/pdf',
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error('Failed to transfer document to storage.');
+      }
+
+      // 3. Save document record in Patient DB
+      const recordRes = await fetch(`${API_BASE}/storage/documents`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          title: docTitle.trim() || file.name,
+          originalFilename: file.name,
+          category: docCategory,
+          s3Key: key,
+          fileSize: file.size,
+          mimeType: file.type || 'application/pdf',
+        }),
+      });
+
+      if (!recordRes.ok) {
+        throw new Error('Failed to index document in health record.');
+      }
+
+      setDocTitle('');
+      await loadDocuments();
+      setFeedback({ type: 'success', message: `"${file.name}" uploaded successfully!` });
+      toastSuccess('Document uploaded', `"${file.name}" was added to your records.`);
+    } catch (err: any) {
+      const msg = errorMessage(err, 'Upload failed.');
+      setFeedback({ type: 'error', message: msg });
+      toastError('Upload failed', msg);
+    } finally {
+      setUploadingDoc(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleDeleteDocument = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to remove "${name}"?`)) return;
+    const token = typeof window !== 'undefined' ? localStorage.getItem('chekup_token') : null;
+    if (!token) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/storage/documents/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        setFeedback({ type: 'success', message: `"${name}" removed successfully.` });
+        toastSuccess('Document removed', `"${name}" was deleted from your records.`);
+        await loadDocuments();
+      } else {
+        throw new Error('Failed to remove document.');
+      }
+    } catch (err: any) {
+      const msg = errorMessage(err, 'Failed to remove document.');
+      setFeedback({ type: 'error', message: msg });
+      toastError('Could not remove document', msg);
     }
   };
 
@@ -317,7 +475,32 @@ export default function PatientProfilePage() {
               }}
             >
               <SolarIcon name="user-linear" size={16} color={activeTab === 'profile' ? '#2A170F' : '#6B5E55'} />
-              <span>Personal Demographics</span>
+              <span>Personal & Medical Profile</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setActiveTab('documents');
+                setFeedback(null);
+              }}
+              style={{
+                padding: '9px 18px',
+                borderRadius: '20px',
+                fontSize: '0.88rem',
+                fontWeight: activeTab === 'documents' ? 600 : 500,
+                color: activeTab === 'documents' ? '#2A170F' : '#6B5E55',
+                backgroundColor: activeTab === 'documents' ? '#EEDCC5' : 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                transition: 'all 0.18s ease',
+              }}
+            >
+              <SolarIcon name="document-text-linear" size={16} color={activeTab === 'documents' ? '#2A170F' : '#6B5E55'} />
+              <span>Test Reports & Files ({documents.length})</span>
             </button>
 
             <button
@@ -568,6 +751,168 @@ export default function PatientProfilePage() {
                       />
                     </div>
                   </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: '#2A170F',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Blood Group (Optional)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#A08F83',
+                        }}
+                      >
+                        <SolarIcon name="heart-pulse-linear" size={16} color="#A08F83" />
+                      </span>
+                      <select
+                        value={bloodGroup}
+                        onChange={(e) => setBloodGroup(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 38px',
+                          borderRadius: '10px',
+                          border: '1px solid #EDE4D4',
+                          fontSize: '0.88rem',
+                          color: '#2A170F',
+                          backgroundColor: '#FFFFFF',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <option value="">Unknown / Not Specified</option>
+                        <option value="A+">A+</option>
+                        <option value="A-">A-</option>
+                        <option value="B+">B+</option>
+                        <option value="B-">B-</option>
+                        <option value="AB+">AB+</option>
+                        <option value="AB-">AB-</option>
+                        <option value="O+">O+</option>
+                        <option value="O-">O-</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: '#2A170F',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Genotype (Optional)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#A08F83',
+                        }}
+                      >
+                        <SolarIcon name="dna-linear" size={16} color="#A08F83" />
+                      </span>
+                      <select
+                        value={genotype}
+                        onChange={(e) => setGenotype(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 38px',
+                          borderRadius: '10px',
+                          border: '1px solid #EDE4D4',
+                          fontSize: '0.88rem',
+                          color: '#2A170F',
+                          backgroundColor: '#FFFFFF',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      >
+                        <option value="">Unknown / Not Specified</option>
+                        <option value="AA">AA</option>
+                        <option value="AS">AS (Sickle Cell Trait)</option>
+                        <option value="SS">SS (Sickle Cell Disease)</option>
+                        <option value="AC">AC</option>
+                        <option value="SC">SC</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label
+                      style={{
+                        display: 'block',
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: '#2A170F',
+                        marginBottom: '6px',
+                      }}
+                    >
+                      Known Allergies & Drug Sensitivities (Optional)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: '12px',
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: '#A08F83',
+                        }}
+                      >
+                        <SolarIcon name="danger-triangle-linear" size={16} color="#A08F83" />
+                      </span>
+                      <input
+                        type="text"
+                        value={allergies}
+                        onChange={(e) => setAllergies(e.target.value)}
+                        placeholder="e.g. Penicillin, Sulfa drugs, Peanuts, NSAIDs (or No known allergies)"
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 38px',
+                          borderRadius: '10px',
+                          border: '1px solid #EDE4D4',
+                          fontSize: '0.88rem',
+                          color: '#2A170F',
+                          outline: 'none',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    backgroundColor: '#FAF5ED',
+                    border: '1px solid rgba(223, 171, 98, 0.25)',
+                    borderRadius: '12px',
+                    padding: '12px 16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    marginBottom: '22px',
+                  }}
+                >
+                  <SolarIcon name="shield-check-bold" size={18} color="#B88647" />
+                  <span style={{ fontSize: '0.82rem', color: '#6B5E55' }}>
+                    Clinical parameters (Blood Group, Genotype, Allergies) are securely accessible to your consulting doctors to assist with emergency care, accurate diagnosis, and safe prescribing.
+                  </span>
                 </div>
 
                 <button
@@ -597,7 +942,329 @@ export default function PatientProfilePage() {
             </div>
           )}
 
-          {/* Tab 2: Notification Preferences */}
+          {/* Tab 2: Test Reports & Medical Documents */}
+          {activeTab === 'documents' && (
+            <div
+              style={{
+                backgroundColor: '#FFFFFF',
+                borderRadius: '18px',
+                padding: '28px 30px',
+                border: '1px solid #EDE4D4',
+                boxShadow: '0 4px 16px rgba(42, 23, 15, 0.03)',
+              }}
+            >
+              <div style={{ marginBottom: '22px' }}>
+                <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '6px', color: '#2A170F' }}>
+                  Uploaded Test Reports & Medical Documents
+                </h2>
+                <p style={{ color: '#7A6A5E', fontSize: '0.85rem', margin: 0 }}>
+                  Securely store your laboratory test results, blood tests, radiology scans, or clinical records. Attending doctors have direct access to review these files during appointments.
+                </p>
+              </div>
+
+              {/* Upload Box */}
+              <div
+                style={{
+                  backgroundColor: '#FAF6EE',
+                  border: '2px dashed #DFAB62',
+                  borderRadius: '16px',
+                  padding: '24px 20px',
+                  textAlign: 'center',
+                  marginBottom: '26px',
+                }}
+              >
+                <div
+                  style={{
+                    width: '46px',
+                    height: '46px',
+                    borderRadius: '50%',
+                    backgroundColor: '#F5E6D0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 12px auto',
+                  }}
+                >
+                  <SolarIcon name="upload-minimalistic-linear" size={22} color="#8E5A1C" />
+                </div>
+                <h4 style={{ fontSize: '0.98rem', fontWeight: 700, color: '#2A170F', margin: '0 0 6px 0' }}>
+                  Upload a Test Report or Medical Document
+                </h4>
+                <p style={{ fontSize: '0.8rem', color: '#7A6A5E', margin: '0 auto 16px auto', maxWidth: '440px' }}>
+                  Supported formats: PDF, PNG, JPEG, WEBP (Max 15MB). Files are encrypted and stored in compliance with POPIA health data standards.
+                </p>
+
+                {/* Upload Config Form */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gap: '12px',
+                    maxWidth: '560px',
+                    margin: '0 auto 16px auto',
+                    textAlign: 'left',
+                  }}
+                >
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#2A170F', marginBottom: '4px' }}>
+                      Document Title / Description (Optional)
+                    </label>
+                    <input
+                      type="text"
+                      value={docTitle}
+                      onChange={(e) => setDocTitle(e.target.value)}
+                      placeholder="e.g. Full Blood Count - Lancets"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #EDE4D4',
+                        backgroundColor: '#FFFFFF',
+                        fontSize: '0.84rem',
+                        color: '#2A170F',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#2A170F', marginBottom: '4px' }}>
+                      Document Category
+                    </label>
+                    <select
+                      value={docCategory}
+                      onChange={(e) => setDocCategory(e.target.value)}
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        border: '1px solid #EDE4D4',
+                        backgroundColor: '#FFFFFF',
+                        fontSize: '0.84rem',
+                        color: '#2A170F',
+                        outline: 'none',
+                        boxSizing: 'border-box',
+                      }}
+                    >
+                      <option value="lab_report">Lab Report / Pathology</option>
+                      <option value="blood_test">Blood Test Results</option>
+                      <option value="imaging">Radiology / X-Ray / Scan</option>
+                      <option value="discharge_summary">Discharge Summary</option>
+                      <option value="prescription">External Prescription</option>
+                      <option value="other">Other Clinical Document</option>
+                    </select>
+                  </div>
+                </div>
+
+                <label
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    backgroundColor: uploadingDoc ? '#D5C1A7' : '#EDD5B3',
+                    color: '#2A170F',
+                    fontSize: '0.86rem',
+                    fontWeight: 600,
+                    padding: '10px 24px',
+                    borderRadius: '20px',
+                    cursor: uploadingDoc ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
+                  }}
+                >
+                  <SolarIcon name={uploadingDoc ? 'refresh-circle-linear' : 'upload-linear'} size={16} color="#2A170F" />
+                  <span>{uploadingDoc ? 'Uploading to Encrypted Storage...' : 'Select File to Upload'}</span>
+                  <input
+                    type="file"
+                    disabled={uploadingDoc}
+                    accept=".pdf,image/png,image/jpeg,image/webp"
+                    onChange={handleFileUpload}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+
+              {/* Document List */}
+              <div style={{ marginTop: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#2A170F', margin: 0 }}>
+                    Your Saved Documents ({documents.length})
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={loadDocuments}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#B88647',
+                      fontSize: '0.82rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                    }}
+                  >
+                    <SolarIcon name="refresh-linear" size={13} color="#B88647" />
+                    <span>Refresh</span>
+                  </button>
+                </div>
+
+                {loadingDocs ? (
+                  <p style={{ fontSize: '0.85rem', color: '#7A6A5E', textAlign: 'center', padding: '24px' }}>
+                    Loading documents...
+                  </p>
+                ) : documents.length === 0 ? (
+                  <div
+                    style={{
+                      padding: '30px 20px',
+                      textAlign: 'center',
+                      backgroundColor: '#FAF5ED',
+                      borderRadius: '12px',
+                      border: '1px solid #EDE4D4',
+                    }}
+                  >
+                    <SolarIcon name="document-medicine-linear" size={26} color="#B88647" />
+                    <p style={{ fontSize: '0.86rem', color: '#2A170F', fontWeight: 600, margin: '8px 0 2px 0' }}>
+                      No test reports or medical documents uploaded yet
+                    </p>
+                    <p style={{ fontSize: '0.78rem', color: '#7A6A5E', margin: 0 }}>
+                      Uploaded blood tests, lab results, and scans will appear here and be accessible to your attending doctors.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {documents.map((doc) => {
+                      const uploadDate = doc.created_at
+                        ? new Date(doc.created_at).toLocaleDateString('en-ZA', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                          })
+                        : 'Recent';
+                      const sizeKb = doc.file_size ? (doc.file_size / 1024).toFixed(0) + ' KB' : 'PDF';
+                      const categoryLabel =
+                        doc.category === 'lab_report'
+                          ? 'Lab Report'
+                          : doc.category === 'blood_test'
+                          ? 'Blood Test'
+                          : doc.category === 'imaging'
+                          ? 'Imaging / Scan'
+                          : doc.category === 'discharge_summary'
+                          ? 'Discharge Summary'
+                          : 'Medical Record';
+
+                      return (
+                        <div
+                          key={doc.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '12px',
+                            padding: '14px 18px',
+                            backgroundColor: '#FAF5ED',
+                            border: '1px solid #EDE4D4',
+                            borderRadius: '14px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div
+                              style={{
+                                width: '38px',
+                                height: '38px',
+                                borderRadius: '10px',
+                                backgroundColor: '#EAD2B2',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                color: '#2A170F',
+                                flexShrink: 0,
+                              }}
+                            >
+                              <SolarIcon name="document-medicine-bold" size={18} color="#8E5A1C" />
+                            </div>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2A170F' }}>
+                                  {doc.title}
+                                </span>
+                                <span
+                                  style={{
+                                    fontSize: '0.68rem',
+                                    fontWeight: 700,
+                                    color: '#8E5A1C',
+                                    backgroundColor: '#FFFFFF',
+                                    border: '1px solid rgba(223, 171, 98, 0.3)',
+                                    padding: '2px 7px',
+                                    borderRadius: '8px',
+                                  }}
+                                >
+                                  {categoryLabel}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: '0.76rem', color: '#7A6A5E', marginTop: '2px' }}>
+                                {doc.original_filename} • {sizeKb} • Uploaded {uploadDate}
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {doc.downloadUrl && (
+                              <button
+                                type="button"
+                                onClick={() => window.open(doc.downloadUrl, '_blank')}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  backgroundColor: '#FFFFFF',
+                                  border: '1px solid #D5C1A7',
+                                  color: '#2A170F',
+                                  fontSize: '0.78rem',
+                                  fontWeight: 600,
+                                  padding: '6px 14px',
+                                  borderRadius: '16px',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <SolarIcon name="download-linear" size={13} color="#B88647" />
+                                <span>View / Download</span>
+                              </button>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteDocument(doc.id, doc.title)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                backgroundColor: 'transparent',
+                                border: '1px solid #FCA5A5',
+                                color: '#DC2626',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                                padding: '6px 10px',
+                                borderRadius: '16px',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <SolarIcon name="trash-bin-trash-linear" size={13} color="#DC2626" />
+                              <span>Remove</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Tab 3: Notification Preferences */}
           {activeTab === 'notifications' && (
             <div
               style={{

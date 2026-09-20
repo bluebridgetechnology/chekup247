@@ -157,8 +157,9 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
         setProfile(null);
         setToken(null);
       }
-    } catch (err) {
-      console.error('Error fetching doctor session:', err);
+    } catch (err: any) {
+      // Gracefully handle network/offline errors without triggering fatal Next.js dev overlay
+      console.warn('[DoctorAuth] Could not connect to API server:', err?.message || err);
     } finally {
       setIsLoading(false);
     }
@@ -241,6 +242,9 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
     setDoctor(null);
     setProfile(null);
     setToken(null);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
 
   const updateProfile = async (updated: Partial<DoctorProfileData>) => {

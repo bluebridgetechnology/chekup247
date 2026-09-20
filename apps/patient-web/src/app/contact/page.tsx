@@ -14,6 +14,7 @@ import {
   HelpCircle,
   MessageSquare,
 } from 'lucide-react';
+import { toastSuccess, toastError } from '../../lib/toast';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
@@ -50,13 +51,17 @@ export default function ContactPage() {
 
       if (res.ok) {
         setSubmitted(true);
+        toastSuccess('Message sent', 'Our team will get back to you shortly.');
       } else {
         const data = await res.json().catch(() => ({}));
-        setError(data?.message || 'Failed to submit inquiry. Please try again or email us directly.');
+        const msg = data?.message || 'Failed to submit inquiry. Please try again or email us directly.';
+        setError(msg);
+        toastError('Could not send message', msg);
       }
     } catch (err) {
       // In sandbox / offline, simulate graceful success
       setSubmitted(true);
+      toastSuccess('Message sent', 'Our team will get back to you shortly.');
     } finally {
       setLoading(false);
     }

@@ -40,12 +40,34 @@ import { AuditService } from '../audit/audit.service';
 import { Req } from '@nestjs/common';
 import { Request } from 'express';
 
+import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../../common/decorators/auth.decorators';
+
 @Controller('consultations')
 export class ConsultationsController {
   constructor(
     private readonly consultationsService: ConsultationsService,
     private readonly auditService: AuditService,
   ) {}
+
+  /**
+   * Health Notes: Retrieves post-consultation recommendations & care instructions
+   * specifically for the calling patient, linking to any associated prescription.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('patient-notes/mine')
+  async getMyHealthNotes(@CurrentUser() user: any) {
+    return this.consultationsService.getPatientHealthNotes(user.sub || user.id);
+  }
+
+  /**
+   * Health Notes: Retrieves post-consultation recommendations by patient ID (for care team).
+   */
+  @UseGuards(JwtAuthGuard)
+  @Get('patient-notes/:patientId')
+  async getPatientHealthNotes(@Param('patientId') patientId: string) {
+    return this.consultationsService.getPatientHealthNotes(patientId);
+  }
 
   /**
    * Backward-compatible booking lookup.
@@ -132,7 +154,9 @@ export class ConsultationsController {
 
   /**
    * Doctor requests an in-call consultation time extension (BE-701).
-   * Checks next slot on VPS operational DB; emits WebSocket 'extension_requested'.
+   * Duration is 10, 20, or 30 minutes; the price is derived server-side pro-rata
+   * from the doctor's own hourly rate. Checks next slot on VPS operational DB;
+   * emits WebSocket 'extension_requested'.
    */
   @Post(':bookingId/extend')
   requestExtension(
@@ -140,7 +164,7 @@ export class ConsultationsController {
     @Body() dto: RequestExtensionDto,
   ) {
     if (!dto.durationMinutes) {
-      throw new BadRequestException('durationMinutes (15, 20, or 30) is required');
+      throw new BadRequestException('durationMinutes (10, 20, or 30) is required');
     }
     return this.consultationsService.requestExtension(
       bookingId,
@@ -152,7 +176,10 @@ export class ConsultationsController {
 
   /**
    * Patient submits consent for time extension (BE-701).
-   * If approved: auto-debits vaulted card and extends Daily.co room.
+   * If approved & paid: returns a Paystack `authorization_url` for the client to
+   * open in a new tab. The call is only extended once Paystack confirms the charge
+   * via the webhook — NO stored card, NO auto-debit. A complimentary (zero-amount)
+   * extension is finalized inline.
    */
   @Post(':bookingId/extend/consent')
   consentExtension(

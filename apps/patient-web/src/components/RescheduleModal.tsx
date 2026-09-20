@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { toastSuccess, toastError, errorMessage } from '../lib/toast';
 import {
   Calendar as CalendarIcon,
   Clock,
@@ -147,8 +148,11 @@ export function RescheduleModal({
       const updated = await res.json();
       onRescheduleSuccess(updated);
       onClose();
+      toastSuccess('Appointment rescheduled', 'Your new time is confirmed.');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Failed to reschedule. Please try again.');
+      const msg = errorMessage(err, 'Failed to reschedule. Please try again.');
+      setErrorMsg(msg);
+      toastError('Reschedule failed', msg);
     } finally {
       setIsSubmitting(false);
     }

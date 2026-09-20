@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
 import { MobileDrawer } from './MobileDrawer';
@@ -77,7 +77,28 @@ const NAV_LINKS: NavItem[] = [
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const avatarMenuRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useAuth();
+
+  // Close the avatar dropdown on outside click.
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target as Node)) {
+        setAvatarMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Initials for the avatar (e.g. "Lerato Khumalo" -> "LK").
+  const initials = (user?.fullName || '')
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() || '')
+    .join('') || 'ME';
 
   return (
     <>
@@ -194,53 +215,171 @@ export function Navbar() {
             className="header-actions"
           >
             {isAuthenticated && user ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }} className="auth-actions">
-                <Link
-                  href="/appointments"
-                  style={{
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    color: 'var(--color-white-85)',
-                    textDecoration: 'none',
-                  }}
-                  className="auth-link"
-                >
-                  My Appointments
-                </Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }} className="auth-actions">
+                {/* Notifications (self-contained dropdown) */}
                 <NotificationBell />
-                <Link
-                  href="/appointments"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '5px 12px',
-                    borderRadius: '10px',
-                    background: 'var(--color-gold-glow)',
-                    color: 'var(--color-gold-base)',
-                    fontWeight: 600,
-                    fontSize: '0.85rem',
-                    textDecoration: 'none',
-                    border: '1px solid var(--color-gold-glow)',
-                  }}
-                >
-                  <span>{user.fullName?.split(' ')[0] || 'Portal'}</span>
-                </Link>
-                <button
-                  onClick={() => logout()}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: 'var(--color-white-65)',
-                    fontSize: '0.85rem',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                    padding: '4px 6px',
-                  }}
-                  className="auth-signout"
-                >
-                  Sign Out
-                </button>
+
+                {/* Avatar + name: clicking navigates to the appointments dashboard;
+                    the caret opens a dropdown with the account actions. */}
+                <div style={{ position: 'relative' }} ref={avatarMenuRef}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '4px 6px 4px 4px',
+                      borderRadius: '9999px',
+                      background: 'var(--color-gold-glow)',
+                      border: '1px solid var(--color-gold-glow)',
+                    }}
+                  >
+                    <Link
+                      href="/appointments"
+                      aria-label="Go to my appointments dashboard"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          width: '30px',
+                          height: '30px',
+                          borderRadius: '50%',
+                          background: 'var(--color-gold-primary)',
+                          color: 'var(--color-chocolate-base)',
+                          fontWeight: 800,
+                          fontSize: '0.78rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0,
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {user.avatarUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={user.avatarUrl}
+                            alt=""
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          />
+                        ) : (
+                          initials
+                        )}
+                      </span>
+                      <span
+                        style={{
+                          color: 'var(--color-gold-base)',
+                          fontWeight: 600,
+                          fontSize: '0.85rem',
+                          whiteSpace: 'nowrap',
+                          maxWidth: '140px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        className="auth-avatar-name"
+                      >
+                        {user.fullName?.split(' ')[0] || 'My Account'}
+                      </span>
+                    </Link>
+
+                    <button
+                      onClick={() => setAvatarMenuOpen((v) => !v)}
+                      aria-label="Open account menu"
+                      aria-expanded={avatarMenuOpen}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        padding: '2px',
+                        color: 'var(--color-gold-base)',
+                      }}
+                    >
+                      <SolarIcon
+                        name={avatarMenuOpen ? 'alt-arrow-up-linear' : 'alt-arrow-down-linear'}
+                        size={16}
+                        color="var(--color-gold-base)"
+                      />
+                    </button>
+                  </div>
+
+                  {/* Dropdown menu */}
+                  {avatarMenuOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 10px)',
+                        right: 0,
+                        width: '220px',
+                        background: '#ffffff',
+                        borderRadius: '14px',
+                        border: '1px solid var(--color-slate-200, #E5E0D8)',
+                        boxShadow: '0 20px 40px -15px rgba(42,23,15,0.25)',
+                        overflow: 'hidden',
+                        zIndex: 100,
+                        animation: 'fadeIn 0.15s ease-out',
+                      }}
+                    >
+                      {/* Signed-in identity header */}
+                      <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--color-slate-100, #F0EBE3)' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {user.fullName || 'My Account'}
+                        </div>
+                        {user.email && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--color-cream-text-muted, #6B5E55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {user.email}
+                          </div>
+                        )}
+                      </div>
+
+                      <Link
+                        href="/appointments"
+                        onClick={() => setAvatarMenuOpen(false)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 16px', color: 'var(--color-chocolate-base, #2A170F)', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none' }}
+                        className="avatar-menu-item"
+                      >
+                        <SolarIcon name="calendar-linear" size={16} color="#2A170F" />
+                        <span>My Appointments</span>
+                      </Link>
+                      <Link
+                        href="/profile"
+                        onClick={() => setAvatarMenuOpen(false)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 16px', color: 'var(--color-chocolate-base, #2A170F)', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none' }}
+                        className="avatar-menu-item"
+                      >
+                        <SolarIcon name="user-linear" size={16} color="#2A170F" />
+                        <span>Profile &amp; Settings</span>
+                      </Link>
+                      <Link
+                        href="/settings/notifications"
+                        onClick={() => setAvatarMenuOpen(false)}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 16px', color: 'var(--color-chocolate-base, #2A170F)', fontSize: '0.85rem', fontWeight: 600, textDecoration: 'none' }}
+                        className="avatar-menu-item"
+                      >
+                        <SolarIcon name="bell-linear" size={16} color="#2A170F" />
+                        <span>Notification Settings</span>
+                      </Link>
+
+                      <button
+                        onClick={() => {
+                          setAvatarMenuOpen(false);
+                          logout();
+                        }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%', padding: '11px 16px', color: '#B91C1C', fontSize: '0.85rem', fontWeight: 700, background: 'transparent', border: 'none', borderTop: '1px solid var(--color-slate-100, #F0EBE3)', cursor: 'pointer', textAlign: 'left' }}
+                        className="avatar-menu-item"
+                      >
+                        <SolarIcon name="logout-2-linear" size={16} color="#B91C1C" />
+                        <span>Sign Out</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : (
               <Link
@@ -260,32 +399,34 @@ export function Navbar() {
               </Link>
             )}
 
-            {/* Primary Navigation CTA */}
-            <Link
-              href="/register"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: 'var(--color-gold-primary)',
-                color: 'var(--color-chocolate-base)',
-                fontWeight: 600,
-                fontSize: '0.875rem',
-                padding: '8px 20px',
-                borderRadius: '10px',
-                textDecoration: 'none',
-                lineHeight: 1,
-                height: '38px',
-                boxSizing: 'border-box',
-                transition: 'all 0.2s ease',
-                letterSpacing: '-0.01em',
-                whiteSpace: 'nowrap',
-              }}
-              className="nav-btn-get-started"
-            >
-              <span>Get Started</span>
-              <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
-            </Link>
+            {/* Primary Navigation CTA — hidden once signed in */}
+            {!isAuthenticated && (
+              <Link
+                href="/register"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: 'var(--color-gold-primary)',
+                  color: 'var(--color-chocolate-base)',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  padding: '8px 20px',
+                  borderRadius: '10px',
+                  textDecoration: 'none',
+                  lineHeight: 1,
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  transition: 'all 0.2s ease',
+                  letterSpacing: '-0.01em',
+                  whiteSpace: 'nowrap',
+                }}
+                className="nav-btn-get-started"
+              >
+                <span>Get Started</span>
+                <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
+              </Link>
+            )}
 
             {/* Compact Mobile Menu Trigger */}
             <button
