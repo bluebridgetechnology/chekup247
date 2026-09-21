@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   NotFoundException,
   BadRequestException,
+  ForbiddenException,
   Logger,
   OnModuleInit,
   Optional,
@@ -730,6 +731,18 @@ export class AuthService implements OnModuleInit {
    * Google Social Sign-In / Registration
    */
   async googleAuth(dto: GoogleAuthDto): Promise<AuthSessionResponse> {
+    // Social (Google) login is DISABLED for now.
+    // The previous implementation trusted an unverified client-supplied
+    // credential and minted a real, email-verified session from it, which
+    // let anyone log in without authenticating with Google. Until proper
+    // server-side Google ID-token verification (Google Auth Library /
+    // tokeninfo) is implemented, this endpoint refuses all requests.
+    throw new ForbiddenException(
+      'Google sign-in is currently unavailable. Please sign in with your email and password.',
+    );
+
+    /* eslint-disable no-unreachable */
+    // --- Original mock/unverified implementation retained for future reference ---
     // In production, verify with Google Auth Library / Tokeninfo endpoint
     // Fallback/direct parsing for robust support:
     let email = dto.email;
@@ -806,6 +819,7 @@ export class AuthService implements OnModuleInit {
         dateOfBirth: user.date_of_birth,
       },
     };
+    /* eslint-enable no-unreachable */
   }
 
   /**
