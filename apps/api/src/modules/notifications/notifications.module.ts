@@ -4,19 +4,21 @@ import { Notification } from '../../database/patient/entities';
 import {
   NotificationPreference,
   User,
+  PushSubscription,
 } from '../../database/operational/entities';
 import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { BrevoEmailProvider } from './providers/brevo.provider';
 import { SmsProvider } from './providers/sms.provider';
 import { WhatsAppProvider } from './providers/whatsapp.provider';
+import { WebPushProvider } from './providers/web-push.provider';
 import { NotificationsGateway } from './notifications.gateway';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Notification], 'patient'),
-    TypeOrmModule.forFeature([NotificationPreference, User], 'operational'),
+    TypeOrmModule.forFeature([NotificationPreference, User, PushSubscription], 'operational'),
     AuthModule,
   ],
   controllers: [NotificationsController],
@@ -25,8 +27,9 @@ import { AuthModule } from '../auth/auth.module';
     BrevoEmailProvider,
     SmsProvider,
     WhatsAppProvider,
+    WebPushProvider,
     NotificationsGateway,
   ],
-  exports: [NotificationsService, NotificationsGateway],
+  exports: [NotificationsService, NotificationsGateway, WebPushProvider],
 })
 export class NotificationsModule {}

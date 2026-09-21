@@ -131,9 +131,6 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           <Link href="/for-doctors" onClick={onClose} style={{ color: 'var(--color-white-85)' }}>
             For Providers
           </Link>
-          <Link href="/about" onClick={onClose} style={{ color: 'var(--color-white-85)' }}>
-            About
-          </Link>
 
           <div
             style={{

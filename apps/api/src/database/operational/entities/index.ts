@@ -9,3 +9,4 @@ export * from './verification-token.entity';
 export * from './icd10-code.entity';
 export * from './doctor-blackout.entity';
 export * from './testimonial.entity';
+export * from './push-subscription.entity';

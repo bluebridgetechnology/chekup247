@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Param,
   Body,
   Query,
@@ -143,5 +144,34 @@ export class NotificationsController {
   @Get('smsportal/balance')
   getSmsPortalBalance() {
     return this.notificationsService.getSmsBalance();
+  }
+
+  /**
+   * PWA: Register or update browser push subscription.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Post('push-subscription')
+  savePushSubscription(
+    @CurrentUser('id') userId: string,
+    @Body()
+    dto: {
+      endpoint: string;
+      keys: { p256dh: string; auth: string };
+      userAgent?: string;
+    },
+  ) {
+    return this.notificationsService.savePushSubscription(userId, dto);
+  }
+
+  /**
+   * PWA: Delete browser push subscription.
+   */
+  @UseGuards(JwtAuthGuard)
+  @Delete('push-subscription')
+  deletePushSubscription(
+    @CurrentUser('id') userId: string,
+    @Body() dto: { endpoint: string },
+  ) {
+    return this.notificationsService.deletePushSubscription(userId, dto.endpoint);
   }
 }

@@ -13,11 +13,13 @@ import {
 import {
   NotificationPreference,
   User,
+  PushSubscription,
 } from '../../database/operational/entities';
 import { envConfig } from '../../config/env.config';
 import { BrevoEmailProvider } from './providers/brevo.provider';
 import { SmsProvider } from './providers/sms.provider';
 import { WhatsAppProvider } from './providers/whatsapp.provider';
+import { WebPushProvider, PushPayload } from './providers/web-push.provider';
 import { NotificationsGateway } from './notifications.gateway';
 
 export interface DispatchNotificationOptions {
@@ -40,9 +42,12 @@ export class NotificationsService {
     private readonly preferenceRepository: Repository<NotificationPreference>,
     @InjectRepository(User, 'operational')
     private readonly userRepository: Repository<User>,
+    @InjectRepository(PushSubscription, 'operational')
+    private readonly pushSubRepository: Repository<PushSubscription>,
     private readonly brevoEmailProvider: BrevoEmailProvider,
     private readonly smsProvider: SmsProvider,
     private readonly whatsAppProvider: WhatsAppProvider,
+    private readonly webPushProvider: WebPushProvider,
     private readonly notificationsGateway: NotificationsGateway,
   ) {}
 
@@ -505,5 +510,77 @@ export class NotificationsService {
    */
   async getSmsBalance(): Promise<{ success: boolean; balance?: number; error?: string }> {
     return this.smsProvider.checkBalance();
+  }
+
+  /**
+   * PWA: Register or update browser push subscription.
+   */
+  async savePushSubscription(
+    userId: string,
+    dto: {
+      endpoint: string;
+      keys: { p256dh: string; auth: string };
+      userAgent?: string;
+    },
+  ): Promise<PushSubscription> {
+    let existing = await this.pushSubRepository.findOne({
+      where: { endpoint: dto.endpoint },
+    });
+
+    if (existing) {
+      existing.user_id = userId;
+      existing.keys_p256dh = dto.keys.p256dh;
+      existing.keys_auth = dto.keys.auth;
+      existing.user_agent = dto.userAgent || existing.user_agent;
+      return this.pushSubRepository.save(existing);
+    }
+
+    const newSub = this.pushSubRepository.create({
+      user_id: userId,
+      endpoint: dto.endpoint,
+      keys_p256dh: dto.keys.p256dh,
+      keys_auth: dto.keys.auth,
+      user_agent: dto.userAgent,
+    });
+    return this.pushSubRepository.save(newSub);
+  }
+
+  /**
+   * PWA: Delete browser push subscription.
+   */
+  async deletePushSubscription(userId: string, endpoint: string): Promise<void> {
+    await this.pushSubRepository.delete({ user_id: userId, endpoint });
+  }
+
+  /**
+   * PWA: Send web push notification to all active devices of a user.
+   */
+  async sendWebPushNotification(userId: string, payload: PushPayload): Promise<void> {
+    const subscriptions = await this.pushSubRepository.find({
+      where: { user_id: userId },
+    });
+
+    if (!subscriptions || subscriptions.length === 0) {
+      return;
+    }
+
+    for (const sub of subscriptions) {
+      const result = await this.webPushProvider.sendNotification(
+        {
+          endpoint: sub.endpoint,
+          keys: {
+            p256dh: sub.keys_p256dh,
+            auth: sub.keys_auth,
+          },
+        },
+        payload,
+      );
+
+      // Clean up dead subscriptions (410 or 404)
+      if (result.isExpired) {
+        this.logger.log(`[PWA Push] Removing expired push subscription ${sub.id}`);
+        await this.pushSubRepository.delete(sub.id);
+      }
+    }
   }
 }

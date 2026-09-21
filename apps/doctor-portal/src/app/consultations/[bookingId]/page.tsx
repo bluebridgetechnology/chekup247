@@ -55,6 +55,7 @@ import { io, Socket } from 'socket.io-client';
 import { useDoctorAuth } from '../../../context/DoctorAuthContext';
 import { toastSuccess, toastError, errorMessage } from '../../../lib/toast';
 import { ChekupCrossLogo } from '../../../components/common/ChekupCrossLogo';
+import { useWakeLock } from '../../../lib/hooks/useWakeLock';
 
 interface ConsultationDetail {
   id: string;
@@ -203,6 +204,7 @@ export default function DoctorConsultationWorkspace() {
   // Modals
   const [showEndModal, setShowEndModal] = useState<boolean>(false);
   const [showSummaryModal, setShowSummaryModal] = useState<boolean>(false);
+  useWakeLock(!showSummaryModal);
   const [checklist, setChecklist] = useState({
     notes: true,
     diagnosis: true,

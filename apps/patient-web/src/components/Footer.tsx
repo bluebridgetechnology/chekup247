@@ -46,7 +46,7 @@ export function Footer({ compact = false }: FooterProps) {
             </Link>
 
             <p className="footer-slogan">
-              Virtual care. Real people. A healthier South Africa.
+              Quality Care. Anytime. Anywhere.
             </p>
           </div>
 

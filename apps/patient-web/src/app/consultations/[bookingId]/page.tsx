@@ -42,6 +42,7 @@ import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../../context/AuthContext';
 import { ChekupCrossLogo } from '../../../components/common/ChekupCrossLogo';
 import { ReviewModal } from '../../../components/ReviewModal';
+import { useWakeLock } from '../../../lib/hooks/useWakeLock';
 
 // ============================================================================
 // Types & Interfaces
@@ -171,6 +172,7 @@ export default function PatientConsultationPage() {
   const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
   const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  useWakeLock(!!callObject && !isConsultationEnded);
 
   // Real Hardware Stream & Audio Metering
   const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);

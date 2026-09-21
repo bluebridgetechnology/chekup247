@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { SolarIcon } from './SolarIcon';
 import { MobileDrawer } from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
@@ -64,18 +65,17 @@ export function ChekupCrossLogo({ size = 26 }: { size?: number }) {
 interface NavItem {
   label: string;
   href: string;
-  isActive?: boolean;
 }
 
 const NAV_LINKS: NavItem[] = [
-  { label: 'Home', href: '/', isActive: true },
+  { label: 'Home', href: '/' },
   { label: 'Doctor Consultation', href: '/doctors' },
   { label: 'How It Works', href: '/how-it-works' },
   { label: 'For Providers', href: '/for-doctors' },
-  { label: 'About', href: '/about' },
 ];
 
 export function Navbar() {
+  const pathname = usePathname() || '';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
@@ -164,44 +164,47 @@ export function Navbar() {
             className="desktop-nav"
             aria-label="Primary Navigation"
           >
-            {NAV_LINKS.map((item) => (
-              <Link
-                key={item.label}
-                href={item.href}
-                style={{
-                  position: 'relative',
-                  fontSize: '0.875rem',
-                  fontWeight: item.isActive ? 600 : 500,
-                  color: item.isActive ? 'var(--color-white)' : 'var(--color-white-80)',
-                  textDecoration: 'none',
-                  transition: 'color 0.2s ease',
-                  padding: '6px 0',
-                  display: 'inline-flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  letterSpacing: '-0.01em',
-                  whiteSpace: 'nowrap',
-                }}
-                className={`nav-link ${item.isActive ? 'active' : ''}`}
-              >
-                <span>{item.label}</span>
-                {item.isActive && (
-                  <span
-                    style={{
-                      position: 'absolute',
-                      bottom: '-2px',
-                      left: '50%',
-                      transform: 'translateX(-50%)',
-                      width: '28px',
-                      height: '2px',
-                      backgroundColor: 'var(--color-gold-base)',
-                      borderRadius: '1px',
-                    }}
-                    aria-hidden="true"
-                  />
-                )}
-              </Link>
-            ))}
+            {NAV_LINKS.map((item) => {
+              const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  style={{
+                    position: 'relative',
+                    fontSize: '0.875rem',
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? 'var(--color-white)' : 'var(--color-white-80)',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s ease',
+                    padding: '6px 0',
+                    display: 'inline-flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    letterSpacing: '-0.01em',
+                    whiteSpace: 'nowrap',
+                  }}
+                  className={`nav-link ${isActive ? 'active' : ''}`}
+                >
+                  <span>{item.label}</span>
+                  {isActive && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        bottom: '-2px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        width: '28px',
+                        height: '2px',
+                        backgroundColor: 'var(--color-gold-base)',
+                        borderRadius: '1px',
+                      }}
+                      aria-hidden="true"
+                    />
+                  )}
+                </Link>
+              );
+            })}
           </nav>
 
           {/* RIGHT SIDE: Log In & Primary CTA */}

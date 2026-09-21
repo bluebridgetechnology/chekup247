@@ -1,10 +1,18 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import '../styles/globals.css';
 import { LayoutShell } from '../components/LayoutShell';
 import { AuthProvider } from '../context/AuthContext';
+import { PwaProvider } from '../context/PwaContext';
+import { PwaInstallBanner } from '../components/pwa/PwaInstallBanner';
 import { BrandToaster } from '../components/BrandToaster';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chekup247.co.za';
+
+export const viewport: Viewport = {
+  themeColor: '#2A170F',
+  width: 'device-width',
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -64,6 +72,21 @@ export const metadata: Metadata = {
       'max-image-preview': 'large',
       'max-snippet': -1,
     },
+  },
+  manifest: '/manifest.webmanifest',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'ChekUp247',
+  },
+  icons: {
+    icon: [
+      { url: '/icons/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
   },
 };
 
@@ -144,8 +167,11 @@ export default function RootLayout({
           Skip to main content
         </a>
         <AuthProvider>
-          <BrandToaster />
-          <LayoutShell>{children}</LayoutShell>
+          <PwaProvider>
+            <BrandToaster />
+            <PwaInstallBanner />
+            <LayoutShell>{children}</LayoutShell>
+          </PwaProvider>
         </AuthProvider>
       </body>
     </html>

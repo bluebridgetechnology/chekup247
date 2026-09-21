@@ -7,6 +7,8 @@ import { CollapsibleSidebar } from '../components/CollapsibleSidebar';
 import { DoctorHeader } from '../components/DoctorHeader';
 import { DoctorMobileDrawer } from '../components/DoctorMobileDrawer';
 import { DoctorAuthProvider, useDoctorAuth } from '../context/DoctorAuthContext';
+import { DoctorPwaProvider } from '../context/DoctorPwaContext';
+import { DoctorPwaAlerts, DoctorPwaInstallPrompt } from '../components/pwa/PwaDoctorInstallButton';
 import { BrandToaster } from '../components/BrandToaster';
 import { ChekupCrossLogo } from '../components/common/ChekupCrossLogo';
 
@@ -193,6 +195,14 @@ export default function DoctorRootLayout({
       <head>
         <title>Doctor Practice Portal — ChekUp247</title>
         <meta name="description" content="ChekUp247 Doctor Practice Management and Telehealth Suite" />
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content="#2A170F" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="ChekUp Doctor" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192x192.png" />
         <style>{`
           :root {
             --doctor-topbar-h: 76px;
@@ -232,8 +242,12 @@ export default function DoctorRootLayout({
       </head>
       <body style={{ margin: 0, padding: 0, minHeight: '100vh', width: '100%', maxWidth: '100%', overflowX: 'hidden', backgroundColor: 'var(--color-cream-base, #FAF6EE)' }}>
         <DoctorAuthProvider>
-          <BrandToaster />
-          <DoctorLayoutInner>{children}</DoctorLayoutInner>
+          <DoctorPwaProvider>
+            <BrandToaster />
+            <DoctorPwaAlerts />
+            <DoctorPwaInstallPrompt />
+            <DoctorLayoutInner>{children}</DoctorLayoutInner>
+          </DoctorPwaProvider>
         </DoctorAuthProvider>
       </body>
     </html>
