@@ -2156,17 +2156,45 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
             </Link>
           </div>
         ) : isLoading ? (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '48px 0',
-              color: '#B88647',
-              gap: '10px',
-            }}
-          >
-            <span style={{ fontSize: '0.88rem', color: '#6B5E55' }}>Loading consultations...</span>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '12px 0' }}>
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '16px',
+                  border: '1px solid #EDE4D4',
+                  padding: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                  boxShadow: '0 2px 8px rgba(42, 23, 15, 0.03)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div
+                    style={{
+                      width: '54px',
+                      height: '54px',
+                      borderRadius: '50%',
+                      backgroundColor: '#F0E5D3',
+                      animation: 'pulse 1.5s infinite',
+                    }}
+                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ width: '180px', height: '18px', borderRadius: '6px', backgroundColor: 'rgba(42, 23, 15, 0.1)', animation: 'pulse 1.5s infinite' }} />
+                    <div style={{ width: '120px', height: '14px', borderRadius: '4px', backgroundColor: 'rgba(42, 23, 15, 0.05)', animation: 'pulse 1.5s infinite' }} />
+                    <div style={{ width: '150px', height: '12px', borderRadius: '4px', backgroundColor: 'rgba(223, 171, 98, 0.25)', animation: 'pulse 1.5s infinite' }} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <div style={{ width: '100px', height: '38px', borderRadius: '10px', backgroundColor: 'rgba(42, 23, 15, 0.05)', animation: 'pulse 1.5s infinite' }} />
+                  <div style={{ width: '130px', height: '38px', borderRadius: '10px', backgroundColor: '#F0E5D3', animation: 'pulse 1.5s infinite' }} />
+                </div>
+              </div>
+            ))}
           </div>
         ) : filteredBookings.length === 0 ? (
           <div

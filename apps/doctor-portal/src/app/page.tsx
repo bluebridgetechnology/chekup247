@@ -608,16 +608,30 @@ export default function DoctorDashboardPage() {
       {/* ═══════════════════════════════════════════════════════════════════
           4 KPI Metric Cards
           ═══════════════════════════════════════════════════════════════════ */}
-      <div
-        className="dashboard-kpi-grid"
-        style={{ opacity: isPendingVerification ? 0.8 : 1 }}
-      >
-        {/* Card 1: Today's Appointments */}
-        <div className="kpi-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-            <span className="stat-label">
-              Today&apos;s Appointments
-            </span>
+      {isLoading ? (
+        <div className="dashboard-kpi-grid">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="kpi-card" style={{ padding: '22px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                <div style={{ width: '110px', height: '14px', borderRadius: '4px', backgroundColor: 'rgba(42, 23, 15, 0.08)', animation: 'pulse 1.5s infinite' }} />
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'var(--color-gold-pale, #F0E5D3)', animation: 'pulse 1.5s infinite' }} />
+              </div>
+              <div style={{ width: '120px', height: '32px', borderRadius: '6px', backgroundColor: 'rgba(42, 23, 15, 0.12)', marginBottom: '8px', animation: 'pulse 1.5s infinite' }} />
+              <div style={{ width: '140px', height: '12px', borderRadius: '4px', backgroundColor: 'rgba(42, 23, 15, 0.05)', animation: 'pulse 1.5s infinite' }} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div
+          className="dashboard-kpi-grid"
+          style={{ opacity: isPendingVerification ? 0.8 : 1 }}
+        >
+          {/* Card 1: Today's Appointments */}
+          <div className="kpi-card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <span className="stat-label">
+                Today&apos;s Appointments
+              </span>
             <div
               style={{
                 width: '36px',
@@ -750,6 +764,7 @@ export default function DoctorDashboardPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* ═══════════════════════════════════════════════════════════════════
           Mobile-only: Today's Schedule above main content grid
@@ -761,7 +776,24 @@ export default function DoctorDashboardPage() {
       {/* ═══════════════════════════════════════════════════════════════════
           Main Content + Right Sidebar Grid
           ═══════════════════════════════════════════════════════════════════ */}
-      {!isPendingVerification && (
+      {isLoading ? (
+        <div className="dashboard-content-grid">
+          <div className="dashboard-main">
+            <div className="kpi-card" style={{ padding: '24px' }}>
+              <div style={{ width: '180px', height: '20px', borderRadius: '6px', backgroundColor: 'rgba(42, 23, 15, 0.1)', marginBottom: '20px', animation: 'pulse 1.5s infinite' }} />
+              {[1, 2, 3].map((s) => (
+                <div key={s} style={{ height: '60px', borderRadius: '12px', backgroundColor: 'rgba(42, 23, 15, 0.03)', marginBottom: '12px', animation: 'pulse 1.5s infinite' }} />
+              ))}
+            </div>
+          </div>
+          <div className="dashboard-sidebar">
+            <div className="kpi-card" style={{ padding: '24px' }}>
+              <div style={{ width: '150px', height: '20px', borderRadius: '6px', backgroundColor: 'rgba(42, 23, 15, 0.1)', marginBottom: '16px', animation: 'pulse 1.5s infinite' }} />
+              <div style={{ height: '80px', borderRadius: '12px', backgroundColor: 'rgba(42, 23, 15, 0.03)', animation: 'pulse 1.5s infinite' }} />
+            </div>
+          </div>
+        </div>
+      ) : !isPendingVerification && (
         <div className="dashboard-content-grid">
           {/* ─── Main Column ────────────────────────────────────────────── */}
           <div className="dashboard-main">

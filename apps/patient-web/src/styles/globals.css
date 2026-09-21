@@ -2092,7 +2092,7 @@ details summary::-webkit-details-marker {
     rgba(42, 23, 15, 0.78) 58%,
     rgba(42, 23, 15, 0.35) 72%,
     rgba(42, 23, 15, 0) 86%
-  ), url('/images/doc_hero.png');
+  ), url('/images/doc_hero.webp');
   background-repeat: no-repeat;
   background-size: cover;
   background-position: right center;
@@ -2108,7 +2108,7 @@ details summary::-webkit-details-marker {
       rgba(42, 23, 15, 0.98) 0%,
       rgba(42, 23, 15, 0.94) 55%,
       rgba(42, 23, 15, 0.65) 100%
-    ), url('/images/doc_hero.png');
+    ), url('/images/doc_hero.webp');
     padding: 36px 0 60px 0;
   }
 }
@@ -2120,7 +2120,7 @@ details summary::-webkit-details-marker {
       to bottom,
       rgba(42, 23, 15, 0.96) 0%,
       rgba(42, 23, 15, 0.98) 100%
-    ), url('/images/doc_hero.png');
+    ), url('/images/doc_hero.webp');
     padding: 28px 0 52px 0;
   }
 }

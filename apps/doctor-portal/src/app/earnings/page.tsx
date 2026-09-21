@@ -466,9 +466,23 @@ export default function DoctorEarningsPage() {
       )}
 
       {/* Primary KPI Metrics Strip */}
-      <div className="earnings-kpi-grid">
-        {/* Card 1: Available Balance for Payout */}
-        <div className="earnings-kpi-card">
+      {isLoading ? (
+        <div className="earnings-kpi-grid">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="earnings-kpi-card" style={{ padding: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                <div style={{ width: '100px', height: '14px', borderRadius: '4px', backgroundColor: 'rgba(42, 23, 15, 0.08)', animation: 'pulse 1.5s infinite' }} />
+                <div style={{ width: '36px', height: '36px', borderRadius: '10px', backgroundColor: 'var(--color-gold-pale, #F0E5D3)', animation: 'pulse 1.5s infinite' }} />
+              </div>
+              <div style={{ width: '130px', height: '32px', borderRadius: '6px', backgroundColor: 'rgba(42, 23, 15, 0.12)', marginBottom: '8px', animation: 'pulse 1.5s infinite' }} />
+              <div style={{ width: '160px', height: '12px', borderRadius: '4px', backgroundColor: 'rgba(42, 23, 15, 0.05)', animation: 'pulse 1.5s infinite' }} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="earnings-kpi-grid">
+          {/* Card 1: Available Balance for Payout */}
+          <div className="earnings-kpi-card">
           <div className="earnings-kpi-header">
             <span className="stat-label">Available Balance</span>
             <div className="earnings-kpi-icon">
@@ -532,6 +546,7 @@ export default function DoctorEarningsPage() {
           </div>
         </div>
       </div>
+      )}
 
       {/* Monthly Earnings Trajectory Visual Chart */}
       <div className="earnings-chart-card">
