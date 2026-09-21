@@ -38,7 +38,8 @@ export const getPatientDbConfig = (): TypeOrmModuleOptions => ({
   database: envConfig.PATIENT_DB_NAME,
   ssl: envConfig.PATIENT_DB_SSL ? { rejectUnauthorized: false } : false,
   entities: patientEntities,
-  synchronize: envConfig.NODE_ENV !== 'production', // Use migrations in prod
+  synchronize: envConfig.NODE_ENV !== 'production' || envConfig.DB_SYNCHRONIZE,
   logging: envConfig.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+
   autoLoadEntities: false,
 });

@@ -23,6 +23,11 @@ const envSchema = z.object({
     .default('false')
     .transform((v) => v === 'true'),
   DATABASE_OPERATIONAL_URL: z.string().optional(),
+  DB_SYNCHRONIZE: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+
 
   // Patient Database (Local / VPS / AWS RDS af-south-1)
   PATIENT_DB_HOST: z.string().default('127.0.0.1'),

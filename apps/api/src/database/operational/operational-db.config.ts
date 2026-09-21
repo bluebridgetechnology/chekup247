@@ -39,7 +39,8 @@ export const getOperationalDbConfig = (): TypeOrmModuleOptions => ({
   database: envConfig.OPERATIONAL_DB_NAME,
   ssl: envConfig.OPERATIONAL_DB_SSL ? { rejectUnauthorized: false } : false,
   entities: operationalEntities,
-  synchronize: envConfig.NODE_ENV !== 'production', // Use migrations in prod
+  synchronize: envConfig.NODE_ENV !== 'production' || envConfig.DB_SYNCHRONIZE,
   logging: envConfig.NODE_ENV === 'development' ? ['error', 'warn'] : ['error'],
+
   autoLoadEntities: false,
 });

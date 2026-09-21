@@ -1,0 +1,117 @@
+# ==============================================================================
+# ChekUp247 Caddy Reverse Proxy Configuration
+# Automatic HTTPS / Let's Encrypt SSL, HTTP/3, and WebSocket Support
+# ==============================================================================
+
+# Global options
+{
+    email admin@chekup.co.za
+    admin off
+}
+
+# 1. Patient Web Application (Main Domain)
+chekup.co.za, www.chekup.co.za {
+    encode zstd gzip
+
+    # Redirect www to non-www
+    @www host www.chekup.co.za
+    handle @www {
+        redir https://chekup.co.za{uri} permanent
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    }
+
+    reverse_proxy patient-web:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
+# 2. Doctor Portal
+doctor.chekup.co.za {
+    encode zstd gzip
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    }
+
+    reverse_proxy doctor-portal:3001 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
+# 3. Admin Panel (Isolated)
+admin.chekup.co.za {
+    encode zstd gzip
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    }
+
+    reverse_proxy admin-panel:3002 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
+# 4. ChekUp247 NestJS Backend API & WebSockets
+api.chekup.co.za {
+    encode zstd gzip
+
+    # Increase max upload size for medical records & attachments (50MB)
+    request_body {
+        max_size 50MB
+    }
+
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "SAMEORIGIN"
+        X-XSS-Protection "1; mode=block"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    }
+
+    reverse_proxy api:4000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+        # WebSockets (Socket.io) headers are automatically handled by Caddy
+    }
+}
+
+# 5. Object Storage (MinIO S3 API)
+storage.chekup.co.za {
+    request_body {
+        max_size 100MB
+    }
+
+    reverse_proxy minio:9000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
