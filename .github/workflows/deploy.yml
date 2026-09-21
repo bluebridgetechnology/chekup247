@@ -135,10 +135,8 @@ jobs:
               git reset --hard origin/main
             fi
 
-            # Authenticate to GHCR if GHCR_PAT is configured
-            if [ -n "${{ secrets.GHCR_PAT }}" ]; then
-              echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
-            fi
+            # Authenticate to GHCR (using GHCR_PAT if provided, or GITHUB_TOKEN)
+            echo "${{ secrets.GHCR_PAT || secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
             echo "📦 Pulling latest Docker images..."
             IMAGE_PREFIX=ghcr.io/${{ steps.repo_owner.outputs.owner }} IMAGE_TAG=latest \
