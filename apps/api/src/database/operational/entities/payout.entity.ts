@@ -11,6 +11,7 @@ import { DoctorProfile } from './doctor-profile.entity';
 
 export enum PayoutStatus {
   PENDING = 'pending',
+  HOLD = 'hold',
   PAID = 'paid',
   FAILED = 'failed',
 }
@@ -45,6 +46,15 @@ export class Payout {
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   transaction_reference: string;
+
+  @Column({ type: 'text', nullable: true })
+  hold_reason: string | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  approved_by_admin_id: string | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  approved_at: Date | null;
 
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;

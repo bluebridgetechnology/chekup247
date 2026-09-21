@@ -6,3 +6,6 @@ export * from './prescription.entity';
 export * from './review.entity';
 export * from './notification.entity';
 export * from './wallet-credit.entity';
+export * from './patient-medical-profile.entity';
+export * from './patient-document.entity';
+export * from './dispute.entity';

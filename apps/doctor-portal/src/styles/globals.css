@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Caveat:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap');
 @import '../../../../packages/design-tokens/src/tokens.css';
 
 * {
@@ -9,7 +9,9 @@
 
 html,
 body {
-  max-width: 100vw;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
   font-family: var(--font-sans);
   background-color: var(--color-cream-base, #FAF6EE);
   color: var(--color-chocolate-base, #2A170F);
@@ -20,12 +22,100 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   letter-spacing: -0.02em;
   color: var(--color-chocolate-base, #2A170F);
+  font-weight: var(--font-heading-weight, 400);
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: var(--font-page-title-size, 1.875rem);
+}
+
+h2 {
+  font-size: var(--font-section-title-size, 1.25rem);
+}
+
+h3 {
+  font-size: var(--text-lg, 1.125rem);
+}
+
+/* ==========================================================================
+   Page Header & Typography Utilities (Centralized Inheritance)
+   ========================================================================== */
+.page-title {
+  font-family: var(--font-heading);
+  font-size: var(--font-page-title-size, 1.875rem) !important;
+  font-weight: var(--font-heading-weight, 400) !important;
+  color: var(--color-chocolate-base, #2A170F);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: var(--text-sm, 0.925rem);
+  color: var(--color-cream-text-muted, #6B5E55);
+  line-height: 1.5;
+  margin-top: 6px;
+  font-weight: 400;
+}
+
+.page-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs, 0.75rem);
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-gold-bronze, #B88647);
+  margin-bottom: 6px;
+}
+
+.section-title {
+  font-family: var(--font-heading);
+  font-size: var(--font-section-title-size, 1.25rem) !important;
+  font-weight: var(--font-heading-weight, 400) !important;
+  color: var(--color-chocolate-base, #2A170F);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.section-subtitle {
+  font-size: var(--text-sm, 0.85rem);
+  color: var(--color-cream-text-muted, #6B5E55);
+  margin-top: 2px;
+}
+
+.stat-number {
+  font-family: var(--font-heading);
+  font-size: var(--font-stat-number-size, 1.875rem) !important;
+  font-weight: var(--font-heading-weight, 400) !important;
+  color: var(--color-chocolate-base, #2A170F);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+  color: var(--color-cream-text-muted, #6B5E55);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* ==========================================================================
+   Scrollbar Utilities
+   ========================================================================== */
+.no-scrollbar {
+  -ms-overflow-style: none; /* IE and Edge */
+  scrollbar-width: none; /* Firefox */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, and Opera */
 }
 
 /* ==========================================================================
@@ -178,6 +268,794 @@ a {
   box-shadow: 0 8px 26px var(--color-chocolate-shadow, rgba(42, 23, 15, 0.08));
 }
 
+/* Flat KPI stat card — no shadow, no hover lift */
+.kpi-card {
+  background-color: var(--color-cream-surface, #FDFBF7);
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.28));
+  border-radius: 16px;
+  padding: 20px 22px;
+}
+
+/* ==========================================================================
+   Dashboard Grid Layout (main + sidebar)
+   ========================================================================== */
+
+/* 4-column KPI grid */
+.dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* Dashboard content grid: main + sidebar */
+.dashboard-content-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.dashboard-content-grid > * {
+  min-width: 0;
+}
+
+.dashboard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.dashboard-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 24px;
+}
+
+/* Mobile schedule card: above grid on mobile, hidden on desktop */
+.dashboard-schedule-mobile {
+  display: none;
+  margin-bottom: 24px;
+}
+
+.dashboard-schedule-desktop {
+  display: block;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-content-grid {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-schedule-mobile {
+    display: block;
+  }
+  .dashboard-schedule-desktop {
+    display: none !important;
+  }
+  .dashboard-sidebar {
+    position: static;
+  }
+}
+
+/* Schedule summary two-number layout */
+.schedule-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+/* Flat cards without hover shadow on appointments queue, prescriptions & earnings */
+.appointments-page .portal-card,
+.appointments-page .portal-card:hover,
+.appointments-page .doctor-table-card,
+.appointments-page .doctor-table-card:hover,
+.appointments-page .doctor-mobile-card,
+.appointments-page .doctor-mobile-card:hover,
+.appointments-page .kpi-card,
+.appointments-page .kpi-card:hover,
+.prescriptions-page .portal-card,
+.prescriptions-page .portal-card:hover,
+.prescriptions-page .doctor-table-card,
+.prescriptions-page .doctor-table-card:hover,
+.prescriptions-page .doctor-mobile-card,
+.prescriptions-page .doctor-mobile-card:hover,
+.prescriptions-page .kpi-card,
+.prescriptions-page .kpi-card:hover,
+.prescribe-page .portal-card,
+.prescribe-page .portal-card:hover,
+.icd10-page .portal-card,
+.icd10-page .portal-card:hover,
+.icd10-page .clinical-table-container,
+.icd10-page .clinical-table-container:hover,
+.earnings-page .portal-card,
+.earnings-page .portal-card:hover,
+.earnings-page .doctor-table-card,
+.earnings-page .doctor-table-card:hover,
+.earnings-page .doctor-mobile-card,
+.earnings-page .doctor-mobile-card:hover,
+.earnings-page .kpi-card,
+.earnings-page .kpi-card:hover,
+.earnings-page .clinical-table-container,
+.earnings-page .clinical-table-container:hover,
+.earnings-page .specialty-chip,
+.earnings-page .specialty-chip:hover,
+.earnings-page .specialty-chip.active,
+.earnings-page .doctors-search-pill,
+.earnings-page .doctors-search-pill:focus-within,
+.earnings-page .earnings-kpi-card,
+.earnings-page .earnings-kpi-card:hover,
+.earnings-page .earnings-chart-card,
+.earnings-page .earnings-chart-card:hover,
+.earnings-page .earnings-review-card,
+.earnings-page .earnings-review-card:hover,
+.profile-page .portal-card,
+.profile-page .portal-card:hover {
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.appointments-page .portal-card:hover,
+.prescriptions-page .portal-card:hover,
+.prescribe-page .portal-card:hover,
+.icd10-page .portal-card:hover,
+.icd10-page .clinical-table-container:hover,
+.earnings-page .portal-card:hover,
+.earnings-page .earnings-kpi-card:hover,
+.earnings-page .earnings-chart-card:hover,
+.earnings-page .clinical-table-container:hover,
+.profile-page .portal-card:hover {
+  border-color: var(--color-gold-border, rgba(223, 171, 98, 0.28)) !important;
+}
+
+/* E-Prescription Builder Responsive Layouts */
+.rx-medication-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 14px;
+}
+
+.rx-grid-col-6 {
+  grid-column: span 6;
+}
+
+.rx-grid-col-4 {
+  grid-column: span 4;
+}
+
+.rx-grid-col-3 {
+  grid-column: span 3;
+}
+
+.rx-grid-col-12 {
+  grid-column: span 12;
+}
+
+@media (max-width: 768px) {
+  .rx-medication-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .rx-grid-col-6,
+  .rx-grid-col-4,
+  .rx-grid-col-3,
+  .rx-grid-col-12 {
+    grid-column: span 1 !important;
+  }
+  .prescribe-stationary-sheet {
+    padding: 24px 18px !important;
+  }
+  .prescribe-stationary-creds {
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+  }
+  .prescribe-stationary-header {
+    flex-direction: column !important;
+    gap: 14px !important;
+  }
+  .prescribe-stationary-header > div:last-child {
+    text-align: left !important;
+  }
+  .prescribe-steps-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+  }
+  .prescribe-steps-inner {
+    min-width: 520px;
+  }
+}
+
+/* ==========================================================================
+   Sidesheet (Slide-over Drawer) & Clean Medication Cards
+   ========================================================================== */
+.portal-sidesheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(42, 23, 15, 0.48);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeInBackdrop 0.2s ease;
+}
+
+@keyframes fadeInBackdrop {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.portal-sidesheet {
+  width: 100%;
+  max-width: 560px;
+  height: 100vh;
+  height: 100dvh;
+  background: #ffffff;
+  box-shadow: -8px 0 32px rgba(42, 23, 15, 0.2);
+  display: flex;
+  flex-direction: column;
+  animation: slideInRight 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+.portal-sidesheet-header {
+  padding: 20px 24px;
+  border-bottom: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  background: var(--color-cream-surface, #FDFBF7);
+  flex-shrink: 0;
+}
+
+.portal-sidesheet-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.portal-sidesheet-footer {
+  padding: 16px 24px;
+  border-top: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  background: var(--color-cream-surface, #FDFBF7);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+/* Sane & Clean Medication Summary Card in Prescription List */
+.rx-med-card {
+  background: #ffffff;
+  border: 1.5px solid rgba(223, 171, 98, 0.28);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+  transition: border-color 0.18s ease, background-color 0.18s ease;
+}
+
+.rx-med-card:hover {
+  border-color: var(--color-gold-base, #DFAB62) !important;
+  background: var(--color-cream-surface, #FDFBF7);
+}
+
+.rx-med-card:active {
+  background: var(--color-gold-pale, #F0E5D3);
+}
+
+@media (max-width: 640px) {
+  .portal-sidesheet {
+    max-width: 100%;
+  }
+  .portal-sidesheet-header {
+    padding: 16px 18px;
+  }
+  .portal-sidesheet-body {
+    padding: 18px 16px;
+    gap: 16px;
+  }
+  .portal-sidesheet-footer {
+    padding: 14px 16px;
+  }
+  .rx-med-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px 16px;
+  }
+  .rx-med-card-actions {
+    width: 100%;
+    justify-content: space-between !important;
+    border-top: 1px solid rgba(223, 171, 98, 0.2);
+    padding-top: 10px;
+  }
+}
+
+/* 4-column Stats / KPI strip — keeps all 4 cards on the same row on desktop/tablet */
+.stats-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+@media (max-width: 900px) {
+  .stats-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid-4 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
+/* Kebab menu & dropdown items */
+.kebab-btn {
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.kebab-btn:hover {
+  background-color: var(--color-gold-pale, #F0E5D3) !important;
+  border-color: var(--color-gold-base, #DFAB62) !important;
+}
+
+.kebab-menu-item {
+  transition: background-color 0.15s ease;
+}
+
+.kebab-menu-item:hover {
+  background-color: var(--color-gold-pale, #F0E5D3) !important;
+}
+
+.kebab-menu-item-danger {
+  transition: background-color 0.15s ease;
+}
+
+.kebab-menu-item-danger:hover {
+  background-color: #fee2e2 !important;
+}
+
+/* Quick action buttons — flat pill row (doctor overview dock) */
+.quick-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  text-decoration: none;
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.28));
+  background-color: var(--color-cream-surface, #FDFBF7);
+  color: var(--color-chocolate-base, #2A170F);
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.quick-action-btn:hover {
+  background-color: var(--color-gold-glow, rgba(223, 171, 98, 0.12));
+  border-color: var(--color-gold-base, #DFAB62);
+}
+
+/* Doctor consultations table — crisp visual separation without shadows */
+.doctor-table-card {
+  background-color: #ffffff;
+  border: 1.5px solid #D8CCB8;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.doctor-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.doctor-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 640px;
+  font-size: 0.875rem;
+  background-color: #ffffff;
+}
+
+.doctor-table th {
+  padding: 13px 18px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #3D2B20;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-align: left;
+  border-bottom: 1.5px solid #D8CCB8;
+  background-color: #F6EFE5;
+  white-space: nowrap;
+}
+
+.doctor-table td {
+  padding: 14px 18px;
+  font-size: 0.875rem;
+  color: var(--color-chocolate-base, #2A170F);
+  border-bottom: 1px solid #EAE1D3;
+  vertical-align: middle;
+  background-color: #ffffff;
+  transition: background-color 0.15s ease;
+}
+
+.doctor-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.doctor-table tbody tr:hover td {
+  background-color: #FAF6EF;
+}
+
+/* Responsive: table on desktop, stacked cards on mobile */
+.doctor-table-view {
+  display: block;
+}
+
+.doctor-cards-view {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .doctor-table-view {
+    display: none;
+  }
+  .doctor-cards-view {
+    display: flex;
+  }
+}
+
+.doctor-mobile-card {
+  background-color: #ffffff;
+  border: 1.5px solid #D8CCB8;
+  border-radius: 16px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.doctor-mobile-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Overview two-column band: attention list + this-week panel */
+.overview-two-col {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.overview-two-col > * {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .overview-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Calendar page: full width layout */
+.calendar-layout {
+  width: 100%;
+}
+
+/* Calendar Stats Grid */
+.calendar-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 900px) {
+  .calendar-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .calendar-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+.calendar-stat-card {
+  background-color: var(--color-cream-surface, #FDFBF7);
+  border: 1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22));
+  border-radius: 12px;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.calendar-stat-card:hover {
+  border-color: var(--color-gold-base, #DFAB62);
+}
+
+.calendar-stat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.calendar-stat-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.calendar-stat-label {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-cream-text-muted, #6B5E55);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.calendar-stat-val-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.calendar-stat-value {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: var(--font-heading-weight, 400);
+  color: var(--color-chocolate-base, #2A170F);
+  line-height: 1.1;
+}
+
+.calendar-stat-sub {
+  font-size: 0.72rem;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Calendar Week Desktop vs Mobile */
+.calendar-week-desktop {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  min-height: 520px;
+  background: var(--color-cream-surface, #FDFBF7);
+}
+
+.calendar-week-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .calendar-week-desktop {
+    display: none !important;
+  }
+  .calendar-week-mobile {
+    display: flex !important;
+    flex-direction: column;
+  }
+}
+
+/* Mobile Day Selector Tabs */
+.calendar-day-tabs-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2));
+  background: var(--color-cream-base, #FAF6EE);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.calendar-day-tabs-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.calendar-day-tab-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 52px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  background: var(--color-cream-surface, #FDFBF7);
+  color: var(--color-chocolate-base, #2A170F);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.calendar-day-tab-btn.active {
+  background: var(--color-gold-primary, #E2B467);
+  border-color: var(--color-gold-base, #DFAB62);
+  box-shadow: 0 3px 10px var(--color-gold-cta-shadow, rgba(226, 180, 103, 0.3));
+}
+
+.calendar-day-tab-btn.today:not(.active) {
+  border-color: var(--color-gold-base, #DFAB62);
+  background: var(--color-gold-pale, #F0E5D3);
+}
+
+/* Touch-friendly slot card */
+.calendar-slot-chip {
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.calendar-slot-chip:hover {
+  transform: translateY(-1px);
+  filter: brightness(0.97);
+}
+
+/* Minimal empty state for desktop columns */
+.calendar-empty-column {
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 6px;
+  padding: 14px 6px;
+  border: 1.5px dashed var(--color-gold-border, rgba(223, 171, 98, 0.22));
+  border-radius: 10px;
+  margin: 4px;
+  transition: all 0.2s ease;
+}
+
+.calendar-empty-column:hover {
+  border-color: var(--color-gold-base, #DFAB62);
+  background: rgba(223, 171, 98, 0.04);
+}
+
+/* Overview schedule band: today's appointments + next appointment card */
+.overview-schedule-row {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+.overview-schedule-row > * {
+  min-width: 0;
+}
+
+@media (max-width: 900px) {
+  .overview-schedule-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Welcome banner action row wraps to full-width buttons on small screens */
+@media (max-width: 560px) {
+  .welcome-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+  }
+  .welcome-actions > a {
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   Mobile header (topbar) compaction — prevents crowding, clipping, overflow
+   ========================================================================== */
+@media (max-width: 640px) {
+  .doctor-topbar {
+    padding: 0 12px !important;
+    gap: 8px;
+  }
+  .doctor-topbar-controls {
+    gap: 8px !important;
+  }
+  /* Collapse the status pill down to just its dot */
+  .doctor-status-pill {
+    padding: 8px !important;
+    width: 38px;
+    height: 38px;
+    justify-content: center;
+  }
+  .doctor-status-label,
+  .doctor-status-caret,
+  .doctor-avatar-caret {
+    display: none !important;
+  }
+  /* Avatar button: icon-only, never clipped */
+  .doctor-avatar-btn {
+    padding: 3px !important;
+  }
+}
+
+/* Welcome banner action buttons: allow labels to size down and never overflow */
+@media (max-width: 560px) {
+  .welcome-actions > a {
+    padding: 11px 12px !important;
+    font-size: 0.82rem !important;
+    min-width: 0;
+  }
+  .welcome-actions > a > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Single-column welcome buttons on very narrow screens */
+@media (max-width: 380px) {
+  .welcome-actions {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 .portal-card-dark {
   background-color: var(--color-chocolate-base, #2A170F);
   border: 1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2));
@@ -273,6 +1151,7 @@ a {
   font-size: 0.75rem;
   font-weight: 700;
   font-family: var(--font-sans);
+  white-space: nowrap;
 }
 
 .badge-success {
@@ -286,6 +1165,7 @@ a {
   border: 1px solid #a7f3d0;
   font-size: 0.75rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .badge-warning {
@@ -299,6 +1179,7 @@ a {
   border: 1px solid #fde68a;
   font-size: 0.75rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .badge-danger {
@@ -312,6 +1193,7 @@ a {
   border: 1px solid #fecaca;
   font-size: 0.75rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 /* Initials Avatar Circle */
@@ -322,7 +1204,7 @@ a {
   background-color: var(--color-gold-pale, #F0E5D3);
   color: var(--color-chocolate-base, #2A170F);
   font-family: var(--font-heading), sans-serif;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 0.95rem;
   display: flex;
   align-items: center;
@@ -338,6 +1220,40 @@ a {
   border-radius: 50%;
   background-color: var(--color-status-online, #22C55E);
   box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.2);
+}
+
+/* Red pulsing dot on the notification bell (important alerts) */
+.notif-pulse-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  border: 2px solid var(--color-cream-surface, #FDFBF7);
+  box-sizing: content-box;
+}
+
+.notif-pulse-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background-color: #ef4444;
+  animation: notifPulse 1.8s ease-out infinite;
+}
+
+@keyframes notifPulse {
+  0% { transform: scale(1); opacity: 0.7; }
+  70% { transform: scale(2.6); opacity: 0; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif-pulse-dot::after {
+    animation: none;
+  }
 }
 
 /* ==========================================================================
@@ -362,16 +1278,27 @@ a {
   background-color: #ffffff;
 }
 
-.doctors-search-input {
+.doctors-search-input,
+.doctors-search-input:focus,
+.doctors-search-input:focus-visible,
+.doctors-search-pill input,
+.doctors-search-pill input:focus,
+.doctors-search-pill input:focus-visible {
   flex: 1 1 0%;
   min-width: 0;
-  border: none;
-  outline: none;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   background: transparent;
   font-family: var(--font-sans);
   font-size: 0.9rem;
   color: var(--color-chocolate-base, #2A170F);
   padding: 9px 10px;
+}
+
+.icd10-page .doctors-search-pill:focus-within {
+  box-shadow: none !important;
+  border-color: var(--color-gold-base, #DFAB62) !important;
 }
 
 .doctors-search-input::placeholder {
@@ -421,10 +1348,23 @@ a {
 .portal-modal-surface {
   background: var(--color-cream-surface, #FDFBF7);
   border: 1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
-  border-radius: 24px;
-  box-shadow: 0 24px 60px rgba(42, 23, 15, 0.25);
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(42, 23, 15, 0.2);
   overflow: hidden;
+  max-height: min(88vh, 720px);
+  display: flex;
+  flex-direction: column;
   animation: modalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 640px) {
+  .portal-modal-backdrop {
+    padding: 12px;
+  }
+  .portal-modal-surface {
+    border-radius: 16px;
+    max-height: min(92vh, 640px);
+  }
 }
 
 @keyframes modalPop {
@@ -491,8 +1431,17 @@ a {
   color: var(--color-chocolate-base, #2A170F);
 }
 
+.clinical-table tbody tr:nth-child(even) {
+  background-color: rgba(223, 171, 98, 0.07);
+}
+
+.clinical-table tbody tr:nth-child(odd) {
+  background-color: var(--color-cream-surface, #FDFBF7);
+}
+
+.clinical-table tbody tr:hover,
 .clinical-tr:hover {
-  background-color: rgba(223, 171, 98, 0.06);
+  background-color: rgba(223, 171, 98, 0.14) !important;
 }
 
 /* ==========================================================================
@@ -501,14 +1450,16 @@ a {
 .auth-split-layout {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
   background-color: var(--color-cream-base, #FAF6EE);
   width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 @media (max-width: 960px) {
   .auth-split-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .auth-visual-pane {
     display: none !important;
@@ -519,11 +1470,14 @@ a {
   position: relative;
   background-color: var(--color-chocolate-base, #2A170F);
   color: #ffffff;
-  padding: 64px 52px;
+  padding: 48px 44px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  overflow: hidden;
+  min-height: 100vh;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
   border-right: 1px solid var(--color-gold-border, rgba(223, 171, 98, 0.15));
 }
 
@@ -538,15 +1492,22 @@ a {
 
 .auth-form-pane {
   background-color: var(--color-cream-base, #FAF6EE);
-  padding: 64px 48px;
+  padding: 40px 32px;
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 100vh;
+  box-sizing: border-box;
+  overflow-y: auto;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 .auth-form-wrapper {
   width: 100%;
-  max-width: 480px;
+  max-width: 440px;
+  margin: auto 0;
 }
 
 .auth-input-group {
@@ -598,6 +1559,16 @@ a {
   background-color: #ffffff;
 }
 
+.auth-input:-webkit-autofill,
+.auth-input:-webkit-autofill:hover,
+.auth-input:-webkit-autofill:focus,
+.auth-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: var(--color-chocolate-base, #2A170F) !important;
+  border-color: var(--color-gold-base, #DFAB62) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 .auth-social-proof-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -621,7 +1592,7 @@ a {
 .auth-social-badge-val {
   font-family: var(--font-heading);
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: var(--font-heading-weight, 400);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -660,4 +1631,420 @@ a {
 .skip-to-content:focus {
   top: 16px;
   outline: 3px solid var(--color-gold-base, #DFAB62);
+}
+
+/* ==========================================================================
+   Doctor's Earnings & Payouts Suite (.earnings-page)
+   ========================================================================== */
+.earnings-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-bottom: 48px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.earnings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.earnings-payout-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full, 9999px);
+  background-color: var(--color-success-bg, #ecfdf5);
+  border: 1px solid var(--color-brand-200, #a7f3d0);
+  color: var(--color-brand-800, #0e4e47);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.earnings-payout-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-brand-500, #0e9384);
+}
+
+.earnings-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .earnings-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 540px) {
+  .earnings-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.earnings-kpi-card {
+  background-color: var(--color-cream-surface, #FDFBF7);
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  border-radius: 16px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.2s ease;
+}
+
+.earnings-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.earnings-kpi-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-color: var(--color-gold-pale, #F0E5D3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-chocolate-base, #2A170F);
+}
+
+.earnings-kpi-value {
+  font-family: var(--font-heading);
+  font-size: var(--font-stat-number-size, 1.875rem);
+  font-weight: var(--font-heading-weight, 400);
+  color: var(--color-chocolate-base, #2A170F);
+  line-height: 1.15;
+  margin: 6px 0;
+}
+
+.earnings-kpi-value-success {
+  color: var(--color-brand-600, #0b7b6e);
+}
+
+.earnings-kpi-meta {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-cream-text-muted, #6B5E55);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.earnings-kpi-meta-success {
+  color: var(--color-brand-700, #0b6259);
+  font-weight: 600;
+}
+
+/* Revenue Trajectory Chart Card */
+.earnings-chart-card {
+  background-color: var(--color-cream-surface, #FDFBF7);
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  transition: border-color 0.2s ease;
+}
+
+.earnings-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.earnings-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: var(--text-xs, 0.75rem);
+}
+
+.earnings-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.earnings-chart-legend-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.earnings-chart-legend-box.gold {
+  background-color: var(--color-gold-primary, #E2B467);
+}
+
+.earnings-chart-legend-box.pale {
+  background-color: var(--color-gold-pale, #F0E5D3);
+}
+
+.earnings-chart-bars-wrap {
+  height: 200px;
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  padding-top: 20px;
+  border-bottom: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.2));
+}
+
+.earnings-chart-bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  min-width: 54px;
+}
+
+.earnings-chart-val-lbl {
+  font-family: var(--font-heading);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: var(--font-heading-weight, 400);
+  color: var(--color-brand-600, #0b7b6e);
+  margin-bottom: 8px;
+  white-space: nowrap;
+}
+
+.earnings-chart-bar-capsule {
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: 10px 10px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+}
+
+.earnings-chart-segment-fee {
+  background-color: var(--color-gold-pale, #F0E5D3);
+  transition: opacity 0.15s ease;
+}
+
+.earnings-chart-segment-net {
+  background-color: var(--color-gold-primary, #E2B467);
+  transition: opacity 0.15s ease;
+}
+
+.earnings-chart-bar-item:hover .earnings-chart-segment-fee {
+  opacity: 0.85;
+}
+
+.earnings-chart-bar-item:hover .earnings-chart-segment-net {
+  opacity: 0.9;
+}
+
+.earnings-chart-month-lbl {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-chocolate-base, #2A170F);
+  font-weight: 700;
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* Toolbar: Tabs and Search Row */
+.earnings-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.earnings-tab-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.earnings-search-box {
+  width: 100%;
+  max-width: 320px;
+}
+
+/* Patient Reviews Tab */
+.earnings-reviews-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 32px;
+  align-items: center;
+  padding: 24px 28px;
+  border-radius: 16px;
+  background: var(--color-cream-base, #FAF6EE);
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  margin-bottom: 24px;
+}
+
+@media (max-width: 640px) {
+  .earnings-reviews-summary {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 18px 16px;
+    text-align: center;
+  }
+}
+
+.earnings-rating-score {
+  font-family: var(--font-heading);
+  font-size: 3.25rem;
+  font-weight: var(--font-heading-weight, 400);
+  color: var(--color-chocolate-base, #2A170F);
+  line-height: 1;
+}
+
+.earnings-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.earnings-review-card {
+  padding: 20px 22px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.22));
+  background: var(--color-cream-surface, #FDFBF7);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.earnings-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.earnings-review-text {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-cream-text-muted, #6B5E55);
+  line-height: 1.55;
+}
+
+/* ==========================================================================
+   Doctor Profile Page Utilities
+   ========================================================================== */
+.profile-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+
+.profile-tab-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.22));
+  padding-bottom: 2px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.profile-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--color-cream-text-muted, #6B5E55);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  position: relative;
+}
+
+.profile-tab-btn:hover {
+  color: var(--color-chocolate-base, #2A170F);
+}
+
+.profile-tab-btn.active {
+  color: var(--color-chocolate-base, #2A170F);
+  font-weight: 700;
+  border-bottom-color: var(--color-gold-base, #DFAB62);
+}
+
+.profile-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: var(--radius-full, 9999px);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.profile-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--color-white, #ffffff);
+  box-shadow: 0 1px 3px rgba(42, 23, 15, 0.18);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.profile-switch[aria-checked="true"] .profile-switch-thumb {
+  transform: translateX(20px);
+}
+
+.profile-action-bar,
+.profile-sticky-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 28px;
+  margin-bottom: 32px;
+  padding: 18px 24px;
+  background: var(--color-cream-surface, #FDFBF7);
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  border-radius: var(--radius-xl, 16px);
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 640px) {
+  .profile-action-bar,
+  .profile-sticky-bar {
+    padding: 14px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .profile-action-bar .btn-primary,
+  .profile-sticky-bar .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
 }

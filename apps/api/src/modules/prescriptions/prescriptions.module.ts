@@ -6,6 +6,7 @@ import { DoctorProfile, User, AuditLog } from '../../database/operational/entiti
 import { QUEUES } from '../queues/queue.constants';
 import { ConsultationsModule } from '../consultations/consultations.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { AuthModule } from '../auth/auth.module';
 import { PrescriptionsController } from './prescriptions.controller';
 import { PrescriptionsService } from './prescriptions.service';
 import { PrescriptionPdfService } from './prescription-pdf.service';
@@ -19,6 +20,7 @@ import { PrescriptionPdfService } from './prescription-pdf.service';
     }),
     forwardRef(() => ConsultationsModule),
     NotificationsModule,
+    AuthModule,
   ],
   controllers: [PrescriptionsController],
   providers: [PrescriptionsService, PrescriptionPdfService],

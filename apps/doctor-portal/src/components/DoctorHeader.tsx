@@ -3,17 +3,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  Check,
-  Calendar,
-  DollarSign,
-  AlertTriangle,
-  ExternalLink,
-  ChevronDown,
-  LogOut,
-  User,
-  ShieldCheck,
-} from 'lucide-react';
 import { SolarIcon } from './common/SolarIcon';
 import { useDoctorAuth } from '../context/DoctorAuthContext';
 import type { Socket } from 'socket.io-client';
@@ -44,13 +33,14 @@ const ROUTE_LABELS: Record<string, string> = {
   '/prescriptions': 'E-Prescriptions Management',
   '/icd10': 'ICD-10 Diagnostic Coding',
   '/earnings': 'Earnings & Payouts',
-  '/profile': 'Doctor Practice Profile',
+  '/profile': 'My Profile',
 };
 
 export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
   const pathname = usePathname();
-  const { doctor, profile, token, isAuthenticated, logout } = useDoctorAuth();
+  const { doctor, profile, token, isAuthenticated, logout, updatePresenceStatus } = useDoctorAuth();
   const [status, setStatus] = useState<DoctorStatus>('active');
+  const [statusSaving, setStatusSaving] = useState(false);
   const [statusMenuOpen, setStatusMenuOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -72,7 +62,40 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
     offline: { bg: 'var(--color-cream-surface, #FDFBF7)', text: 'var(--color-cream-text-muted, #6B5E55)', dot: '#94a3b8', label: 'Offline' },
   };
 
-  const current = statusColors[status];
+  const isHoliday = profile?.isOnHoliday === true;
+  const current = isHoliday
+    ? { bg: '#fffbeb', text: '#92400e', dot: '#f59e0b', label: 'On Holiday' }
+    : statusColors[status] || statusColors.active;
+
+  const doctorAvatar = profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url || '/images/doctor_sarah_avatar.jpg';
+
+  // Anything the doctor should notice: unread alerts or a pending HPCSA verification
+  const isPendingVerification = profile?.verificationStatus === 'pending';
+  const hasImportant = unreadCount > 0 || isPendingVerification;
+
+  // Sync the pill with the doctor's real persisted presence status
+  useEffect(() => {
+    const ps = profile?.presenceStatus;
+    if (ps === 'active' || ps === 'in_consultation' || ps === 'offline') {
+      setStatus(ps as DoctorStatus);
+    }
+  }, [profile?.presenceStatus]);
+
+  // Persist a presence change to the backend (optimistic)
+  const handleStatusChange = async (next: DoctorStatus) => {
+    const prev = status;
+    setStatus(next);
+    setStatusMenuOpen(false);
+    setStatusSaving(true);
+    try {
+      await updatePresenceStatus(next);
+    } catch (err) {
+      console.warn('Failed to update presence status:', err);
+      setStatus(prev); // revert on failure
+    } finally {
+      setStatusSaving(false);
+    }
+  };
 
   // Fetch notifications
   const fetchNotifications = async () => {
@@ -112,7 +135,10 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
         });
 
         socket.on('new_notification', (notif: DoctorNotification) => {
-          setNotifications((prev) => [notif, ...prev]);
+          setNotifications((prev) => {
+            if (prev.some((n) => n.id === notif.id)) return prev;
+            return [notif, ...prev];
+          });
           setUnreadCount((prev) => prev + 1);
         });
 
@@ -123,8 +149,18 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
         console.warn('Doctor WebSocket notification subscription failed:', err);
       });
 
+    // Fallback: poll every 60s in case the WebSocket drops silently,
+    // and refresh whenever the tab regains focus.
+    const pollId = setInterval(() => {
+      if (!document.hidden) fetchNotifications();
+    }, 60000);
+    const onFocus = () => fetchNotifications();
+    window.addEventListener('focus', onFocus);
+
     return () => {
       isCancelled = true;
+      clearInterval(pollId);
+      window.removeEventListener('focus', onFocus);
       if (activeSocket) activeSocket.disconnect();
       if (socketRef.current) socketRef.current.disconnect();
     };
@@ -175,8 +211,10 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
 
   return (
     <header
+      className="doctor-topbar"
       style={{
-        height: '74px',
+        height: 'var(--doctor-topbar-h, 76px)',
+        minHeight: 'var(--doctor-topbar-h, 76px)',
         backgroundColor: 'var(--color-cream-surface, #FDFBF7)',
         borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
         display: 'flex',
@@ -186,7 +224,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
         position: 'sticky',
         top: 0,
         zIndex: 30,
-        boxShadow: '0 2px 10px rgba(42, 23, 15, 0.02)',
+        boxShadow: '0 1px 0 rgba(42, 23, 15, 0.02)',
       }}
     >
       {/* Left: Mobile Toggle & Dynamic Breadcrumbs */}
@@ -217,27 +255,19 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
             <span>/</span>
             <span style={{ color: 'var(--color-gold-bronze, #B88647)' }}>{pageLabel}</span>
           </div>
-          <h2
-            style={{
-              fontSize: '1.25rem',
-              color: 'var(--color-chocolate-base, #2A170F)',
-              margin: 0,
-              fontWeight: 800,
-              fontFamily: 'var(--font-heading), sans-serif',
-              letterSpacing: '-0.02em',
-            }}
-          >
+          <h2 className="section-title">
             {pageLabel}
           </h2>
         </div>
       </div>
 
       {/* Right Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div className="doctor-topbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         {/* Status Dropdown */}
         <div style={{ position: 'relative' }}>
           <button
             onClick={() => setStatusMenuOpen(!statusMenuOpen)}
+            className="doctor-status-pill"
             style={{
               display: 'flex',
               alignItems: 'center',
@@ -252,6 +282,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
               cursor: 'pointer',
               fontFamily: 'var(--font-sans)',
               transition: 'all 0.18s ease',
+              whiteSpace: 'nowrap',
             }}
           >
             <span
@@ -261,10 +292,11 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                 borderRadius: '50%',
                 backgroundColor: current.dot,
                 boxShadow: `0 0 0 2px ${current.dot}33`,
+                flexShrink: 0,
               }}
             />
-            <span>{current.label}</span>
-            <ChevronDown size={14} />
+            <span className="doctor-status-label">{current.label}</span>
+            <SolarIcon name="alt-arrow-down-linear" size={14} className="doctor-status-caret" />
           </button>
 
           {statusMenuOpen && (
@@ -285,10 +317,8 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
               {(['active', 'in_consultation', 'offline'] as DoctorStatus[]).map((st) => (
                 <button
                   key={st}
-                  onClick={() => {
-                    setStatus(st);
-                    setStatusMenuOpen(false);
-                  }}
+                  onClick={() => handleStatusChange(st)}
+                  disabled={statusSaving}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -309,7 +339,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                     <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: statusColors[st].dot }} />
                     <span>{statusColors[st].label}</span>
                   </div>
-                  {status === st && <Check size={14} color="var(--color-chocolate-base, #2A170F)" />}
+                  {status === st && <SolarIcon name="check-circle-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />}
                 </button>
               ))}
             </div>
@@ -339,6 +369,9 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
             title="Practice Notifications"
           >
             <SolarIcon name="bell-linear" size={20} color="var(--color-chocolate-base, #2A170F)" />
+            {hasImportant && (
+              <span className="notif-pulse-dot" aria-hidden="true" />
+            )}
             {unreadCount > 0 && (
               <span
                 style={{
@@ -423,7 +456,47 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
               </div>
 
               <div style={{ maxHeight: '380px', overflowY: 'auto' }}>
-                {notifications.length === 0 ? (
+                {isPendingVerification && (
+                  <Link
+                    href="/profile"
+                    onClick={() => setNotificationsOpen(false)}
+                    style={{
+                      display: 'flex',
+                      gap: '12px',
+                      alignItems: 'flex-start',
+                      padding: '14px 18px',
+                      borderBottom: '1px solid rgba(223, 171, 98, 0.1)',
+                      backgroundColor: '#FEF3E2',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '10px',
+                        backgroundColor: '#FDE0B8',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                        marginTop: '2px',
+                      }}
+                    >
+                      <SolarIcon name="shield-warning-bold" size={16} color="#B45309" />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <span style={{ fontWeight: 800, fontSize: '0.875rem', color: '#92400E' }}>
+                        HPCSA verification pending
+                      </span>
+                      <p style={{ margin: '4px 0 0', fontSize: '0.8rem', color: '#B45309', lineHeight: 1.4 }}>
+                        Your credentials are under review. Bookings stay paused until you&apos;re verified.
+                      </p>
+                    </div>
+                  </Link>
+                )}
+
+                {notifications.length === 0 && !isPendingVerification ? (
                   <div style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                     <SolarIcon name="bell-linear" size={32} color="var(--color-gold-bronze, #B88647)" style={{ margin: '0 auto 8px', opacity: 0.5 }} />
                     <p style={{ margin: 0, fontSize: '0.875rem' }}>No new practice alerts</p>
@@ -447,9 +520,9 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                           style={{
                             width: '32px',
                             height: '32px',
-                            borderRadius: '10px',
-                            backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
-                            color: 'var(--color-chocolate-base, #2A170F)',
+                            borderRadius: '8px',
+                            backgroundColor: isUnread ? 'var(--color-gold-pale, #F0E5D3)' : 'rgba(0,0,0,0.04)',
+                            color: isUnread ? 'var(--color-gold-bronze, #B88647)' : 'var(--color-cream-text-muted, #6B5E55)',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -457,7 +530,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                             marginTop: '2px',
                           }}
                         >
-                          <Calendar size={16} />
+                          <SolarIcon name="calendar-linear" size={16} />
                         </div>
 
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -489,7 +562,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                                 }}
                               >
                                 <span>View on Calendar</span>
-                                <ExternalLink size={12} />
+                                <SolarIcon name="arrow-right-up-linear" size={12} />
                               </Link>
                             )}
 
@@ -509,7 +582,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                                   gap: '2px',
                                 }}
                               >
-                                <Check size={12} />
+                                <SolarIcon name="check-circle-linear" size={12} />
                                 <span>Mark read</span>
                               </button>
                             )}
@@ -524,49 +597,77 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
           )}
         </div>
 
-        {/* Doctor User Profile Menu with Clickable Avatar */}
+        {/* Doctor User Profile Menu with Clickable Avatar or Sign In */}
         <div style={{ position: 'relative' }} ref={profileDropdownRef}>
-          <button
-            onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '4px 10px 4px 4px',
-              borderRadius: 'var(--radius-full, 9999px)',
-              border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-              backgroundColor: profileMenuOpen ? 'var(--color-gold-pale, #F0E5D3)' : 'var(--color-cream-surface, #FDFBF7)',
-              cursor: 'pointer',
-              transition: 'all 0.18s ease',
-            }}
-          >
-            <div
+          {!doctor ? (
+            <Link
+              href="/login"
+              className="btn-primary"
               style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
-                color: 'var(--color-chocolate-base, #2A170F)',
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: '0.85rem',
-                border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                gap: '6px',
+                padding: '7px 16px',
+                fontSize: '0.825rem',
+                fontWeight: 600,
+                textDecoration: 'none',
+                borderRadius: 'var(--radius-full, 9999px)',
               }}
             >
-              {doctor?.fullName ? doctor.fullName.substring(0, 2).toUpperCase() : 'DR'}
-            </div>
-            <div style={{ textAlign: 'left', display: 'none' }} className="desktop-doctor-info">
-              <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1.2 }}>
-                {doctor?.fullName?.split(' ')[0] || 'Doctor'}
+              <SolarIcon name="login-2-linear" size={15} color="var(--color-chocolate-base)" />
+              <span>Sign In</span>
+            </Link>
+          ) : (
+            <button
+              onClick={() => setProfileMenuOpen(!profileMenuOpen)}
+              className="doctor-avatar-btn"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                padding: '4px 10px 4px 4px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+                backgroundColor: profileMenuOpen ? 'var(--color-gold-pale, #F0E5D3)' : 'var(--color-cream-surface, #FDFBF7)',
+                cursor: 'pointer',
+                transition: 'all 0.18s ease',
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                }}
+              >
+                <img
+                  src={doctorAvatar}
+                  alt={doctor?.fullName || 'Doctor avatar'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
               </div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 600 }}>
-                HPCSA Active
+              <div style={{ textAlign: 'left', display: 'none' }} className="desktop-doctor-info">
+                <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1.2 }}>
+                  {doctor?.fullName?.split(' ')[0] || 'Doctor'}
+                </div>
+                <div style={{ fontSize: '0.68rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 600 }}>
+                  HPCSA Active
+                </div>
               </div>
-            </div>
-            <ChevronDown size={14} style={{ color: 'var(--color-chocolate-base, #2A170F)' }} />
-          </button>
+              <SolarIcon name="alt-arrow-down-linear" size={14} className="doctor-avatar-caret" style={{ color: 'var(--color-chocolate-base, #2A170F)' }} />
+            </button>
+          )}
 
           {profileMenuOpen && (
             <div
@@ -584,13 +685,13 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
               }}
             >
               <div style={{ padding: '8px 12px 10px', borderBottom: '1px solid rgba(223, 171, 98, 0.15)' }}>
-                <div style={{ fontWeight: 800, fontSize: '0.875rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
                   {doctor?.fullName || 'Dr. Practitioner'}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                   {doctor?.email}
                 </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, marginTop: '2px' }}>
+                <div style={{ fontSize: '0.7rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 500, marginTop: '2px' }}>
                   HPCSA: {profile?.hpcsaNumber || 'MP Verified'}
                 </div>
               </div>
@@ -607,14 +708,14 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                     borderRadius: '8px',
                     fontSize: '0.85rem',
                     color: 'var(--color-chocolate-base, #2A170F)',
-                    fontWeight: 600,
+                    fontWeight: 500,
                     textDecoration: 'none',
                     transition: 'background-color 0.15s ease',
                   }}
                   onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F0E5D3)')}
                   onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
-                  <User size={15} />
+                  <SolarIcon name="user-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
                   <span>Practice Settings</span>
                 </Link>
 
@@ -629,14 +730,14 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                     borderRadius: '8px',
                     fontSize: '0.85rem',
                     color: 'var(--color-chocolate-base, #2A170F)',
-                    fontWeight: 600,
+                    fontWeight: 500,
                     textDecoration: 'none',
                     transition: 'background-color 0.15s ease',
                   }}
                   onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F0E5D3)')}
                   onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
-                  <DollarSign size={15} />
+                  <SolarIcon name="wallet-money-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
                   <span>Payouts & Statements</span>
                 </Link>
               </div>
@@ -658,7 +759,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                     background: 'none',
                     fontSize: '0.85rem',
                     color: '#dc2626',
-                    fontWeight: 700,
+                    fontWeight: 500,
                     cursor: 'pointer',
                     textAlign: 'left',
                     transition: 'background-color 0.15s ease',
@@ -666,7 +767,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                   onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#fef2f2')}
                   onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                 >
-                  <LogOut size={15} />
+                  <SolarIcon name="logout-2-linear" size={16} color="#dc2626" />
                   <span>Sign Out</span>
                 </button>
               </div>

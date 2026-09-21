@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
+import { TotpService } from './totp.service';
 import { LocumStaffSsoService } from './locumstaff-sso.service';
 import { BrevoEmailProvider } from '../notifications/providers/brevo.provider';
 import { SmsProvider } from '../notifications/providers/sms.provider';
@@ -15,6 +16,7 @@ import {
   VerificationStatus,
   VerificationSource,
 } from '../../database/operational/entities';
+import { PatientMedicalProfile } from '../../database/patient/entities';
 import { ConflictException, UnauthorizedException } from '@nestjs/common';
 
 describe('AuthService & LocumStaffSsoService', () => {
@@ -134,6 +136,7 @@ describe('AuthService & LocumStaffSsoService', () => {
       providers: [
         AuthService,
         TokenService,
+        TotpService,
         LocumStaffSsoService,
         {
           provide: getRepositoryToken(User, 'operational'),
@@ -150,6 +153,14 @@ describe('AuthService & LocumStaffSsoService', () => {
         {
           provide: getRepositoryToken(NotificationPreference, 'operational'),
           useValue: mockPrefRepository,
+        },
+        {
+          provide: getRepositoryToken(PatientMedicalProfile, 'patient'),
+          useValue: {
+            findOne: jest.fn().mockResolvedValue(null),
+            create: jest.fn().mockImplementation((dto) => ({ ...dto })),
+            save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity })),
+          },
         },
         {
           provide: BrevoEmailProvider,
@@ -238,6 +249,9 @@ describe('AuthService & LocumStaffSsoService', () => {
         password: 'ValidPassword123!',
       });
 
+      if ('requiresTotp' in loginRes) {
+        throw new Error('Unexpected 2FA challenge for an account with no TOTP enrolled');
+      }
       expect(loginRes.accessToken).toBeDefined();
       expect(loginRes.user.email).toBe('login@example.com');
     });

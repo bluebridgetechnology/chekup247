@@ -26,12 +26,13 @@ interface TransactionItem {
   id: string;
   reference: string;
   bookingId: string;
-  patientMasked: string;
-  doctorName: string;
+  patientMasked?: string;
+  doctorName?: string;
   type: 'payment' | 'extension' | 'credit' | 'payout' | 'refund';
-  grossAmount: number;
-  platformFee: number;
-  netAmount: number;
+  grossAmount?: number;
+  platformFee?: number;
+  netAmount?: number;
+  amount?: number;
   status: 'successful' | 'pending' | 'failed' | 'refunded';
   createdAt: string;
 }
@@ -234,34 +235,44 @@ export default function FinancialTransactionsLedgerPage() {
     }
   };
 
-  const summary = data?.summary || { totalGross: 0, totalPlatformFee: 0, totalNet: 0, totalRefunds: 0 };
+  const totalGross = Number((data?.summary as any)?.totalGross ?? (data?.summary as any)?.totalPaymentsVolume ?? 0);
+  const totalPlatformFee = Number((data?.summary as any)?.totalPlatformFee ?? (totalGross * 0.15));
+  const totalNet = Number((data?.summary as any)?.totalNet ?? (totalGross - totalPlatformFee));
+  const totalRefunds = Number((data?.summary as any)?.totalRefunds ?? (data?.summary as any)?.totalRefundedVolume ?? 0);
+
+  const summary = {
+    totalGross,
+    totalPlatformFee,
+    totalNet,
+    totalRefunds,
+  };
   const transactions = data?.transactions || [];
   const totalPages = Math.ceil((data?.total || 0) / limit) || 1;
 
   const typeBadges: Record<string, { bg: string; text: string; label: string }> = {
-    payment: { bg: 'rgba(59, 130, 246, 0.15)', text: '#60a5fa', label: 'Consultation' },
-    extension: { bg: 'rgba(139, 92, 246, 0.15)', text: '#a78bfa', label: 'Extension' },
-    credit: { bg: 'rgba(16, 185, 129, 0.15)', text: '#34d399', label: 'Wallet Credit' },
-    payout: { bg: 'rgba(245, 158, 11, 0.15)', text: '#fbbf24', label: 'Doctor Payout' },
-    refund: { bg: 'rgba(239, 68, 68, 0.15)', text: '#f87171', label: 'Refund' },
+    payment: { bg: 'rgba(223, 171, 98, 0.15)', text: '#92400E', label: 'Consultation' },
+    extension: { bg: 'rgba(109, 40, 217, 0.1)', text: '#6D28D9', label: 'Extension' },
+    credit: { bg: 'rgba(16, 185, 129, 0.1)', text: '#047857', label: 'Wallet Credit' },
+    payout: { bg: 'rgba(42, 23, 15, 0.08)', text: '#2A170F', label: 'Doctor Payout' },
+    refund: { bg: 'rgba(220, 38, 38, 0.1)', text: '#DC2626', label: 'Refund' },
   };
 
   const statusBadges: Record<string, { bg: string; text: string }> = {
-    successful: { bg: 'rgba(16, 185, 129, 0.15)', text: '#34d399' },
-    pending: { bg: 'rgba(245, 158, 11, 0.15)', text: '#fbbf24' },
-    failed: { bg: 'rgba(239, 68, 68, 0.15)', text: '#f87171' },
-    refunded: { bg: 'rgba(148, 163, 184, 0.15)', text: '#94a3b8' },
+    successful: { bg: 'rgba(16, 185, 129, 0.1)', text: '#047857' },
+    pending: { bg: 'rgba(217, 119, 6, 0.1)', text: '#B45309' },
+    failed: { bg: 'rgba(220, 38, 38, 0.1)', text: '#DC2626' },
+    refunded: { bg: 'rgba(100, 116, 139, 0.12)', text: '#475569' },
   };
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '1.85rem', color: '#f8fafc', fontWeight: 800, margin: '0 0 6px 0' }}>
+          <h1 className="page-title">
             Financial Transaction Ledger
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.925rem', margin: 0 }}>
+          <p className="page-subtitle">
             Unified real-time audit trail of all Paystack card payments, time extension fees, patient credits, and practitioner payouts.
           </p>
         </div>
@@ -270,19 +281,7 @@ export default function FinancialTransactionsLedgerPage() {
           <button
             onClick={() => fetchTransactions()}
             disabled={isLoading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: '#1e293b',
-              border: '1px solid #334155',
-              color: '#cbd5e1',
-              padding: '8px 14px',
-              borderRadius: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-            }}
+            className="btn-secondary"
           >
             <RefreshCw size={14} style={{ animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
             <span>Refresh</span>
@@ -291,20 +290,7 @@ export default function FinancialTransactionsLedgerPage() {
           <button
             onClick={handleExportCsv}
             disabled={isExporting}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-              border: 'none',
-              color: '#ffffff',
-              padding: '8px 18px',
-              borderRadius: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-            }}
+            className="btn-primary"
           >
             <Download size={15} />
             <span>{isExporting ? 'Exporting...' : 'Export to CSV'}</span>
@@ -314,43 +300,51 @@ export default function FinancialTransactionsLedgerPage() {
 
       {/* Summary Stat Ribbon */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
-        <div className="admin-card" style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Filtered Gross Volume</span>
-            <DollarSign size={16} color="#60a5fa" />
+        <div className="admin-card" style={{ padding: '20px 22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span className="stat-label">Filtered Gross Volume</span>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(223, 171, 98, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <DollarSign size={16} color="#DFAB62" />
+            </div>
           </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f8fafc' }}>
-            R {summary.totalGross.toLocaleString()}
-          </div>
-        </div>
-
-        <div className="admin-card" style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Retained Platform Fees (15%)</span>
-            <TrendingUp size={16} color="#34d399" />
-          </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#34d399' }}>
-            R {summary.totalPlatformFee.toLocaleString()}
+          <div className="stat-number">
+            R {(summary.totalGross ?? 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
 
-        <div className="admin-card" style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Net Attributed to Doctors</span>
-            <Receipt size={16} color="#a78bfa" />
+        <div className="admin-card" style={{ padding: '20px 22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span className="stat-label">Retained Platform Fees (15%)</span>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <TrendingUp size={16} color="#047857" />
+            </div>
           </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f8fafc' }}>
-            R {summary.totalNet.toLocaleString()}
+          <div className="stat-number" style={{ color: '#047857' }}>
+            R {(summary.totalPlatformFee ?? 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
 
-        <div className="admin-card" style={{ padding: '18px 20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-            <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase' }}>Total Refunds Issued</span>
-            <RotateCcw size={16} color="#f87171" />
+        <div className="admin-card" style={{ padding: '20px 22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span className="stat-label">Net Attributed to Doctors</span>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(42, 23, 15, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Receipt size={16} color="#2A170F" />
+            </div>
           </div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 800, color: '#f87171' }}>
-            R {summary.totalRefunds.toLocaleString()}
+          <div className="stat-number">
+            R {(summary.totalNet ?? 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+        </div>
+
+        <div className="admin-card" style={{ padding: '20px 22px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <span className="stat-label">Total Refunds Issued</span>
+            <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(220, 38, 38, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <RotateCcw size={16} color="#DC2626" />
+            </div>
+          </div>
+          <div className="stat-number" style={{ color: '#DC2626' }}>
+            R {(summary.totalRefunds ?? 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
         </div>
       </div>
@@ -364,12 +358,11 @@ export default function FinancialTransactionsLedgerPage() {
           alignItems: 'center',
           gap: '16px',
           flexWrap: 'wrap',
-          background: '#162032',
         }}
       >
         {/* Search */}
         <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-chocolate-muted)' }} />
           <input
             type="text"
             value={search}
@@ -378,35 +371,21 @@ export default function FinancialTransactionsLedgerPage() {
               setPage(1);
             }}
             placeholder="Search reference, booking ID, doctor or patient..."
-            style={{
-              width: '100%',
-              padding: '10px 12px 10px 36px',
-              background: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              color: '#f8fafc',
-              fontSize: '0.85rem',
-            }}
+            className="admin-input"
+            style={{ paddingLeft: '36px' }}
           />
         </div>
 
         {/* Transaction Type Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Type:</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-chocolate-muted)' }}>Type:</span>
           <select
             value={selectedType}
             onChange={(e) => {
               setSelectedType(e.target.value);
               setPage(1);
             }}
-            style={{
-              padding: '10px 14px',
-              background: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              color: '#f8fafc',
-              fontSize: '0.85rem',
-            }}
+            className="admin-select"
           >
             <option value="all">All Types</option>
             <option value="payment">Consultation Payment</option>
@@ -419,21 +398,14 @@ export default function FinancialTransactionsLedgerPage() {
 
         {/* Status Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Status:</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-chocolate-muted)' }}>Status:</span>
           <select
             value={selectedStatus}
             onChange={(e) => {
               setSelectedStatus(e.target.value);
               setPage(1);
             }}
-            style={{
-              padding: '10px 14px',
-              background: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              color: '#f8fafc',
-              fontSize: '0.85rem',
-            }}
+            className="admin-select"
           >
             <option value="all">All Statuses</option>
             <option value="successful">Successful</option>
@@ -445,21 +417,14 @@ export default function FinancialTransactionsLedgerPage() {
 
         {/* Date Presets */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Calendar size={15} color="#94a3b8" />
+          <Calendar size={15} color="var(--color-chocolate-muted)" />
           <select
             value={datePreset}
             onChange={(e) => {
               setDatePreset(e.target.value);
               setPage(1);
             }}
-            style={{
-              padding: '10px 14px',
-              background: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              color: '#f8fafc',
-              fontSize: '0.85rem',
-            }}
+            className="admin-select"
           >
             <option value="all">All Time</option>
             <option value="today">Today</option>
@@ -470,7 +435,7 @@ export default function FinancialTransactionsLedgerPage() {
       </div>
 
       {/* Ledger Table */}
-      <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="admin-table-container">
         <div style={{ overflowX: 'auto' }}>
           <table className="admin-table">
             <thead>
@@ -490,39 +455,39 @@ export default function FinancialTransactionsLedgerPage() {
             <tbody>
               {transactions.length === 0 ? (
                 <tr>
-                  <td colSpan={10} style={{ textAlign: 'center', padding: '48px', color: '#94a3b8' }}>
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '48px', color: 'var(--color-chocolate-muted)' }}>
                     No financial transactions found matching the selected filters.
                   </td>
                 </tr>
               ) : (
                 transactions.map((tx) => {
-                  const type = typeBadges[tx.type] || { bg: '#334155', text: '#cbd5e1', label: tx.type };
-                  const status = statusBadges[tx.status] || { bg: '#334155', text: '#cbd5e1' };
+                  const type = typeBadges[tx.type] || { bg: 'rgba(42, 23, 15, 0.08)', text: '#2A170F', label: tx.type };
+                  const status = statusBadges[tx.status] || { bg: 'rgba(100, 116, 139, 0.12)', text: '#475569' };
 
                   return (
                     <tr key={tx.id}>
                       <td>
-                        <span style={{ fontFamily: 'monospace', color: '#f8fafc', fontWeight: 600, fontSize: '0.8rem' }}>
+                        <span style={{ fontFamily: 'monospace', color: 'var(--color-chocolate)', fontWeight: 600, fontSize: '0.8rem' }}>
                           {tx.reference || tx.id}
                         </span>
                       </td>
                       <td>
                         {tx.bookingId ? (
-                          <Link href={`/bookings?id=${tx.bookingId}`} style={{ fontFamily: 'monospace', color: 'var(--color-brand-400)', fontWeight: 600 }}>
+                          <Link href={`/bookings?id=${tx.bookingId}`} style={{ fontFamily: 'monospace', color: 'var(--color-gold-dark)', fontWeight: 600, textDecoration: 'none' }}>
                             {tx.bookingId}
                           </Link>
                         ) : (
-                          <span style={{ color: '#64748b' }}>—</span>
+                          <span style={{ color: 'var(--color-chocolate-muted)' }}>—</span>
                         )}
                       </td>
                       <td>
                         <span
                           style={{
                             display: 'inline-block',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
+                            padding: '3px 9px',
+                            borderRadius: '999px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
                             background: type.bg,
                             color: type.text,
                           }}
@@ -530,25 +495,27 @@ export default function FinancialTransactionsLedgerPage() {
                           {type.label}
                         </span>
                       </td>
-                      <td style={{ color: '#cbd5e1' }}>{tx.patientMasked || 'Platform Direct'}</td>
-                      <td style={{ fontWeight: 500 }}>{tx.doctorName || '—'}</td>
-                      <td style={{ fontWeight: 700, color: tx.grossAmount < 0 ? '#f87171' : '#f8fafc' }}>
-                        R {tx.grossAmount.toLocaleString()}
+                      <td style={{ color: '#201712' }}>{tx.patientMasked || 'Platform Direct'}</td>
+                      <td style={{ fontWeight: 600, color: '#201712' }}>{tx.doctorName || '—'}</td>
+                      <td style={{ fontWeight: 700, color: Number(tx.grossAmount ?? tx.amount ?? 0) < 0 ? '#DC2626' : '#201712' }}>
+                        R {Number(tx.grossAmount ?? tx.amount ?? 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
-                      <td style={{ color: '#34d399', fontWeight: 600 }}>
-                        {tx.platformFee > 0 ? `R ${tx.platformFee.toLocaleString()}` : '—'}
+                      <td style={{ color: '#047857', fontWeight: 600 }}>
+                        {Number(tx.platformFee ?? 0) > 0
+                          ? `R ${Number(tx.platformFee ?? 0).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                          : '—'}
                       </td>
-                      <td style={{ color: '#a78bfa', fontWeight: 600 }}>
-                        R {tx.netAmount.toLocaleString()}
+                      <td style={{ color: '#201712', fontWeight: 600 }}>
+                        R {Number(tx.netAmount ?? (Number(tx.grossAmount ?? tx.amount ?? 0) - Number(tx.platformFee ?? 0))).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                       <td>
                         <span
                           style={{
                             display: 'inline-block',
-                            padding: '3px 8px',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
+                            padding: '3px 9px',
+                            borderRadius: '999px',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
                             background: status.bg,
                             color: status.text,
                             textTransform: 'capitalize',
@@ -557,7 +524,7 @@ export default function FinancialTransactionsLedgerPage() {
                           {tx.status}
                         </span>
                       </td>
-                      <td style={{ color: '#94a3b8', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                      <td style={{ color: 'var(--color-chocolate-muted)', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
                         {new Date(tx.createdAt).toLocaleDateString('en-ZA', {
                           year: 'numeric',
                           month: 'short',
@@ -577,15 +544,15 @@ export default function FinancialTransactionsLedgerPage() {
         {/* Pagination bar */}
         <div
           style={{
-            padding: '16px 24px',
-            borderTop: '1px solid #334155',
+            padding: '14px 20px',
+            borderTop: '1px solid rgba(42, 23, 15, 0.08)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            background: '#0f172a',
+            background: 'var(--color-cream-canvas)',
           }}
         >
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--color-chocolate-muted)', fontWeight: 500 }}>
             Showing {transactions.length} of {data?.total || 0} ledger records (Page {page} of {totalPages})
           </span>
 
@@ -593,16 +560,9 @@ export default function FinancialTransactionsLedgerPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
+              className="btn-secondary"
               style={{
-                background: '#1e293b',
-                border: '1px solid #334155',
-                color: page <= 1 ? '#64748b' : '#f8fafc',
                 padding: '6px 12px',
-                borderRadius: '6px',
-                cursor: page <= 1 ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
                 fontSize: '0.8rem',
               }}
             >
@@ -611,16 +571,9 @@ export default function FinancialTransactionsLedgerPage() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
+              className="btn-secondary"
               style={{
-                background: '#1e293b',
-                border: '1px solid #334155',
-                color: page >= totalPages ? '#64748b' : '#f8fafc',
                 padding: '6px 12px',
-                borderRadius: '6px',
-                cursor: page >= totalPages ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
                 fontSize: '0.8rem',
               }}
             >

@@ -22,12 +22,16 @@ import {
   BookingStatus,
   Payment,
   PaymentRecordStatus,
+  Prescription,
+  PatientMedicalProfile,
+  PatientDocument,
 } from '../../database/patient/entities';
 import { AvailabilitySlot, DoctorProfile, User } from '../../database/operational/entities';
 import { envConfig } from '../../config/env.config';
 import { DailyService } from './daily.service';
 import { ConsultationGateway } from './consultation.gateway';
 import { PaystackService } from '../payments/paystack.service';
+import { PatientDemoSeederService } from './patient-demo-seeder.service';
 
 @Injectable()
 export class ConsultationsService {
@@ -54,7 +58,18 @@ export class ConsultationsService {
     @InjectQueue(QUEUES.NO_SHOW)
     private readonly noShowQueue: Queue,
     @Optional()
+    @InjectRepository(Prescription, 'patient')
+    private readonly prescriptionRepository?: Repository<Prescription>,
+    @Optional()
+    @InjectRepository(PatientMedicalProfile, 'patient')
+    private readonly patientMedicalProfileRepository?: Repository<PatientMedicalProfile>,
+    @Optional()
+    @InjectRepository(PatientDocument, 'patient')
+    private readonly patientDocumentRepository?: Repository<PatientDocument>,
+    @Optional()
     private readonly notificationsService?: NotificationsService,
+    @Optional()
+    private readonly patientDemoSeederService?: PatientDemoSeederService,
   ) {}
 
   /**
@@ -336,6 +351,7 @@ export class ConsultationsService {
   ): Promise<{
     success: boolean;
     doctor_notes: string;
+    patient_notes?: string;
     updated_at: Date;
     booking?: any;
   }> {
@@ -349,6 +365,17 @@ export class ConsultationsService {
     }
 
     consultation.doctor_notes = notes;
+
+    // Save patient-facing notes if provided explicitly or in JSON patientInstructions
+    try {
+      const parsed = typeof notes === 'string' ? JSON.parse(notes) : notes;
+      if (parsed?.patientInstructions || parsed?.patientNotes) {
+        consultation.patient_notes = parsed.patientInstructions || parsed.patientNotes;
+      }
+    } catch {
+      // Plain text doctor notes - leave patient_notes untouched unless updated
+    }
+
     const saved = await this.consultationRepository.save(consultation);
 
     // Notify WebSocket subscribers that notes have been saved
@@ -357,6 +384,7 @@ export class ConsultationsService {
     return {
       success: true,
       doctor_notes: saved.doctor_notes || '',
+      patient_notes: saved.patient_notes || '',
       updated_at: saved.updated_at,
       booking: consultation.booking,
     };
@@ -366,20 +394,26 @@ export class ConsultationsService {
    * Retrieves full details and context for a consultation session.
    */
   async getConsultationDetails(bookingId: string) {
-    const consultation = await this.consultationRepository.findOne({
-      where: { booking_id: bookingId },
+    let consultation = await this.consultationRepository.findOne({
+      where: [{ booking_id: bookingId }, { id: bookingId }],
       relations: ['booking'],
     });
 
     if (!consultation) {
-      // Auto-provision if confirmed booking
+      // Auto-provision if booking exists
       const booking = await this.bookingRepository.findOne({
         where: { id: bookingId },
       });
-      if (booking && booking.status === BookingStatus.CONFIRMED) {
-        return this.provisionRoom(bookingId);
+      if (booking) {
+        await this.provisionRoom(booking.id);
+        consultation = await this.consultationRepository.findOne({
+          where: { booking_id: booking.id },
+          relations: ['booking'],
+        });
       }
-      throw new NotFoundException(`Consultation for booking ${bookingId} not found`);
+      if (!consultation) {
+        throw new NotFoundException(`Consultation for booking ${bookingId} not found`);
+      }
     }
 
     // Get doctor profile if available
@@ -396,13 +430,146 @@ export class ConsultationsService {
       }
     }
 
+    // Load patient details, medical profile & uploaded documents for the doctor
+    let patientMedicalProfile: PatientMedicalProfile | null = null;
+    let patientDocuments: PatientDocument[] = [];
+    let patientUser: any = null;
+
+    if (consultation.booking?.patient_id) {
+      const pId = consultation.booking.patient_id;
+      if (this.patientMedicalProfileRepository) {
+        patientMedicalProfile = await this.patientMedicalProfileRepository.findOne({
+          where: { patient_id: pId },
+        });
+      }
+      if (this.patientDocumentRepository) {
+        patientDocuments = await this.patientDocumentRepository.find({
+          where: { patient_id: pId },
+          order: { created_at: 'DESC' },
+        });
+      }
+      const u = await this.userRepository.findOne({ where: { id: pId } });
+      if (u) {
+        patientUser = {
+          id: u.id,
+          fullName: u.full_name,
+          email: u.email,
+          phone: u.phone,
+          dateOfBirth: u.date_of_birth,
+        };
+      }
+    }
+
     return {
       ...consultation,
       doctor: {
         name: doctorName,
         specialty,
       },
+      patient: patientUser,
+      patientMedicalProfile,
+      patientDocuments,
     };
+  }
+
+  /**
+   * Retrieves Health Notes for patient, linking to associated prescription if issued.
+   */
+  async getPatientHealthNotes(patientId: string) {
+    if (this.patientDemoSeederService) {
+      await this.patientDemoSeederService.seedPatientDemoData(patientId);
+    }
+
+    const bookings = await this.bookingRepository.find({
+      where: { patient_id: patientId },
+      order: { created_at: 'DESC' },
+    });
+
+    if (!bookings.length) return [];
+
+    const bookingMap = new Map(bookings.map((b) => [b.id, b]));
+    const bookingIds = bookings.map((b) => b.id);
+
+    const consultations = await this.consultationRepository.find({
+      where: bookingIds.map((bId) => ({ booking_id: bId })),
+      order: { created_at: 'DESC' },
+    });
+
+    const results = [];
+    for (const cons of consultations) {
+      const b = bookingMap.get(cons.booking_id);
+      if (!b) continue;
+
+      let doctorName = 'Attending Practitioner';
+      let specialty = 'General Medicine';
+      let avatarUrl: string | null = null;
+
+      if (b.doctor_id) {
+        const doc = await this.doctorProfileRepository.findOne({
+          where: [{ user_id: b.doctor_id }, { id: b.doctor_id }],
+          relations: ['user'],
+        });
+        if (doc) {
+          doctorName = doc.user?.full_name || `Dr. ${doc.hpcsa_number}`;
+          specialty = doc.specialty;
+          avatarUrl = doc.user?.avatar_url || null;
+        }
+      }
+
+      // Check for associated prescription for this consultation
+      let prescription = null;
+      if (this.prescriptionRepository) {
+        const presc = await this.prescriptionRepository.findOne({
+          where: { consultation_id: cons.id },
+        });
+        if (presc) {
+          prescription = {
+            id: presc.id,
+            icd10_code: presc.icd10_code,
+            schedule_flag: presc.schedule_flag,
+            issued_at: presc.issued_at,
+            medications_count: Array.isArray(presc.medications) ? presc.medications.length : 0,
+            medications: presc.medications,
+            pdf_url: presc.pdf_url,
+          };
+        }
+      }
+
+      // Determine patient-facing note (never expose private doctor clinical notes)
+      let notes = cons.patient_notes;
+      let diagnosis = '';
+      if (cons.doctor_notes) {
+        try {
+          const parsed = JSON.parse(cons.doctor_notes);
+          if (parsed.patientInstructions && !notes) {
+            notes = parsed.patientInstructions;
+          }
+          if (parsed.assessment) {
+            diagnosis = parsed.assessment;
+          }
+        } catch {
+          // Keep doctor clinical notes hidden
+        }
+      }
+
+      results.push({
+        id: cons.id,
+        booking_id: cons.booking_id,
+        doctor: {
+          name: doctorName,
+          specialty,
+          avatarUrl,
+        },
+        date: cons.started_at || b.created_at,
+        notes: notes || 'General post-consultation health advice and lifestyle guidance.',
+        diagnosis: diagnosis || prescription?.icd10_code || 'General Consultation',
+        hasCustomNotes: !!notes,
+        prescription,
+        created_at: cons.created_at,
+      });
+    }
+
+    return results;
   }
 
   /**
@@ -436,17 +603,31 @@ export class ConsultationsService {
       throw new BadRequestException('Cannot extend an ended consultation');
     }
 
-    const validDurations = [15, 20, 30];
+    const validDurations = [10, 20, 30];
     if (!validDurations.includes(durationMinutes)) {
-      throw new BadRequestException('Extension duration must be 15, 20, or 30 minutes');
+      throw new BadRequestException('Extension duration must be 10, 20, or 30 minutes');
     }
 
-    // Standard platform extension rates: +15 min = R150, +20 min = R200, +30 min = R300 (or R0 if complimentary)
-    const rates: Record<number, number> = { 15: 150, 20: 200, 30: 300 };
-    const amount = isFree ? 0 : rates[durationMinutes];
+    const booking = consultation.booking;
+
+    // Pro-rata pricing: derived from the attending doctor's own published hourly rate
+    // (doctor_profiles.rate_per_hour on the operational DB), never sent by the client.
+    // amount = rate_per_hour * (minutes / 60), rounded to 2 decimals.
+    let amount = 0;
+    if (!isFree) {
+      const doctorProfile = booking?.doctor_id
+        ? await this.doctorProfileRepository.findOne({ where: { user_id: booking.doctor_id } })
+        : null;
+      const hourlyRate = Number(doctorProfile?.rate_per_hour ?? 0);
+      if (hourlyRate <= 0) {
+        throw new BadRequestException(
+          'This doctor has not set an hourly rate, so a paid extension cannot be priced. Please set your rate in your profile.',
+        );
+      }
+      amount = Math.round(hourlyRate * (durationMinutes / 60) * 100) / 100;
+    }
 
     // Check VPS availability: Is doctor's next slot open?
-    const booking = consultation.booking;
     if (booking?.slot_id) {
       const currentSlot = await this.slotRepository.findOne({
         where: { id: booking.slot_id },
@@ -534,9 +715,16 @@ export class ConsultationsService {
 
   /**
    * Patient responds to in-call time extension consent modal (BE-701).
-   * - If declined: emits 'extension_declined' to doctor.
-   * - If approved: executes Paystack tokenized charge using patient's vaulted card.
-   * - On success: extends Daily.co room expiry, broadcasts 'extension_confirmed', updates timers.
+   *
+   * NO stored banking info / NO auto-debit. Every paid extension is a fresh
+   * redirect to the Paystack gateway:
+   * - If declined: emits 'extension_declined' to the doctor, ends here.
+   * - If approved & amount > 0: creates a PENDING payment row (provider_ref
+   *   `chk_ext_<extensionId>`), initializes a Paystack checkout and returns the
+   *   `authorization_url` for the client to open in a new tab. The consultation
+   *   call is NOT touched here — the room is only extended once Paystack confirms
+   *   the charge via the webhook (see finalizeExtensionPayment).
+   * - If approved & amount == 0 (complimentary): finalizes immediately.
    */
   async consentExtension(
     bookingId: string,
@@ -547,9 +735,14 @@ export class ConsultationsService {
     success: boolean;
     approved: boolean;
     status: ExtensionStatus;
+    // Present when a redirect payment is required:
+    requires_payment?: boolean;
+    authorization_url?: string;
+    reference?: string;
+    amount?: number;
+    // Present when finalized inline (complimentary):
     added_minutes?: number;
     remaining_seconds?: number;
-    amount?: number;
   }> {
     const extension = await this.extensionRepository.findOne({
       where: { id: extensionId },
@@ -585,111 +778,137 @@ export class ConsultationsService {
       };
     }
 
-    // Approved: execute auto-debit charge if amount > 0, otherwise grant complimentary extension
+    // Approved.
     extension.status = ExtensionStatus.APPROVED;
     await this.extensionRepository.save(extension);
 
-    if (Number(extension.amount) > 0) {
-      // Retrieve saved authorization code from patient's previous payment
-      let savedPayment = await this.paymentRepository.findOne({
-        where: { booking_id: booking.id, status: PaymentRecordStatus.SUCCESS },
-        order: { created_at: 'DESC' },
-      });
+    const amount = Number(extension.amount);
 
-      if (!savedPayment?.authorization_code) {
-        // Check if patient has any previous vaulted card
-        const pastPayment = await this.paymentRepository
-          .createQueryBuilder('p')
-          .innerJoin('p.booking', 'b')
-          .where('b.patient_id = :patientId', { patientId: booking.patient_id })
-          .andWhere('p.authorization_code IS NOT NULL')
-          .andWhere('p.status = :status', { status: PaymentRecordStatus.SUCCESS })
-          .orderBy('p.created_at', 'DESC')
-          .getOne();
-
-        if (pastPayment) {
-          savedPayment = pastPayment;
-        }
-      }
-
-      const authCode = savedPayment?.authorization_code || 'AUTH_tok_vault_default';
-      const patientUser = await this.userRepository.findOne({
-        where: { id: booking.patient_id },
-      });
-      const patientEmail = patientUser?.email || 'patient@chekup247.com';
-      const amountInCents = Math.round(Number(extension.amount) * 100);
-      const reference = `chk_ext_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`;
-
-      let chargeResult: any;
-      try {
-        chargeResult = await this.paystackService.chargeAuthorization({
-          authorizationCode: authCode,
-          email: patientEmail,
-          amountInCents,
-          reference,
-          metadata: {
-            booking_id: booking.id,
-            extension_id: extension.id,
-            duration_minutes: extension.duration_minutes,
-          },
-        });
-
-        if (chargeResult.status !== 'success') {
-          throw new Error(chargeResult.gateway_response || 'Card debit authorization declined');
-        }
-      } catch (chargeErr: any) {
-        this.logger.error(`Paystack tokenized auto-debit failed: ${chargeErr.message}`);
-        this.consultationGateway.broadcastExtensionPaymentFailed(bookingId, {
-          extensionId: extension.id,
-          message: 'Vaulted card charge failed. Extension could not be activated.',
-        });
-        throw new BadRequestException('Payment debit failed for time extension.');
-      }
-
-      // Record successful extension payment
-      const payment = this.paymentRepository.create({
-        booking_id: booking.id,
-        amount: Number(extension.amount),
-        provider: 'paystack',
-        provider_ref: reference,
-        authorization_code: authCode,
-        card_type: savedPayment?.card_type || 'visa',
-        last4: savedPayment?.last4 || '4081',
-        status: PaymentRecordStatus.SUCCESS,
-      });
-      const savedPaymentRecord = await this.paymentRepository.save(payment);
-
-      // Update extension to PAID
-      extension.payment_id = savedPaymentRecord.id;
-      extension.status = ExtensionStatus.PAID;
-      await this.extensionRepository.save(extension);
-    } else {
+    // Complimentary extension (amount 0) — no payment gateway needed, finalize now.
+    if (amount <= 0) {
       this.logger.log(`Complimentary extension (Free) approved for booking ${bookingId}`);
-      extension.status = ExtensionStatus.PAID;
-      await this.extensionRepository.save(extension);
+      const result = await this.finalizeExtensionPayment(extension.id, null);
+      return {
+        success: true,
+        approved: true,
+        status: ExtensionStatus.PAID,
+        added_minutes: result.added_minutes,
+        remaining_seconds: result.remaining_seconds,
+        amount: 0,
+      };
     }
 
-    // Extend Daily.co room expiry on Daily API
+    // Paid extension — redirect to the payment gateway. A deterministic, unique
+    // reference keyed to the extension id keeps the webhook idempotent.
+    const reference = `chk_ext_${extension.id}`;
+
+    // Reuse an existing pending payment row if this consent is retried, otherwise create one.
+    let payment = await this.paymentRepository.findOne({ where: { provider_ref: reference } });
+    if (!payment) {
+      payment = this.paymentRepository.create({
+        booking_id: booking.id,
+        amount,
+        provider: 'paystack',
+        provider_ref: reference,
+        status: PaymentRecordStatus.PENDING,
+      });
+      payment = await this.paymentRepository.save(payment);
+    }
+
+    // Link the (pending) payment to the extension so the webhook can find its way back.
+    extension.payment_id = payment.id;
+    await this.extensionRepository.save(extension);
+
+    const patientUser = await this.userRepository.findOne({
+      where: { id: patientId || booking.patient_id },
+    });
+    const patientEmail = patientUser?.email || 'patient@chekup247.com';
+    const amountInCents = Math.round(amount * 100);
+
+    const callbackUrl =
+      `${envConfig.PATIENT_WEB_URL}/consultations/extend/return` +
+      `?bookingId=${bookingId}&reference=${reference}`;
+
+    const init = await this.paystackService.initializeTransaction({
+      email: patientEmail,
+      amountInCents,
+      reference,
+      callbackUrl,
+      metadata: {
+        type: 'consultation_extension',
+        booking_id: booking.id,
+        extension_id: extension.id,
+        duration_minutes: extension.duration_minutes,
+      },
+    });
+
+    this.logger.log(
+      `Extension ${extensionId} approved for booking ${bookingId}: awaiting redirect payment (R${amount}, ref=${reference})`,
+    );
+
+    return {
+      success: true,
+      approved: true,
+      status: ExtensionStatus.APPROVED,
+      requires_payment: true,
+      authorization_url: init.authorization_url,
+      reference,
+      amount,
+    };
+  }
+
+  /**
+   * Finalizes a consultation time extension once its payment is confirmed
+   * (called by the Paystack webhook on charge.success for a `chk_ext_*` reference,
+   * or inline for a complimentary/zero-amount extension).
+   *
+   * This is the ONLY place a paid extension flips to PAID and the Daily.co room
+   * is actually extended — so the call is never extended before money is confirmed.
+   * Idempotent: a second call for an already-PAID extension is a no-op.
+   */
+  async finalizeExtensionPayment(
+    extensionId: string,
+    paymentId: string | null,
+  ): Promise<{ added_minutes: number; remaining_seconds: number; already_finalized: boolean }> {
+    const extension = await this.extensionRepository.findOne({
+      where: { id: extensionId },
+      relations: ['consultation', 'consultation.booking'],
+    });
+
+    if (!extension) {
+      throw new NotFoundException(`Extension with ID ${extensionId} not found`);
+    }
+
+    const consultation = extension.consultation;
+    const bookingId = consultation.booking_id;
+
+    // Idempotency guard — webhook retries or a double redirect must not double-extend.
+    if (extension.status === ExtensionStatus.PAID) {
+      const totalDurationSeconds = await this.computeExtendedDurationSeconds(consultation.id);
+      const remainingSeconds = this.computeRemainingSeconds(consultation.started_at, totalDurationSeconds);
+      return {
+        added_minutes: extension.duration_minutes,
+        remaining_seconds: remainingSeconds,
+        already_finalized: true,
+      };
+    }
+
+    if (paymentId) {
+      extension.payment_id = paymentId;
+    }
+    extension.status = ExtensionStatus.PAID;
+    await this.extensionRepository.save(extension);
+
+    // Extend the live Daily.co room — this is what keeps the call going without disconnect.
     await this.dailyService.extendRoomExpiry(
       consultation.video_room_id,
       extension.duration_minutes,
     );
 
-    // Compute updated total duration and remaining seconds
-    const allPaid = await this.extensionRepository.find({
-      where: { consultation_id: consultation.id, status: ExtensionStatus.PAID },
-    });
-    const totalExtraMinutes = allPaid.reduce((sum, e) => sum + e.duration_minutes, 0);
-    const baseDuration = 1800; // 30 minutes in seconds
-    const totalDurationSeconds = baseDuration + totalExtraMinutes * 60;
+    const totalDurationSeconds = await this.computeExtendedDurationSeconds(consultation.id);
+    const remainingSeconds = this.computeRemainingSeconds(consultation.started_at, totalDurationSeconds);
 
-    const startedTime = consultation.started_at
-      ? new Date(consultation.started_at).getTime()
-      : Date.now();
-    const elapsed = Math.max(0, Math.floor((Date.now() - startedTime) / 1000));
-    const remainingSeconds = Math.max(0, totalDurationSeconds - elapsed);
-
-    // Broadcast extension confirmed & timer sync to both participants
+    // Broadcast the timer bump to BOTH participants in the still-open call.
     this.consultationGateway.broadcastExtensionConfirmed(bookingId, {
       extensionId: extension.id,
       addedMinutes: extension.duration_minutes,
@@ -698,24 +917,38 @@ export class ConsultationsService {
       amount: Number(extension.amount),
     });
 
-    this.consultationGateway.broadcastTimerSync(
-      bookingId,
-      new Date(startedTime),
-      totalDurationSeconds,
-    );
+    const startedTime = consultation.started_at
+      ? new Date(consultation.started_at)
+      : new Date();
+    this.consultationGateway.broadcastTimerSync(bookingId, startedTime, totalDurationSeconds);
 
     this.logger.log(
       `Extension ${extensionId} PAID & confirmed for booking ${bookingId}: +${extension.duration_minutes}m (R${extension.amount})`,
     );
 
     return {
-      success: true,
-      approved: true,
-      status: ExtensionStatus.PAID,
       added_minutes: extension.duration_minutes,
       remaining_seconds: remainingSeconds,
-      amount: Number(extension.amount),
+      already_finalized: false,
     };
+  }
+
+  /**
+   * Total consultation duration in seconds = base 30 min + all PAID extensions.
+   */
+  private async computeExtendedDurationSeconds(consultationId: string): Promise<number> {
+    const allPaid = await this.extensionRepository.find({
+      where: { consultation_id: consultationId, status: ExtensionStatus.PAID },
+    });
+    const totalExtraMinutes = allPaid.reduce((sum, e) => sum + e.duration_minutes, 0);
+    const baseDuration = 1800; // 30 minutes in seconds
+    return baseDuration + totalExtraMinutes * 60;
+  }
+
+  private computeRemainingSeconds(startedAt: Date | null | undefined, totalDurationSeconds: number): number {
+    const startedTime = startedAt ? new Date(startedAt).getTime() : Date.now();
+    const elapsed = Math.max(0, Math.floor((Date.now() - startedTime) / 1000));
+    return Math.max(0, totalDurationSeconds - elapsed);
   }
 
   /**

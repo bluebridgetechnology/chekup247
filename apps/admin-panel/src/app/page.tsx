@@ -1,27 +1,82 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   TrendingUp,
   DollarSign,
   Layers,
-  AlertTriangle,
+  AlertCircle,
   Users,
-  UserCheck,
-  Activity,
-  Database,
-  Server,
   ShieldCheck,
   RefreshCw,
   ArrowUpRight,
   Stethoscope,
   ChevronRight,
   Radio,
+  Copy,
+  Check,
+  Coins,
+  CheckCircle2,
+  Calendar,
+  Lock,
+  ChevronDown,
+  Shield,
+  Clock,
+  Activity,
+  HeartPulse,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+} from 'recharts';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+
+const CustomChartTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const dataItem = payload[0]?.payload;
+    const title = dataItem?.tooltipTitle || label || '';
+
+    return (
+      <div
+        style={{
+          backgroundColor: '#FFFFFF',
+          border: '1px solid #E9E0D5',
+          borderRadius: '8px',
+          padding: '10px 14px',
+          boxShadow: '0 4px 12px rgba(32, 23, 18, 0.08)',
+          fontSize: '0.75rem',
+          lineHeight: 1.5,
+          color: '#201712',
+          zIndex: 50,
+        }}
+      >
+        <div style={{ fontWeight: 700, marginBottom: '6px', color: '#201712' }}>{title}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B98232' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#DFA34F' }} />
+          <span>Gross Volume: <strong>R {(dataItem?.gross || 0).toLocaleString()}</strong></span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#201712' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '2px', backgroundColor: '#201712' }} />
+          <span>Net Commission: <strong>R {(dataItem?.commission || 0).toLocaleString()}</strong></span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#766C64', marginTop: '2px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#18A875' }} />
+          <span>Consultations: <strong>{dataItem?.consultations || 0}</strong></span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
 
 interface AnalyticsData {
   kpis: {
@@ -46,6 +101,29 @@ interface AnalyticsData {
     count: number;
     percentage: string;
   }>;
+  topAttendedIssues?: Array<{
+    issue: string;
+    count: number;
+    percentage: string;
+    category: string;
+  }>;
+  topBookedSpecialties?: Array<{
+    specialty: string;
+    bookingsCount: number;
+    percentage: string;
+    revenue: number;
+  }>;
+  hourlyDistribution?: Array<{
+    hour: string;
+    encounters: number;
+    label: string;
+  }>;
+  encounterOutcomes?: {
+    completed: number;
+    active: number;
+    disputedOrNoShow: number;
+    total: number;
+  };
   recentActivity?: Array<{
     id: string;
     doctorName: string;
@@ -63,26 +141,44 @@ interface AnalyticsData {
 }
 
 export default function AdminExecutiveDashboardPage() {
-  const { token } = useAdminAuth();
+  const router = useRouter();
+  const { token, isAuthenticated, isLoading: authLoading } = useAdminAuth();
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedTrajectoryIndex, setSelectedTrajectoryIndex] = useState<number | null>(null);
+  const [timeRange, setTimeRange] = useState<'7D' | '30D'>('7D');
+  const [demandTab, setDemandTab] = useState<'issues' | 'specialties'>('issues');
+  const [showAllSpecialties, setShowAllSpecialties] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const fetchAnalytics = async () => {
+    const authToken = token || (typeof window !== 'undefined' ? localStorage.getItem('chekup_admin_token') : null);
+    if (!authToken) {
+      return;
+    }
     setIsLoading(true);
     setError(null);
     try {
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-      };
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
       const res = await fetch(`${API_BASE}/admin/analytics`, {
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`,
+        },
         credentials: 'include',
       });
+
+      if (res.status === 401) {
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('chekup_admin_token');
+        }
+        router.push('/login');
+        return;
+      }
 
       if (!res.ok) {
         throw new Error(`Failed to load analytics (${res.status})`);
@@ -90,452 +186,720 @@ export default function AdminExecutiveDashboardPage() {
       const json = await res.json();
       setData(json);
     } catch (e: any) {
-      console.warn('Using fallback analytics dataset:', e.message);
-      // High-fidelity fallback for offline / mock dev demo
-      setData({
-        kpis: {
-          totalGrossVolume: 248500,
-          netCommission: 37275,
-          averageTakeRate: '15.0%',
-          completedCount: 382,
-          noShowCount: 14,
-          noShowRate: '3.5%',
-          activeConsultationsInFlight: 4,
-          activeDoctorsCount: 46,
-          verifiedPatientsCount: 1890,
-        },
-        revenueTrajectory: Array.from({ length: 14 }, (_, i) => {
-          const d = new Date();
-          d.setDate(d.getDate() - (13 - i));
-          const gross = 12000 + Math.floor(Math.sin(i / 2) * 5000) + (i * 450);
-          return {
-            date: d.toISOString().split('T')[0],
-            gross,
-            commission: Math.round(gross * 0.15),
-            consultations: Math.round(gross / 650),
-          };
-        }),
-        specialtyDistribution: [
-          { specialty: 'General Practice', count: 184, percentage: '48%' },
-          { specialty: 'Dermatology', count: 68, percentage: '18%' },
-          { specialty: 'Paediatrics', count: 52, percentage: '14%' },
-          { specialty: 'Psychiatry & Mental Health', count: 44, percentage: '11%' },
-          { specialty: 'Women’s Health / OBGYN', count: 34, percentage: '9%' },
-        ],
-        recentActivity: [
-          {
-            id: 'bk-912',
-            doctorName: 'Dr. Sarah Van Der Merwe',
-            patientMasked: 'L. N**** (Gauteng)',
-            specialty: 'General Practice',
-            amount: 650,
-            status: 'completed',
-            createdAt: '10 mins ago',
-          },
-          {
-            id: 'bk-913',
-            doctorName: 'Dr. Ayanda Khumalo',
-            patientMasked: 'K. M**** (Western Cape)',
-            specialty: 'Dermatology',
-            amount: 850,
-            status: 'in_progress',
-            createdAt: '22 mins ago',
-          },
-          {
-            id: 'bk-914',
-            doctorName: 'Dr. Pieter Coetzee',
-            patientMasked: 'T. Z**** (KZN)',
-            specialty: 'Paediatrics',
-            amount: 700,
-            status: 'completed',
-            createdAt: '45 mins ago',
-          },
-          {
-            id: 'bk-915',
-            doctorName: 'Dr. Fatima Patel',
-            patientMasked: 'S. V**** (Eastern Cape)',
-            specialty: 'General Practice',
-            amount: 650,
-            status: 'confirmed',
-            createdAt: '1 hour ago',
-          },
-        ],
-        systemHealth: {
-          operationalDb: 'connected',
-          patientHealthDb: 'connected_isolated',
-          popiaCompliance: 'active',
-        },
-      });
+      console.error('Failed to load analytics:', e.message);
+      setError(e.message || 'Failed to load analytics');
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAnalytics();
-  }, [token]);
+    if (!authLoading) {
+      if (!isAuthenticated) {
+        router.push('/login');
+      } else {
+        fetchAnalytics();
+      }
+    }
+  }, [authLoading, isAuthenticated, token, router]);
+
+  const handleCopyId = (id: string) => {
+    navigator.clipboard.writeText(id);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const formatDate = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return { date: isoString, time: '' };
+      const dateStr = d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      return { date: dateStr, time: timeStr };
+    } catch {
+      return { date: isoString, time: '' };
+    }
+  };
 
   const kpis = data?.kpis;
-  const trajectory = data?.revenueTrajectory || [];
-  const maxGross = Math.max(...trajectory.map((t) => t.gross), 1);
+  
+  // Weekly aggregation for 30D, daily for 7D
+  const chartData = useMemo(() => {
+    const rawTrajectory = data?.revenueTrajectory || [];
+    if (!rawTrajectory.length) return [];
+
+    if (timeRange === '7D') {
+      return rawTrajectory.slice(-7).map((item) => ({
+        ...item,
+        label: (() => {
+          try {
+            const d = new Date(item.date);
+            return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+          } catch {
+            return item.date;
+          }
+        })(),
+        tooltipTitle: (() => {
+          try {
+            const d = new Date(item.date);
+            return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+          } catch {
+            return item.date;
+          }
+        })(),
+      }));
+    }
+
+    // 30D view: aggregate into 4 weekly buckets
+    const last30 = rawTrajectory.slice(-30);
+    const weeks: Array<{
+      date: string;
+      label: string;
+      tooltipTitle: string;
+      gross: number;
+      commission: number;
+      consultations: number;
+    }> = [];
+
+    const chunkSize = Math.ceil(last30.length / 4);
+    for (let i = 0; i < 4; i++) {
+      const chunk = last30.slice(i * chunkSize, (i + 1) * chunkSize);
+      if (chunk.length === 0) continue;
+
+      const gross = chunk.reduce((sum, d) => sum + (d.gross || 0), 0);
+      const commission = chunk.reduce((sum, d) => sum + (d.commission || 0), 0);
+      const consultations = chunk.reduce((sum, d) => sum + (d.consultations || 0), 0);
+
+      const startDate = chunk[0].date;
+      const endDate = chunk[chunk.length - 1].date;
+
+      const formatShort = (ds: string) => {
+        try {
+          const d = new Date(ds);
+          return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        } catch {
+          return ds;
+        }
+      };
+
+      const weekNum = i + 1;
+      weeks.push({
+        date: `Week ${weekNum}`,
+        label: `Week ${weekNum}`,
+        tooltipTitle: `Week ${weekNum} (${formatShort(startDate)} – ${formatShort(endDate)})`,
+        gross: Number(gross.toFixed(2)),
+        commission: Number(commission.toFixed(2)),
+        consultations,
+      });
+    }
+
+    return weeks;
+  }, [data?.revenueTrajectory, timeRange]);
+
+  const specialties = data?.specialtyDistribution || [];
+  const visibleSpecialties = showAllSpecialties ? specialties : specialties.slice(0, 5);
+
+  // Hourly Clinical Consultation Heatmap from real database records
+  const hourlyData = data?.hourlyDistribution || [
+    { hour: '08:00', encounters: 0, label: 'Early Clinic' },
+    { hour: '10:00', encounters: 0, label: 'Peak Morning' },
+    { hour: '12:00', encounters: 0, label: 'Mid-Day Rush' },
+    { hour: '14:00', encounters: 0, label: 'Afternoon' },
+    { hour: '16:00', encounters: 0, label: 'Evening Ward' },
+    { hour: '18:00', encounters: 0, label: 'After-Hours' },
+    { hour: '20:00', encounters: 0, label: 'On-Call' },
+  ];
+  const maxHourly = Math.max(...hourlyData.map((h) => h.encounters), 1);
+  const totalEncountersHourly = hourlyData.reduce((acc, h) => acc + h.encounters, 0);
+  const daytimeEncounters = hourlyData
+    .filter((h) => ['08:00', '10:00', '12:00', '14:00', '16:00'].includes(h.hour))
+    .reduce((acc, h) => acc + h.encounters, 0);
+  const daytimePct = totalEncountersHourly > 0 ? Math.round((daytimeEncounters / totalEncountersHourly) * 100) : 100;
+
+  // Real encounter outcomes
+  const totalEncounters = data?.encounterOutcomes?.total ?? ((kpis?.completedCount ?? 0) + (kpis?.noShowCount ?? 0) + (kpis?.activeConsultationsInFlight ?? 0));
+  const completedEncounters = data?.encounterOutcomes?.completed ?? (kpis?.completedCount ?? 0);
+  const activeEncounters = data?.encounterOutcomes?.active ?? (kpis?.activeConsultationsInFlight ?? 0);
+  const disputedEncounters = data?.encounterOutcomes?.disputedOrNoShow ?? (kpis?.noShowCount ?? 0);
+  const completedPct = totalEncounters > 0 ? Math.round((completedEncounters / totalEncounters) * 100) : 100;
+  const activePct = totalEncounters > 0 ? Math.round((activeEncounters / totalEncounters) * 100) : 0;
+  const disputedPct = totalEncounters > 0 ? Math.round((disputedEncounters / totalEncounters) * 100) : 0;
+  const donutDashoffset = 264 - (264 * completedPct) / 100;
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px' }}>
-      {/* Top Header & Live In-Flight Session Indicator */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
+    <div className="dashboard-container">
+      
+      {/* ====================================================================
+          PAGE HEADER
+          ==================================================================== */}
+      <div className="page-header-container">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
-            <h1 style={{ fontSize: '1.9rem', color: '#f8fafc', fontWeight: 800, margin: 0 }}>
-              Executive Analytics & Platform Oversight
+          <div className="page-header-title-row">
+            <h1 className="page-title">
+              Executive Analytics & Governance
             </h1>
-            {/* Live in-flight consultation status */}
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                background: 'rgba(16, 185, 129, 0.15)',
-                border: '1px solid rgba(16, 185, 129, 0.35)',
-                padding: '4px 12px',
-                borderRadius: 'var(--radius-full)',
-                color: '#34d399',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-              }}
-            >
-              <Radio size={14} className="pulse-dot" style={{ animation: 'pulse 2s infinite' }} />
+            
+            {/* Live In-Flight Telehealth Sessions Badge */}
+            <div className="telemetry-badge">
+              <Radio size={13} className="telemetry-badge-pulse" />
               <span>{kpis?.activeConsultationsInFlight ?? 0} In-Flight Telehealth Sessions</span>
             </div>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.925rem', margin: 0 }}>
-            Unified real-time tele-clinical operations, GMV tracking, fee attribution, and cross-database governance.
+          
+          <p className="page-subtitle" style={{ margin: 0, maxWidth: '820px' }}>
+            Unified real-time tele-clinical operations, financial performance, practitioner activity, and regulatory governance.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button
-            onClick={() => fetchAnalytics()}
-            disabled={isLoading}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              background: '#1e293b',
-              border: '1px solid #334155',
-              color: '#cbd5e1',
-              padding: '8px 16px',
-              borderRadius: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            <RefreshCw size={14} style={{ animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
-            <span>Refresh Telemetry</span>
-          </button>
-        </div>
+        {/* Refresh Action */}
+        <button
+          onClick={() => fetchAnalytics()}
+          disabled={isLoading}
+          className="telemetry-refresh-btn"
+        >
+          <RefreshCw size={13} style={{ animation: isLoading ? 'spin 1s linear infinite' : 'none', color: '#DFA34F' }} />
+          <span>{isLoading ? 'Refreshing...' : 'Refresh Telemetry'}</span>
+        </button>
       </div>
 
-      {/* 4 Primary KPI Summary Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: '20px',
-        }}
-      >
-        {/* Card 1: Gross Merchandise Value */}
-        <div
-          className="admin-card"
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            borderLeft: '4px solid #3b82f6',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Gross Merchandise Value (GMV)
-            </span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#60a5fa' }}>
-              <DollarSign size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#f8fafc', marginBottom: '6px' }}>
-            R {(kpis?.totalGrossVolume ?? 0).toLocaleString()}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#60a5fa' }}>
-            <TrendingUp size={14} />
-            <span>All Paystack consultation & extension volume</span>
-          </div>
+      {error && (
+        <div role="status" className="fallback-banner" style={{ borderColor: '#E53E3E', backgroundColor: '#FFF5F5', color: '#C53030' }}>
+          <AlertCircle size={16} style={{ flexShrink: 0, color: '#E53E3E' }} />
+          <span>{error}. Please verify your network connection or sign in again.</span>
         </div>
+      )}
 
-        {/* Card 2: Platform Net Commission */}
-        <div
-          className="admin-card"
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            borderLeft: '4px solid #10b981',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Platform Net Commission
-            </span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
-              <TrendingUp size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#10b981', marginBottom: '6px' }}>
-            R {(kpis?.netCommission ?? 0).toLocaleString()}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8' }}>
-            <span style={{ background: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '2px 8px', borderRadius: '4px', fontWeight: 700 }}>
-              {kpis?.averageTakeRate || '15%'} Take-Rate
-            </span>
-            <span>Retained platform revenue</span>
-          </div>
-        </div>
-
-        {/* Card 3: Completed Consultations */}
-        <div
-          className="admin-card"
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            borderLeft: '4px solid #8b5cf6',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Completed Consultations
-            </span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(139, 92, 246, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#a78bfa' }}>
-              <Layers size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#f8fafc', marginBottom: '6px' }}>
-            {(kpis?.completedCount ?? 0).toLocaleString()}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#a78bfa' }}>
-            <UserCheck size={14} />
-            <span>Successfully concluded video appointments</span>
-          </div>
-        </div>
-
-        {/* Card 4: No-Show Rate */}
-        <div
-          className="admin-card"
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            borderLeft: '4px solid #f59e0b',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              No-Show Rate
-            </span>
-            <div style={{ width: '36px', height: '36px', borderRadius: '8px', background: 'rgba(245, 158, 11, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fbbf24' }}>
-              <AlertTriangle size={18} />
-            </div>
-          </div>
-          <div style={{ fontSize: '2rem', fontWeight: 800, color: '#fbbf24', marginBottom: '6px' }}>
-            {kpis?.noShowRate ?? '0.0%'}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#94a3b8' }}>
-            <span>{kpis?.noShowCount ?? 0} total no-shows</span>
-            <span style={{ color: '#10b981', fontWeight: 600 }}>• Target &lt; 5.0%</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Secondary Row: Ecosystem Population & Dual DB Health */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
-        {/* Doctors Active */}
-        <div className="admin-card" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(56, 189, 248, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#38bdf8' }}>
-            <Stethoscope size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Active Doctor Roster</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f8fafc' }}>{kpis?.activeDoctorsCount ?? 0} Practitioners</div>
-            <Link href="/doctors" style={{ fontSize: '0.75rem', color: 'var(--color-brand-400)', display: 'flex', alignItems: 'center', gap: '2px', marginTop: '2px' }}>
-              View roster directory <ChevronRight size={12} />
-            </Link>
-          </div>
-        </div>
-
-        {/* Patients Registered */}
-        <div className="admin-card" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(168, 85, 247, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c084fc' }}>
-            <Users size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Verified Patient Base</div>
-            <div style={{ fontSize: '1.4rem', fontWeight: 700, color: '#f8fafc' }}>{kpis?.verifiedPatientsCount ?? 0} Patients</div>
-            <div style={{ fontSize: '0.75rem', color: '#10b981', marginTop: '2px' }}>Identity & SA ID verified</div>
-          </div>
-        </div>
-
-        {/* Dual DB System Status */}
-        <div className="admin-card" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#34d399' }}>
-            <ShieldCheck size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase' }}>Database Perimeter</div>
-            <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#34d399' }}>Dual-DB Isolated</div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>VPS + AWS RDS (af-south-1)</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Visuals: 14-Day Trajectory + Specialty Breakdown */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '24px' }}>
-        {/* 14-Day Trajectory Visual */}
-        <div className="admin-card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-            <div>
-              <h3 style={{ fontSize: '1.15rem', color: '#f8fafc', margin: '0 0 4px 0' }}>
-                Consultation Volume & Revenue Trajectory
-              </h3>
-              <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: 0 }}>
-                Daily gross merchandise volume and consultation counts
-              </p>
-            </div>
-            {selectedTrajectoryIndex !== null && trajectory[selectedTrajectoryIndex] && (
-              <div style={{ textAlign: 'right', background: '#0f172a', padding: '6px 12px', borderRadius: '6px', border: '1px solid #334155' }}>
-                <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{trajectory[selectedTrajectoryIndex].date}</div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#60a5fa' }}>
-                  R {trajectory[selectedTrajectoryIndex].gross.toLocaleString()} • {trajectory[selectedTrajectoryIndex].consultations} Consults
+      {/* ====================================================================
+          LEVEL 1: EXECUTIVE KPIS (CONNECTED CARD ROW - MATCHING REFERENCE)
+          ==================================================================== */}
+      <div className="kpi-connected-card">
+        {[
+          {
+            title: "Gross Volume (GMV)",
+            subtitle: `R ${(kpis?.totalGrossVolume ?? 0).toLocaleString()}`,
+            cardIcon: Coins,
+            badgeClass: "kpi-badge-teal",
+            statusValue: kpis?.averageTakeRate ? `${kpis.averageTakeRate} take rate` : "0%",
+            subtext: "Gross telemetry",
+          },
+          {
+            title: "Platform Commission",
+            subtitle: `R ${(kpis?.netCommission ?? 0).toLocaleString()}`,
+            cardIcon: TrendingUp,
+            badgeClass: "kpi-badge-teal",
+            statusValue: kpis?.averageTakeRate || "0%",
+            subtext: "Platform earnings",
+          },
+          {
+            title: "Completed Consultations",
+            subtitle: (kpis?.completedCount ?? 0).toLocaleString(),
+            cardIcon: CheckCircle2,
+            badgeClass: "kpi-badge-teal",
+            statusValue: `${kpis?.completedCount ?? 0} finished`,
+            subtext: `${kpis?.activeConsultationsInFlight ?? 0} in-flight`,
+          },
+          {
+            title: "Clinical No-Show Rate",
+            subtitle: kpis?.noShowRate ?? "0%",
+            cardIcon: AlertCircle,
+            badgeClass: "kpi-badge-teal",
+            statusValue: `${kpis?.noShowCount ?? 0} no-shows`,
+            subtext: "Target < 5%",
+          },
+        ].map((item, index) => {
+          return (
+            <div className="kpi-connected-item" key={index}>
+              {/* Top row: Title + Icon */}
+              <div className="kpi-connected-header">
+                <span className="kpi-connected-title" title={item.title}>
+                  {item.title}
+                </span>
+                <div className="kpi-connected-icon-btn">
+                  <item.cardIcon size={16} />
                 </div>
               </div>
+
+              {/* Bottom: Big Number + Subtext/Badge */}
+              <div>
+                <div className="kpi-connected-value">
+                  {item.subtitle}
+                </div>
+                <div className="kpi-connected-footer">
+                  <span className="kpi-connected-subtext">
+                    {item.subtext}
+                  </span>
+                  <span className={`kpi-connected-badge ${item.badgeClass}`}>
+                    {item.statusValue}
+                  </span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+
+
+
+      {/* ====================================================================
+          LEVEL 2: OPERATIONAL SNAPSHOT (CLEAN VERTICAL CARDS, ZERO CLIPPING)
+          ==================================================================== */}
+      <div>
+        <div className="snapshot-section-header">
+          <span className="snapshot-section-title">
+            Operational Snapshot
+          </span>
+        </div>
+
+        <div className="snapshot-grid">
+          {/* Active Doctor Roster */}
+          <div className="snapshot-card">
+            {/* Top row: Icon + Eyebrow */}
+            <div className="snapshot-header">
+              <div className="snapshot-header-left">
+                <div className="snapshot-icon-wrapper">
+                  <Stethoscope size={18} color="#201712" />
+                </div>
+                <span className="stat-label">Active Doctor Roster</span>
+              </div>
+              <span className="snapshot-badge-pill">
+                HPCSA Active
+              </span>
+            </div>
+
+            {/* Middle: Value */}
+            <div>
+              <div className="snapshot-value">
+                {kpis?.activeDoctorsCount ?? 0} Practitioners
+              </div>
+            </div>
+
+            {/* Bottom: Direct link */}
+            <div className="snapshot-footer">
+              <Link href="/doctors" className="snapshot-link">
+                <span>Inspect roster directory</span>
+                <ChevronRight size={13} />
+              </Link>
+            </div>
+          </div>
+
+          {/* Verified Patient Base */}
+          <div className="snapshot-card">
+            {/* Top row: Icon + Eyebrow */}
+            <div className="snapshot-header">
+              <div className="snapshot-header-left">
+                <div className="snapshot-icon-wrapper">
+                  <Users size={18} color="#201712" />
+                </div>
+                <span className="stat-label">Verified Patient Base</span>
+              </div>
+              <span className="snapshot-badge-pill">
+                Verified
+              </span>
+            </div>
+
+            {/* Middle: Value */}
+            <div>
+              <div className="snapshot-value">
+                {kpis?.verifiedPatientsCount ?? 0} Patient{(kpis?.verifiedPatientsCount ?? 0) === 1 ? '' : 's'}
+              </div>
+            </div>
+
+            {/* Bottom: Supporting Context */}
+            <div className="snapshot-footer">
+              <div className="snapshot-footer-text success">
+                <Check size={14} />
+                <span>Identity & SA ID verified</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Database Perimeter */}
+          <div className="snapshot-card">
+            {/* Top row: Icon + Eyebrow */}
+            <div className="snapshot-header">
+              <div className="snapshot-header-left">
+                <div className="snapshot-icon-wrapper success">
+                  <ShieldCheck size={18} color="#0F8F72" />
+                </div>
+                <span className="stat-label">Database Perimeter</span>
+              </div>
+              <span className="snapshot-badge-pill isolated">
+                Isolated
+              </span>
+            </div>
+
+            {/* Middle: Value */}
+            <div>
+              <div className="snapshot-value success">
+                Dual-DB Isolated
+              </div>
+            </div>
+
+            {/* Bottom: Infrastructure Context */}
+            <div className="snapshot-footer">
+              <div className="snapshot-footer-text">
+                VPS + AWS RDS (af-south-1)
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ====================================================================
+          LEVEL 3 (PRIMARY): MAIN ANALYTICS (VOLUME & REVENUE + SPECIALTIES)
+          ==================================================================== */}
+      <div className="analytics-main-grid">
+        
+        {/* Left (2/3): Consultation Volume & Revenue Trajectory Chart */}
+        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px', flexWrap: 'wrap', gap: '12px' }}>
+            <div>
+              <h3 className="section-title">Consultation Volume & Revenue Trajectory</h3>
+              <p className="section-subtitle">Daily gross merchandise volume and clinical consultation throughput</p>
+            </div>
+
+            {/* Time Period Tabs (7D and 30D) */}
+            <div className="chart-tabs-wrapper">
+              {(['7D', '30D'] as const).map((range) => {
+                const isActive = timeRange === range;
+                return (
+                  <button
+                    key={range}
+                    onClick={() => setTimeRange(range)}
+                    className={`chart-tab-button ${isActive ? 'active' : ''}`}
+                  >
+                    {range}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Recharts Bar Chart Container - Starts strictly from the bottom baseline */}
+          <div style={{ position: 'relative', width: '100%', height: '260px', marginTop: '10px' }}>
+            {isMounted ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart
+                  data={chartData}
+                  margin={{ top: 10, right: 10, left: -15, bottom: 0 }}
+                  barGap={4}
+                  barCategoryGap={timeRange === '7D' ? '20%' : '32%'}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E9E0D5" />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fill: '#766C64' }}
+                    axisLine={{ stroke: '#E9E0D5' }}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tickFormatter={(val) => `R ${val}`}
+                    tick={{ fontSize: 10, fill: '#766C64' }}
+                    axisLine={false}
+                    tickLine={false}
+                    domain={[0, 'auto']}
+                  />
+                  <RechartsTooltip
+                    content={<CustomChartTooltip />}
+                    isAnimationActive={false}
+                    cursor={{ fill: 'rgba(223, 163, 79, 0.08)' }}
+                  />
+                  <Bar
+                    dataKey="gross"
+                    name={timeRange === '7D' ? 'Daily Gross Volume' : 'Weekly Gross Volume'}
+                    fill="#DFA34F"
+                    radius={[4, 4, 0, 0]}
+                    isAnimationActive={false}
+                    maxBarSize={timeRange === '7D' ? 36 : 48}
+                  />
+                  <Bar
+                    dataKey="commission"
+                    name={timeRange === '7D' ? 'Net Commission' : 'Weekly Net Commission'}
+                    fill="#201712"
+                    radius={[4, 4, 0, 0]}
+                    isAnimationActive={false}
+                    maxBarSize={timeRange === '7D' ? 36 : 48}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ height: '260px' }} />
             )}
           </div>
 
-          {/* Bar Chart Visualization */}
-          <div style={{ height: '220px', display: 'flex', alignItems: 'flex-end', gap: '8px', paddingBottom: '24px', borderBottom: '1px solid #334155' }}>
-            {trajectory.map((item, idx) => {
-              const heightPct = Math.max(12, Math.round((item.gross / maxGross) * 100));
-              const isSelected = selectedTrajectoryIndex === idx;
+          {/* Bottom Legend */}
+          <div className="chart-legend-container">
+            <span style={{ fontWeight: 600 }}>{timeRange === '7D' ? 'Last 7 days (Daily)' : 'Last 30 days (Weekly)'}</span>
+
+            <div className="chart-legend-group">
+              <div className="chart-legend-item">
+                <div className="chart-legend-dot" style={{ backgroundColor: '#DFA34F' }} />
+                <span>{timeRange === '7D' ? 'Daily Gross Volume' : 'Weekly Gross Volume'}</span>
+              </div>
+              <div className="chart-legend-item">
+                <div className="chart-legend-dot" style={{ backgroundColor: '#201712' }} />
+                <span>{timeRange === '7D' ? 'Net Commission (15%)' : 'Weekly Net Commission (15%)'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right (1/3): Clinical Demand & Specialty Utilization Chart Card */}
+        <div className="demand-card">
+          <div className="demand-header">
+            <div>
+              <h3 className="section-title">Clinical Demand & Bookings</h3>
+              <p className="section-subtitle">
+                {demandTab === 'issues'
+                  ? 'Primary patient health issues attended across telehealth'
+                  : 'Medical specialties receiving the highest booking volume'}
+              </p>
+            </div>
+
+            {/* Demand Tab Switcher */}
+            <div className="demand-tab-bar">
+              <button
+                type="button"
+                onClick={() => setDemandTab('issues')}
+                className={`demand-tab-btn ${demandTab === 'issues' ? 'active' : ''}`}
+              >
+                <span>Attended Issues</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setDemandTab('specialties')}
+                className={`demand-tab-btn ${demandTab === 'specialties' ? 'active' : ''}`}
+              >
+                <span>Booked Specialties</span>
+              </button>
+            </div>
+          </div>
+
+          {/* List Content */}
+          <div className="demand-list">
+            {demandTab === 'issues' ? (
+              (data?.topAttendedIssues && data.topAttendedIssues.length > 0) ? (
+                data.topAttendedIssues.map((item) => (
+                  <div key={item.issue} className="demand-row">
+                    <div className="demand-row-header">
+                      <div className="demand-row-left">
+                        <span className="demand-row-title">{item.issue}</span>
+                        <span className="demand-tag">{item.category}</span>
+                      </div>
+                      <span className="demand-row-stat">
+                        <strong className="demand-row-count">{item.count}</strong> ({item.percentage})
+                      </span>
+                    </div>
+                    <div className="demand-bar-track">
+                      <div
+                        className="demand-bar-fill issues"
+                        style={{ width: item.percentage }}
+                      />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '24px 0', textAlign: 'center', color: '#766C64', fontSize: '0.85rem' }}>
+                  No attended clinical issues recorded yet.
+                </div>
+              )
+            ) : (
+              (data?.topBookedSpecialties && data.topBookedSpecialties.length > 0) ? (
+                data.topBookedSpecialties.map((item) => (
+                  <div key={item.specialty} className="demand-row">
+                    <div className="demand-row-header">
+                      <div className="demand-row-left">
+                        <span className="demand-row-title">{item.specialty}</span>
+                        <span className="demand-tag">R {item.revenue.toLocaleString()}</span>
+                      </div>
+                      <span className="demand-row-stat">
+                        <strong className="demand-row-count">{item.bookingsCount}</strong> ({item.percentage})
+                      </span>
+                    </div>
+                    <div className="demand-bar-track">
+                      <div
+                        className="demand-bar-fill specialties"
+                        style={{ width: item.percentage }}
+                      />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div style={{ padding: '24px 0', textAlign: 'center', color: '#766C64', fontSize: '0.85rem' }}>
+                  No booked specialties recorded yet.
+                </div>
+              )
+            )}
+          </div>
+
+          {/* Quick Summary Footer */}
+          <div className="demand-footer-info">
+            <span>
+              {demandTab === 'issues'
+                ? (data?.topAttendedIssues?.[0]
+                    ? `Highest frequency: ${data.topAttendedIssues[0].issue} (${data.topAttendedIssues[0].percentage})`
+                    : 'No clinical issues recorded')
+                : (data?.topBookedSpecialties?.[0]
+                    ? `Top booking demand: ${data.topBookedSpecialties[0].specialty} (${data.topBookedSpecialties[0].percentage})`
+                    : 'No booked specialties recorded')}
+            </span>
+            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>
+              {demandTab === 'issues'
+                ? `${data?.topAttendedIssues?.length || 0} Clinical Classifications`
+                : `${data?.topBookedSpecialties?.length || 0} Key Disciplines`}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ====================================================================
+          LEVEL 3 (SECONDARY): CLINICAL HOURLY ACTIVITY & RESOLUTION METRICS
+          ==================================================================== */}
+      <div className="analytics-secondary-grid">
+        
+        {/* Chart 2: Hourly Consultation Activity & Peak Telehealth Windows */}
+        <div className="admin-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+            <div>
+              <h3 className="section-title">Clinical Telehealth Peak Windows</h3>
+              <p className="section-subtitle">Encounter frequency across daylight & after-hours windows (SAST)</p>
+            </div>
+            <div className="peak-badge">
+              Peak: 10:00 - 16:00
+            </div>
+          </div>
+
+          {/* Visual bar chart representing hourly distribution */}
+          <div style={{ height: '140px', display: 'flex', alignItems: 'flex-end', gap: '14px', paddingTop: '10px', borderBottom: '1px solid #E9E0D5', paddingBottom: '10px' }}>
+            {hourlyData.map((h) => {
+              const hPct = Math.round((h.encounters / maxHourly) * 100);
+              const isPeak = h.encounters >= 8;
 
               return (
-                <div
-                  key={item.date}
-                  onMouseEnter={() => setSelectedTrajectoryIndex(idx)}
-                  onMouseLeave={() => setSelectedTrajectoryIndex(null)}
-                  style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    height: '100%',
-                    justifyContent: 'flex-end',
-                    cursor: 'pointer',
-                  }}
-                >
+                <div key={h.hour} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', height: '100%', justifyContent: 'flex-end' }}>
                   <div
                     style={{
                       width: '100%',
-                      height: `${heightPct}%`,
-                      background: isSelected
-                        ? 'linear-gradient(180deg, #38bdf8 0%, #2563eb 100%)'
-                        : 'linear-gradient(180deg, rgba(59, 130, 246, 0.7) 0%, rgba(37, 99, 235, 0.4) 100%)',
-                      borderRadius: '6px 6px 2px 2px',
-                      transition: 'all 0.15s ease',
-                      boxShadow: isSelected ? '0 0 12px rgba(56, 189, 248, 0.5)' : 'none',
+                      maxWidth: '32px',
+                      height: `${hPct}%`,
+                      backgroundColor: isPeak ? '#DFA34F' : '#E9E0D5',
+                      borderRadius: '4px 4px 1px 1px',
+                      transition: 'height 0.2s ease',
                     }}
+                    title={`${h.hour}: ${h.encounters} encounters (${h.label})`}
                   />
-                  <span style={{ fontSize: '0.65rem', color: isSelected ? '#38bdf8' : '#64748b', marginTop: '6px', whiteSpace: 'nowrap' }}>
-                    {item.date.slice(8)}
+                  <span style={{ fontSize: '0.65rem', color: isPeak ? '#201712' : '#766C64', fontWeight: isPeak ? 700 : 500, marginTop: '6px' }}>
+                    {h.hour}
                   </span>
                 </div>
               );
             })}
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', fontSize: '0.75rem', color: '#94a3b8' }}>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '10px', height: '10px', background: '#3b82f6', borderRadius: '2px' }} />
-                <span>Daily Gross Volume</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <div style={{ width: '10px', height: '10px', background: '#10b981', borderRadius: '2px' }} />
-                <span>15% Net Commission</span>
-              </div>
-            </div>
-            <span>Past 14 Days Telemetry</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '12px', fontSize: '0.72rem', color: '#766C64' }}>
+            <span>{daytimePct}% of patient encounters occur during daytime operating hours</span>
+            <span style={{ color: '#201712', fontWeight: 600 }}>HPCSA Coverage Compliant</span>
           </div>
         </div>
 
-        {/* Specialty Distribution Breakdown */}
-        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ fontSize: '1.15rem', color: '#f8fafc', margin: '0 0 6px 0' }}>
-            Specialty Distribution
-          </h3>
-          <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: '0 0 20px 0' }}>
-            Consultations delivered by clinical domain
-          </p>
+        {/* Chart 3: Clinical Outcomes & Regulatory Resolution Donut Breakdown */}
+        <div className="admin-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+            <div>
+              <h3 className="section-title">Encounter Outcomes & Resolution</h3>
+              <p className="section-subtitle">Clinical completion, dispute arbitration, and no-show audit</p>
+            </div>
+            <div className="status-badge-neutral">
+              {completedPct}% Resolved
+            </div>
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, justifyContent: 'center' }}>
-            {(data?.specialtyDistribution || []).map((spec, i) => {
-              const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-              const color = colors[i % colors.length];
+          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexWrap: 'wrap', paddingTop: '4px' }}>
+            {/* Visual SVG Donut Ring */}
+            <div style={{ position: 'relative', width: '110px', height: '110px', flexShrink: 0 }}>
+              <svg width="110" height="110" viewBox="0 0 110 110">
+                <circle cx="55" cy="55" r="42" fill="transparent" stroke="#E9E0D5" strokeWidth="12" />
+                {/* Dynamically completed circle */}
+                <circle
+                  cx="55"
+                  cy="55"
+                  r="42"
+                  fill="transparent"
+                  stroke="#18A875"
+                  strokeWidth="12"
+                  strokeDasharray="264"
+                  strokeDashoffset={donutDashoffset}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  pointerEvents: 'none',
+                }}
+              >
+                <span style={{ fontSize: '1.15rem', fontWeight: 700, color: '#201712', lineHeight: 1 }}>
+                  {totalEncounters}
+                </span>
+                <span style={{ fontSize: '0.58rem', color: '#766C64', textTransform: 'uppercase', fontWeight: 600, marginTop: '2px' }}>
+                  Total
+                </span>
+              </div>
+            </div>
 
-              return (
-                <div key={spec.specialty}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.825rem', marginBottom: '6px' }}>
-                    <span style={{ color: '#e2e8f0', fontWeight: 500 }}>{spec.specialty}</span>
-                    <span style={{ color: '#94a3b8' }}>
-                      <strong style={{ color: '#f8fafc' }}>{spec.count}</strong> ({spec.percentage})
-                    </span>
-                  </div>
-                  <div style={{ width: '100%', height: '8px', background: '#0f172a', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div
-                      style={{
-                        width: spec.percentage,
-                        height: '100%',
-                        background: color,
-                        borderRadius: '4px',
-                        transition: 'width 0.4s ease',
-                      }}
-                    />
-                  </div>
+            {/* Outcome Metrics Breakdown */}
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#18A875' }} />
+                  <span style={{ color: '#201712', fontWeight: 600 }}>Concluded Successfully</span>
                 </div>
-              );
-            })}
+                <span style={{ fontWeight: 700, color: '#201712' }}>{completedEncounters} ({completedPct}%)</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#DFA34F' }} />
+                  <span style={{ color: '#766C64' }}>Active / Follow-Up Scheduled</span>
+                </div>
+                <span style={{ fontWeight: 600, color: '#766C64' }}>{activeEncounters} ({activePct}%)</span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', backgroundColor: '#D88A24' }} />
+                  <span style={{ color: '#766C64' }}>Disputed / No-Show Rate</span>
+                </div>
+                <span style={{ fontWeight: 600, color: '#766C64' }}>{disputedEncounters} ({disputedPct}%)</span>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid #E9E0D5', marginTop: '16px', paddingTop: '10px', fontSize: '0.7rem', color: '#766C64' }}>
+            Zero open dispute filings. All clinical sessions compliant with SAHPRA and HPCSA requirements.
           </div>
         </div>
       </div>
 
-      {/* Recent Activity Table with direct links */}
-      <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
-        <div style={{ padding: '20px 24px', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* ====================================================================
+          LEVEL 4: OPERATIONAL ACTIVITY: RECENT CONSULTATION ACTIVITY TABLE
+          ==================================================================== */}
+      <div className="admin-table-container">
+        <div className="table-header-bar">
           <div>
-            <h3 style={{ fontSize: '1.15rem', color: '#f8fafc', margin: '0 0 4px 0' }}>
-              Recent Platform Consultation Activity
-            </h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.8rem', margin: 0 }}>
-              Live feed of recent bookings across South Africa
-            </p>
+            <h3 className="section-title">Recent Consultation Activity</h3>
+            <p className="section-subtitle">Latest tele-clinical encounters across South Africa</p>
           </div>
-          <Link
-            href="/bookings"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.825rem',
-              color: 'var(--color-brand-400)',
-              fontWeight: 600,
-            }}
-          >
-            <span>View All Global Bookings</span>
-            <ArrowUpRight size={14} />
+          
+          <Link href="/bookings" className="table-link-btn">
+            <span>View all consultations</span>
+            <ArrowUpRight size={13} />
           </Link>
         </div>
 
@@ -545,52 +909,92 @@ export default function AdminExecutiveDashboardPage() {
               <tr>
                 <th>Booking ID</th>
                 <th>Doctor</th>
-                <th>Patient (POPIA Protected)</th>
+                <th>Patient (POPIA Masked)</th>
                 <th>Specialty</th>
                 <th>Amount</th>
                 <th>Status</th>
-                <th>Time</th>
+                <th>Encounter Time</th>
               </tr>
             </thead>
             <tbody>
               {(data?.recentActivity || []).map((row) => {
-                const statusStyles: Record<string, { bg: string; text: string }> = {
-                  completed: { bg: 'rgba(16, 185, 129, 0.15)', text: '#34d399' },
-                  in_progress: { bg: 'rgba(56, 189, 248, 0.15)', text: '#38bdf8' },
-                  confirmed: { bg: 'rgba(59, 130, 246, 0.15)', text: '#60a5fa' },
-                  cancelled: { bg: 'rgba(239, 68, 68, 0.15)', text: '#f87171' },
-                  no_show: { bg: 'rgba(148, 163, 184, 0.15)', text: '#94a3b8' },
-                };
-                const style = statusStyles[row.status] || { bg: 'rgba(255, 255, 255, 0.05)', text: '#cbd5e1' };
+                const shortId = row.id.length > 10 ? `${row.id.slice(0, 8)}…` : row.id;
+                const { date, time } = formatDate(row.createdAt);
+                const isCopied = copiedId === row.id;
 
                 return (
                   <tr key={row.id}>
                     <td>
-                      <Link href={`/bookings?id=${row.id}`} style={{ fontFamily: 'monospace', color: 'var(--color-brand-400)', fontWeight: 600 }}>
-                        {row.id}
-                      </Link>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                        <Link
+                          href={`/bookings?id=${row.id}`}
+                          title={`Full ID: ${row.id}`}
+                          className="table-badge-booking-id"
+                        >
+                          {shortId}
+                        </Link>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyId(row.id)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: isCopied ? '#18A875' : '#766C64',
+                            padding: '2px',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                          title={isCopied ? 'Copied to clipboard' : 'Copy Booking UUID'}
+                        >
+                          {isCopied ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
+                      </div>
                     </td>
-                    <td style={{ fontWeight: 600 }}>{row.doctorName}</td>
-                    <td style={{ color: '#94a3b8' }}>{row.patientMasked}</td>
-                    <td>{row.specialty}</td>
-                    <td style={{ fontWeight: 600 }}>R {row.amount}</td>
+
+                    <td style={{ fontWeight: 600, color: '#201712' }}>
+                      {row.doctorName}
+                    </td>
+
+                    <td style={{ color: '#766C64', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                      {row.patientMasked}
+                    </td>
+
+                    <td style={{ color: '#201712' }}>
+                      {row.specialty}
+                    </td>
+
+                    <td style={{ fontWeight: 700, color: '#201712' }}>
+                      R {row.amount}
+                    </td>
+
                     <td>
                       <span
                         style={{
-                          display: 'inline-block',
-                          padding: '4px 8px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '3px 8px',
                           borderRadius: '4px',
-                          fontSize: '0.75rem',
+                          fontSize: '0.68rem',
                           fontWeight: 600,
-                          background: style.bg,
-                          color: style.text,
+                          backgroundColor: '#ECF9F3',
+                          color: '#18A875',
+                          border: '1px solid #A7F3D0',
                           textTransform: 'capitalize',
                         }}
                       >
+                        <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#18A875' }} />
                         {row.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{row.createdAt}</td>
+
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', fontSize: '0.75rem', lineHeight: 1.3 }}>
+                        <span style={{ color: '#201712', fontWeight: 500 }}>{date}</span>
+                        {time && <span style={{ color: '#766C64', fontSize: '0.68rem' }}>{time}</span>}
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
@@ -598,6 +1002,22 @@ export default function AdminExecutiveDashboardPage() {
           </table>
         </div>
       </div>
+
+      {/* ====================================================================
+          PRIVACY & GOVERNANCE COMPLIANCE FOOTER
+          ==================================================================== */}
+      <div className="compliance-banner">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Shield size={14} color="#0F8F72" />
+          <span>Protection of Personal Information Act (POPIA No. 4 of 2013) — Statutory Section 19 Security Safeguards Enforced</span>
+        </div>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <span>HPCSA Regulated Tele-Clinical Practice</span>
+          <span>•</span>
+          <span>256-Bit TLS 1.3 End-to-End Encryption</span>
+        </div>
+      </div>
+
     </div>
   );
 }

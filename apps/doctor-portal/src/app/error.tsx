@@ -43,7 +43,7 @@ export default function DoctorErrorBoundary({
           <AlertTriangle size={32} />
         </div>
 
-        <h1 style={{ fontSize: '1.75rem', color: '#0f172a', marginBottom: '12px', fontWeight: 800 }}>
+        <h1 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.75rem', color: '#0f172a', marginBottom: '12px', fontWeight: 'var(--font-heading-weight, 400)' }}>
           Clinical Portal Error
         </h1>
         <p style={{ color: '#64748b', marginBottom: '28px', lineHeight: 1.6 }}>

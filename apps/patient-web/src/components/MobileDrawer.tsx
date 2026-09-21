@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
 import { ChekupCrossLogo } from './Navbar';
+import { useAuth } from '../context/AuthContext';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface MobileDrawerProps {
 }
 
 export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
+  const { user, isAuthenticated, logout } = useAuth();
   if (!isOpen) return null;
 
   return (
@@ -150,9 +152,11 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           <Link href="/wallet" onClick={onClose} style={{ color: 'var(--color-white-72)', fontSize: '0.9rem' }}>
             My Wallet
           </Link>
-          <Link href="/login" onClick={onClose} style={{ color: 'var(--color-white-85)', fontSize: '0.95rem' }}>
-            Patient Sign In
-          </Link>
+          {!isAuthenticated && (
+            <Link href="/login" onClick={onClose} style={{ color: 'var(--color-white-85)', fontSize: '0.95rem' }}>
+              Patient Sign In
+            </Link>
+          )}
           <a
             href={process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || 'http://localhost:3001'}
             onClick={onClose}
@@ -162,29 +166,81 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           </a>
         </nav>
 
-        <div style={{ marginTop: 'auto', paddingTop: '24px' }}>
-          <Link
-            href="/register"
-            onClick={onClose}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              backgroundColor: 'var(--color-gold-primary)',
-              color: 'var(--color-chocolate-base)',
-              fontWeight: 600,
-              fontSize: '0.9rem',
-              padding: '12px 20px',
-              borderRadius: '12px',
-              textDecoration: 'none',
-              width: '100%',
-              boxSizing: 'border-box',
-            }}
-          >
-            <span>Get Started</span>
-            <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
-          </Link>
+        <div style={{ marginTop: 'auto', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {isAuthenticated ? (
+            <>
+              <Link
+                href="/appointments"
+                onClick={onClose}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  backgroundColor: 'var(--color-gold-primary)',
+                  color: 'var(--color-chocolate-base)',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <SolarIcon name="calendar-linear" size={16} color="var(--color-chocolate-base)" />
+                <span>My Appointments{user?.fullName ? ` — ${user.fullName.split(' ')[0]}` : ''}</span>
+              </Link>
+              <button
+                onClick={() => {
+                  onClose();
+                  logout();
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: 'transparent',
+                  color: 'var(--color-white-72)',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  padding: '10px 20px',
+                  borderRadius: '12px',
+                  border: '1px solid var(--color-white-20, rgba(255,255,255,0.2))',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  cursor: 'pointer',
+                }}
+              >
+                <SolarIcon name="logout-2-linear" size={16} color="var(--color-white-72)" />
+                <span>Sign Out</span>
+              </button>
+            </>
+          ) : (
+            <Link
+              href="/register"
+              onClick={onClose}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                backgroundColor: 'var(--color-gold-primary)',
+                color: 'var(--color-chocolate-base)',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                padding: '12px 20px',
+                borderRadius: '12px',
+                textDecoration: 'none',
+                width: '100%',
+                boxSizing: 'border-box',
+              }}
+            >
+              <span>Get Started</span>
+              <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
+            </Link>
+          )}
         </div>
       </div>
     </div>

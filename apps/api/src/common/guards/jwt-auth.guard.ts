@@ -34,7 +34,7 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const payload: JwtPayload = this.tokenService.verifyAccessToken(token);
-      request.user = payload;
+      request.user = { ...payload, id: (payload as any).id || payload.sub };
       return true;
     } catch (err: any) {
       throw new UnauthorizedException(
@@ -48,7 +48,12 @@ export class JwtAuthGuard implements CanActivate {
     const authHeader = request.headers?.authorization;
     if (authHeader && typeof authHeader === 'string') {
       const [type, token] = authHeader.split(' ');
-      if (type?.toLowerCase() === 'bearer' && token) {
+      if (
+        type?.toLowerCase() === 'bearer' &&
+        token &&
+        token !== 'null' &&
+        token !== 'undefined'
+      ) {
         return token;
       }
     }

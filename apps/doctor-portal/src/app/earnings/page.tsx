@@ -1,26 +1,15 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Link from 'next/link';
 import {
-  DollarSign,
-  Wallet,
-  TrendingUp,
-  Calendar,
-  Clock,
-  CheckCircle2,
-  ArrowUpRight,
-  ShieldCheck,
-  Star,
-  MessageSquare,
-  Search,
-  Filter,
+  X,
+  Loader2,
+  RefreshCw,
   Download,
   AlertCircle,
-  FileSpreadsheet,
-  ChevronRight,
-  Loader2,
-  X,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { SolarIcon } from '../../components/common/SolarIcon';
 
@@ -66,11 +55,13 @@ interface MonthlyTrendItem {
 }
 
 export default function DoctorEarningsPage() {
-  const { doctor, profile, token, isAuthenticated, isLoading: authLoading } = useDoctorAuth();
+  const { doctor, profile, token, isLoading: authLoading } = useDoctorAuth();
 
   const [activeTab, setActiveTab] = useState<'consultations' | 'reviews' | 'payouts'>('consultations');
   const [searchTerm, setSearchTerm] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const [summary, setSummary] = useState<EarningsSummary>({
     totalGross: 14450.0,
@@ -199,413 +190,399 @@ export default function DoctorEarningsPage() {
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
   // Fetch real earnings and reviews from API
-  useEffect(() => {
-    async function loadData() {
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        // 1. Fetch Doctor Earnings
-        const earnRes = await fetch(`${API_BASE}/doctors/me/earnings`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-
-        if (earnRes.ok) {
-          const earnData = await earnRes.json();
-          if (earnData.summary) setSummary(earnData.summary);
-          if (earnData.consultationsBreakdown && earnData.consultationsBreakdown.length > 0) {
-            setConsultations(earnData.consultationsBreakdown);
-          }
-          if (earnData.payouts && earnData.payouts.length > 0) {
-            setPayouts(earnData.payouts);
-          }
-          if (earnData.monthlyTrend && earnData.monthlyTrend.length > 0) {
-            setMonthlyTrend(earnData.monthlyTrend);
-          }
-        }
-
-        // 2. Fetch Doctor Reviews
-        const doctorId = profile?.id || doctor?.id;
-        if (doctorId) {
-          const revRes = await fetch(`${API_BASE}/reviews/doctor/${doctorId}`);
-          if (revRes.ok) {
-            const rData = await revRes.json();
-            if (rData.reviews && rData.reviews.length > 0) {
-              setReviewsData({
-                ratingAvg: rData.ratingAvg,
-                reviewsCount: rData.reviewsCount,
-                distribution: rData.distribution,
-                reviews: rData.reviews.map((r: any) => ({
-                  id: r.id,
-                  author: r.patientName || 'Verified Patient',
-                  rating: r.rating,
-                  text: r.comment || 'Thorough and compassionate consultation.',
-                  date: new Date(r.created_at).toLocaleDateString('en-ZA', {
-                    day: 'numeric',
-                    month: 'short',
-                    year: 'numeric',
-                  }),
-                })),
-              });
-            }
-          }
-        }
-      } catch (err: any) {
-        console.warn('Earnings data loaded with fallback defaults:', err.message);
-      } finally {
-        setIsLoading(false);
-      }
+  const loadData = useCallback(async (isManualRefresh = false) => {
+    if (!token) {
+      setIsLoading(false);
+      return;
     }
 
-    loadData();
+    try {
+      if (isManualRefresh) setIsRefreshing(true);
+      else setIsLoading(true);
+
+      const doctorId = profile?.id || doctor?.id;
+      const headers: Record<string, string> = {
+        Authorization: `Bearer ${token}`,
+      };
+      if (doctorId) {
+        headers['x-doctor-id'] = doctorId;
+      }
+
+      // 1. Fetch Doctor Earnings (BE-903)
+      const earnRes = await fetch(`${API_BASE}/doctors/me/earnings`, {
+        headers,
+        credentials: 'include',
+      });
+
+      if (earnRes.ok) {
+        const earnData = await earnRes.json();
+        if (earnData.summary) setSummary(earnData.summary);
+        if (Array.isArray(earnData.consultationsBreakdown) && earnData.consultationsBreakdown.length > 0) {
+          setConsultations(earnData.consultationsBreakdown);
+        }
+        if (Array.isArray(earnData.payouts) && earnData.payouts.length > 0) {
+          setPayouts(earnData.payouts);
+        }
+        if (Array.isArray(earnData.monthlyTrend) && earnData.monthlyTrend.length > 0) {
+          setMonthlyTrend(earnData.monthlyTrend);
+        }
+      }
+
+      // 2. Fetch Doctor Reviews (BE-901)
+      if (doctorId) {
+        const revRes = await fetch(`${API_BASE}/reviews/doctor/${doctorId}`);
+        if (revRes.ok) {
+          const rData = await revRes.json();
+          if (rData.reviews && rData.reviews.length > 0) {
+            setReviewsData({
+              ratingAvg: rData.ratingAvg,
+              reviewsCount: rData.reviewsCount,
+              distribution: rData.distribution,
+              reviews: rData.reviews.map((r: any) => ({
+                id: r.id,
+                author: r.patientName || 'Verified Patient',
+                rating: r.rating,
+                text: r.comment || 'Thorough and compassionate consultation.',
+                date: new Date(r.created_at).toLocaleDateString('en-ZA', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                }),
+              })),
+            });
+          }
+        }
+      }
+
+      if (isManualRefresh) {
+        toast.success('Earnings updated', {
+          description: 'Latest consultations, revenue splits, and settlements loaded.',
+        });
+      }
+    } catch (err: any) {
+      console.warn('Earnings data loaded with fallback defaults:', err.message);
+      if (isManualRefresh) {
+        toast.error('Could not refresh earnings', {
+          description: 'Using cached financial figures.',
+        });
+      }
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
   }, [token, profile?.id, doctor?.id, API_BASE]);
 
-  const filteredConsultations = consultations.filter((c) =>
-    c.patientInitial.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    c.bookingId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  const formattedNextPayout = summary.nextPayoutDate
-    ? new Date(summary.nextPayoutDate).toLocaleDateString('en-ZA', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
-    : '1st of Next Month';
+  const filteredConsultations = useMemo(() => {
+    return consultations.filter((c) =>
+      c.patientInitial.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.bookingId.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [consultations, searchTerm]);
+
+  const formattedNextPayout = useMemo(() => {
+    return summary.nextPayoutDate
+      ? new Date(summary.nextPayoutDate).toLocaleDateString('en-ZA', {
+          day: 'numeric',
+          month: 'short',
+          year: 'numeric',
+        })
+      : '1st of Next Month';
+  }, [summary.nextPayoutDate]);
 
   // SVG Chart Maximum calculation
-  const maxGross = Math.max(...monthlyTrend.map((m) => m.gross), 1000);
+  const maxGross = useMemo(() => {
+    return Math.max(...monthlyTrend.map((m) => m.gross), 1000);
+  }, [monthlyTrend]);
+
+  // Real SARS-Compliant CSV Statement Export
+  const handleExportStatement = () => {
+    try {
+      setIsExporting(true);
+      const doctorName = doctor?.fullName || 'Dr. Practitioner';
+      const exportDate = new Date().toISOString().split('T')[0];
+
+      let csvContent = 'data:text/csv;charset=utf-8,';
+      csvContent += `CHEKUP247 PRACTICE FINANCIAL LEDGER & TAX STATEMENT\r\n`;
+      csvContent += `Doctor:,"${doctorName}"\r\n`;
+      csvContent += `Generated Date:,"${exportDate}"\r\n`;
+      csvContent += `Doctor Split Ratio:,"85% Net Take-Home / 15% Chekup247 Platform Fee"\r\n\r\n`;
+
+      csvContent += `SUMMARY FINANCIAL METRICS\r\n`;
+      csvContent += `Available Balance (ZAR),Total Net Take-Home (ZAR),Gross Patient Billings (ZAR),Platform Fee (ZAR),Completed Consultations\r\n`;
+      csvContent += `${summary.availableBalance.toFixed(2)},${summary.totalNet.toFixed(2)},${summary.totalGross.toFixed(2)},${summary.totalCommission.toFixed(2)},${summary.completedConsultationsCount}\r\n\r\n`;
+
+      csvContent += `ITEMIZED CONSULTATIONS BREAKDOWN\r\n`;
+      csvContent += `Booking Ref,Patient Client,Consultation Date,Duration,Gross Charged (ZAR),Platform Fee 15% (ZAR),Net Doctor Payout 85% (ZAR),Status\r\n`;
+
+      consultations.forEach((c) => {
+        const rowDate = new Date(c.date).toLocaleDateString('en-ZA');
+        csvContent += `"${c.bookingId}","${c.patientInitial}","${rowDate}","${c.duration}",${c.grossFee.toFixed(2)},-${c.commission.toFixed(2)},+${c.netEarning.toFixed(2)},"Settled to Balance"\r\n`;
+      });
+
+      csvContent += `\r\nSETTLEMENT EFT PAYOUTS\r\n`;
+      csvContent += `Settlement Ref,Payout Period,Transfer Date,Amount (ZAR),Payment Status\r\n`;
+      payouts.forEach((p) => {
+        csvContent += `"${p.reference}","${p.periodStart} to ${p.periodEnd}","${new Date(p.createdAt).toLocaleDateString('en-ZA')}",${p.amount.toFixed(2)},"Transferred & Settled"\r\n`;
+      });
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `Chekup247_Earnings_Statement_${doctorName.replace(/\s+/g, '_')}_${exportDate}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success('Earnings statement exported', {
+        description: 'CSV financial ledger downloaded successfully.',
+      });
+    } catch (err) {
+      toast.error('Failed to export statement');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
-    <div style={{ maxWidth: '1280px', margin: '0 auto', paddingBottom: '60px' }}>
-      {/* Page Header */}
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '16px',
-          marginBottom: '32px',
-        }}
-      >
+    <div className="earnings-page">
+      {/* Top Header Section */}
+      <div className="earnings-header">
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                color: 'var(--color-gold-bronze, #B88647)',
-              }}
-            >
-              Practice Financial Ledger • 85% Net Doctor Split
-            </span>
+          <div className="page-eyebrow">
+            <SolarIcon name="shield-check-bold" size={14} color="var(--color-gold-bronze)" />
+            <span>Practice Financial Ledger • 85% Net Doctor Split</span>
           </div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: '2rem',
-              fontWeight: 800,
-              color: 'var(--color-chocolate-base, #2A170F)',
-              margin: '0 0 6px',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Practice Earnings & Payouts
-          </h1>
-          <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', margin: 0, fontSize: '0.95rem' }}>
+          <h1 className="page-title">Practice Earnings &amp; Payouts</h1>
+          <p className="page-subtitle">
             Real-time consultation revenue, transparent platform fee calculations, and automated EFT settlements.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '6px 14px',
-              borderRadius: 'var(--radius-full, 9999px)',
-              background: 'var(--color-gold-pale, #F0E5D3)',
-              border: '1px solid rgba(223, 171, 98, 0.35)',
-              color: 'var(--color-chocolate-base, #2A170F)',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-            }}
+        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
+          <div className="earnings-payout-badge">
+            <span className="earnings-payout-dot" />
+            <span>Next Payout: {formattedNextPayout}</span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => loadData(true)}
+            disabled={isRefreshing}
+            className="btn-ghost"
+            style={{ padding: '8px 12px', fontSize: '0.82rem' }}
+            title="Refresh financial ledger"
           >
-            <SolarIcon name="shield-check-bold" size={15} color="#059669" />
-            <span>Regulated Payout Gateway</span>
-          </span>
+            <RefreshCw size={15} className={isRefreshing ? 'animate-spin' : ''} />
+            <span>{isRefreshing ? 'Syncing...' : 'Sync'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={handleExportStatement}
+            disabled={isExporting}
+            className="btn-secondary"
+            style={{ padding: '8px 18px', fontSize: '0.84rem' }}
+          >
+            {isExporting ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <SolarIcon name="document-text-linear" size={16} color="var(--color-chocolate-base)" />
+            )}
+            <span>Export Statement</span>
+          </button>
         </div>
       </div>
 
-      {/* 3 High-Impact Cream Cards with Pale Gold Circles & 85% Net Take-Home Display */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '20px',
-          marginBottom: '32px',
-        }}
-      >
-        {/* Card 1: Available Balance for Payout */}
-        <div className="portal-card" style={{ padding: '28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <span
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: 'var(--color-cream-text-muted, #6B5E55)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-              }}
-            >
-              Available Balance
+      {/* EFT Settlement Destination Banner */}
+      {profile?.bankName ? (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '12px 18px',
+            borderRadius: '12px',
+            backgroundColor: 'var(--color-cream-surface)',
+            border: '1.5px solid var(--color-gold-border)',
+            marginBottom: '20px',
+            fontSize: '0.825rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <SolarIcon name="card-bold" size={16} color="var(--color-gold-bronze)" />
+            <span style={{ color: 'var(--color-cream-text-muted)' }}>Automated EFT Settlement Account:</span>
+            <strong style={{ color: 'var(--color-chocolate-base)' }}>
+              {profile.bankName} (•••• {profile.accountNumber ? profile.accountNumber.slice(-4) : '••••'})
+            </strong>
+          </div>
+          <Link
+            href="/profile"
+            style={{
+              color: 'var(--color-gold-bronze)',
+              fontWeight: 600,
+              fontSize: '0.8rem',
+              textDecoration: 'underline',
+            }}
+          >
+            Manage Banking
+          </Link>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+            padding: '12px 18px',
+            borderRadius: '12px',
+            backgroundColor: 'var(--color-warning-bg, #fffbeb)',
+            border: '1.5px solid var(--color-gold-border)',
+            marginBottom: '20px',
+            fontSize: '0.825rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <AlertCircle size={16} color="var(--color-warning, #f59e0b)" />
+            <span style={{ color: 'var(--color-chocolate-base)' }}>
+              No EFT settlement banking details on file. Add your South African bank account in Doctor Profile for automated payout releases.
             </span>
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                background: 'var(--color-gold-pale, #F0E5D3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <SolarIcon name="wallet-money-bold" size={22} color="var(--color-chocolate-base, #2A170F)" />
+          </div>
+          <Link
+            href="/profile"
+            className="btn-primary"
+            style={{ padding: '6px 14px', fontSize: '0.78rem' }}
+          >
+            Add Bank Account
+          </Link>
+        </div>
+      )}
+
+      {/* Primary KPI Metrics Strip */}
+      <div className="earnings-kpi-grid">
+        {/* Card 1: Available Balance for Payout */}
+        <div className="earnings-kpi-card">
+          <div className="earnings-kpi-header">
+            <span className="stat-label">Available Balance</span>
+            <div className="earnings-kpi-icon">
+              <SolarIcon name="wallet-money-bold" size={20} color="var(--color-chocolate-base)" />
             </div>
           </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: '2.5rem',
-              fontWeight: 900,
-              color: 'var(--color-chocolate-base, #2A170F)',
-              letterSpacing: '-0.02em',
-              marginBottom: '6px',
-            }}
-          >
+          <div className="earnings-kpi-value">
             R{summary.availableBalance.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
           </div>
-          <div
-            style={{
-              fontSize: '0.825rem',
-              color: '#059669',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-            }}
-          >
-            <SolarIcon name="calendar-bold" size={14} color="#059669" />
-            <span>Next settlement release: {formattedNextPayout}</span>
+          <div className="earnings-kpi-meta earnings-kpi-meta-success">
+            <SolarIcon name="calendar-bold" size={13} color="var(--color-brand-700)" />
+            <span>Settlement release: {formattedNextPayout}</span>
           </div>
         </div>
 
         {/* Card 2: Total Net Earned (85% Take-Home) */}
-        <div className="portal-card" style={{ padding: '28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <span
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: 'var(--color-cream-text-muted, #6B5E55)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-              }}
-            >
-              Total Net Take-Home (85%)
-            </span>
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                background: 'var(--color-gold-pale, #F0E5D3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <SolarIcon name="card-bold" size={22} color="var(--color-chocolate-base, #2A170F)" />
+        <div className="earnings-kpi-card">
+          <div className="earnings-kpi-header">
+            <span className="stat-label">Net Take-Home (85%)</span>
+            <div className="earnings-kpi-icon">
+              <SolarIcon name="card-bold" size={20} color="var(--color-chocolate-base)" />
             </div>
           </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: '2.5rem',
-              fontWeight: 900,
-              color: '#059669',
-              letterSpacing: '-0.02em',
-              marginBottom: '6px',
-            }}
-          >
+          <div className="earnings-kpi-value earnings-kpi-value-success">
             R{summary.totalNet.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
           </div>
-          <div style={{ fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-            From <strong>{summary.completedConsultationsCount}</strong> completed patient consultations
+          <div className="earnings-kpi-meta">
+            From <strong>{summary.completedConsultationsCount}</strong> completed consultations
           </div>
         </div>
 
-        {/* Card 3: Platform Commission Deducted & Gross Billing */}
-        <div className="portal-card" style={{ padding: '28px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <span
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: 'var(--color-cream-text-muted, #6B5E55)',
-                textTransform: 'uppercase',
-                letterSpacing: '0.06em',
-              }}
-            >
-              Platform Fee (15%)
-            </span>
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '50%',
-                background: 'var(--color-gold-pale, #F0E5D3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <SolarIcon name="chart-bold" size={22} color="var(--color-chocolate-base, #2A170F)" />
+        {/* Card 3: Gross Patient Billings */}
+        <div className="earnings-kpi-card">
+          <div className="earnings-kpi-header">
+            <span className="stat-label">Gross Billings</span>
+            <div className="earnings-kpi-icon">
+              <SolarIcon name="dollar-minimalistic-bold" size={20} color="var(--color-chocolate-base)" />
             </div>
           </div>
-          <div
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: '2.5rem',
-              fontWeight: 900,
-              color: 'var(--color-chocolate-base, #2A170F)',
-              letterSpacing: '-0.02em',
-              marginBottom: '6px',
-            }}
-          >
+          <div className="earnings-kpi-value">
+            R{summary.totalGross.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+          </div>
+          <div className="earnings-kpi-meta">
+            100% patient billed total
+          </div>
+        </div>
+
+        {/* Card 4: Platform Commission (15%) */}
+        <div className="earnings-kpi-card">
+          <div className="earnings-kpi-header">
+            <span className="stat-label">Platform Fee (15%)</span>
+            <div className="earnings-kpi-icon">
+              <SolarIcon name="chart-bold" size={20} color="var(--color-chocolate-base)" />
+            </div>
+          </div>
+          <div className="earnings-kpi-value">
             R{summary.totalCommission.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
           </div>
-          <div style={{ fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-            Gross Patient Billings: R{summary.totalGross.toLocaleString('en-ZA', { minimumFractionDigits: 2 })}
+          <div className="earnings-kpi-meta">
+            Chekup247 clinical infrastructure
           </div>
         </div>
       </div>
 
       {/* Monthly Earnings Trajectory Visual Chart */}
-      <div className="portal-card" style={{ padding: '28px', marginBottom: '32px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '22px' }}>
+      <div className="earnings-chart-card">
+        <div className="earnings-chart-header">
           <div>
-            <h2
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: '1.25rem',
-                fontWeight: 800,
-                color: 'var(--color-chocolate-base, #2A170F)',
-                margin: '0 0 4px',
-              }}
-            >
-              Monthly Revenue & Payout Trajectory (ZAR)
-            </h2>
-            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+            <h2 className="section-title">Monthly Revenue &amp; Payout Trajectory (ZAR)</h2>
+            <p className="section-subtitle">
               Gross Consultation Revenue vs Net 85% Doctor Take-Home
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '0.85rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: 'var(--color-gold-primary, #E2B467)' }} />
+          <div className="earnings-chart-legend">
+            <div className="earnings-chart-legend-item">
+              <span className="earnings-chart-legend-box gold" />
               <span style={{ fontWeight: 700, color: 'var(--color-chocolate-base)' }}>Net Doctor Earning (85%)</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ width: '12px', height: '12px', borderRadius: '4px', background: 'var(--color-gold-pale, #F0E5D3)' }} />
+            <div className="earnings-chart-legend-item">
+              <span className="earnings-chart-legend-box pale" />
               <span style={{ fontWeight: 600, color: 'var(--color-cream-text-muted)' }}>Platform Fee (15%)</span>
             </div>
           </div>
         </div>
 
         {/* Visual Bar Graph */}
-        <div
-          style={{
-            height: '190px',
-            display: 'flex',
-            alignItems: 'flex-end',
-            gap: '24px',
-            padding: '10px 0 0',
-            borderBottom: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
-          }}
-        >
+        <div className="earnings-chart-bars-wrap">
           {monthlyTrend.map((m) => {
             const grossHeightPct = Math.round((m.gross / maxGross) * 100);
             const netHeightPct = Math.round((m.net / maxGross) * 100);
             return (
-              <div
-                key={m.month}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  height: '100%',
-                  justifyContent: 'flex-end',
-                }}
-              >
-                <div
-                  style={{
-                    fontFamily: 'var(--font-heading)',
-                    fontSize: '0.825rem',
-                    fontWeight: 800,
-                    color: '#059669',
-                    marginBottom: '8px',
-                  }}
-                >
+              <div key={m.month} className="earnings-chart-bar-item">
+                <div className="earnings-chart-val-lbl">
                   R{m.net.toLocaleString()}
                 </div>
                 <div
-                  style={{
-                    width: '52px',
-                    height: `${grossHeightPct}%`,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'flex-end',
-                    borderRadius: '12px 12px 0 0',
-                    overflow: 'hidden',
-                    border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-                  }}
+                  className="earnings-chart-bar-capsule"
+                  style={{ height: `${grossHeightPct}%` }}
                 >
                   {/* Platform Fee segment */}
                   <div
-                    style={{
-                      height: `${grossHeightPct - netHeightPct}%`,
-                      background: 'var(--color-gold-pale, #F0E5D3)',
-                    }}
+                    className="earnings-chart-segment-fee"
+                    style={{ height: `${grossHeightPct - netHeightPct}%` }}
                     title={`15% Platform Commission: R${m.commission}`}
                   />
                   {/* Net Doctor earning segment */}
                   <div
-                    style={{
-                      height: `${netHeightPct}%`,
-                      background: 'var(--color-gold-primary, #E2B467)',
-                    }}
+                    className="earnings-chart-segment-net"
+                    style={{ height: `${netHeightPct}%` }}
                     title={`85% Net Take-Home: R${m.net}`}
                   />
                 </div>
-                <div
-                  style={{
-                    fontSize: '0.8rem',
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    fontWeight: 700,
-                    marginTop: '10px',
-                  }}
-                >
+                <div className="earnings-chart-month-lbl">
                   {m.month}
                 </div>
               </div>
@@ -614,20 +591,9 @@ export default function DoctorEarningsPage() {
         </div>
       </div>
 
-      {/* Tabs Navigation & Search Bar */}
-      <div
-        className="portal-card"
-        style={{
-          padding: '16px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '24px',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+      {/* Integrated Toolbar: Tabs & Search Filter */}
+      <div className="earnings-toolbar">
+        <div className="earnings-tab-group">
           <button
             type="button"
             onClick={() => setActiveTab('consultations')}
@@ -669,9 +635,9 @@ export default function DoctorEarningsPage() {
         </div>
 
         {activeTab === 'consultations' && (
-          <div style={{ width: '100%', maxWidth: '340px' }}>
+          <div className="earnings-search-box">
             <div className="doctors-search-pill">
-              <SolarIcon name="magnifer-linear" size={17} color="var(--color-gold-base, #DFAB62)" />
+              <SolarIcon name="magnifer-linear" size={16} color="var(--color-gold-base)" />
               <input
                 type="text"
                 value={searchTerm}
@@ -683,7 +649,15 @@ export default function DoctorEarningsPage() {
                 <button
                   type="button"
                   onClick={() => setSearchTerm('')}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--color-cream-text-muted)' }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    color: 'var(--color-cream-text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
                   aria-label="Clear search"
                 >
                   <X size={15} />
@@ -694,108 +668,146 @@ export default function DoctorEarningsPage() {
         )}
       </div>
 
-      {/* TAB 1: Consultations Breakdown Table (.clinical-table-container) */}
+      {/* TAB 1: Consultations Breakdown */}
       {activeTab === 'consultations' && (
-        <div className="clinical-table-container">
-          <div style={{ overflowX: 'auto' }}>
-            <table className="clinical-table">
-              <thead>
-                <tr>
-                  <th className="clinical-th">Patient Client</th>
-                  <th className="clinical-th">Consultation Date</th>
-                  <th className="clinical-th">Duration</th>
-                  <th className="clinical-th">Gross Charged</th>
-                  <th className="clinical-th">Platform Fee (15%)</th>
-                  <th className="clinical-th">Net Payout (85%)</th>
-                  <th className="clinical-th">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredConsultations.length === 0 ? (
+        <>
+          {/* Desktop Table View */}
+          <div className="doctor-table-card doctor-table-view">
+            <div className="doctor-table-scroll">
+              <table className="doctor-table">
+                <thead>
                   <tr>
-                    <td colSpan={7} className="clinical-td" style={{ padding: '44px', textAlign: 'center', color: 'var(--color-cream-text-muted)' }}>
-                      No consultations found matching your criteria.
-                    </td>
+                    <th>Patient Client</th>
+                    <th style={{ width: '150px', whiteSpace: 'nowrap' }}>Consultation Date</th>
+                    <th style={{ width: '80px', textAlign: 'center', whiteSpace: 'nowrap' }}>Duration</th>
+                    <th style={{ width: '110px', textAlign: 'right', whiteSpace: 'nowrap' }}>Gross Charged</th>
+                    <th style={{ width: '120px', textAlign: 'right', whiteSpace: 'nowrap' }}>Platform Fee (15%)</th>
+                    <th style={{ width: '125px', textAlign: 'right', whiteSpace: 'nowrap' }}>Net Payout (85%)</th>
+                    <th style={{ width: '165px', minWidth: '165px', textAlign: 'center', whiteSpace: 'nowrap' }}>Status</th>
                   </tr>
-                ) : (
-                  filteredConsultations.map((c) => (
-                    <tr key={c.bookingId} className="clinical-tr">
-                      <td className="clinical-td">
-                        <div style={{ fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                          {c.patientInitial}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                          Ref: #{c.bookingId}
-                        </div>
-                      </td>
-                      <td className="clinical-td">
-                        <div style={{ fontWeight: 600 }}>
-                          {new Date(c.date).toLocaleDateString('en-ZA', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: 'numeric',
-                          })}
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                          {new Date(c.date).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })} SAST
-                        </div>
-                      </td>
-                      <td className="clinical-td" style={{ color: 'var(--color-cream-text-muted)' }}>
-                        {c.duration}
-                      </td>
-                      <td className="clinical-td" style={{ fontWeight: 600, color: 'var(--color-chocolate-base)' }}>
-                        R{c.grossFee.toFixed(2)}
-                      </td>
-                      <td className="clinical-td" style={{ color: 'var(--color-gold-bronze, #B88647)', fontWeight: 600 }}>
-                        -R{c.commission.toFixed(2)}
-                      </td>
-                      <td className="clinical-td">
-                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 800, color: '#059669', fontSize: '1rem' }}>
-                          +R{c.netEarning.toFixed(2)}
-                        </span>
-                      </td>
-                      <td className="clinical-td">
-                        <span className="badge-success">
-                          <SolarIcon name="check-circle-bold" size={12} color="#065f46" />
-                          <span>Settled to Balance</span>
-                        </span>
+                </thead>
+                <tbody>
+                  {filteredConsultations.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} style={{ padding: '48px 20px', textAlign: 'center', color: 'var(--color-cream-text-muted)' }}>
+                        No consultations found matching your criteria.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ) : (
+                    filteredConsultations.map((c) => (
+                      <tr key={c.bookingId}>
+                        <td>
+                          <div style={{ fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
+                            {c.patientInitial}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted)' }}>
+                            Ref: #{c.bookingId}
+                          </div>
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <div style={{ fontWeight: 600 }}>
+                            {new Date(c.date).toLocaleDateString('en-ZA', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                            })}
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted)' }}>
+                            {new Date(c.date).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })} SAST
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--color-cream-text-muted)' }}>
+                          {c.duration}
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--color-chocolate-base)' }}>
+                          R{c.grossFee.toFixed(2)}
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap', color: 'var(--color-gold-bronze)', fontWeight: 600 }}>
+                          -R{c.commission.toFixed(2)}
+                        </td>
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-brand-600)', fontSize: '1rem' }}>
+                            +R{c.netEarning.toFixed(2)}
+                          </span>
+                        </td>
+                        <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <span className="badge-success" style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                            <SolarIcon name="check-circle-bold" size={12} color="var(--color-brand-800)" />
+                            <span>Settled to Balance</span>
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Mobile Cards View */}
+          <div className="doctor-cards-view">
+            {filteredConsultations.length === 0 ? (
+              <div className="doctor-mobile-card" style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--color-cream-text-muted)' }}>
+                No consultations found matching your criteria.
+              </div>
+            ) : (
+              filteredConsultations.map((c) => (
+                <div key={c.bookingId} className="doctor-mobile-card">
+                  <div className="doctor-mobile-card-row">
+                    <div>
+                      <div style={{ fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
+                        {c.patientInitial}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted)' }}>
+                        Ref: #{c.bookingId}
+                      </div>
+                    </div>
+                    <span className="badge-success" style={{ whiteSpace: 'nowrap' }}>
+                      <SolarIcon name="check-circle-bold" size={11} color="var(--color-brand-800)" />
+                      <span>Settled</span>
+                    </span>
+                  </div>
+
+                  <div className="doctor-mobile-card-row" style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted)' }}>
+                    <span>
+                      {new Date(c.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })} • {new Date(c.date).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span>{c.duration}</span>
+                  </div>
+
+                  <div
+                    style={{
+                      borderTop: '1px solid var(--color-gold-border)',
+                      paddingTop: '10px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      fontSize: '0.825rem',
+                    }}
+                  >
+                    <div>
+                      <span style={{ color: 'var(--color-cream-text-muted)' }}>Gross: </span>
+                      <span style={{ fontWeight: 600, color: 'var(--color-chocolate-base)' }}>R{c.grossFee.toFixed(2)}</span>
+                      <span style={{ color: 'var(--color-gold-bronze)', marginLeft: '8px' }}>(-R{c.commission.toFixed(2)})</span>
+                    </div>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-brand-600)', fontSize: '1.05rem' }}>
+                      +R{c.netEarning.toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </>
       )}
 
       {/* TAB 2: Doctor Reviews & Feedback */}
       {activeTab === 'reviews' && (
-        <div className="portal-card" style={{ padding: '32px' }}>
+        <div>
           {/* Header Summary */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'auto 1fr',
-              gap: '36px',
-              alignItems: 'center',
-              padding: '24px 28px',
-              borderRadius: '18px',
-              background: 'var(--color-cream-base, #FAF6EE)',
-              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-              marginBottom: '32px',
-            }}
-          >
+          <div className="earnings-reviews-summary">
             <div style={{ textAlign: 'center', minWidth: '140px' }}>
-              <div
-                style={{
-                  fontFamily: 'var(--font-heading)',
-                  fontSize: '3.6rem',
-                  fontWeight: 900,
-                  color: 'var(--color-chocolate-base, #2A170F)',
-                  lineHeight: 1,
-                }}
-              >
+              <div className="earnings-rating-score">
                 {Number(reviewsData.ratingAvg).toFixed(1)}
               </div>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', margin: '10px 0 6px' }}>
@@ -804,28 +816,28 @@ export default function DoctorEarningsPage() {
                     key={s}
                     name="star-bold"
                     size={20}
-                    color={s <= Math.round(reviewsData.ratingAvg) ? 'var(--color-gold-primary, #E2B467)' : 'rgba(223, 171, 98, 0.3)'}
+                    color={s <= Math.round(reviewsData.ratingAvg) ? 'var(--color-gold-primary)' : 'rgba(223, 171, 98, 0.3)'}
                   />
                 ))}
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 600 }}>
+              <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted)', fontWeight: 600 }}>
                 Average from {reviewsData.reviewsCount} verified patient consultations
               </div>
             </div>
 
             {/* Distribution bars */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {[5, 4, 3, 2, 1].map((stars) => {
                 const dist = reviewsData.distribution[stars] || { count: 0, percentage: 0 };
                 return (
                   <div key={stars} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8rem' }}>
-                    <span style={{ width: '44px', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>{stars} stars</span>
-                    <div style={{ flex: 1, height: '8px', borderRadius: '4px', background: 'var(--color-gold-pale, #F0E5D3)', overflow: 'hidden' }}>
+                    <span style={{ width: '48px', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>{stars} stars</span>
+                    <div style={{ flex: 1, height: '8px', borderRadius: '4px', background: 'var(--color-gold-pale)', overflow: 'hidden' }}>
                       <div
                         style={{
                           width: `${dist.percentage}%`,
                           height: '100%',
-                          background: 'var(--color-gold-primary, #E2B467)',
+                          background: 'var(--color-gold-primary)',
                           borderRadius: '4px',
                         }}
                       />
@@ -838,24 +850,16 @@ export default function DoctorEarningsPage() {
           </div>
 
           {/* Individual Reviews List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="earnings-reviews-list">
             {reviewsData.reviews.map((rev: any) => (
-              <div
-                key={rev.id}
-                style={{
-                  padding: '20px 24px',
-                  borderRadius: '16px',
-                  border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
-                  background: 'var(--color-cream-surface, #FDFBF7)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div key={rev.id} className="earnings-review-card">
+                <div className="earnings-review-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div className="doctor-avatar-circle" style={{ width: '36px', height: '36px', fontSize: '0.85rem' }}>
                       {rev.author.substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base)' }}>
+                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', fontSize: '0.95rem', color: 'var(--color-chocolate-base)' }}>
                         {rev.author}
                       </span>
                       <span className="badge-gold" style={{ marginLeft: '8px', fontSize: '0.7rem' }}>
@@ -869,19 +873,19 @@ export default function DoctorEarningsPage() {
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', gap: '3px', marginBottom: '8px' }}>
+                <div style={{ display: 'flex', gap: '3px' }}>
                   {[1, 2, 3, 4, 5].map((s) => (
                     <SolarIcon
                       key={s}
                       name="star-bold"
                       size={15}
-                      color={s <= rev.rating ? 'var(--color-gold-primary, #E2B467)' : 'rgba(223, 171, 98, 0.3)'}
+                      color={s <= rev.rating ? 'var(--color-gold-primary)' : 'rgba(223, 171, 98, 0.3)'}
                     />
                   ))}
                 </div>
 
-                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-cream-text-muted, #6B5E55)', lineHeight: 1.5 }}>
-                  "{rev.text}"
+                <p className="earnings-review-text">
+                  &ldquo;{rev.text}&rdquo;
                 </p>
               </div>
             ))}
@@ -889,58 +893,103 @@ export default function DoctorEarningsPage() {
         </div>
       )}
 
-      {/* TAB 3: Settlement Payouts Table (.clinical-table-container) */}
+      {/* TAB 3: Settlement Payouts Table */}
       {activeTab === 'payouts' && (
-        <div className="clinical-table-container">
-          <div style={{ overflowX: 'auto' }}>
-            <table className="clinical-table">
-              <thead>
-                <tr>
-                  <th className="clinical-th">Settlement Ref</th>
-                  <th className="clinical-th">Payout Period</th>
-                  <th className="clinical-th">Transfer Date</th>
-                  <th className="clinical-th">Amount (ZAR)</th>
-                  <th className="clinical-th">Payment Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {payouts.map((po) => (
-                  <tr key={po.id} className="clinical-tr">
-                    <td className="clinical-td">
-                      <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                        {po.reference}
-                      </span>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted)' }}>
-                        EFT Direct Deposit
-                      </div>
-                    </td>
-                    <td className="clinical-td" style={{ color: 'var(--color-cream-text-muted)' }}>
-                      {po.periodStart} to {po.periodEnd}
-                    </td>
-                    <td className="clinical-td">
-                      {new Date(po.createdAt).toLocaleDateString('en-ZA', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    </td>
-                    <td className="clinical-td">
-                      <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 800, color: '#059669' }}>
-                        R{po.amount.toFixed(2)}
-                      </span>
-                    </td>
-                    <td className="clinical-td">
-                      <span className="badge-success">
-                        <SolarIcon name="check-circle-bold" size={12} color="#065f46" />
-                        <span>Transferred & Settled</span>
-                      </span>
-                    </td>
+        <>
+          {/* Desktop Table View */}
+          <div className="doctor-table-card doctor-table-view">
+            <div className="doctor-table-scroll">
+              <table className="doctor-table">
+                <thead>
+                  <tr>
+                    <th>Settlement Ref</th>
+                    <th style={{ width: '220px', whiteSpace: 'nowrap' }}>Payout Period</th>
+                    <th style={{ width: '150px', whiteSpace: 'nowrap' }}>Transfer Date</th>
+                    <th style={{ width: '140px', textAlign: 'right', whiteSpace: 'nowrap' }}>Amount (ZAR)</th>
+                    <th style={{ width: '180px', minWidth: '180px', textAlign: 'center', whiteSpace: 'nowrap' }}>Payment Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {payouts.map((po) => (
+                    <tr key={po.id}>
+                      <td>
+                        <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-chocolate-base)' }}>
+                          {po.reference}
+                        </span>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted)' }}>
+                          EFT Direct Deposit
+                        </div>
+                      </td>
+                      <td style={{ color: 'var(--color-cream-text-muted)', whiteSpace: 'nowrap' }}>
+                        {po.periodStart} to {po.periodEnd}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {new Date(po.createdAt).toLocaleDateString('en-ZA', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </td>
+                      <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-brand-600)' }}>
+                          R{po.amount.toFixed(2)}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <span className="badge-success" style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                          <SolarIcon name="check-circle-bold" size={12} color="var(--color-brand-800)" />
+                          <span>Transferred &amp; Settled</span>
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Mobile Cards View */}
+          <div className="doctor-cards-view">
+            {payouts.map((po) => (
+              <div key={po.id} className="doctor-mobile-card">
+                <div className="doctor-mobile-card-row">
+                  <div>
+                    <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-chocolate-base)', fontSize: '0.95rem' }}>
+                      {po.reference}
+                    </span>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted)' }}>
+                      EFT Direct Deposit
+                    </div>
+                  </div>
+                  <span className="badge-success" style={{ whiteSpace: 'nowrap' }}>
+                    <SolarIcon name="check-circle-bold" size={11} color="var(--color-brand-800)" />
+                    <span>Settled</span>
+                  </span>
+                </div>
+
+                <div className="doctor-mobile-card-row" style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted)' }}>
+                  <span>{po.periodStart} to {po.periodEnd}</span>
+                  <span>{new Date(po.createdAt).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                </div>
+
+                <div
+                  style={{
+                    borderTop: '1px solid var(--color-gold-border)',
+                    paddingTop: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted)' }}>Settlement Amount</span>
+                  <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-brand-600)' }}>
+                    R{po.amount.toFixed(2)}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

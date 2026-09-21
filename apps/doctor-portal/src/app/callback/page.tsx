@@ -3,8 +3,9 @@
 import React, { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, CheckCircle2, AlertCircle, ShieldCheck, ArrowRight } from 'lucide-react';
+import { SolarIcon } from '../../components/common/SolarIcon';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
+import { toastSuccess, toastError } from '../../lib/toast';
 
 function SsoCallbackContent() {
   const router = useRouter();
@@ -32,6 +33,7 @@ function SsoCallbackContent() {
         await handleSsoCallback(code!, codeVerifier, state);
         if (isMounted) {
           setStatus('success');
+          toastSuccess('Signed in via LocumStaff', 'Launching your clinical dashboard.');
           setTimeout(() => {
             router.push('/');
           }, 1500);
@@ -39,7 +41,9 @@ function SsoCallbackContent() {
       } catch (err: any) {
         if (isMounted) {
           setStatus('error');
-          setErrorMessage(err.message || 'Federated SSO token exchange failed.');
+          const _msg = err instanceof Error && err.message ? err.message : 'Federated SSO token exchange failed.';
+          setErrorMessage(_msg);
+          toastError('SSO sign-in failed', _msg);
         }
       }
     }
@@ -122,7 +126,7 @@ function SsoCallbackContent() {
         {status === 'exchanging' && (
           <div>
             <div style={{ display: 'inline-flex', marginBottom: '20px', color: 'var(--color-brand-400)' }}>
-              <Loader2 size={48} className="animate-spin" />
+              <SolarIcon name="refresh-linear" size={48} className="animate-spin" />
             </div>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
               Authenticating with LocumStaff SSO...
@@ -148,7 +152,7 @@ function SsoCallbackContent() {
                 margin: '0 auto 20px auto',
               }}
             >
-              <CheckCircle2 size={40} />
+              <SolarIcon name="check-circle-linear" size={40} color="#10b981" />
             </div>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
               Doctor Verified & Authenticated
@@ -157,7 +161,7 @@ function SsoCallbackContent() {
               Welcome back to ChekUp247 Practice Suite. Launching your clinical dashboard...
             </p>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--color-brand-300)', fontSize: '0.85rem' }}>
-              <Loader2 size={16} className="animate-spin" />
+              <SolarIcon name="refresh-linear" size={16} className="animate-spin" />
               <span>Redirecting...</span>
             </div>
           </div>
@@ -178,7 +182,7 @@ function SsoCallbackContent() {
                 margin: '0 auto 20px auto',
               }}
             >
-              <AlertCircle size={40} />
+              <SolarIcon name="danger-circle-linear" size={40} color="#ef4444" />
             </div>
             <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
               SSO Handshake Failed
@@ -204,7 +208,7 @@ function SsoCallbackContent() {
               }}
             >
               <span>Return to Doctor Sign In</span>
-              <ArrowRight size={16} />
+              <SolarIcon name="arrow-right-linear" size={16} color="#ffffff" />
             </Link>
           </div>
         )}

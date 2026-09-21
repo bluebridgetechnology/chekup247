@@ -44,6 +44,8 @@ export interface DoctorProfileData {
   /** High resolution PNG signature URL */
   signatureUrl?: string | null;
   signatureUploadedAt?: string | null;
+  /** Profile photo / avatar URL */
+  photoUrl?: string | null;
   /** Banking details for EFT settlements */
   bankName?: string | null;
   accountNumber?: string | null;
@@ -83,7 +85,11 @@ interface DoctorAuthContextType {
 
 const DoctorAuthContext = createContext<DoctorAuthContextType | undefined>(undefined);
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_URL ||
+  (typeof window !== 'undefined' && window.location.hostname === '127.0.0.1'
+    ? 'http://127.0.0.1:4000/api/v1'
+    : 'http://localhost:4000/api/v1');
 
 function mapDoctorProfile(raw: any): DoctorProfileData {
   return {
@@ -114,6 +120,7 @@ function mapDoctorProfile(raw: any): DoctorProfileData {
     presenceStatus: raw.presence_status || 'active',
     signatureUrl: raw.signature_url || null,
     signatureUploadedAt: raw.signature_uploaded_at || null,
+    photoUrl: raw.photo_url || raw.user?.avatar_url || null,
     bankName: raw.bank_name || null,
     accountNumber: raw.account_number || null,
     branchCode: raw.branch_code || null,
@@ -147,18 +154,19 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
 
       if (res.ok) {
         const data = await res.json();
-        setDoctor(data);
-        if (data.doctorProfile) {
-          setProfile(mapDoctorProfile(data.doctorProfile));
-        }
+        const mappedProfile = data.doctorProfile ? mapDoctorProfile(data.doctorProfile) : null;
+        const resolvedAvatar = data.avatarUrl || mappedProfile?.photoUrl || null;
+        setDoctor({ ...data, avatarUrl: resolvedAvatar });
+        setProfile(mappedProfile ? { ...mappedProfile, photoUrl: resolvedAvatar } : null);
       } else {
         localStorage.removeItem('chekup_doctor_token');
         setDoctor(null);
         setProfile(null);
         setToken(null);
       }
-    } catch (err) {
-      console.error('Error fetching doctor session:', err);
+    } catch (err: any) {
+      // Gracefully handle network/offline errors without triggering fatal Next.js dev overlay
+      console.warn('[DoctorAuth] Could not connect to API server:', err?.message || err);
     } finally {
       setIsLoading(false);
     }
@@ -182,10 +190,10 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
     if (data.accessToken) {
       localStorage.setItem('chekup_doctor_token', data.accessToken);
       setToken(data.accessToken);
-      setDoctor(data.user);
-      if (data.user?.doctorProfile) {
-        setProfile(mapDoctorProfile(data.user.doctorProfile));
-      }
+      const mappedProfile = data.user?.doctorProfile ? mapDoctorProfile(data.user.doctorProfile) : null;
+      const resolvedAvatar = data.user?.avatarUrl || mappedProfile?.photoUrl || null;
+      setDoctor(data.user ? { ...data.user, avatarUrl: resolvedAvatar } : null);
+      setProfile(mappedProfile ? { ...mappedProfile, photoUrl: resolvedAvatar } : null);
     }
     return data;
   };
@@ -241,10 +249,17 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
     setDoctor(null);
     setProfile(null);
     setToken(null);
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login';
+    }
   };
 
   const updateProfile = async (updated: Partial<DoctorProfileData>) => {
     if (!token) throw new Error('Not authenticated');
+    if (updated.photoUrl) {
+      setDoctor((prev) => (prev ? { ...prev, avatarUrl: updated.photoUrl } : prev));
+      setProfile((prev) => (prev ? { ...prev, photoUrl: updated.photoUrl } : prev));
+    }
     const res = await fetch(`${API_BASE}/doctors/me/profile`, {
       method: 'PUT',
       headers: {
@@ -269,6 +284,8 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
         board_certification_title: updated.boardCertificationTitle,
         is_on_holiday: updated.isOnHoliday,
         signature_url: updated.signatureUrl,
+        photo_url: updated.photoUrl,
+        avatar_url: updated.photoUrl,
         bank_name: updated.bankName,
         account_number: updated.accountNumber,
         branch_code: updated.branchCode,
@@ -286,6 +303,7 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
 
   const toggleHolidayMode = async (isOnHoliday: boolean) => {
     if (!token) throw new Error('Not authenticated');
+    setProfile((prev) => (prev ? { ...prev, isOnHoliday } : prev));
     const res = await fetch(`${API_BASE}/doctors/me/holiday-mode`, {
       method: 'PUT',
       headers: {

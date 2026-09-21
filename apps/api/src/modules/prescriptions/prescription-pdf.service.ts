@@ -277,8 +277,8 @@ export class PrescriptionPdfService {
       }
     } else if (doctor.signature_url) {
       try {
-        if (doctor.signature_url.startsWith('data:image/png;base64,')) {
-          const b64 = doctor.signature_url.replace('data:image/png;base64,', '');
+        if (doctor.signature_url.startsWith('data:image/')) {
+          const b64 = doctor.signature_url.split(',')[1] || doctor.signature_url;
           signatureImage = await pdfDoc.embedPng(Buffer.from(b64, 'base64'));
         } else if (doctor.signature_url.startsWith('http')) {
           const res = await fetch(doctor.signature_url);

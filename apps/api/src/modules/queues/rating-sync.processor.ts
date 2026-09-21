@@ -35,6 +35,7 @@ export class RatingSyncProcessor extends WorkerHost {
         .select('COUNT(review.id)', 'count')
         .addSelect('AVG(review.rating)', 'avg')
         .where('review.doctor_id = :doctorId', { doctorId })
+        .andWhere('review.is_hidden = false')
         .getRawOne();
 
       const count = Number(stats?.count || 0);

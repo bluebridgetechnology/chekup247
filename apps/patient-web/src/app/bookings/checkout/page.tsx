@@ -29,6 +29,7 @@ import {
   Mail,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
+import { toastSuccess, toastError } from '../../../lib/toast';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 
 interface DoctorDetail {
@@ -521,6 +522,7 @@ function CheckoutContent() {
 
       // If fully covered by platform credits, directly redirect to success page
       if (payData.covered_by_credits || payData.amount === 0) {
+        toastSuccess('Booking confirmed', 'Covered by your wallet credits.');
         router.push(
           `/bookings/success?bookingId=${createdBookingId}&reference=${payData.reference || 'credits_' + createdBookingId}`,
         );
@@ -529,15 +531,19 @@ function CheckoutContent() {
 
       // Paystack Checkout Redirect
       if (payData.authorization_url) {
+        toastSuccess('Redirecting to payment', 'Complete your payment to confirm the booking.');
         window.location.href = payData.authorization_url;
       } else {
+        toastSuccess('Booking confirmed', 'Your consultation is scheduled.');
         router.push(
           `/bookings/success?bookingId=${createdBookingId}&reference=${payData.reference}`,
         );
       }
     } catch (err: any) {
       console.error('Checkout error:', err);
-      setErrorMessage(err.message || 'An unexpected error occurred during checkout.');
+      const _msg = err instanceof Error && err.message ? err.message : 'An unexpected error occurred during checkout.';
+      setErrorMessage(_msg);
+      toastError('Booking failed', _msg);
       setIsProcessing(false);
     }
   };

@@ -39,11 +39,12 @@ export default function DoctorNotFound() {
 
         <h1
           style={{
+            fontFamily: 'var(--font-heading)',
             fontSize: '2rem',
             color: '#0f172a',
             marginTop: '8px',
             marginBottom: '14px',
-            fontWeight: 800,
+            fontWeight: 'var(--font-heading-weight, 400)',
           }}
         >
           Clinical Resource Not Found

@@ -3,6 +3,7 @@
 import React from 'react';
 import Link from 'next/link';
 import { Shield, Home } from 'lucide-react';
+import ChekupCrossLogo from '../components/ChekupCrossLogo';
 
 export default function AdminNotFound() {
   return (
@@ -16,60 +17,43 @@ export default function AdminNotFound() {
         textAlign: 'center',
       }}
     >
-      <div style={{ maxWidth: '500px' }}>
-        <div
-          style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '16px',
-            background: '#f8fafc',
-            border: '1px solid #e2e8f0',
-            color: '#0f172a',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            margin: '0 auto 20px auto',
-          }}
-        >
-          <Shield size={32} />
+      <div className="admin-card" style={{ maxWidth: '520px', padding: '36px', background: '#FDFBF7' }}>
+        <div style={{ margin: '0 auto 20px auto', display: 'flex', justifyContent: 'center' }}>
+          <ChekupCrossLogo size={56} />
         </div>
 
-        <span style={{ color: '#64748b', fontWeight: 800, fontSize: '0.85rem' }}>
-          404 — ADMIN RESOURCE NOT FOUND
+        <span style={{ color: '#DFAB62', fontWeight: 800, fontSize: '0.82rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          404 — Administrative Route Not Found
         </span>
 
         <h1
           style={{
-            fontSize: '1.85rem',
-            color: '#0f172a',
+            fontSize: '1.75rem',
+            color: '#2A170F',
             marginTop: '8px',
             marginBottom: '14px',
             fontWeight: 800,
           }}
         >
-          Administrative Route Not Found
+          Console Resource Missing
         </h1>
 
-        <p style={{ color: '#64748b', marginBottom: '28px', lineHeight: 1.6 }}>
-          The requested administration console URL, ledger entry, or doctor verification profile was not found.
+        <p style={{ color: '#6B7280', marginBottom: '28px', lineHeight: 1.6, fontSize: '0.92rem' }}>
+          The requested administration console URL, ledger entry, or doctor verification profile was not found or has been relocated.
         </p>
 
         <Link
           href="/"
+          className="btn-primary"
           style={{
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
-            background: '#0f172a',
-            color: '#ffffff',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            fontWeight: 600,
             textDecoration: 'none',
           }}
         >
-          <Home size={18} />
-          <span>Admin Dashboard</span>
+          <Home size={17} />
+          <span>Return to Dashboard</span>
         </Link>
       </div>
     </div>

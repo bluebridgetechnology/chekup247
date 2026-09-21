@@ -10,11 +10,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Shield,
-  HelpCircle,
   RefreshCw,
   Coins,
   CalendarCheck,
   Hourglass,
+  Sliders,
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 
@@ -31,7 +31,7 @@ interface PlatformSettingsData {
 
 export default function AdminSettingsPage() {
   const router = useRouter();
-  const { admin, token, isAuthenticated, isLoading: authLoading } = useAdminAuth();
+  const { token, isAuthenticated, isLoading: authLoading } = useAdminAuth();
 
   const [settings, setSettings] = useState<PlatformSettingsData>({
     commission_percent: 15,
@@ -53,17 +53,23 @@ export default function AdminSettingsPage() {
   }, [authLoading, isAuthenticated, router]);
 
   useEffect(() => {
-    if (token) {
+    if (token || !authLoading) {
       fetchSettings();
     }
-  }, [token]);
+  }, [token, authLoading]);
 
   const fetchSettings = async () => {
+    const tokenToUse = token || (typeof window !== 'undefined' ? localStorage.getItem('chekup_admin_token') : null);
+    if (!tokenToUse) {
+      if (!authLoading) setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     setErrorMessage(null);
     try {
       const res = await fetch(`${API_BASE}/admin/settings`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${tokenToUse}` },
         credentials: 'include',
       });
 
@@ -89,6 +95,12 @@ export default function AdminSettingsPage() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    const tokenToUse = token || (typeof window !== 'undefined' ? localStorage.getItem('chekup_admin_token') : null);
+    if (!tokenToUse) {
+      setErrorMessage('Authentication token missing. Please sign in again.');
+      return;
+    }
+
     setIsSaving(true);
     setSaveSuccess(null);
     setErrorMessage(null);
@@ -98,7 +110,7 @@ export default function AdminSettingsPage() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${tokenToUse}`,
         },
         credentials: 'include',
         body: JSON.stringify({
@@ -140,29 +152,29 @@ export default function AdminSettingsPage() {
   const doctorCancellationFee = (sampleFee * settings.late_cancellation_deduction_percent) / 100;
   const patientRefundAmount = sampleFee - doctorCancellationFee;
   const platformCommissionAmount = (sampleFee * settings.commission_percent) / 100;
+  const doctorEarnings = sampleFee - platformCommissionAmount;
 
   return (
-    <div style={{ maxWidth: '1000px', margin: '0 auto', color: '#f8fafc' }}>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px', color: '#201712' }}>
       {/* Page Header */}
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'flex-start',
-          marginBottom: '28px',
           flexWrap: 'wrap',
           gap: '16px',
         }}
       >
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: 0 }}>
             <div
               style={{
-                width: '36px',
-                height: '36px',
+                width: '38px',
+                height: '38px',
                 borderRadius: '10px',
-                background: 'rgba(239, 68, 68, 0.15)',
-                color: '#ef4444',
+                background: '#F7EFE3',
+                color: '#B98232',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -170,35 +182,79 @@ export default function AdminSettingsPage() {
             >
               <Settings size={20} />
             </div>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
-              Platform Governance & Settings
-            </h1>
-          </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', margin: 0 }}>
-            Configure global financial deductions, cancellation penalties, and consultation timing policies.
+            Platform Governance & Global Settings
+          </h1>
+          <p className="page-subtitle" style={{ margin: 0 }}>
+            Configure platform commission, late cancellation compensation, consultation slot lengths, and scheduling buffers.
           </p>
         </div>
 
         <button
           onClick={fetchSettings}
           disabled={isLoading}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '8px 16px',
-            borderRadius: '10px',
-            background: '#1e293b',
-            border: '1px solid #334155',
-            color: '#cbd5e1',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
+          className="btn-secondary"
+          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
         >
-          <RefreshCw size={14} className={isLoading ? 'animate-spin' : ''} />
+          <RefreshCw size={14} style={{ animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
           <span>Reload</span>
         </button>
+      </div>
+
+      {/* Stats Ribbon - 4 Cards Single Row */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          gap: '16px',
+        }}
+      >
+        <div className="stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span className="stat-label">Platform Commission</span>
+            <Percent size={18} color="#B98232" />
+          </div>
+          <div className="stat-number">{settings.commission_percent}%</div>
+          <div style={{ fontSize: '0.75rem', color: '#766C64', marginTop: '4px' }}>
+            Retained per consultation
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span className="stat-label">Late Cancellation Fee</span>
+            <Coins size={18} color="#B91C1C" />
+          </div>
+          <div className="stat-number" style={{ color: '#B91C1C' }}>
+            {settings.late_cancellation_deduction_percent}%
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#766C64', marginTop: '4px' }}>
+            Doctor compensation on &lt;24h cancel
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span className="stat-label">Default Slot Duration</span>
+            <CalendarCheck size={18} color="#0F8F72" />
+          </div>
+          <div className="stat-number" style={{ color: '#0F8F72' }}>
+            {settings.default_slot_duration_minutes}m
+          </div>
+          <div style={{ fontSize: '0.75rem', color: '#766C64', marginTop: '4px' }}>
+            Standard appointment block
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <span className="stat-label">Clinical Buffer</span>
+            <Hourglass size={18} color="#B98232" />
+          </div>
+          <div className="stat-number">{settings.default_buffer_minutes}m</div>
+          <div style={{ fontSize: '0.75rem', color: '#766C64', marginTop: '4px' }}>
+            Rest/turnaround between calls
+          </div>
+        </div>
       </div>
 
       {/* Alerts */}
@@ -207,17 +263,18 @@ export default function AdminSettingsPage() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            padding: '16px',
-            borderRadius: '12px',
-            background: 'rgba(16, 185, 129, 0.12)',
-            border: '1px solid rgba(16, 185, 129, 0.3)',
-            color: '#34d399',
-            marginBottom: '24px',
+            gap: '10px',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            background: '#F0FDF4',
+            border: '1px solid #86EFAC',
+            color: '#166534',
+            fontSize: '0.85rem',
+            fontWeight: 600,
           }}
         >
-          <CheckCircle2 size={20} style={{ flexShrink: 0 }} />
-          <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{saveSuccess}</div>
+          <CheckCircle2 size={16} />
+          <div>{saveSuccess}</div>
         </div>
       )}
 
@@ -226,42 +283,54 @@ export default function AdminSettingsPage() {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            padding: '16px',
-            borderRadius: '12px',
-            background: 'rgba(239, 68, 68, 0.12)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            color: '#f87171',
-            marginBottom: '24px',
+            gap: '10px',
+            padding: '12px 16px',
+            borderRadius: '8px',
+            background: '#FEF2F2',
+            border: '1px solid #FECACA',
+            color: '#991B1B',
+            fontSize: '0.85rem',
+            fontWeight: 600,
           }}
         >
-          <AlertCircle size={20} style={{ flexShrink: 0 }} />
-          <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>{errorMessage}</div>
+          <AlertCircle size={16} />
+          <div>{errorMessage}</div>
         </div>
       )}
 
       <form onSubmit={handleSave}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(440px, 1fr))', gap: '20px' }}>
           {/* Section 1: Financial & Cancellation Policies */}
           <div
+            className="admin-card"
             style={{
-              background: '#131c2e',
-              border: '1px solid #1e293b',
-              borderRadius: '16px',
               padding: '24px',
               display: 'flex',
               flexDirection: 'column',
               gap: '20px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #1e293b', paddingBottom: '14px' }}>
-              <Coins size={18} style={{ color: '#ef4444' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #E9E0D5', paddingBottom: '14px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  background: '#FAF5EB',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#B98232',
+                }}
+              >
+                <Coins size={18} />
+              </div>
               <div>
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#201712' }}>
                   Financial & Cancellation Fees
                 </h2>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                  Governs commissions and short-notice patient deductions
+                <div style={{ fontSize: '0.78rem', color: '#766C64' }}>
+                  Governs commissions and short-notice patient cancellation deductions
                 </div>
               </div>
             </div>
@@ -269,17 +338,18 @@ export default function AdminSettingsPage() {
             {/* Late Cancellation Deduction % */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#201712' }}>
                   Late Cancellation Deduction (%)
                 </label>
                 <span
                   style={{
-                    fontSize: '0.85rem',
+                    fontSize: '0.825rem',
                     fontWeight: 700,
-                    color: '#ef4444',
-                    background: 'rgba(239, 68, 68, 0.12)',
+                    color: '#B91C1C',
+                    background: '#FEF2F2',
                     padding: '2px 8px',
                     borderRadius: '6px',
+                    border: '1px solid #FECACA',
                   }}
                 >
                   {settings.late_cancellation_deduction_percent}%
@@ -296,30 +366,31 @@ export default function AdminSettingsPage() {
                 }
                 style={{
                   width: '100%',
-                  accentColor: '#ef4444',
+                  accentColor: '#DFA34F',
                   cursor: 'pointer',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                 }}
               />
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.4 }}>
-                Applied when patient cancels less than 24 hours before consultation. This percentage is directly transferred to the doctor as a late compensation fee.
+              <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
+                Applied when patient cancels less than 24 hours before consultation. Transferred directly to the doctor as compensation.
               </div>
             </div>
 
             {/* Platform Commission % */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#201712' }}>
                   Platform Commission (%)
                 </label>
                 <span
                   style={{
-                    fontSize: '0.85rem',
+                    fontSize: '0.825rem',
                     fontWeight: 700,
-                    color: '#38bdf8',
-                    background: 'rgba(56, 189, 248, 0.12)',
+                    color: '#B98232',
+                    background: '#FAF5EB',
                     padding: '2px 8px',
                     borderRadius: '6px',
+                    border: '1px solid #E9E0D5',
                   }}
                 >
                   {settings.commission_percent}%
@@ -336,44 +407,49 @@ export default function AdminSettingsPage() {
                 }
                 style={{
                   width: '100%',
-                  accentColor: '#38bdf8',
+                  accentColor: '#2B170F',
                   cursor: 'pointer',
-                  marginBottom: '8px',
+                  marginBottom: '6px',
                 }}
               />
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', lineHeight: 1.4 }}>
-                Percentage retained by ChekUp247 on completed consultations to cover video infrastructure, Brevo emails, and SMS dispatchers.
+              <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
+                Percentage retained by ChekUp247 on completed consultations to cover LiveKit video infrastructure, Brevo communications, and payment gateways.
               </div>
             </div>
 
             {/* Live Calculation Preview Box */}
             <div
               style={{
-                background: '#090d16',
-                border: '1px solid #1e293b',
-                borderRadius: '12px',
+                background: '#FAF8F4',
+                border: '1px solid #E9E0D5',
+                borderRadius: '10px',
                 padding: '16px',
               }}
             >
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#e2e8f0', marginBottom: '10px' }}>
-                Sample Policy Breakdown (R{sampleFee} Consultation)
+              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#201712', marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Percent size={14} color="#B98232" />
+                <span>Sample Policy Simulation (R{sampleFee} Consultation)</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.75rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.78rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#766C64' }}>
                   <span>≥ 24 Hours Cancellation:</span>
-                  <span style={{ color: '#10b981', fontWeight: 600 }}>100% Refund (R{sampleFee}) / Free Reschedule</span>
+                  <span style={{ color: '#0F8F72', fontWeight: 700 }}>100% Refund (R{sampleFee}) / Free Reschedule</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
-                  <span>&lt; 24 Hours Doctor Fee:</span>
-                  <span style={{ color: '#ef4444', fontWeight: 600 }}>R{doctorCancellationFee.toFixed(2)} ({settings.late_cancellation_deduction_percent}%)</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#766C64' }}>
+                  <span>&lt; 24 Hours Doctor Compensation:</span>
+                  <span style={{ color: '#B91C1C', fontWeight: 700 }}>R{doctorCancellationFee.toFixed(2)} ({settings.late_cancellation_deduction_percent}%)</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8' }}>
-                  <span>&lt; 24 Hours Patient Refund/Credit:</span>
-                  <span style={{ color: '#38bdf8', fontWeight: 600 }}>R{patientRefundAmount.toFixed(2)} ({(100 - settings.late_cancellation_deduction_percent)}%)</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#766C64' }}>
+                  <span>&lt; 24 Hours Patient Refund:</span>
+                  <span style={{ color: '#B98232', fontWeight: 700 }}>R{patientRefundAmount.toFixed(2)} ({(100 - settings.late_cancellation_deduction_percent)}%)</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#94a3b8', borderTop: '1px solid #1e293b', paddingTop: '6px', marginTop: '4px' }}>
-                  <span>Platform Commission on Completion:</span>
-                  <span style={{ color: '#cbd5e1', fontWeight: 600 }}>R{platformCommissionAmount.toFixed(2)} ({settings.commission_percent}%)</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#766C64', borderTop: '1px solid #E9E0D5', paddingTop: '6px', marginTop: '2px' }}>
+                  <span style={{ fontWeight: 600, color: '#201712' }}>Platform Commission:</span>
+                  <span style={{ color: '#201712', fontWeight: 700 }}>R{platformCommissionAmount.toFixed(2)} ({settings.commission_percent}%)</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#766C64' }}>
+                  <span style={{ fontWeight: 600, color: '#201712' }}>Doctor Net Payout:</span>
+                  <span style={{ color: '#0F8F72', fontWeight: 700 }}>R{doctorEarnings.toFixed(2)}</span>
                 </div>
               </div>
             </div>
@@ -381,168 +457,165 @@ export default function AdminSettingsPage() {
 
           {/* Section 2: Consultation Durations & Buffer */}
           <div
+            className="admin-card"
             style={{
-              background: '#131c2e',
-              border: '1px solid #1e293b',
-              borderRadius: '16px',
               padding: '24px',
               display: 'flex',
               flexDirection: 'column',
               gap: '20px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #1e293b', paddingBottom: '14px' }}>
-              <Clock size={18} style={{ color: '#3b82f6' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid #E9E0D5', paddingBottom: '14px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  background: '#FAF5EB',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#B98232',
+                }}
+              >
+                <Clock size={18} />
+              </div>
               <div>
-                <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
+                <h2 style={{ fontSize: '1rem', fontWeight: 700, margin: 0, color: '#201712' }}>
                   Timing & Schedule Parameters
                 </h2>
-                <div style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
-                  Slot generation lengths, buffer times, and no-show thresholds
+                <div style={{ fontSize: '0.78rem', color: '#766C64' }}>
+                  Slot generation lengths, buffer times, and no-show grace thresholds
                 </div>
               </div>
             </div>
 
             {/* Default Slot Duration */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '8px' }}>
-                Default Consultation Slot Duration (Minutes)
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#201712', marginBottom: '8px' }}>
+                Default Consultation Slot Duration
               </label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {[15, 20, 30, 45, 60].map((mins) => (
-                  <button
-                    key={mins}
-                    type="button"
-                    onClick={() => setSettings({ ...settings, default_slot_duration_minutes: mins })}
-                    style={{
-                      flex: 1,
-                      padding: '8px 0',
-                      borderRadius: '8px',
-                      border: settings.default_slot_duration_minutes === mins ? '1px solid #3b82f6' : '1px solid #334155',
-                      background: settings.default_slot_duration_minutes === mins ? 'rgba(59, 130, 246, 0.2)' : '#090d16',
-                      color: settings.default_slot_duration_minutes === mins ? '#60a5fa' : '#94a3b8',
-                      fontWeight: 700,
-                      fontSize: '0.85rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {mins}m
-                  </button>
-                ))}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[15, 20, 30, 45, 60].map((mins) => {
+                  const isSelected = settings.default_slot_duration_minutes === mins;
+                  return (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setSettings({ ...settings, default_slot_duration_minutes: mins })}
+                      style={{
+                        flex: 1,
+                        padding: '8px 0',
+                        borderRadius: '6px',
+                        border: isSelected ? '1px solid #DFA34F' : '1px solid #E9E0D5',
+                        background: isSelected ? '#2B170F' : '#FFFFFF',
+                        color: isSelected ? '#ECC27E' : '#766C64',
+                        fontWeight: 700,
+                        fontSize: '0.825rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {mins}m
+                    </button>
+                  );
+                })}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '8px' }}>
+              <div style={{ fontSize: '0.75rem', color: '#766C64', marginTop: '6px' }}>
                 Base length applied when doctors batch generate availability slots on their calendar.
               </div>
             </div>
 
             {/* Default Buffer Minutes */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '8px' }}>
-                Clinical Buffer Between Consultations (Minutes)
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 700, color: '#201712', marginBottom: '8px' }}>
+                Clinical Buffer Between Consultations
               </label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {[0, 5, 10, 15].map((mins) => (
-                  <button
-                    key={mins}
-                    type="button"
-                    onClick={() => setSettings({ ...settings, default_buffer_minutes: mins })}
-                    style={{
-                      flex: 1,
-                      padding: '8px 0',
-                      borderRadius: '8px',
-                      border: settings.default_buffer_minutes === mins ? '1px solid #10b981' : '1px solid #334155',
-                      background: settings.default_buffer_minutes === mins ? 'rgba(16, 185, 129, 0.2)' : '#090d16',
-                      color: settings.default_buffer_minutes === mins ? '#34d399' : '#94a3b8',
-                      fontWeight: 700,
-                      fontSize: '0.85rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {mins}m
-                  </button>
-                ))}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                {[0, 5, 10, 15].map((mins) => {
+                  const isSelected = settings.default_buffer_minutes === mins;
+                  return (
+                    <button
+                      key={mins}
+                      type="button"
+                      onClick={() => setSettings({ ...settings, default_buffer_minutes: mins })}
+                      style={{
+                        flex: 1,
+                        padding: '8px 0',
+                        borderRadius: '6px',
+                        border: isSelected ? '1px solid #DFA34F' : '1px solid #E9E0D5',
+                        background: isSelected ? '#2B170F' : '#FFFFFF',
+                        color: isSelected ? '#ECC27E' : '#766C64',
+                        fontWeight: 700,
+                        fontSize: '0.825rem',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {mins}m
+                    </button>
+                  );
+                })}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '8px' }}>
-                Rest & medical charting window automatically inserted between back-to-back consultation slots.
+              <div style={{ fontSize: '0.75rem', color: '#766C64', marginTop: '6px' }}>
+                Rest and clinical charting buffer automatically inserted between consecutive consultations.
               </div>
             </div>
 
-            {/* No-show grace minutes */}
+            {/* No-Show Grace Period Minutes */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '8px' }}>
-                No-Show Grace Period (Minutes)
-              </label>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {[5, 10, 15, 20].map((mins) => (
-                  <button
-                    key={mins}
-                    type="button"
-                    onClick={() => setSettings({ ...settings, no_show_grace_minutes: mins })}
-                    style={{
-                      flex: 1,
-                      padding: '8px 0',
-                      borderRadius: '8px',
-                      border: settings.no_show_grace_minutes === mins ? '1px solid #f59e0b' : '1px solid #334155',
-                      background: settings.no_show_grace_minutes === mins ? 'rgba(245, 158, 11, 0.2)' : '#090d16',
-                      color: settings.no_show_grace_minutes === mins ? '#fbbf24' : '#94a3b8',
-                      fontWeight: 700,
-                      fontSize: '0.85rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {mins}m
-                  </button>
-                ))}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#201712' }}>
+                  No-Show Grace Period (Minutes)
+                </label>
+                <span
+                  style={{
+                    fontSize: '0.825rem',
+                    fontWeight: 700,
+                    color: '#B98232',
+                    background: '#FAF5EB',
+                    padding: '2px 8px',
+                    borderRadius: '6px',
+                    border: '1px solid #E9E0D5',
+                  }}
+                >
+                  {settings.no_show_grace_minutes} mins
+                </span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '8px' }}>
-                Allowed elapsed time into appointment before patient or doctor can be flagged as no-show.
+              <input
+                type="range"
+                min="5"
+                max="20"
+                step="1"
+                value={settings.no_show_grace_minutes}
+                onChange={(e) =>
+                  setSettings({ ...settings, no_show_grace_minutes: Number(e.target.value) })
+                }
+                style={{
+                  width: '100%',
+                  accentColor: '#DFA34F',
+                  cursor: 'pointer',
+                  marginBottom: '6px',
+                }}
+              />
+              <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
+                Time window after scheduled appointment start before a missing participant is declared a no-show.
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Action Bar */}
-        <div
-          style={{
-            marginTop: '28px',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '20px 24px',
-            background: '#131c2e',
-            border: '1px solid #1e293b',
-            borderRadius: '16px',
-            flexWrap: 'wrap',
-            gap: '16px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#64748b', fontSize: '0.8rem' }}>
-            <Shield size={16} style={{ color: '#ef4444' }} />
-            <span>Updates are audited under Admin ID: <strong style={{ color: '#cbd5e1' }}>{admin?.email || 'admin'}</strong></span>
+            {/* Save Button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 'auto', paddingTop: '10px' }}>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="btn-primary"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '10px 20px' }}
+              >
+                <Save size={16} />
+                <span>{isSaving ? 'Saving Changes...' : 'Save Platform Settings'}</span>
+              </button>
+            </div>
           </div>
-
-          <button
-            type="submit"
-            disabled={isSaving}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              padding: '12px 28px',
-              borderRadius: '10px',
-              background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-              border: 'none',
-              color: '#ffffff',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              cursor: isSaving ? 'not-allowed' : 'pointer',
-              opacity: isSaving ? 0.7 : 1,
-              boxShadow: '0 4px 14px rgba(239, 68, 68, 0.4)',
-            }}
-          >
-            <Save size={18} />
-            <span>{isSaving ? 'Saving Changes...' : 'Save Platform Settings'}</span>
-          </button>
         </div>
       </form>
     </div>

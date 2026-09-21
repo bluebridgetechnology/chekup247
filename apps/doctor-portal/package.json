@@ -7,7 +7,7 @@
     "dev": "next dev -p 3001",
     "build": "next build",
     "start": "next start -p 3001",
-    "lint": "next lint"
+    "lint": "eslint ."
   },
   "dependencies": {
     "@chekup247/design-tokens": "*",
@@ -18,7 +18,8 @@
     "next": "^16.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "socket.io-client": "^4.7.5"
+    "socket.io-client": "^4.7.5",
+    "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@types/node": "^20.16.5",

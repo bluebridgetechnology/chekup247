@@ -342,9 +342,9 @@ export class NotificationsService {
 
     this.logger.log(`Received contact inquiry from ${dto.name} (${dto.email}): [${dto.category || 'General'}] ${dto.subject}`);
 
-    // Send inquiry notice to support team
+    // Send inquiry notice to support team (destination configurable via SUPPORT_EMAIL env)
     await this.brevoEmailProvider.sendEmail({
-      to: [{ email: 'support@chekup247.co.za', name: 'ChekUp247 Support' }],
+      to: [{ email: envConfig.SUPPORT_EMAIL, name: envConfig.SUPPORT_EMAIL_NAME }],
       subject: `[Contact Inquiry] ${dto.category ? `[${dto.category}] ` : ''}${dto.subject || 'New Patient Inquiry'}`,
       htmlContent: `
         <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">

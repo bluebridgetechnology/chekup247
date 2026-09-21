@@ -35,11 +35,13 @@ import {
   AlertTriangle,
   CreditCard,
   TimerReset,
+  Star,
 } from 'lucide-react';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../../context/AuthContext';
 import { ChekupCrossLogo } from '../../../components/common/ChekupCrossLogo';
+import { ReviewModal } from '../../../components/ReviewModal';
 
 // ============================================================================
 // Types & Interfaces
@@ -151,6 +153,10 @@ export default function PatientConsultationPage() {
   const [doctorName, setDoctorName] = useState<string>('Doctor');
   const [doctorSpecialty, setDoctorSpecialty] = useState<string>('General Practitioner');
   const [isConsultationEnded, setIsConsultationEnded] = useState<boolean>(false);
+  // Post-call review prompt
+  const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
+  const [reviewInitialRating, setReviewInitialRating] = useState<number>(5);
+  const [reviewSubmitted, setReviewSubmitted] = useState<boolean>(false);
   const [showEndModal, setShowEndModal] = useState<boolean>(false);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [isEndingCall, setIsEndingCall] = useState<boolean>(false);
@@ -189,6 +195,14 @@ export default function PatientConsultationPage() {
   const [pendingExtension, setPendingExtension] = useState<ExtensionRequest | null>(null);
   const [isProcessingExtension, setIsProcessingExtension] = useState<boolean>(false);
   const [extensionNotice, setExtensionNotice] = useState<string | null>(null);
+  // Set while the patient has been redirected to the payment gateway (new tab) and
+  // we are waiting for the webhook-driven extension_confirmed event to land.
+  const [awaitingExtensionPayment, setAwaitingExtensionPayment] = useState<{
+    reference: string;
+    authorizationUrl: string;
+    amount: number;
+    durationMinutes: number;
+  } | null>(null);
 
   // Media Refs
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
@@ -416,6 +430,7 @@ export default function PatientConsultationPage() {
       setTotalDurationSeconds(data.newDurationSeconds);
       setPendingExtension(null);
       setIsProcessingExtension(false);
+      setAwaitingExtensionPayment(null);
       setExtensionNotice(`+${data.addedMinutes} minutes added to your consultation`);
       setTimeout(() => setExtensionNotice(null), 6000);
     });
@@ -659,10 +674,52 @@ export default function PatientConsultationPage() {
 
   // --------------------------------------------------------------------------
   // Extension Consent Handling
+  //
+  // Paid extensions redirect to the payment gateway in a NEW TAB (no stored card).
+  // To survive mobile popup-blockers, the tab must be opened SYNCHRONOUSLY inside
+  // the click gesture — we open a blank tab up-front, then point it at the
+  // Paystack URL once the async consent call returns. The call itself is never
+  // torn down here; the timer only bumps when the webhook fires extension_confirmed.
   // --------------------------------------------------------------------------
   const handleExtensionConsent = async (approved: boolean) => {
     if (!pendingExtension || isProcessingExtension) return;
     setIsProcessingExtension(true);
+
+    // Decline: no payment tab needed.
+    if (!approved) {
+      try {
+        await fetch(`${API_BASE}/consultations/${bookingId}/extend/consent`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            extensionId: pendingExtension.extensionId,
+            approved: false,
+            patientId: user?.id,
+          }),
+        });
+      } catch { /* best-effort */ }
+      setPendingExtension(null);
+      setIsProcessingExtension(false);
+      return;
+    }
+
+    // Approve. Pre-open a blank tab NOW (inside the user gesture) so mobile browsers
+    // treat it as user-initiated and don't block it. We only navigate it if a paid
+    // redirect is actually required.
+    const isPaid = !(pendingExtension.isFree || Number(pendingExtension.amount) <= 0);
+    let paymentTab: Window | null = null;
+    if (isPaid) {
+      paymentTab = window.open('', '_blank');
+      if (paymentTab) {
+        // Friendly interstitial while the checkout URL is fetched.
+        paymentTab.document.write(
+          '<title>Redirecting to payment…</title><body style="font-family:system-ui;background:#1E100A;color:#FAF6EE;display:flex;align-items:center;justify-content:center;height:100vh;margin:0"><p>Preparing secure payment…</p></body>',
+        );
+      }
+    }
 
     try {
       const res = await fetch(`${API_BASE}/consultations/${bookingId}/extend/consent`, {
@@ -673,27 +730,46 @@ export default function PatientConsultationPage() {
         },
         body: JSON.stringify({
           extensionId: pendingExtension.extensionId,
-          approved,
+          approved: true,
           patientId: user?.id,
         }),
       });
 
-      if (!approved) {
-        setPendingExtension(null);
-        setIsProcessingExtension(false);
-        return;
-      }
-
       const data = await res.json();
       if (!res.ok) {
-        setExtensionNotice(data.message || 'Extension payment failed');
+        if (paymentTab) paymentTab.close();
+        setExtensionNotice(data.message || 'Could not start the extension. Please try again.');
         setTimeout(() => setExtensionNotice(null), 6000);
         setIsProcessingExtension(false);
         return;
       }
 
-      // Success — WebSocket extension_confirmed event handles the rest
+      if (data.requires_payment && data.authorization_url) {
+        // Send the pre-opened tab to Paystack; move UI into the waiting state.
+        if (paymentTab) {
+          paymentTab.location.href = data.authorization_url;
+        } else {
+          // Popup was blocked despite the gesture — fall back to same-tab is unsafe
+          // (kills the call), so surface the link for the patient to open manually.
+          window.open(data.authorization_url, '_blank');
+        }
+        setAwaitingExtensionPayment({
+          reference: data.reference,
+          authorizationUrl: data.authorization_url,
+          amount: Number(data.amount ?? pendingExtension.amount),
+          durationMinutes: pendingExtension.durationMinutes,
+        });
+        setPendingExtension(null);
+        setIsProcessingExtension(false);
+        return;
+      }
+
+      // Complimentary extension finalized inline — extension_confirmed will land shortly.
+      if (paymentTab) paymentTab.close();
+      setPendingExtension(null);
+      setIsProcessingExtension(false);
     } catch (err: any) {
+      if (paymentTab) paymentTab.close();
       setExtensionNotice(err.message || 'Extension request failed');
       setTimeout(() => setExtensionNotice(null), 6000);
       setIsProcessingExtension(false);
@@ -822,6 +898,48 @@ export default function PatientConsultationPage() {
             </div>
           </div>
 
+          {/* Post-call review prompt — leave a rating for the doctor */}
+          {!reviewSubmitted ? (
+            <div style={{ backgroundColor: '#FFFDF9', border: '1px solid rgba(223,171,98,0.35)', borderRadius: '16px', padding: '18px 16px', marginBottom: '20px' }}>
+              <div style={{ fontSize: '0.92rem', fontWeight: 800, color: '#2A170F', marginBottom: '4px' }}>
+                How was your consultation?
+              </div>
+              <p style={{ fontSize: '0.8rem', color: '#6B5E55', margin: '0 0 12px', lineHeight: 1.45 }}>
+                Leave a quick review for <strong>{doctorName}</strong> — it helps other patients.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'center', gap: '6px' }}>
+                {[1, 2, 3, 4, 5].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    aria-label={`Rate ${n} star${n > 1 ? 's' : ''}`}
+                    onClick={() => {
+                      setReviewInitialRating(n);
+                      setShowReviewModal(true);
+                    }}
+                    style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px' }}
+                  >
+                    <Star size={30} color="#DFAB62" fill="rgba(223,171,98,0.18)" />
+                  </button>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setReviewInitialRating(5);
+                  setShowReviewModal(true);
+                }}
+                style={{ marginTop: '10px', background: 'transparent', border: 'none', color: '#B88647', fontWeight: 700, fontSize: '0.8rem', cursor: 'pointer' }}
+              >
+                Write a review →
+              </button>
+            </div>
+          ) : (
+            <div style={{ backgroundColor: 'rgba(34,197,94,0.1)', border: '1px solid rgba(34,197,94,0.35)', borderRadius: '16px', padding: '14px 16px', marginBottom: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', color: '#16A34A', fontWeight: 700, fontSize: '0.85rem' }}>
+              <CheckCircle2 size={16} /> <span>Thanks for reviewing {doctorName}!</span>
+            </div>
+          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             <button onClick={handleDownloadPrescription} style={{ width: '100%', padding: '14px 24px', borderRadius: '9999px', backgroundColor: '#E2B467', color: '#2A170F', fontWeight: 800, fontSize: '0.925rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px', boxShadow: '0 6px 20px rgba(226,180,103,0.35)' }}>
               <Download size={18} />
@@ -839,6 +957,20 @@ export default function PatientConsultationPage() {
             </div>
           )}
         </div>
+
+        <ReviewModal
+          isOpen={showReviewModal}
+          onClose={() => setShowReviewModal(false)}
+          bookingId={bookingId || ''}
+          doctorName={doctorName}
+          doctorSpecialty={doctorSpecialty}
+          token={token}
+          initialRating={reviewInitialRating}
+          onReviewSubmitted={() => {
+            setReviewSubmitted(true);
+            setShowReviewModal(false);
+          }}
+        />
       </div>
     );
   }
@@ -1140,7 +1272,8 @@ export default function PatientConsultationPage() {
                   </span>
                 </div>
                 <p style={{ fontSize: '0.75rem', color: '#8C7768', margin: 0 }}>
-                  Your saved card will be charged automatically upon approval.
+                  You&apos;ll be taken to our secure payment page in a new tab. Keep this
+                  call tab open — your consultation continues the moment payment succeeds.
                 </p>
               </div>
             )}
@@ -1164,10 +1297,54 @@ export default function PatientConsultationPage() {
                     ? 'Processing...'
                     : pendingExtension.isFree || Number(pendingExtension.amount) <= 0
                     ? 'Accept Free Extension'
-                    : `Approve & Pay R${Number(pendingExtension.amount).toFixed(2)}`}
+                    : `Consent & Pay R${Number(pendingExtension.amount).toFixed(2)}`}
                 </span>
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
+          AWAITING EXTENSION PAYMENT (redirect in progress)
+          Shown after the patient is sent to the payment gateway in a new tab.
+          The call keeps running; extension_confirmed clears this automatically.
+          ==================================================================== */}
+      {awaitingExtensionPayment && !isConsultationEnded && !!callObject && (
+        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' }}>
+          <div style={{ maxWidth: '440px', width: '100%', backgroundColor: '#1E100A', borderRadius: '24px', border: '1.5px solid rgba(223,171,98,0.4)', padding: '30px', boxShadow: '0 25px 60px rgba(0,0,0,0.8)', textAlign: 'center' }}>
+            <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(223,171,98,0.15)', border: '1.5px solid rgba(223,171,98,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#DFAB62' }}>
+              <Loader2 size={28} className="animate-spin" />
+            </div>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 8px' }}>
+              Waiting for Payment
+            </h3>
+            <p style={{ fontSize: '0.9rem', color: '#D5C7B8', margin: '0 0 20px', lineHeight: 1.5 }}>
+              Complete the{' '}
+              <strong style={{ color: '#DFAB62' }}>R{awaitingExtensionPayment.amount.toFixed(2)}</strong>{' '}
+              payment in the payment tab to add{' '}
+              <strong style={{ color: '#FFFFFF' }}>+{awaitingExtensionPayment.durationMinutes} minutes</strong>.
+              Your consultation is still live — <strong style={{ color: '#FAF6EE' }}>keep this tab open</strong>.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              {/* Re-open the payment page (mobile: the tab may have been backgrounded/closed). */}
+              <button
+                onClick={() => window.open(awaitingExtensionPayment.authorizationUrl, '_blank')}
+                style={{ width: '100%', padding: '12px', borderRadius: '9999px', backgroundColor: '#E2B467', border: 'none', color: '#2A170F', fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+              >
+                <CreditCard size={16} /> <span>Re-open payment page</span>
+              </button>
+              <button
+                onClick={() => setAwaitingExtensionPayment(null)}
+                style={{ width: '100%', padding: '12px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(223,171,98,0.25)', color: '#FAF6EE', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}
+              >
+                Return to call
+              </button>
+            </div>
+            <p style={{ fontSize: '0.7rem', color: '#8C7768', margin: '14px 0 0' }}>
+              The extra time is added automatically once payment is confirmed.
+            </p>
           </div>
         </div>
       )}

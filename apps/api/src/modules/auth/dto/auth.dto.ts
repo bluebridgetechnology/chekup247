@@ -41,6 +41,10 @@ export class LoginDto {
 
   @IsOptional()
   remember_me?: boolean;
+
+  @IsOptional()
+  @IsString()
+  totpCode?: string;
 }
 
 export class VerifyEmailDto {

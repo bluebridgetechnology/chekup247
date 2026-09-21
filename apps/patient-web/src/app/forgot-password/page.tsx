@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { Mail, CheckCircle2, AlertCircle, ArrowLeft, ArrowRight } from 'lucide-react';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -34,8 +35,11 @@ export default function ForgotPasswordPage() {
       if (data.resetToken) {
         setResetToken(data.resetToken);
       }
+      toastSuccess('Reset link sent', 'Check your email for password reset instructions.');
     } catch (err: any) {
-      setError(err.message || 'Failed to request password reset link.');
+      const msg = errorMessage(err, 'Failed to request password reset link.');
+      setError(msg);
+      toastError('Could not send reset link', msg);
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ShieldCheck,
@@ -17,95 +17,109 @@ import {
   FileCheck,
   UserCheck,
   FileX,
+  Stethoscope,
+  ChevronLeft,
+  ChevronRight,
+  AlertTriangle,
+  Award,
 } from 'lucide-react';
 import { useAdminAuth } from '../../../context/AdminAuthContext';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
+interface PendingDoctor {
+  id: string;
+  slug?: string;
+  user?: {
+    id?: string;
+    full_name: string;
+    email: string;
+    phone?: string;
+  };
+  hpcsa_number: string;
+  specialty: string;
+  rate_per_hour: number;
+  verification_status: string;
+  verification_source: string;
+  created_at: string;
+  bio?: string;
+  facility_name?: string;
+  facility_address?: string;
+  documents_url?: string[];
+}
+
 export default function DoctorVerificationQueuePage() {
   const router = useRouter();
-  const { admin, token, isAuthenticated, isLoading } = useAdminAuth();
+  const { admin, token, isAuthenticated, isLoading: authLoading } = useAdminAuth();
 
-  const [pendingDoctors, setPendingDoctors] = useState<any[]>([]);
+  const [doctors, setDoctors] = useState<PendingDoctor[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const limit = 15;
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
-  // Split-Screen Inspector Drawer State
-  const [inspectingDoctor, setInspectingDoctor] = useState<any | null>(null);
+  // Inspector Drawer State
+  const [inspectingDoctor, setInspectingDoctor] = useState<PendingDoctor | null>(null);
 
   // Approval Modal State
-  const [approvingDoctor, setApprovingDoctor] = useState<any | null>(null);
+  const [approvingDoctor, setApprovingDoctor] = useState<PendingDoctor | null>(null);
+  const [approvalNotes, setApprovalNotes] = useState('HPCSA certificate and identity documents audited and approved.');
 
   // Rejection Modal State
-  const [rejectingDoctor, setRejectingDoctor] = useState<any | null>(null);
+  const [rejectingDoctor, setRejectingDoctor] = useState<PendingDoctor | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectionError, setRejectionError] = useState('');
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    if (!authLoading && !isAuthenticated) {
       router.push('/login');
     }
-  }, [isLoading, isAuthenticated, router]);
+  }, [authLoading, isAuthenticated, router]);
 
-  const fetchPendingDoctors = async () => {
+  const fetchPendingDoctors = useCallback(async () => {
     if (!token) return;
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch(`${API_BASE}/admin/doctors/pending`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const params = new URLSearchParams();
+      params.set('page', String(page));
+      params.set('limit', String(limit));
+      if (search.trim()) params.set('search', search.trim());
+
+      const res = await fetch(`${API_BASE}/admin/doctors/pending?${params.toString()}`, {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
         credentials: 'include',
       });
-      if (res.ok) {
-        const data = await res.json();
-        setPendingDoctors(data.doctors || data);
-      } else {
-        loadMockPending();
+
+      if (!res.ok) {
+        throw new Error(`Failed to load pending verifications (${res.status})`);
       }
-    } catch (err) {
-      loadMockPending();
+
+      const data = await res.json();
+      setDoctors(data.doctors || []);
+      setTotal(data.total || 0);
+    } catch (err: any) {
+      console.error('Failed to fetch pending doctors:', err.message);
+      setError(err.message || 'Failed to fetch pending verifications');
+      setDoctors([]);
+      setTotal(0);
     } finally {
       setLoading(false);
     }
-  };
-
-  const loadMockPending = () => {
-    setPendingDoctors([
-      {
-        id: 'doc-p1',
-        slug: 'dr-sipho-nkosi',
-        user: { full_name: 'Dr. Sipho Nkosi', email: 'sipho.nkosi@example.com', phone: '+27 82 345 6789' },
-        hpcsa_number: 'MP 0591234',
-        specialty: 'General Practice & Family Medicine',
-        rate_per_hour: 750.0,
-        verification_status: 'pending',
-        verification_source: 'platform',
-        created_at: '2026-02-18T14:20:00Z',
-        bio: 'Dr. Sipho Nkosi has 8 years experience in rural and urban clinics across Mpumalanga and Gauteng. Holds MBChB (UKZN 2018) with a strong interest in preventative diabetes care and virtual patient education.',
-        documents_url: [
-          'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-          'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
-        ],
-      },
-      {
-        id: 'doc-p2',
-        slug: 'dr-anika-venter',
-        user: { full_name: 'Dr. Anika Venter', email: 'anika.venter@example.co.za', phone: '+27 71 890 1234' },
-        hpcsa_number: 'MP 0712903',
-        specialty: 'Primary Care & Paediatric Health',
-        rate_per_hour: 820.0,
-        verification_status: 'pending',
-        verification_source: 'platform',
-        created_at: '2026-02-19T09:15:00Z',
-        bio: 'Dr. Anika Venter completed her degree at the University of Pretoria. Applying to provide flexible weekend telehealth appointments for families and young children.',
-        documents_url: ['https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'],
-      },
-    ]);
-  };
+  }, [token, page, limit, search]);
 
   useEffect(() => {
-    if (token) fetchPendingDoctors();
-  }, [token]);
+    if (token) {
+      fetchPendingDoctors();
+    }
+  }, [fetchPendingDoctors, token]);
 
   // Execute Approval
   const confirmApprove = async () => {
@@ -121,12 +135,18 @@ export default function DoctorVerificationQueuePage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ notes: 'HPCSA certificate and ID document audited and approved.' }),
+        body: JSON.stringify({ notes: approvalNotes.trim() }),
         credentials: 'include',
       });
 
-      // Optimistic local update
-      setPendingDoctors((prev) => prev.filter((d) => d.id !== docId));
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || `Approval failed (${res.status})`);
+      }
+
+      // Optimistic update
+      setDoctors((prev) => prev.filter((d) => d.id !== docId));
+      setTotal((prev) => Math.max(0, prev - 1));
       if (inspectingDoctor?.id === docId) setInspectingDoctor(null);
       setApprovingDoctor(null);
 
@@ -164,8 +184,14 @@ export default function DoctorVerificationQueuePage() {
         credentials: 'include',
       });
 
-      // Optimistic local update
-      setPendingDoctors((prev) => prev.filter((d) => d.id !== docId));
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({}));
+        throw new Error(errJson.message || `Rejection failed (${res.status})`);
+      }
+
+      // Optimistic update
+      setDoctors((prev) => prev.filter((d) => d.id !== docId));
+      setTotal((prev) => Math.max(0, prev - 1));
       if (inspectingDoctor?.id === docId) setInspectingDoctor(null);
       setRejectingDoctor(null);
       setRejectionReason('');
@@ -182,56 +208,45 @@ export default function DoctorVerificationQueuePage() {
     }
   };
 
-  if (isLoading || !admin) {
+  const totalPages = Math.ceil(total / limit) || 1;
+
+  if (authLoading || !admin) {
     return (
-      <div style={{ color: '#94a3b8', textAlign: 'center', padding: '60px' }}>
+      <div style={{ color: '#766C64', textAlign: 'center', padding: '60px' }}>
         Verifying administrator credentials...
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', color: '#ffffff' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Header */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '28px',
-        }}
-      >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-            <ShieldCheck size={24} style={{ color: 'var(--color-brand-400)' }} />
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', margin: 0 }}>
-              HPCSA Doctor Verification Queue
-            </h1>
+          <div className="page-eyebrow">
+            <Award size={13} />
+            <span>HPCSA Compliance & Credentialing</span>
           </div>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+          <h1 className="page-title">
+            Doctor Verification Queue
+          </h1>
+          <p className="page-subtitle">
             Inspect uploaded certificates, audit medical council credentials, and verify direct GP applicants.
           </p>
         </div>
 
         <button
-          onClick={fetchPendingDoctors}
+          type="button"
+          onClick={() => fetchPendingDoctors()}
+          disabled={loading}
+          className="btn-secondary"
           style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 16px',
-            borderRadius: 'var(--radius-md)',
-            background: '#1e293b',
-            border: '1px solid #334155',
-            color: '#cbd5e1',
-            cursor: 'pointer',
-            fontSize: '0.85rem',
-            fontWeight: 600,
+            fontSize: '0.8125rem',
+            padding: '8px 16px',
+            cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
-          <RefreshCw size={16} />
+          <RefreshCw size={14} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
           <span>Refresh Queue</span>
         </button>
       </div>
@@ -243,685 +258,713 @@ export default function DoctorVerificationQueuePage() {
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            padding: '14px 18px',
-            borderRadius: 'var(--radius-md)',
-            background: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            border: `1px solid ${feedback.type === 'success' ? '#059669' : '#dc2626'}`,
-            color: feedback.type === 'success' ? '#34d399' : '#f87171',
-            fontSize: '0.9rem',
-            marginBottom: '24px',
+            padding: '12px 16px',
+            borderRadius: '10px',
+            backgroundColor: feedback.type === 'success' ? '#ECF9F3' : '#FEF2F2',
+            border: `1px solid ${feedback.type === 'success' ? '#A7F3D0' : '#FECACA'}`,
+            color: feedback.type === 'success' ? '#18A875' : '#991B1B',
+            fontSize: '0.85rem',
+            fontWeight: 600,
           }}
         >
-          {feedback.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
+          {feedback.type === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />}
           <span>{feedback.message}</span>
         </div>
       )}
 
-      {/* Queue List */}
-      {loading ? (
-        <div style={{ padding: '60px', textAlign: 'center', color: '#94a3b8' }}>
-          Loading pending verifications...
-        </div>
-      ) : pendingDoctors.length === 0 ? (
+      {/* Error Alert */}
+      {error && (
         <div
           style={{
-            background: '#1e293b',
-            borderRadius: '16px',
+            backgroundColor: '#FEF2F2',
+            border: '1px solid #FECACA',
+            borderRadius: '10px',
+            padding: '12px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#991B1B', fontSize: '0.85rem' }}>
+            <AlertCircle size={16} />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => fetchPendingDoctors()}
+            style={{
+              background: '#991B1B',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '4px 10px',
+              fontSize: '0.75rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Search Ribbon */}
+      <div
+        className="admin-card"
+        style={{
+          padding: '14px 18px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '14px',
+          flexWrap: 'wrap',
+          backgroundColor: '#FFFFFF',
+        }}
+      >
+        <div style={{ flex: 1, minWidth: '280px', position: 'relative' }}>
+          <Search size={15} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#766C64' }} />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            placeholder="Search doctor name, HPCSA license, email, or specialty..."
+            className="admin-input"
+            style={{
+              width: '100%',
+              paddingLeft: '36px',
+              fontSize: '0.8125rem',
+              height: '38px',
+            }}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span
+            style={{
+              padding: '6px 14px',
+              borderRadius: '9999px',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              backgroundColor: '#FFFBEB',
+              color: '#D88A24',
+              border: '1px solid #FDE68A',
+            }}
+          >
+            {total} Pending Applicant{total === 1 ? '' : 's'}
+          </span>
+        </div>
+      </div>
+
+      {/* Queue List / Table */}
+      {loading ? (
+        <div className="admin-card" style={{ padding: '60px 20px', textAlign: 'center', color: '#766C64' }}>
+          <RefreshCw size={24} style={{ animation: 'spin 1s linear infinite', margin: '0 auto 12px', color: '#DFA34F' }} />
+          <p style={{ fontSize: '0.85rem', fontWeight: 500 }}>Loading pending HPCSA doctor verifications...</p>
+        </div>
+      ) : doctors.length === 0 ? (
+        <div
+          className="admin-card"
+          style={{
             padding: '60px 20px',
             textAlign: 'center',
-            border: '1px solid #334155',
+            backgroundColor: '#FFFFFF',
           }}
         >
           <div
             style={{
-              width: '64px',
-              height: '64px',
+              width: '56px',
+              height: '56px',
               borderRadius: '50%',
-              background: 'rgba(16, 185, 129, 0.15)',
-              color: '#34d399',
+              background: '#ECF9F3',
+              border: '1px solid #A7F3D0',
+              color: '#18A875',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 16px auto',
+              margin: '0 auto 14px auto',
             }}
           >
-            <CheckCircle2 size={36} />
+            <CheckCircle2 size={30} />
           </div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '6px' }}>
+          <h3 className="section-title" style={{ marginBottom: '6px' }}>
             Queue is Clear!
           </h3>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
-            All direct doctor registration submissions have been audited.
+          <p className="section-subtitle">
+            All medical practitioner registration applications have been audited and verified.
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {pendingDoctors.map((doc) => (
-            <div
-              key={doc.id}
-              style={{
-                background: '#1e293b',
-                borderRadius: '16px',
-                border: '1px solid #334155',
-                padding: '24px',
-                boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '16px',
-              }}
-            >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          {doctors.map((doc) => {
+            const isProcessing = processingId === doc.id;
+            const initial = doc.user?.full_name ? doc.user.full_name.replace('Dr. ', '').trim()[0] : 'D';
+
+            return (
               <div
+                key={doc.id}
+                className="admin-card"
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '16px',
+                  flexDirection: 'column',
+                  gap: '14px',
+                  backgroundColor: '#FFFFFF',
+                  transition: 'border-color 0.15s ease',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                  <div
-                    style={{
-                      width: '48px',
-                      height: '48px',
-                      borderRadius: '12px',
-                      background: 'rgba(14, 147, 132, 0.2)',
-                      color: 'var(--color-brand-400)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 800,
-                      fontSize: '1.2rem',
-                    }}
-                  >
-                    {doc.user?.full_name ? doc.user.full_name[0] : 'D'}
-                  </div>
-                  <div>
-                    <h2 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#ffffff', margin: 0 }}>
-                      {doc.user?.full_name}
-                    </h2>
-                    <div style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '2px' }}>
-                      {doc.user?.email} • {doc.user?.phone || 'No phone'}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: '14px',
+                  }}
+                >
+                  {/* Doctor Profile Info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                    <div
+                      style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '10px',
+                        background: '#2B170F',
+                        border: '1.5px solid #DFA34F',
+                        color: '#DFA34F',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 800,
+                        fontSize: '1.1rem',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {initial}
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#201712', margin: 0 }}>
+                          {doc.user?.full_name || 'Dr. Medical Practitioner'}
+                        </h2>
+                        <span
+                          style={{
+                            fontFamily: 'monospace',
+                            fontSize: '0.725rem',
+                            fontWeight: 700,
+                            padding: '2px 7px',
+                            borderRadius: '4px',
+                            backgroundColor: '#F8F5EF',
+                            border: '1px solid #E9E0D5',
+                            color: '#B98232',
+                          }}
+                        >
+                          {doc.hpcsa_number}
+                        </span>
+                      </div>
+                      <div style={{ color: '#766C64', fontSize: '0.8125rem', marginTop: '2px' }}>
+                        {doc.user?.email} • {doc.user?.phone || 'No phone provided'}
+                      </div>
                     </div>
                   </div>
+
+                  {/* Actions */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '3px 9px',
+                        borderRadius: '9999px',
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        backgroundColor: '#FFFBEB',
+                        color: '#D88A24',
+                        border: '1px solid #FDE68A',
+                      }}
+                    >
+                      <Clock size={11} />
+                      <span>PENDING AUDIT</span>
+                    </span>
+
+                    <button
+                      type="button"
+                      onClick={() => setInspectingDoctor(doc)}
+                      className="btn-secondary"
+                      style={{
+                        padding: '6px 12px',
+                        fontSize: '0.78rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                    >
+                      <Eye size={13} />
+                      <span>Inspect</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setRejectingDoctor(doc)}
+                      disabled={isProcessing}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        padding: '6px 12px',
+                        borderRadius: '9999px',
+                        background: '#FEF2F2',
+                        color: '#991B1B',
+                        border: '1px solid #FECACA',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        cursor: isProcessing ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      <XCircle size={13} />
+                      <span>Reject</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setApprovingDoctor(doc);
+                        setApprovalNotes('HPCSA certificate and identity documents audited and approved.');
+                      }}
+                      disabled={isProcessing}
+                      className="btn-primary"
+                      style={{
+                        padding: '6px 16px',
+                        fontSize: '0.78rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                    >
+                      <CheckCircle2 size={13} />
+                      <span>Approve</span>
+                    </button>
+                  </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span
-                    style={{
-                      padding: '4px 10px',
-                      borderRadius: '9999px',
-                      background: 'rgba(245, 158, 11, 0.2)',
-                      color: '#fbbf24',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                    }}
-                  >
-                    PENDING REVIEW
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => setInspectingDoctor(doc)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      background: '#334155',
-                      color: '#ffffff',
-                      border: 'none',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <Eye size={14} />
-                    <span>Inspect Documents</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setRejectingDoctor(doc)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 14px',
-                      borderRadius: '8px',
-                      background: 'rgba(239, 68, 68, 0.15)',
-                      color: '#f87171',
-                      border: '1px solid rgba(239, 68, 68, 0.3)',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <XCircle size={14} />
-                    <span>Reject</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setApprovingDoctor(doc)}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 18px',
-                      borderRadius: '8px',
-                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                      color: '#ffffff',
-                      border: 'none',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.3)',
-                    }}
-                  >
-                    <CheckCircle2 size={14} />
-                    <span>Approve</span>
-                  </button>
+                {/* Summary Metadata Grid */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+                    gap: '10px',
+                    backgroundColor: '#FAF8F5',
+                    border: '1px solid #E9E0D5',
+                    padding: '10px 14px',
+                    borderRadius: '10px',
+                    fontSize: '0.8125rem',
+                  }}
+                >
+                  <div>
+                    <span style={{ color: '#766C64', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Specialty</span>
+                    <span style={{ color: '#201712', fontWeight: 600 }}>{doc.specialty || 'General Practitioner'}</span>
+                  </div>
+                  <div>
+                    <span style={{ color: '#766C64', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Consultation Rate</span>
+                    <span style={{ color: '#18A875', fontWeight: 700 }}>R {Number(doc.rate_per_hour || 0).toFixed(2)}/hr</span>
+                  </div>
+                  <div>
+                    <span style={{ color: '#766C64', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Verification Source</span>
+                    <span style={{ color: '#201712', fontWeight: 600, textTransform: 'capitalize' }}>
+                      {doc.verification_source || 'Direct Platform'}
+                    </span>
+                  </div>
+                  <div>
+                    <span style={{ color: '#766C64', fontSize: '0.7rem', display: 'block', textTransform: 'uppercase', fontWeight: 600 }}>Uploaded Documents</span>
+                    <span style={{ color: '#201712', fontWeight: 600 }}>
+                      {doc.documents_url?.length || 0} credential file(s)
+                    </span>
+                  </div>
                 </div>
               </div>
+            );
+          })}
 
-              {/* Summary metadata */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                  gap: '12px',
-                  background: '#0f172a',
-                  padding: '12px 16px',
-                  borderRadius: '10px',
-                  fontSize: '0.85rem',
-                }}
-              >
-                <div>
-                  <span style={{ color: '#64748b', fontSize: '0.75rem', display: 'block' }}>HPCSA License</span>
-                  <strong style={{ color: '#38bdf8' }}>{doc.hpcsa_number}</strong>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b', fontSize: '0.75rem', display: 'block' }}>Specialty</span>
-                  <span style={{ color: '#cbd5e1' }}>{doc.specialty}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b', fontSize: '0.75rem', display: 'block' }}>Consultation Fee</span>
-                  <span style={{ color: '#34d399', fontWeight: 700 }}>R{Number(doc.rate_per_hour).toFixed(2)}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b', fontSize: '0.75rem', display: 'block' }}>Documents Attached</span>
-                  <span style={{ color: '#cbd5e1' }}>{doc.documents_url?.length || 0} files</span>
-                </div>
+          {/* Pagination Bar */}
+          {totalPages > 1 && (
+            <div
+              style={{
+                padding: '12px 18px',
+                borderRadius: '12px',
+                border: '1px solid #E9E0D5',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                backgroundColor: '#FFFFFF',
+              }}
+            >
+              <span style={{ fontSize: '0.8125rem', color: '#766C64', fontWeight: 500 }}>
+                Showing {doctors.length} of {total} applicants (Page {page} of {totalPages})
+              </span>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  disabled={page <= 1}
+                  className="btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                >
+                  <ChevronLeft size={13} /> Previous
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={page >= totalPages}
+                  className="btn-secondary"
+                  style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                >
+                  Next <ChevronRight size={13} />
+                </button>
               </div>
             </div>
-          ))}
+          )}
         </div>
       )}
 
-      {/* Split-Screen Inspector Drawer (AP-301) */}
+      {/* Split-Screen Inspector Drawer */}
       {inspectingDoctor && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 100,
-            display: 'flex',
-            justifyContent: 'flex-end',
-          }}
+          className="admin-drawer-backdrop"
+          onClick={() => setInspectingDoctor(null)}
         >
           <div
-            onClick={() => setInspectingDoctor(null)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.65)', backdropFilter: 'blur(4px)' }}
-          />
-
-          <div
+            className="admin-drawer-panel"
+            onClick={(e) => e.stopPropagation()}
             style={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: '680px',
-              height: '100%',
-              background: '#0f172a',
-              borderLeft: '1px solid #334155',
-              display: 'flex',
-              flexDirection: 'column',
-              zIndex: 101,
-              overflowY: 'auto',
-              padding: '32px',
+              backgroundColor: '#FFFFFF',
+              borderLeft: '1px solid #E9E0D5',
+              padding: '28px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <ShieldCheck size={22} style={{ color: 'var(--color-brand-400)' }} />
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', margin: 0 }}>
-                  Credential Verification Inspector
-                </h2>
+            {/* Drawer Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #E9E0D5', paddingBottom: '16px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <h2 className="section-title" style={{ fontSize: '1.25rem', margin: 0 }}>
+                    Doctor Credential Audit
+                  </h2>
+                  <span
+                    className="table-badge-booking-id"
+                    style={{ fontSize: '0.78rem', color: '#B98232' }}
+                  >
+                    {inspectingDoctor.hpcsa_number}
+                  </span>
+                </div>
+                <p className="section-subtitle">
+                  HPCSA Statutory Regulatory Audit • Medical Practitioners Act 56 of 1974
+                </p>
               </div>
+
               <button
+                type="button"
                 onClick={() => setInspectingDoctor(null)}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer' }}
+                className="btn-icon"
+                style={{ width: '32px', height: '32px' }}
               >
-                <X size={24} />
+                <X size={16} />
               </button>
             </div>
 
-            {/* Doctor Info Card */}
-            <div
-              style={{
-                background: '#1e293b',
-                borderRadius: '16px',
-                padding: '24px',
-                border: '1px solid #334155',
-                marginBottom: '24px',
-              }}
-            >
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#ffffff', margin: '0 0 4px 0' }}>
-                {inspectingDoctor.user?.full_name}
-              </h3>
-              <p style={{ color: 'var(--color-brand-400)', fontWeight: 600, fontSize: '0.9rem', margin: 0 }}>
-                {inspectingDoctor.specialty}
-              </p>
-
-              <div style={{ marginTop: '16px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.875rem' }}>
-                <div>
-                  <span style={{ color: '#64748b' }}>HPCSA License: </span>
-                  <span style={{ fontWeight: 700, color: '#38bdf8' }}>{inspectingDoctor.hpcsa_number}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b' }}>Email: </span>
-                  <span style={{ color: '#cbd5e1' }}>{inspectingDoctor.user?.email}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b' }}>Phone: </span>
-                  <span style={{ color: '#cbd5e1' }}>{inspectingDoctor.user?.phone || 'Not provided'}</span>
-                </div>
-                <div>
-                  <span style={{ color: '#64748b' }}>Proposed Rate: </span>
-                  <span style={{ color: '#34d399', fontWeight: 700 }}>R{inspectingDoctor.rate_per_hour}/hr</span>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              {/* POPIA Compliance Notice */}
+              <div
+                style={{
+                  backgroundColor: '#F8F5EF',
+                  border: '1px solid #E9E0D5',
+                  borderRadius: '10px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  fontSize: '0.78rem',
+                  color: '#201712',
+                }}
+              >
+                <ShieldCheck size={18} color="#18A875" style={{ flexShrink: 0 }} />
+                <span>
+                  <strong>Section 19 POPIA Privilege:</strong> Credential auditing event logged to immutable compliance ledger.
+                </span>
               </div>
-            </div>
 
-            {/* Biography */}
-            <div style={{ marginBottom: '24px' }}>
-              <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '8px' }}>
-                Submitted Clinical Biography
-              </h4>
-              <p style={{ fontSize: '0.9rem', color: '#cbd5e1', lineHeight: 1.6, background: '#1e293b', padding: '16px', borderRadius: '12px', border: '1px solid #334155' }}>
-                {inspectingDoctor.bio || 'No biography submitted.'}
-              </p>
-            </div>
+              {/* Doctor Details */}
+              <div style={{ background: '#FFFFFF', padding: '16px', borderRadius: '12px', border: '1px solid #E9E0D5' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', color: '#B98232', fontWeight: 700, marginBottom: '10px', textTransform: 'uppercase' }}>
+                  <Stethoscope size={13} /> Applicant Profile
+                </div>
+                <div style={{ fontWeight: 700, color: '#201712', fontSize: '1rem' }}>
+                  {inspectingDoctor.user?.full_name}
+                </div>
+                <div style={{ fontSize: '0.8125rem', color: '#766C64', marginTop: '2px' }}>
+                  {inspectingDoctor.user?.email} • {inspectingDoctor.user?.phone || 'No phone'}
+                </div>
+                <div style={{ fontSize: '0.8125rem', color: '#201712', marginTop: '4px', fontWeight: 600 }}>
+                  {inspectingDoctor.specialty} • R{Number(inspectingDoctor.rate_per_hour || 0).toFixed(2)}/hr
+                </div>
+                {inspectingDoctor.facility_name && (
+                  <div style={{ fontSize: '0.78rem', color: '#766C64', marginTop: '2px' }}>
+                    Facility: {inspectingDoctor.facility_name} {inspectingDoctor.facility_address ? `(${inspectingDoctor.facility_address})` : ''}
+                  </div>
+                )}
+                {inspectingDoctor.bio && (
+                  <p style={{ fontSize: '0.8125rem', color: '#201712', marginTop: '10px', lineHeight: 1.5, borderTop: '1px solid #F0ECE6', paddingTop: '10px' }}>
+                    {inspectingDoctor.bio}
+                  </p>
+                )}
+              </div>
 
-            {/* Inline Certificate / Document Viewer (AP-301) */}
-            <div style={{ marginBottom: '32px' }}>
-              <h4 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', marginBottom: '12px' }}>
-                Uploaded Credential Documents & ID
-              </h4>
-
-              {inspectingDoctor.documents_url && inspectingDoctor.documents_url.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {inspectingDoctor.documents_url.map((url: string, idx: number) => (
-                    <div
-                      key={idx}
-                      style={{
-                        background: '#1e293b',
-                        borderRadius: '12px',
-                        border: '1px solid #334155',
-                        overflow: 'hidden',
-                      }}
-                    >
-                      <div
+              {/* Uploaded Documents List */}
+              <div style={{ background: '#FFFFFF', padding: '16px', borderRadius: '12px', border: '1px solid #E9E0D5' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', color: '#B98232', fontWeight: 700, marginBottom: '10px', textTransform: 'uppercase' }}>
+                  <FileText size={13} /> Uploaded Credential Documents ({inspectingDoctor.documents_url?.length || 0})
+                </div>
+                {!inspectingDoctor.documents_url || inspectingDoctor.documents_url.length === 0 ? (
+                  <p style={{ fontSize: '0.8125rem', color: '#766C64', margin: 0 }}>
+                    No document attachments uploaded with this application.
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {inspectingDoctor.documents_url.map((url, idx) => (
+                      <a
+                        key={idx}
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
                         style={{
                           display: 'flex',
-                          alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '12px 16px',
-                          borderBottom: '1px solid #334155',
-                          background: '#0f172a',
+                          alignItems: 'center',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1px solid #E9E0D5',
+                          backgroundColor: '#FAF8F5',
+                          textDecoration: 'none',
+                          color: '#201712',
+                          fontSize: '0.8125rem',
+                          fontWeight: 500,
+                          transition: 'all 0.15s ease',
                         }}
                       >
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <FileCheck size={18} style={{ color: 'var(--color-brand-400)' }} />
-                          <span style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                            Document {idx + 1}: HPCSA Proof of Registration / ID
-                          </span>
+                          <FileCheck size={15} color="#18A875" />
+                          <span>Credential Certificate #{idx + 1}</span>
                         </div>
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            color: '#38bdf8',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            textDecoration: 'none',
-                          }}
-                        >
-                          <span>Open External</span>
-                          <ExternalLink size={12} />
-                        </a>
-                      </div>
+                        <ExternalLink size={13} color="#766C64" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                      {/* Embedded Preview or Mock iframe */}
-                      <div style={{ padding: '16px', background: '#090d16', minHeight: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <iframe
-                          src={url}
-                          style={{
-                            width: '100%',
-                            height: '240px',
-                            border: 'none',
-                            borderRadius: '8px',
-                            background: '#ffffff',
-                          }}
-                          title={`Document Preview ${idx + 1}`}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ padding: '20px', textAlign: 'center', background: '#1e293b', borderRadius: '12px', color: '#64748b' }}>
-                  No documents attached to this application.
-                </div>
-              )}
-            </div>
-
-            {/* Quick Action Buttons in Drawer */}
-            <div style={{ marginTop: 'auto', display: 'flex', gap: '12px', paddingTop: '20px', borderTop: '1px solid #334155' }}>
-              <button
-                type="button"
-                onClick={() => setRejectingDoctor(inspectingDoctor)}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  color: '#f87171',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                }}
-              >
-                <FileX size={16} />
-                <span>Reject Application</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setApprovingDoctor(inspectingDoctor)}
-                style={{
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  padding: '12px',
-                  borderRadius: '10px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontWeight: 700,
-                  fontSize: '0.9rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                }}
-              >
-                <UserCheck size={16} />
-                <span>Approve Verification</span>
-              </button>
+              {/* Actions inside drawer */}
+              <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end', marginTop: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setRejectingDoctor(inspectingDoctor)}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: '9999px',
+                    backgroundColor: '#FEF2F2',
+                    color: '#991B1B',
+                    border: '1px solid #FECACA',
+                    fontSize: '0.8125rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Reject Application
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setApprovingDoctor(inspectingDoctor);
+                    setApprovalNotes('HPCSA certificate and identity documents audited and approved.');
+                  }}
+                  className="btn-primary"
+                  style={{
+                    padding: '8px 20px',
+                    fontSize: '0.8125rem',
+                  }}
+                >
+                  Approve & Activate
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Approval Confirmation Modal (AP-302) */}
+      {/* Approve Confirmation Modal */}
       {approvingDoctor && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 110,
+            background: 'rgba(42, 23, 15, 0.65)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            zIndex: 60,
             padding: '20px',
           }}
+          onClick={() => setApprovingDoctor(null)}
         >
           <div
-            onClick={() => setApprovingDoctor(null)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)' }}
-          />
-
-          <div
+            className="admin-card"
             style={{
-              position: 'relative',
+              padding: '28px',
               width: '100%',
               maxWidth: '480px',
-              background: '#1e293b',
-              borderRadius: '16px',
-              border: '1px solid #334155',
-              padding: '28px',
-              zIndex: 111,
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 10px 35px rgba(0, 0, 0, 0.15)',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'rgba(16, 185, 129, 0.2)',
-                color: '#34d399',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '16px',
-              }}
-            >
-              <CheckCircle2 size={28} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ECF9F3', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#18A875' }}>
+                <CheckCircle2 size={20} />
+              </div>
+              <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0 }}>
+                Approve Doctor Registration
+              </h2>
             </div>
 
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', margin: '0 0 8px 0' }}>
-              Confirm Doctor Verification
-            </h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>
-              You are about to verify{' '}
-              <strong style={{ color: '#ffffff' }}>{approvingDoctor.user?.full_name}</strong> (HPCSA #
-              {approvingDoctor.hpcsa_number}). This doctor will immediately appear on the public ChekUp247
-              Doctor Directory and be permitted to conduct telehealth video sessions.
+            <p style={{ fontSize: '0.85rem', color: '#766C64', lineHeight: 1.5, marginBottom: '16px' }}>
+              Are you sure you want to verify and activate <strong>{approvingDoctor.user?.full_name}</strong> ({approvingDoctor.hpcsa_number})? This will enable their profile for patient bookings across South Africa.
             </p>
 
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#201712', marginBottom: '6px' }}>
+              Audit & Verification Notes
+            </label>
+            <textarea
+              value={approvalNotes}
+              onChange={(e) => setApprovalNotes(e.target.value)}
+              rows={3}
+              className="admin-input"
+              style={{ width: '100%', marginBottom: '20px', resize: 'vertical' }}
+            />
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button
                 type="button"
                 onClick={() => setApprovingDoctor(null)}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: '8px',
-                  background: '#334155',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="btn-secondary"
+                style={{ padding: '8px 16px', fontSize: '0.8125rem' }}
               >
                 Cancel
               </button>
-
               <button
                 type="button"
-                disabled={processingId === approvingDoctor.id}
                 onClick={confirmApprove}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: '8px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                }}
+                disabled={processingId === approvingDoctor.id}
+                className="btn-primary"
+                style={{ padding: '8px 20px', fontSize: '0.8125rem' }}
               >
-                {processingId === approvingDoctor.id ? 'Verifying...' : 'Confirm & Activate'}
+                {processingId === approvingDoctor.id ? 'Approving...' : 'Confirm Approval'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Rejection Modal with Required Reason (AP-302) */}
+      {/* Reject Modal */}
       {rejectingDoctor && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 110,
+            background: 'rgba(42, 23, 15, 0.65)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            zIndex: 60,
             padding: '20px',
           }}
+          onClick={() => setRejectingDoctor(null)}
         >
           <div
-            onClick={() => {
-              setRejectingDoctor(null);
-              setRejectionReason('');
-              setRejectionError('');
-            }}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.7)', backdropFilter: 'blur(4px)' }}
-          />
-
-          <div
+            className="admin-card"
             style={{
-              position: 'relative',
-              width: '100%',
-              maxWidth: '520px',
-              background: '#1e293b',
-              borderRadius: '16px',
-              border: '1px solid #334155',
               padding: '28px',
-              zIndex: 111,
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+              width: '100%',
+              maxWidth: '480px',
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 10px 35px rgba(0, 0, 0, 0.15)',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                background: 'rgba(239, 68, 68, 0.2)',
-                color: '#f87171',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '16px',
-              }}
-            >
-              <XCircle size={28} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#991B1B' }}>
+                <XCircle size={20} />
+              </div>
+              <h2 className="section-title" style={{ fontSize: '1.2rem', margin: 0, color: '#991B1B' }}>
+                Reject Doctor Registration
+              </h2>
             </div>
 
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#ffffff', margin: '0 0 8px 0' }}>
-              Reject Doctor Application
-            </h3>
-            <p style={{ color: '#94a3b8', fontSize: '0.9rem', lineHeight: 1.5, margin: 0 }}>
-              Please state the specific reason for rejecting{' '}
-              <strong style={{ color: '#ffffff' }}>{rejectingDoctor.user?.full_name}</strong>. This reason will
-              be stored in the compliance audit trail and dispatched to the doctor.
+            <p style={{ fontSize: '0.85rem', color: '#766C64', lineHeight: 1.5, marginBottom: '14px' }}>
+              Rejecting <strong>{rejectingDoctor.user?.full_name}</strong> ({rejectingDoctor.hpcsa_number}). Please state the regulatory reason for the audit trail.
             </p>
 
-            <div style={{ marginTop: '16px' }}>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.8rem',
-                  fontWeight: 700,
-                  color: '#cbd5e1',
-                  marginBottom: '6px',
-                }}
-              >
-                Rejection Reason (Required):
-              </label>
-              <textarea
-                rows={4}
-                placeholder="e.g., HPCSA registration number does not match submitted ID document, or proof of annual registration expired."
-                value={rejectionReason}
-                onChange={(e) => {
-                  setRejectionReason(e.target.value);
-                  if (rejectionError) setRejectionError('');
-                }}
-                style={{
-                  width: '100%',
-                  background: '#0f172a',
-                  border: rejectionError ? '1px solid #ef4444' : '1px solid #334155',
-                  borderRadius: '10px',
-                  padding: '12px',
-                  color: '#ffffff',
-                  fontSize: '0.875rem',
-                  outline: 'none',
-                  resize: 'vertical',
-                  boxSizing: 'border-box',
-                }}
-              />
-              {rejectionError && (
-                <span style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: '4px', display: 'block' }}>
-                  {rejectionError}
-                </span>
-              )}
-            </div>
+            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#201712', marginBottom: '6px' }}>
+              Mandatory Rejection Reason *
+            </label>
+            <textarea
+              value={rejectionReason}
+              onChange={(e) => {
+                setRejectionReason(e.target.value);
+                if (rejectionError) setRejectionError('');
+              }}
+              rows={3}
+              placeholder="e.g. HPCSA certificate expired or illegible copy uploaded..."
+              className="admin-input"
+              style={{
+                width: '100%',
+                marginBottom: rejectionError ? '6px' : '20px',
+                resize: 'vertical',
+                borderColor: rejectionError ? '#DC2626' : undefined,
+              }}
+            />
+            {rejectionError && (
+              <div style={{ color: '#DC2626', fontSize: '0.75rem', marginBottom: '16px', fontWeight: 600 }}>
+                {rejectionError}
+              </div>
+            )}
 
-            <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
               <button
                 type="button"
-                onClick={() => {
-                  setRejectingDoctor(null);
-                  setRejectionReason('');
-                  setRejectionError('');
-                }}
-                style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: '8px',
-                  background: '#334155',
-                  color: '#ffffff',
-                  border: 'none',
-                  fontSize: '0.875rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                onClick={() => setRejectingDoctor(null)}
+                className="btn-secondary"
+                style={{ padding: '8px 16px', fontSize: '0.8125rem' }}
               >
                 Cancel
               </button>
-
               <button
                 type="button"
-                disabled={processingId === rejectingDoctor.id}
                 onClick={confirmReject}
+                disabled={processingId === rejectingDoctor.id}
                 style={{
-                  flex: 1,
-                  padding: '10px',
-                  borderRadius: '8px',
-                  background: '#dc2626',
-                  color: '#ffffff',
+                  padding: '8px 18px',
+                  borderRadius: '9999px',
+                  backgroundColor: '#991B1B',
+                  color: '#FFFFFF',
                   border: 'none',
-                  fontSize: '0.875rem',
+                  fontSize: '0.8125rem',
                   fontWeight: 700,
-                  cursor: 'pointer',
+                  cursor: processingId === rejectingDoctor.id ? 'not-allowed' : 'pointer',
                 }}
               >
-                {processingId === rejectingDoctor.id ? 'Submitting...' : 'Confirm Rejection'}
+                {processingId === rejectingDoctor.id ? 'Rejecting...' : 'Confirm Rejection'}
               </button>
             </div>
           </div>

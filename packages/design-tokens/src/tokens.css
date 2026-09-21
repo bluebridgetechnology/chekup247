@@ -74,6 +74,11 @@
   /* Typography */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-heading: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-heading-weight: 400;
+  --font-page-title-size: 1.875rem;
+  --font-section-title-size: 1.25rem;
+  --font-stat-number-size: 1.875rem;
+  --font-hero-title-size: clamp(2.2rem, 4.5vw, 3.25rem);
 
   /* Typography Scale */
   --text-xs: 0.75rem;

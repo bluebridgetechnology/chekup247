@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { SolarIcon } from '../../../components/SolarIcon';
 import { useAuth } from '../../../context/AuthContext';
+import { toastSuccess, toastError, errorMessage } from '../../../lib/toast';
 import { PatientPortalLayout } from '../../../components/portal/PatientPortalLayout';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { RescheduleModal } from '../../../components/RescheduleModal';
@@ -259,8 +260,9 @@ export default function BookingDetailPage() {
         prev ? { ...prev, status: 'cancelled', payment_status: 'refunded' } : null,
       );
       setShowCancelModal(false);
+      toastSuccess('Booking cancelled', 'Your appointment has been cancelled.');
     } catch (err: any) {
-      alert(err.message || 'Error cancelling booking');
+      toastError('Could not cancel', errorMessage(err, 'Error cancelling booking'));
     } finally {
       setIsCancelling(false);
     }
@@ -318,10 +320,10 @@ export default function BookingDetailPage() {
               }}
             >
               <div>
-                <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#2A170F', fontFamily: 'var(--font-heading)' }}>
+                <h1 className="page-title">
                   Consultation Details
                 </h1>
-                <p style={{ color: '#6B5E55', fontSize: '0.875rem', marginTop: '2px' }}>
+                <p className="page-subtitle" style={{ margin: '2px 0 0' }}>
                   Booking ID: <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{booking?.id}</span>
                 </p>
               </div>

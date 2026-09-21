@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import '../styles/globals.css';
 import { LayoutShell } from '../components/LayoutShell';
 import { AuthProvider } from '../context/AuthContext';
+import { BrandToaster } from '../components/BrandToaster';
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chekup247.co.za';
 
@@ -137,12 +138,13 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
       </head>
-      <body style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <body suppressHydrationWarning style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         {/* WCAG 2.1 AA Accessibility: Skip to Main Content */}
         <a href="#main-content" className="skip-to-content">
           Skip to main content
         </a>
         <AuthProvider>
+          <BrandToaster />
           <LayoutShell>{children}</LayoutShell>
         </AuthProvider>
       </body>

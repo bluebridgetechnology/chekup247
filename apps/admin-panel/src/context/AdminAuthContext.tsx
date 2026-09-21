@@ -8,6 +8,8 @@ export interface AdminUserData {
   fullName: string;
   role: string;
   status: string;
+  mustChangePassword?: boolean;
+  adminSubRole?: 'super_admin' | 'support' | null;
 }
 
 interface AdminAuthContextType {
@@ -15,7 +17,8 @@ interface AdminAuthContextType {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<any>;
+  login: (email: string, password: string, totpCode?: string) => Promise<any>;
+  completeTotpLogin: (challengeToken: string, totpCode: string) => Promise<any>;
   logout: () => Promise<void>;
   refreshAdmin: () => Promise<void>;
 }
@@ -71,17 +74,28 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     refreshAdmin();
   }, [refreshAdmin]);
 
-  const login = async (email: string, password: string) => {
-    const res = await fetch(`${API_BASE}/auth/login`, {
+  const login = async (email: string, password: string, totpCode?: string) => {
+    // Route through this app's own same-origin proxy (/api/auth/login) so
+    // the presence cookie proxy.ts checks gets set on THIS domain —
+    // a cookie from the API's own login response would be scoped to the
+    // API's domain and invisible here (standalone, cross-origin hosting).
+    const res = await fetch('/api/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, totpCode }),
       credentials: 'include',
     });
 
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.message || 'Admin authentication failed');
+    }
+
+    // 2FA challenge: password was correct, but a TOTP code is needed.
+    // No token/cookie was issued yet — the caller (login page) shows a
+    // code-entry step and calls completeTotpLogin with this token.
+    if (data.requiresTotp) {
+      return data;
     }
 
     if (data.user?.role !== 'admin') {
@@ -96,9 +110,33 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     return data;
   };
 
+  const completeTotpLogin = async (challengeToken: string, totpCode: string) => {
+    const res = await fetch('/api/auth/totp/complete-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ challengeToken, totpCode }),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Two-factor verification failed');
+    }
+    if (data.user?.role !== 'admin') {
+      throw new Error('Access Forbidden: Account is not an authorized administrator');
+    }
+
+    if (data.accessToken) {
+      localStorage.setItem('chekup_admin_token', data.accessToken);
+      setToken(data.accessToken);
+      setAdmin(data.user);
+    }
+    return data;
+  };
+
   const logout = async () => {
     try {
-      await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch (e) {
       // ignore
     }
@@ -115,6 +153,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         isAuthenticated: !!admin,
         login,
+        completeTotpLogin,
         logout,
         refreshAdmin,
       }}

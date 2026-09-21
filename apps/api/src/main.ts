@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
+import { json, urlencoded } from 'express';
 import { AppModule } from './app.module';
 import { envConfig } from './config/env.config';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -11,6 +12,10 @@ import { SentryService } from './config/sentry.config';
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+
+  // Configure body parser limit for file & avatar uploads
+  app.use(json({ limit: '25mb' }));
+  app.use(urlencoded({ limit: '25mb', extended: true }));
 
   // Global prefixes and middlewares
   app.setGlobalPrefix('api/v1', {
@@ -60,6 +65,12 @@ async function bootstrap() {
       envConfig.PATIENT_WEB_URL,
       envConfig.DOCTOR_PORTAL_URL,
       envConfig.ADMIN_PANEL_URL,
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://localhost:3002',
+      'http://127.0.0.1:3000',
+      'http://127.0.0.1:3001',
+      'http://127.0.0.1:3002',
     ],
     credentials: true,
   });

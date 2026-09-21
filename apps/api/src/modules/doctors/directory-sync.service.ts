@@ -187,10 +187,47 @@ export class DirectorySyncService {
       await this.userRepository.save(user);
     }
 
-    // 2. Find or create DoctorProfile
+    // 2. Find or create DoctorProfile. Prefer the LocumStaff-record's own
+    // sso_external_id — that is the only identifier guaranteed to belong to
+    // THIS partner-directory record. Falling back to a shared hpcsa_number
+    // is what let a platform-seeded doctor's profile get hijacked by a
+    // same-numbered mock/partner record in the past (see fix history).
     let profile = await this.doctorRepository.findOne({
-      where: [{ user_id: user.id }, { hpcsa_number: record.hpcsa_number }],
+      where: { user_id: user.id },
     });
+
+    if (!profile) {
+      profile = await this.doctorRepository.findOne({
+        where: { sso_external_id: record.id, sso_provider: 'locumstaff' },
+      });
+    }
+
+    if (!profile) {
+      const hpcsaMatch = await this.doctorRepository.findOne({
+        where: { hpcsa_number: record.hpcsa_number },
+      });
+
+      // Guard: an hpcsa_number collision can match a profile that belongs to
+      // a DIFFERENT user (e.g. a platform-seeded doctor sharing the same
+      // HPCSA number as a mock/partner directory record). Never let this
+      // sync hijack a profile it doesn't own by identity — only reuse it
+      // when it is already a LocumStaff-sourced profile with no owner yet.
+      if (hpcsaMatch) {
+        const ownedByThisRecord =
+          hpcsaMatch.user_id === user.id ||
+          (hpcsaMatch.sso_provider === 'locumstaff' && hpcsaMatch.sso_external_id === record.id);
+
+        if (ownedByThisRecord) {
+          profile = hpcsaMatch;
+        } else {
+          this.logger.warn(
+            `Skipping LocumStaff sync for HPCSA ${record.hpcsa_number} (${record.email}): ` +
+              `matches an existing profile (id=${hpcsaMatch.id}) not owned by this partner record.`,
+          );
+          return 'updated';
+        }
+      }
+    }
 
     let isNewProfile = false;
     if (!profile) {
@@ -284,7 +321,7 @@ export class DirectorySyncService {
         last_name: 'Molefe',
         email: 'thabo.molefe@locumstaff.co.za',
         phone: '+27 11 784 2100',
-        hpcsa_number: 'MP 0689432',
+        hpcsa_number: 'MP 0699001',
         role: 'LOCUM',
         status: 'VERIFIED',
         profession: 'GENERAL_PRACTITIONER',

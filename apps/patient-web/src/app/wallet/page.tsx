@@ -129,10 +129,10 @@ export default function PatientWalletPage() {
             }}
           >
             <div>
-              <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--color-slate-900)' }}>
+              <h1 className="page-title">
                 ChekUp247 Patient Wallet
               </h1>
-              <p style={{ color: 'var(--color-slate-500)', fontSize: '0.9rem', marginTop: '2px' }}>
+              <p className="page-subtitle" style={{ margin: '2px 0 0' }}>
                 Store credits from appointment refunds and promotions for instant, fee-free checkout
               </p>
             </div>

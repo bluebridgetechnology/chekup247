@@ -1,12 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import {
-  Trash2,
-  AlertTriangle,
-  Calendar,
-  CheckCircle2,
-} from 'lucide-react';
+import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { SolarIcon } from '../common/SolarIcon';
 
@@ -36,6 +31,12 @@ export function BatchSlotActionModal({
 
   const handleBatchDelete = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!token) {
+      setErrorMsg('You must be signed in to clear availability slots.');
+      return;
+    }
+
     setIsDeleting(true);
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -46,8 +47,9 @@ export function BatchSlotActionModal({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
+        credentials: 'include',
         body: JSON.stringify({
           startDate: `${startDate}T00:00:00.000Z`,
           endDate: `${endDate}T23:59:59.999Z`,
@@ -60,12 +62,15 @@ export function BatchSlotActionModal({
       }
 
       setSuccessMsg(data.message || 'Slots removed successfully');
+      toastSuccess('Slots updated', data.message || 'The selected slots were removed.');
       setTimeout(() => {
         onCleared();
         onClose();
       }, 900);
     } catch (err: any) {
-      setErrorMsg(err.message);
+      const msg = errorMessage(err, 'Failed to batch delete slots');
+      setErrorMsg(msg);
+      toastError('Batch action failed', msg);
     } finally {
       setIsDeleting(false);
     }
@@ -117,7 +122,7 @@ export function BatchSlotActionModal({
                 style={{
                   fontFamily: 'var(--font-heading)',
                   fontSize: '1.2rem',
-                  fontWeight: 800,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   color: 'var(--color-chocolate-base, #2A170F)',
                   margin: 0,
                 }}
@@ -180,7 +185,7 @@ export function BatchSlotActionModal({
                 gap: '8px',
               }}
             >
-              <CheckCircle2 size={18} />
+              <SolarIcon name="check-circle-linear" size={18} color="#065f46" />
               <span>{successMsg}</span>
             </div>
           )}

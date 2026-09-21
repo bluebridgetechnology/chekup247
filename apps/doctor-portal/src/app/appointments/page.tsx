@@ -1,26 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
-import {
-  Calendar,
-  Clock,
-  Video,
-  User,
-  CheckCircle2,
-  AlertCircle,
-  ChevronRight,
-  ExternalLink,
-  DollarSign,
-  FileText,
-  Filter,
-  Search,
-  Loader2,
-  Sparkles,
-  Phone,
-  Mail,
-  X,
-} from 'lucide-react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { SolarIcon } from '../../components/common/SolarIcon';
 
@@ -48,59 +29,103 @@ interface DoctorAppointment {
 }
 
 export default function DoctorAppointmentsPage() {
-  const { doctor, profile, token, isAuthenticated } = useDoctorAuth();
+  const { doctor, token } = useDoctorAuth();
   const [appointments, setAppointments] = useState<DoctorAppointment[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [filterTab, setFilterTab] = useState<'today' | 'upcoming' | 'completed'>('today');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedAppointment, setSelectedAppointment] = useState<DoctorAppointment | null>(null);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
-  useEffect(() => {
-    let isMounted = true;
+  const loadAppointments = useCallback(async (isSilent = false) => {
+    try {
+      if (!isSilent) setIsLoading(true);
+      else setIsRefreshing(true);
 
-    async function loadAppointments() {
-      try {
-        setIsLoading(true);
-        if (!token) {
-          if (isMounted) setAppointments([]);
+      if (!token) {
+        setAppointments([]);
+        return;
+      }
+
+      const res = await fetch(`${API_BASE}/bookings/doctor`, {
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setAppointments(data);
           return;
         }
-
-        const res = await fetch(`${API_BASE}/bookings/doctor`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted && Array.isArray(data)) {
-            setAppointments(data);
-            return;
-          }
-        }
-        if (isMounted) setAppointments([]);
-      } catch (err) {
-        console.warn('Error fetching doctor appointments:', err);
-        if (isMounted) setAppointments([]);
-      } finally {
-        if (isMounted) setIsLoading(false);
       }
+      setAppointments([]);
+    } catch (err) {
+      console.warn('Error fetching doctor appointments:', err);
+      setAppointments([]);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
-
-    loadAppointments();
-    return () => {
-      isMounted = false;
-    };
   }, [token, API_BASE]);
+
+  useEffect(() => {
+    loadAppointments();
+  }, [loadAppointments]);
+
+  // Counts & Summaries
+  const todayStr = useMemo(() => new Date().toDateString(), []);
+
+  const counts = useMemo(() => {
+    let today = 0;
+    let upcoming = 0;
+    let completed = 0;
+    let todayConfirmed = 0;
+    let todayPayout = 0;
+
+    appointments.forEach((apt) => {
+      const startIso = apt.slot?.startTime;
+      const aptDate = startIso ? new Date(startIso).toDateString() : '';
+      const isToday = aptDate === todayStr;
+      const isPast = startIso ? new Date(startIso).getTime() < Date.now() : false;
+
+      if (apt.status === 'completed') {
+        completed += 1;
+      } else if (apt.status === 'cancelled') {
+        // Excluded from active queue counts
+      } else if (isToday) {
+        today += 1;
+        if (apt.status === 'confirmed') {
+          todayConfirmed += 1;
+          const net = Number(apt.price) - Number(apt.commission_amount || apt.price * 0.15);
+          todayPayout += net;
+        }
+      } else if (!isPast) {
+        upcoming += 1;
+      } else {
+        completed += 1;
+      }
+    });
+
+    return {
+      today,
+      upcoming,
+      completed,
+      todayConfirmed,
+      todayPayout,
+      totalActive: appointments.filter((a) => a.status === 'confirmed').length,
+    };
+  }, [appointments, todayStr]);
 
   // Filter Appointments
   const filteredList = useMemo(() => {
-    const today = new Date().toDateString();
-
     return appointments.filter((apt) => {
-      const aptDate = apt.slot?.startTime ? new Date(apt.slot.startTime).toDateString() : '';
-      const isToday = aptDate === today;
-      const isPast = apt.slot?.startTime ? new Date(apt.slot.startTime).getTime() < Date.now() : false;
+      const startIso = apt.slot?.startTime;
+      const aptDate = startIso ? new Date(startIso).toDateString() : '';
+      const isToday = aptDate === todayStr;
+      const isPast = startIso ? new Date(startIso).getTime() < Date.now() : false;
 
       // Tab filtering
       if (filterTab === 'today') {
@@ -116,181 +141,400 @@ export default function DoctorAppointmentsPage() {
         const query = searchQuery.toLowerCase();
         const patientName = apt.patient?.fullName?.toLowerCase() || '';
         const patientEmail = apt.patient?.email?.toLowerCase() || '';
-        return patientName.includes(query) || patientEmail.includes(query);
+        const refId = apt.id.toLowerCase();
+        return patientName.includes(query) || patientEmail.includes(query) || refId.includes(query);
       }
 
       return true;
     });
-  }, [appointments, filterTab, searchQuery]);
+  }, [appointments, filterTab, searchQuery, todayStr]);
+
+  // Up Next / Imminent Appointment for Today
+  const imminentAppointment = useMemo(() => {
+    const todayConfirmed = appointments.filter((apt) => {
+      const startIso = apt.slot?.startTime;
+      if (!startIso) return false;
+      const d = new Date(startIso);
+      return d.toDateString() === todayStr && apt.status === 'confirmed';
+    });
+
+    if (todayConfirmed.length === 0) return null;
+
+    // Sort by start time ascending
+    todayConfirmed.sort((a, b) => {
+      const timeA = new Date(a.slot?.startTime || 0).getTime();
+      const timeB = new Date(b.slot?.startTime || 0).getTime();
+      return timeA - timeB;
+    });
+
+    return todayConfirmed[0];
+  }, [appointments, todayStr]);
 
   return (
-    <div style={{ maxWidth: '1240px', margin: '0 auto', paddingBottom: '48px' }}>
-      {/* Page Title & Stats */}
+    <div className="appointments-page" style={{ maxWidth: '1240px', margin: '0 auto', paddingBottom: '48px', width: '100%', boxSizing: 'border-box' }}>
+      {/* Top Header Section */}
       <div style={{ marginBottom: '28px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               <span
                 style={{
                   fontFamily: 'var(--font-sans)',
-                  fontSize: '0.78rem',
+                  fontSize: '0.75rem',
                   fontWeight: 700,
                   textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
+                  letterSpacing: '0.1em',
                   color: 'var(--color-gold-bronze, #B88647)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
                 }}
               >
+                <SolarIcon name="videocamera-record-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
                 Telehealth Queue • Direct Daily.co Launcher
               </span>
             </div>
-            <h1
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: '1.95rem',
-                fontWeight: 800,
-                color: 'var(--color-chocolate-base, #2A170F)',
-                letterSpacing: '-0.02em',
-                margin: 0,
-              }}
-            >
+            <h1 className="page-title">
               Consultation Queue & Appointments
             </h1>
-            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.925rem', marginTop: '6px' }}>
-              Manage today's clinical consultations, connect to high-definition video rooms, and inspect scheduled patients
+            <p className="page-subtitle" style={{ maxWidth: '680px' }}>
+              Manage today&apos;s clinical consultations, connect to high-definition video rooms, and inspect scheduled patient records.
             </p>
           </div>
 
-          <Link href="/calendar" className="btn-secondary">
-            <SolarIcon name="calendar-linear" size={17} color="var(--color-chocolate-base, #2A170F)" />
-            <span>Manage Calendar Shifts</span>
-          </Link>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Link href="/calendar" className="btn-secondary" style={{ padding: '9px 18px', fontSize: '0.84rem' }}>
+              <SolarIcon name="calendar-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+              <span>Manage Roster</span>
+            </Link>
+          </div>
         </div>
 
-        {/* Stats Row in Cream Cards */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-            gap: '16px',
-            marginTop: '24px',
-          }}
-        >
-          <div className="portal-card" style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Today's Patients
+        {/* Metric / KPI Cards — single row on desktop/tablet */}
+        <div className="stats-grid-4">
+          {/* Today's Patients */}
+          <div className="portal-card" style={{ padding: '20px 22px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span className="stat-label">
+                Today&apos;s Queue
               </span>
-              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--color-gold-pale, #F0E5D3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <SolarIcon name="user-rounded-bold" size={18} color="var(--color-chocolate-base, #2A170F)" />
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: 'var(--color-gold-pale, #F0E5D3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <SolarIcon name="user-rounded-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-              {
-                appointments.filter((a) => {
-                  const d = a.slot?.startTime ? new Date(a.slot.startTime).toDateString() : '';
-                  return d === new Date().toDateString() && a.status === 'confirmed';
-                }).length
-              }
+            <div className="stat-number">
+              {counts.today}
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 600, marginTop: '4px' }}>
-              Confirmed & queued for video
+            <div style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#059669', display: 'inline-block' }} />
+              <span>{counts.todayConfirmed} confirmed &amp; queued</span>
             </div>
           </div>
 
-          <div className="portal-card" style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          {/* Estimated Payout Today */}
+          <div className="portal-card" style={{ padding: '20px 22px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span className="stat-label">
                 Estimated Payout Today
               </span>
-              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--color-gold-pale, #F0E5D3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <SolarIcon name="wallet-money-bold" size={18} color="var(--color-chocolate-base, #2A170F)" />
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: 'var(--color-gold-pale, #F0E5D3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <SolarIcon name="wallet-money-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, color: '#059669' }}>
-              R
-              {appointments
-                .filter((a) => {
-                  const d = a.slot?.startTime ? new Date(a.slot.startTime).toDateString() : '';
-                  return d === new Date().toDateString() && a.status === 'confirmed';
-                })
-                .reduce((sum, a) => sum + (Number(a.price) - Number(a.commission_amount || a.price * 0.15)), 0)
-                .toFixed(2)}
+            <div className="stat-number">
+              R{counts.todayPayout.toFixed(2)}
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px' }}>
-              Net earnings (85% take-home settled)
+            <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '8px' }}>
+              Net earnings (85% doctor take-home)
             </div>
           </div>
 
-          <div className="portal-card" style={{ padding: '20px 24px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-              <span style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Upcoming Total
+          {/* Upcoming Total */}
+          <div className="portal-card" style={{ padding: '20px 22px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span className="stat-label">
+                Upcoming Consultations
               </span>
-              <div style={{ width: '38px', height: '38px', borderRadius: '50%', background: 'var(--color-gold-pale, #F0E5D3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <SolarIcon name="calendar-bold" size={18} color="var(--color-chocolate-base, #2A170F)" />
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: 'var(--color-gold-pale, #F0E5D3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <SolarIcon name="calendar-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-              {appointments.filter((a) => a.status === 'confirmed').length}
+            <div className="stat-number">
+              {counts.upcoming}
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px' }}>
+            <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '8px' }}>
               Future consultations on roster
+            </div>
+          </div>
+
+          {/* Completed Visits */}
+          <div className="portal-card" style={{ padding: '20px 22px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+              <span className="stat-label">
+                Completed Visits
+              </span>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: 'var(--color-gold-pale, #F0E5D3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <SolarIcon name="check-circle-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
+              </div>
+            </div>
+            <div className="stat-number">
+              {counts.completed}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '8px' }}>
+              Concluded medical appointments
             </div>
           </div>
         </div>
       </div>
 
-      {/* Filter Tabs (specialty-chip) & Search Bar (doctors-search-pill) */}
+      {/* Imminent / Up Next Priority Card for Today */}
+      {imminentAppointment && filterTab === 'today' && !searchQuery && (
+        <div
+          style={{
+            marginBottom: '24px',
+            borderRadius: '18px',
+            backgroundColor: 'var(--color-cream-surface, #FDFBF7)',
+            border: '1.5px solid var(--color-gold-base, #DFAB62)',
+            boxShadow: 'none',
+            padding: '20px 24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '16px',
+            position: 'relative',
+            overflow: 'hidden',
+          }}
+        >
+          {/* Subtle gold accent edge */}
+          <div
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              bottom: 0,
+              width: '4px',
+              backgroundColor: 'var(--color-gold-base, #DFAB62)',
+            }}
+          />
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: 0 }}>
+            <div
+              style={{
+                width: '48px',
+                height: '48px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 700,
+                fontSize: '1rem',
+                flexShrink: 0,
+              }}
+            >
+              {imminentAppointment.patient?.fullName
+                ? imminentAppointment.patient.fullName
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .substring(0, 2)
+                    .toUpperCase()
+                : 'PT'}
+            </div>
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <span
+                  style={{
+                    backgroundColor: 'rgba(5, 150, 105, 0.12)',
+                    color: '#047857',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: '9999px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                  }}
+                >
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#059669' }} />
+                  Next Up in Queue
+                </span>
+                <span style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                  Ref: #{imminentAppointment.id.substring(0, 8)}
+                </span>
+              </div>
+
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-chocolate-base, #2A170F)' }}>
+                {imminentAppointment.patient?.fullName || 'Scheduled Patient'}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '0.82rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '2px', flexWrap: 'wrap' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <SolarIcon name="clock-circle-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
+                  <span>
+                    {imminentAppointment.slot?.startTime
+                      ? new Date(imminentAppointment.slot.startTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                      : '10:00'}{' '}
+                    –{' '}
+                    {imminentAppointment.slot?.endTime
+                      ? new Date(imminentAppointment.slot.endTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                      : '10:45'}{' '}
+                    SAST
+                  </span>
+                </span>
+
+                {imminentAppointment.patient?.email && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <SolarIcon name="letter-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
+                    <span>{imminentAppointment.patient.email}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={() => setSelectedAppointment(imminentAppointment)}
+              className="btn-secondary"
+              style={{ padding: '10px 16px', fontSize: '0.85rem' }}
+            >
+              <SolarIcon name="document-text-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
+              <span>Details</span>
+            </button>
+
+            <Link
+              href={`/consultations/${imminentAppointment.id}`}
+              className="btn-primary"
+              style={{ padding: '10px 20px', fontSize: '0.85rem' }}
+            >
+              <SolarIcon name="videocamera-record-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+              <span>Launch Video Room</span>
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Filter Tabs & Search Bar Container */}
       <div
         className="portal-card"
         style={{
-          padding: '16px 20px',
+          padding: '14px 18px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
-          gap: '16px',
-          marginBottom: '24px',
+          gap: '14px',
+          marginBottom: '20px',
         }}
       >
-        {/* Specialty Chip Pill Buttons */}
+        {/* Specialty Filter Tabs with Dynamic Count Badges */}
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          {(['today', 'upcoming', 'completed'] as const).map((tab) => {
-            const isActive = filterTab === tab;
+          {(
+            [
+              { id: 'today', label: "Today's Queue", count: counts.today, icon: 'clock-circle-linear' },
+              { id: 'upcoming', label: 'Upcoming', count: counts.upcoming, icon: 'calendar-linear' },
+              { id: 'completed', label: 'Completed', count: counts.completed, icon: 'check-circle-linear' },
+            ] as const
+          ).map((tab) => {
+            const isActive = filterTab === tab.id;
             return (
               <button
-                key={tab}
+                key={tab.id}
                 type="button"
-                onClick={() => setFilterTab(tab)}
+                onClick={() => setFilterTab(tab.id)}
                 className={`specialty-chip ${isActive ? 'active' : ''}`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '8px 16px',
+                  borderRadius: '9999px',
+                  fontSize: '0.84rem',
+                  fontWeight: isActive ? 700 : 500,
+                  transition: 'all 0.18s ease',
+                }}
               >
                 <SolarIcon
-                  name={
-                    tab === 'today'
-                      ? 'clock-circle-bold'
-                      : tab === 'upcoming'
-                      ? 'calendar-bold'
-                      : 'check-circle-bold'
-                  }
+                  name={tab.icon}
                   size={15}
                   color={isActive ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-gold-bronze, #B88647)'}
                 />
-                <span>{tab === 'today' ? "Today's Consultations" : tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+                <span>{tab.label}</span>
+                <span
+                  style={{
+                    backgroundColor: isActive ? 'var(--color-chocolate-base, #2A170F)' : 'rgba(223, 171, 98, 0.25)',
+                    color: isActive ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    padding: '2px 7px',
+                    borderRadius: '9999px',
+                    minWidth: '18px',
+                    textAlign: 'center',
+                  }}
+                >
+                  {tab.count}
+                </span>
               </button>
             );
           })}
         </div>
 
-        {/* Doctors Search Pill with Solar Icon & Gold Action */}
+        {/* Clean Doctors Search Pill */}
         <div style={{ width: '100%', maxWidth: '360px' }}>
-          <div className="doctors-search-pill">
-            <SolarIcon name="magnifer-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+          <div className="doctors-search-pill" style={{ height: '42px' }}>
+            <SolarIcon name="magnifer-linear" size={17} color="var(--color-gold-base, #DFAB62)" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search patient name or email..."
+              placeholder="Search patient name, email, ref..."
               className="doctors-search-input"
+              style={{ fontSize: '0.85rem' }}
             />
             {searchQuery && (
               <button
@@ -299,25 +543,25 @@ export default function DoctorAppointmentsPage() {
                 style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--color-cream-text-muted)' }}
                 aria-label="Clear search"
               >
-                <X size={15} />
+                <SolarIcon name="close-circle-linear" size={16} color="var(--color-cream-text-muted)" />
               </button>
             )}
-            <button
-              type="button"
-              className="doctors-search-submit"
-              onClick={() => {}}
-            >
-              <SolarIcon name="magnifer-bold" size={14} color="var(--color-chocolate-base)" />
-              <span>Search</span>
-            </button>
           </div>
         </div>
       </div>
 
-      {/* Appointment Queue List */}
+      {/* Appointment Queue List & States */}
       {isLoading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
-          <Loader2 size={36} className="animate-spin" style={{ color: 'var(--color-gold-base, #DFAB62)' }} />
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '64px 0', gap: '12px' }}>
+          <SolarIcon
+            name="refresh-linear"
+            size={36}
+            color="var(--color-gold-base, #DFAB62)"
+            style={{ animation: 'spin 1s linear infinite' }}
+          />
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+            Loading consultation queue...
+          </span>
         </div>
       ) : filteredList.length === 0 ? (
         <div
@@ -325,12 +569,13 @@ export default function DoctorAppointmentsPage() {
           style={{
             padding: '56px 24px',
             textAlign: 'center',
+            backgroundColor: 'var(--color-cream-surface, #FDFBF7)',
           }}
         >
           <div
             style={{
-              width: '64px',
-              height: '64px',
+              width: '60px',
+              height: '60px',
               borderRadius: '50%',
               background: 'var(--color-gold-pale, #F0E5D3)',
               margin: '0 auto 16px',
@@ -339,170 +584,288 @@ export default function DoctorAppointmentsPage() {
               justifyContent: 'center',
             }}
           >
-            <SolarIcon name="clock-circle-bold" size={30} color="var(--color-gold-bronze, #B88647)" />
+            <SolarIcon
+              name={searchQuery ? 'magnifer-linear' : 'clock-circle-linear'}
+              size={28}
+              color="var(--color-gold-bronze, #B88647)"
+            />
           </div>
           <h3
             style={{
               fontFamily: 'var(--font-heading)',
               fontSize: '1.25rem',
               color: 'var(--color-chocolate-base, #2A170F)',
-              fontWeight: 800,
+              fontWeight: 700,
+              margin: '0 0 6px',
             }}
           >
-            No consultations found in this queue
+            {searchQuery
+              ? `No consultations matching "${searchQuery}"`
+              : filterTab === 'today'
+              ? "No consultations queued for today"
+              : filterTab === 'upcoming'
+              ? 'No upcoming consultations scheduled'
+              : 'No completed consultations recorded'}
           </h3>
-          <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.9rem', maxWidth: '440px', margin: '8px auto 20px' }}>
-            Open your practice calendar to publish new bookable availability slots for patients.
+          <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.88rem', maxWidth: '440px', margin: '0 auto 20px', lineHeight: 1.5 }}>
+            {searchQuery
+              ? 'Try checking for typos or searching by the booking reference number.'
+              : filterTab === 'today'
+              ? 'Patient appointments booked on your practice calendar will appear here in real time.'
+              : filterTab === 'upcoming'
+              ? 'Publish available time windows on your practice calendar to open bookings for patients.'
+              : 'Past consultations that have concluded will be archived here for record-keeping.'}
           </p>
-          <Link href="/calendar" className="btn-primary">
-            <SolarIcon name="calendar-bold" size={17} color="var(--color-chocolate-base, #2A170F)" />
-            <span>Open Calendar Roster</span>
-          </Link>
+
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery('')}
+              className="btn-secondary"
+              style={{ padding: '8px 20px', fontSize: '0.85rem' }}
+            >
+              Clear Search Query
+            </button>
+          ) : (
+            <Link href="/calendar" className="btn-primary" style={{ padding: '9px 22px', fontSize: '0.85rem' }}>
+              <SolarIcon name="calendar-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+              <span>Open Practice Calendar</span>
+            </Link>
+          )}
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {filteredList.map((appointment) => {
-            const startIso = appointment.slot?.startTime;
-            const startTimeStr = startIso
-              ? new Date(startIso).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
-              : '10:00';
-            const endTimeStr = appointment.slot?.endTime
-              ? new Date(appointment.slot.endTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
-              : '10:45';
-            const dateStr = startIso
-              ? new Date(startIso).toLocaleDateString('en-ZA', {
-                  weekday: 'short',
-                  day: 'numeric',
-                  month: 'short',
-                })
-              : 'Today';
+        <>
+          {/* Desktop Table View */}
+          <div className="doctor-table-card doctor-table-view">
+            <div className="doctor-table-scroll">
+              <table className="doctor-table">
+                <thead>
+                  <tr>
+                    <th>Patient</th>
+                    <th>Schedule</th>
+                    <th style={{ textAlign: 'center' }}>Status</th>
+                    <th style={{ textAlign: 'right' }}>Payout (85%)</th>
+                    <th style={{ textAlign: 'right', paddingRight: '18px' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredList.map((appointment) => {
+                    const startIso = appointment.slot?.startTime;
+                    const startTimeStr = startIso
+                      ? new Date(startIso).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                      : '10:00';
+                    const endTimeStr = appointment.slot?.endTime
+                      ? new Date(appointment.slot.endTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                      : '10:45';
+                    const dateStr = startIso
+                      ? new Date(startIso).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })
+                      : 'Today';
 
-            const netPayout = Number(appointment.price) - Number(appointment.commission_amount || appointment.price * 0.15);
+                    const netPayout = Number(appointment.price) - Number(appointment.commission_amount || appointment.price * 0.15);
 
-            // Compute patient initials
-            const nameParts = (appointment.patient?.fullName || 'Patient Client').split(' ');
-            const initials = nameParts.length >= 2
-              ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
-              : nameParts[0].substring(0, 2).toUpperCase();
+                    const nameParts = (appointment.patient?.fullName || 'Patient Client').split(' ');
+                    const initials = nameParts.length >= 2
+                      ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+                      : nameParts[0].substring(0, 2).toUpperCase();
 
-            return (
-              <div
-                key={appointment.id}
-                className="portal-card"
-                style={{
-                  padding: '22px 26px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '18px',
-                }}
-              >
-                {/* Time & Patient Info */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '18px', minWidth: '280px', flex: '1 1 300px' }}>
-                  {/* Pale Gold Time Badge */}
-                  <div
-                    style={{
-                      background: 'var(--color-gold-pale, #F0E5D3)',
-                      border: '1.5px solid rgba(223, 171, 98, 0.35)',
-                      borderRadius: '16px',
-                      padding: '12px 16px',
-                      textAlign: 'center',
-                      minWidth: '105px',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.725rem', fontWeight: 700, color: 'var(--color-gold-bronze, #B88647)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      {dateStr}
-                    </div>
-                    <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)', marginTop: '2px' }}>
-                      {startTimeStr}
-                    </div>
-                    <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                      to {endTimeStr}
-                    </div>
-                  </div>
-
-                  {/* Patient Avatar & Details */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                    <div className="doctor-avatar-circle">
-                      {initials}
-                    </div>
-
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <h3
-                          style={{
-                            fontFamily: 'var(--font-heading)',
-                            fontSize: '1.15rem',
-                            fontWeight: 700,
-                            color: 'var(--color-chocolate-base, #2A170F)',
-                            margin: 0,
-                          }}
-                        >
-                          {appointment.patient?.fullName || 'Patient Client'}
-                        </h3>
-                        <span className="badge-gold">
-                          CONFIRMED
-                        </span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '14px', fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '5px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                          <SolarIcon name="letter-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
-                          <span>{appointment.patient?.email || 'patient@chekup247.com'}</span>
-                        </div>
-                        {appointment.patient?.phone && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                            <SolarIcon name="phone-calling-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
-                            <span>{appointment.patient.phone}</span>
+                    return (
+                      <tr key={appointment.id}>
+                        {/* Patient */}
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                            <div className="doctor-avatar-circle" style={{ width: '38px', height: '38px', fontSize: '0.82rem' }}>
+                              {initials}
+                            </div>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
+                                {appointment.patient?.fullName || 'Patient Client'}
+                              </div>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', display: 'inline-flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                                <SolarIcon name="letter-linear" size={13} color="var(--color-gold-bronze, #B88647)" />
+                                <span>{appointment.patient?.email || 'patient@chekup247.com'}</span>
+                              </div>
+                            </div>
                           </div>
-                        )}
+                        </td>
+
+                        {/* Schedule */}
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                              {dateStr}
+                            </span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                              <SolarIcon name="clock-circle-linear" size={13} color="var(--color-gold-bronze, #B88647)" />
+                              <span>{startTimeStr} – {endTimeStr} SAST</span>
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Status */}
+                        <td style={{ textAlign: 'center' }}>
+                          <span
+                            className={appointment.status === 'confirmed' ? 'badge-gold' : 'badge-gold'}
+                            style={{
+                              textTransform: 'capitalize',
+                              ...(appointment.status === 'confirmed'
+                                ? { backgroundColor: 'rgba(5, 150, 105, 0.1)', color: '#047857', borderColor: 'rgba(5, 150, 105, 0.25)' }
+                                : {}),
+                            }}
+                          >
+                            {appointment.status}
+                          </span>
+                        </td>
+
+                        {/* Payout */}
+                        <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
+                          <div style={{ color: '#047857', fontWeight: 700, fontSize: '0.925rem' }}>
+                            R{netPayout.toFixed(2)}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                            Gross R{Number(appointment.price).toFixed(2)}
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td style={{ textAlign: 'right', paddingRight: '16px' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            {appointment.status !== 'completed' && appointment.status !== 'cancelled' ? (
+                              <Link
+                                href={`/consultations/${appointment.id}`}
+                                className="btn-primary"
+                                style={{ padding: '7px 14px', fontSize: '0.8rem' }}
+                              >
+                                <SolarIcon name="videocamera-record-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
+                                <span>Start</span>
+                              </Link>
+                            ) : (
+                              <Link
+                                href={`/consultations/${appointment.id}`}
+                                className="btn-secondary"
+                                style={{ padding: '7px 12px', fontSize: '0.8rem' }}
+                              >
+                                <SolarIcon name="document-text-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
+                                <span>Record</span>
+                              </Link>
+                            )}
+
+                            <button
+                              type="button"
+                              onClick={() => setSelectedAppointment(appointment)}
+                              className="btn-secondary"
+                              style={{ padding: '7px 12px', fontSize: '0.8rem' }}
+                            >
+                              <SolarIcon name="notes-minimalistic-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
+                              <span>Details</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile Stacked Card View */}
+          <div className="doctor-cards-view">
+            {filteredList.map((appointment) => {
+              const startIso = appointment.slot?.startTime;
+              const startTimeStr = startIso
+                ? new Date(startIso).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                : '10:00';
+              const endTimeStr = appointment.slot?.endTime
+                ? new Date(appointment.slot.endTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                : '10:45';
+              const dateStr = startIso
+                ? new Date(startIso).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })
+                : 'Today';
+
+              const netPayout = Number(appointment.price) - Number(appointment.commission_amount || appointment.price * 0.15);
+
+              const nameParts = (appointment.patient?.fullName || 'Patient Client').split(' ');
+              const initials = nameParts.length >= 2
+                ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase()
+                : nameParts[0].substring(0, 2).toUpperCase();
+
+              return (
+                <div key={appointment.id} className="doctor-mobile-card">
+                  <div className="doctor-mobile-card-row">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                      <div className="doctor-avatar-circle" style={{ width: '40px', height: '40px', fontSize: '0.85rem' }}>
+                        {initials}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base, #2A170F)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {appointment.patient?.fullName || 'Patient Client'}
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--color-cream-text-muted, #6B5E55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {appointment.patient?.email || 'patient@chekup247.com'}
+                        </div>
                       </div>
                     </div>
+                    <span
+                      className="badge-gold"
+                      style={{
+                        flexShrink: 0,
+                        textTransform: 'capitalize',
+                        ...(appointment.status === 'confirmed'
+                          ? { backgroundColor: 'rgba(5, 150, 105, 0.1)', color: '#047857', borderColor: 'rgba(5, 150, 105, 0.25)' }
+                          : {}),
+                      }}
+                    >
+                      {appointment.status}
+                    </span>
+                  </div>
+
+                  <div className="doctor-mobile-card-row" style={{ fontSize: '0.82rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                      <SolarIcon name="clock-circle-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
+                      <span>{dateStr} • {startTimeStr}–{endTimeStr}</span>
+                    </span>
+                    <span style={{ color: '#047857', fontWeight: 700 }}>R{netPayout.toFixed(2)}</span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                    {appointment.status !== 'completed' && appointment.status !== 'cancelled' ? (
+                      <Link
+                        href={`/consultations/${appointment.id}`}
+                        className="btn-primary"
+                        style={{ padding: '10px', fontSize: '0.82rem' }}
+                      >
+                        <SolarIcon name="videocamera-record-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
+                        <span>Start</span>
+                      </Link>
+                    ) : (
+                      <Link
+                        href={`/consultations/${appointment.id}`}
+                        className="btn-secondary"
+                        style={{ padding: '10px', fontSize: '0.82rem' }}
+                      >
+                        <SolarIcon name="document-text-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
+                        <span>Record</span>
+                      </Link>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedAppointment(appointment)}
+                      className="btn-secondary"
+                      style={{ padding: '10px', fontSize: '0.82rem' }}
+                    >
+                      <SolarIcon name="notes-minimalistic-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
+                      <span>Details</span>
+                    </button>
                   </div>
                 </div>
-
-                {/* Bold Fee Breakdown */}
-                <div style={{ textAlign: 'right', minWidth: '130px' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.04em' }}>
-                    Doctor Payout (85%)
-                  </div>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.35rem', fontWeight: 800, color: '#059669', marginTop: '2px' }}>
-                    R{netPayout.toFixed(2)}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                    Gross Patient Fee: R{Number(appointment.price).toFixed(2)}
-                  </div>
-                </div>
-
-                {/* Action CTAs - Start Consultation direct link to /consultations/${appointment.id} */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <Link
-                    href={`/consultations/${appointment.id}`}
-                    className="btn-primary"
-                    style={{ padding: '10px 20px', fontSize: '0.875rem' }}
-                  >
-                    <SolarIcon name="videocamera-record-bold" size={17} color="var(--color-chocolate-base, #2A170F)" />
-                    <span>Start Consultation</span>
-                  </Link>
-
-                  <button
-                    type="button"
-                    onClick={() => setSelectedAppointment(appointment)}
-                    className="btn-secondary"
-                    style={{ padding: '10px 18px', fontSize: '0.875rem' }}
-                  >
-                    <SolarIcon name="notes-minimalistic-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
-                    <span>Details</span>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
 
-      {/* Restyled Appointment Details Modal with Glassmorphism Backdrop */}
+      {/* Appointment Details Modal */}
       {selectedAppointment && (
         <div
           className="portal-modal-backdrop"
@@ -513,10 +876,11 @@ export default function DoctorAppointmentsPage() {
           <div
             className="portal-modal-surface"
             style={{
-              padding: '32px',
+              padding: '30px',
               maxWidth: '540px',
               width: '100%',
               position: 'relative',
+              borderRadius: '20px',
             }}
           >
             <button
@@ -525,8 +889,8 @@ export default function DoctorAppointmentsPage() {
               aria-label="Close modal"
               style={{
                 position: 'absolute',
-                top: '22px',
-                right: '22px',
+                top: '20px',
+                right: '20px',
                 background: 'none',
                 border: 'none',
                 cursor: 'pointer',
@@ -535,37 +899,39 @@ export default function DoctorAppointmentsPage() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
+                borderRadius: '6px',
               }}
             >
-              <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base, #DFAB62)" />
+              <SolarIcon name="close-circle-linear" size={22} color="var(--color-gold-base, #DFAB62)" />
             </button>
 
             {/* Modal Header */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '22px' }}>
               <div
                 style={{
-                  width: '44px',
-                  height: '44px',
+                  width: '42px',
+                  height: '42px',
                   borderRadius: '50%',
                   background: 'var(--color-gold-pale, #F0E5D3)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
-                <SolarIcon name="user-rounded-bold" size={22} color="var(--color-chocolate-base, #2A170F)" />
+                <SolarIcon name="user-rounded-linear" size={20} color="var(--color-chocolate-base, #2A170F)" />
               </div>
               <div>
                 <h3
                   style={{
                     fontFamily: 'var(--font-heading)',
-                    fontSize: '1.35rem',
-                    fontWeight: 800,
+                    fontSize: '1.25rem',
+                    fontWeight: 700,
                     color: 'var(--color-chocolate-base, #2A170F)',
                     margin: 0,
                   }}
                 >
-                  Appointment Details
+                  Consultation Details
                 </h3>
                 <span style={{ fontSize: '0.8rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 600 }}>
                   Booking Ref: #{selectedAppointment.id}
@@ -573,28 +939,28 @@ export default function DoctorAppointmentsPage() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {/* Patient Information Box */}
               <div
                 style={{
-                  background: 'var(--color-cream-base, #FAF6EE)',
+                  background: 'var(--color-cream-surface, #FDFBF7)',
                   border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-                  padding: '18px 20px',
-                  borderRadius: '16px',
+                  padding: '16px 18px',
+                  borderRadius: '14px',
                 }}
               >
-                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-gold-bronze, #B88647)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-gold-bronze, #B88647)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Patient Client
                 </div>
-                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1.15rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '4px' }}>
+                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', fontSize: '1.1rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '4px' }}>
                   {selectedAppointment.patient?.fullName || 'Patient Client'}
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <SolarIcon name="letter-linear" size={14} color="var(--color-gold-bronze)" />
                   <span>{selectedAppointment.patient?.email || 'N/A'}</span>
                 </div>
                 {selectedAppointment.patient?.phone && (
-                  <div style={{ fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <SolarIcon name="phone-calling-linear" size={14} color="var(--color-gold-bronze)" />
                     <span>{selectedAppointment.patient.phone}</span>
                   </div>
@@ -602,19 +968,19 @@ export default function DoctorAppointmentsPage() {
               </div>
 
               {/* Consultation Schedule Window */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                 <div
                   style={{
                     border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
                     background: 'var(--color-cream-surface, #FDFBF7)',
-                    padding: '14px',
-                    borderRadius: '14px',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
                   }}
                 >
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, textTransform: 'uppercase' }}>
                     Date
                   </div>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '2px' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', fontSize: '0.925rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '3px' }}>
                     {selectedAppointment.slot?.startTime
                       ? new Date(selectedAppointment.slot.startTime).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
                       : 'Today'}
@@ -625,14 +991,14 @@ export default function DoctorAppointmentsPage() {
                   style={{
                     border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
                     background: 'var(--color-cream-surface, #FDFBF7)',
-                    padding: '14px',
-                    borderRadius: '14px',
+                    padding: '12px 14px',
+                    borderRadius: '12px',
                   }}
                 >
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, textTransform: 'uppercase' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, textTransform: 'uppercase' }}>
                     Time Window
                   </div>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '2px' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', fontSize: '0.925rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '3px' }}>
                     {selectedAppointment.slot?.startTime
                       ? new Date(selectedAppointment.slot.startTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
                       : '10:00'}{' '}
@@ -646,31 +1012,31 @@ export default function DoctorAppointmentsPage() {
                 style={{
                   border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
                   background: 'var(--color-cream-surface, #FDFBF7)',
-                  padding: '18px 20px',
-                  borderRadius: '16px',
+                  padding: '16px 18px',
+                  borderRadius: '14px',
                 }}
               >
-                <div style={{ fontSize: '0.75rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Financial Breakdown (ZAR)
+                <div style={{ fontSize: '0.72rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Financial Settlement (ZAR)
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                  <span>Patient Total Charged:</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                  <span>Patient Total:</span>
                   <span style={{ fontWeight: 600, color: 'var(--color-chocolate-base)' }}>R{Number(selectedAppointment.price).toFixed(2)}</span>
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.875rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '6px' }}>
-                  <span>ChekUp247 Platform Fee (15%):</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '6px' }}>
+                  <span>ChekUp247 Fee (15%):</span>
                   <span>-R{Number(selectedAppointment.commission_amount || selectedAppointment.price * 0.15).toFixed(2)}</span>
                 </div>
                 <div
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    fontSize: '1.05rem',
+                    fontSize: '1rem',
                     fontFamily: 'var(--font-heading)',
-                    fontWeight: 800,
-                    color: '#059669',
-                    marginTop: '10px',
-                    paddingTop: '10px',
+                    fontWeight: 700,
+                    color: '#047857',
+                    marginTop: '8px',
+                    paddingTop: '8px',
                     borderTop: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
                   }}
                 >
@@ -686,13 +1052,13 @@ export default function DoctorAppointmentsPage() {
               </div>
             </div>
 
-            {/* Launch CTA - Direct link to /consultations/${selectedAppointment.id} */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '26px' }}>
+            {/* Launch CTA */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '22px' }}>
               <button
                 type="button"
                 onClick={() => setSelectedAppointment(null)}
                 className="btn-secondary"
-                style={{ padding: '10px 20px', fontSize: '0.875rem' }}
+                style={{ padding: '9px 18px', fontSize: '0.85rem' }}
               >
                 Close
               </button>
@@ -700,9 +1066,9 @@ export default function DoctorAppointmentsPage() {
               <Link
                 href={`/consultations/${selectedAppointment.id}`}
                 className="btn-primary"
-                style={{ padding: '10px 22px', fontSize: '0.875rem' }}
+                style={{ padding: '9px 20px', fontSize: '0.85rem' }}
               >
-                <SolarIcon name="videocamera-record-bold" size={17} color="var(--color-chocolate-base, #2A170F)" />
+                <SolarIcon name="videocamera-record-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
                 <span>Launch Video Room</span>
               </Link>
             </div>
