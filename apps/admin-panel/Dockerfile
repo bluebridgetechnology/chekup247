@@ -23,10 +23,10 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json ./
+COPY --from=deps /app ./
 COPY packages/design-tokens ./packages/design-tokens
 COPY apps/admin-panel ./apps/admin-panel
+
 
 # Build design tokens first
 RUN npm run build --workspace=@chekup247/design-tokens
