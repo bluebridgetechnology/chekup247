@@ -3,10 +3,11 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { BadRequestException } from '@nestjs/common';
 import { NotificationsService } from './notifications.service';
 import { Notification, NotificationDeliveryStatus } from '../../database/patient/entities';
-import { NotificationPreference, User } from '../../database/operational/entities';
+import { NotificationPreference, User, PushSubscription } from '../../database/operational/entities';
 import { BrevoEmailProvider } from './providers/brevo.provider';
 import { SmsProvider } from './providers/sms.provider';
 import { WhatsAppProvider } from './providers/whatsapp.provider';
+import { WebPushProvider } from './providers/web-push.provider';
 import { NotificationsGateway } from './notifications.gateway';
 
 describe('NotificationsService (BE-804 to BE-809)', () => {
@@ -39,6 +40,18 @@ describe('NotificationsService (BE-804 to BE-809)', () => {
     }),
   };
 
+  const mockPushSubscriptionRepository = {
+    find: jest.fn().mockResolvedValue([]),
+    findOne: jest.fn(),
+    create: jest.fn((dto) => ({ ...dto, id: 'push-sub-1' })),
+    save: jest.fn((entity) => Promise.resolve({ ...entity, id: entity.id || 'push-sub-1' })),
+    delete: jest.fn().mockResolvedValue({ affected: 1 }),
+  };
+
+  const mockWebPushProvider = {
+    sendNotification: jest.fn().mockResolvedValue({ success: true }),
+  };
+
   const mockBrevoProvider = {
     sendEmail: jest.fn().mockResolvedValue({ success: true, messageId: 'msg-1' }),
   };
@@ -64,9 +77,11 @@ describe('NotificationsService (BE-804 to BE-809)', () => {
         { provide: getRepositoryToken(Notification, 'patient'), useValue: mockNotificationRepository },
         { provide: getRepositoryToken(NotificationPreference, 'operational'), useValue: mockPreferenceRepository },
         { provide: getRepositoryToken(User, 'operational'), useValue: mockUserRepository },
+        { provide: getRepositoryToken(PushSubscription, 'operational'), useValue: mockPushSubscriptionRepository },
         { provide: BrevoEmailProvider, useValue: mockBrevoProvider },
         { provide: SmsProvider, useValue: mockSmsProvider },
         { provide: WhatsAppProvider, useValue: mockWhatsAppProvider },
+        { provide: WebPushProvider, useValue: mockWebPushProvider },
         { provide: NotificationsGateway, useValue: mockNotificationsGateway },
       ],
     }).compile();
