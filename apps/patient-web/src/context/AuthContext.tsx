@@ -38,7 +38,7 @@ interface AuthContextType {
   verifyEmail: (token: string) => Promise<any>;
   verifyOtp: (email: string, otp: string) => Promise<any>;
   resendOtp: (email: string) => Promise<any>;
-  googleLogin: (credential: string, email?: string, name?: string) => Promise<any>;
+
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
   updateProfile: (data: {
@@ -207,27 +207,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return data;
   };
 
-  const googleLogin = async (credential: string, email?: string, name?: string) => {
-    const res = await fetch(`${API_BASE}/auth/social/google`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ credential, email, name }),
-      credentials: 'include',
-    });
-
-    const data = await res.json();
-    if (!res.ok) {
-      throw new Error(data.message || 'Google sign-in failed.');
-    }
-
-    if (data.accessToken) {
-      localStorage.setItem('chekup_token', data.accessToken);
-      setToken(data.accessToken);
-      setUser(data.user);
-    }
-    return data;
-  };
-
   const logout = async () => {
     try {
       await fetch(`${API_BASE}/auth/logout`, {
@@ -301,7 +280,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyEmail,
         verifyOtp,
         resendOtp,
-        googleLogin,
         logout,
         refreshUser,
         updateProfile,
