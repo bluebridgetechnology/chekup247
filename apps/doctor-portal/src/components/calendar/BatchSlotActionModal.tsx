@@ -122,7 +122,7 @@ export function BatchSlotActionModal({
                 style={{
                   fontFamily: 'var(--font-heading)',
                   fontSize: '1.2rem',
-                  fontWeight: 800,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   color: 'var(--color-chocolate-base, #2A170F)',
                   margin: 0,
                 }}

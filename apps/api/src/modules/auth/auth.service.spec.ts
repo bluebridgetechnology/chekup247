@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
+import { TotpService } from './totp.service';
 import { LocumStaffSsoService } from './locumstaff-sso.service';
 import { BrevoEmailProvider } from '../notifications/providers/brevo.provider';
 import { SmsProvider } from '../notifications/providers/sms.provider';
@@ -135,6 +136,7 @@ describe('AuthService & LocumStaffSsoService', () => {
       providers: [
         AuthService,
         TokenService,
+        TotpService,
         LocumStaffSsoService,
         {
           provide: getRepositoryToken(User, 'operational'),
@@ -247,6 +249,9 @@ describe('AuthService & LocumStaffSsoService', () => {
         password: 'ValidPassword123!',
       });
 
+      if ('requiresTotp' in loginRes) {
+        throw new Error('Unexpected 2FA challenge for an account with no TOTP enrolled');
+      }
       expect(loginRes.accessToken).toBeDefined();
       expect(loginRes.user.email).toBe('login@example.com');
     });

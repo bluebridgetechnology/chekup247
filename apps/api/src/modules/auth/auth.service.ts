@@ -21,6 +21,7 @@ import {
 } from '../../database/operational/entities';
 import { PatientMedicalProfile } from '../../database/patient/entities';
 import { TokenService } from './token.service';
+import { TotpService } from './totp.service';
 import {
   RegisterPatientDto,
   LoginDto,
@@ -51,6 +52,8 @@ export interface AuthSessionResponse {
     bloodGroup?: string | null;
     genotype?: string | null;
     allergies?: string | null;
+    mustChangePassword?: boolean;
+    adminSubRole?: string | null;
   };
 }
 
@@ -85,6 +88,7 @@ export class AuthService implements OnModuleInit {
     @InjectRepository(PatientMedicalProfile, 'patient')
     private readonly patientMedicalProfileRepository: Repository<PatientMedicalProfile>,
     private readonly tokenService: TokenService,
+    private readonly totpService: TotpService,
     private readonly brevoEmailProvider: BrevoEmailProvider,
     private readonly smsProvider: SmsProvider,
   ) {}
@@ -454,12 +458,15 @@ export class AuthService implements OnModuleInit {
   }
 
   /**
-   * Authenticate user with email and password
+   * Authenticate user with email and password. If the account has 2FA
+   * enabled (currently only meaningful for admins), this returns a
+   * `requiresTotp` challenge instead of a session when no valid
+   * `totpCode` was supplied — see completeTotpLogin for the second step.
    */
   async login(
     dto: LoginDto,
     requiredRole?: UserRole,
-  ): Promise<AuthSessionResponse> {
+  ): Promise<AuthSessionResponse | { requiresTotp: true; challengeToken: string }> {
     const user = await this.userRepository.findOne({
       where: { email: dto.email.toLowerCase() },
     });
@@ -490,6 +497,40 @@ export class AuthService implements OnModuleInit {
       );
     }
 
+    if (user.totp_enabled && user.totp_secret) {
+      const codeValid = dto.totpCode ? this.totpService.verify(user.totp_secret, dto.totpCode) : false;
+      if (!codeValid) {
+        return {
+          requiresTotp: true,
+          challengeToken: this.tokenService.generateTotpChallengeToken(user.id),
+        };
+      }
+    }
+
+    return this.issueSession(user);
+  }
+
+  /**
+   * Second step of a 2FA login: exchange the challenge token (proves the
+   * password step already succeeded) plus a valid TOTP code for a real
+   * session. Kept separate from login() so the client has an explicit
+   * two-request flow rather than silently retrying with a code appended.
+   */
+  async completeTotpLogin(challengeToken: string, totpCode: string): Promise<AuthSessionResponse> {
+    const { sub: userId } = this.tokenService.verifyTotpChallengeToken(challengeToken);
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user || !user.totp_enabled || !user.totp_secret) {
+      throw new UnauthorizedException('Two-factor authentication is not active on this account');
+    }
+    if (!this.totpService.verify(user.totp_secret, totpCode)) {
+      throw new UnauthorizedException('Invalid two-factor authentication code');
+    }
+
+    return this.issueSession(user);
+  }
+
+  private async issueSession(user: User): Promise<AuthSessionResponse> {
     // If doctor, load doctor profile
     let doctorProfile: DoctorProfile | null = null;
     if (user.role === UserRole.DOCTOR) {
@@ -518,8 +559,69 @@ export class AuthService implements OnModuleInit {
         avatarUrl: user.avatar_url,
         dateOfBirth: user.date_of_birth,
         doctorProfile,
+        mustChangePassword: user.must_change_password,
+        adminSubRole: user.admin_sub_role,
       },
     };
+  }
+
+  // ==========================================
+  // 2FA / TOTP MANAGEMENT (Sprint E)
+  // ==========================================
+
+  /**
+   * Begin TOTP enrollment: generates a secret and returns an otpauth://
+   * URL for the client to render as a QR code. totp_enabled stays false
+   * until confirmEnrollment verifies a real code from the app — this
+   * prevents an admin from locking themselves out with a secret they
+   * never actually scanned correctly.
+   */
+  async beginTotpEnrollment(userId: string): Promise<{ secret: string; otpAuthUrl: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const secret = this.totpService.generateSecret();
+    user.totp_secret = secret;
+    user.totp_enabled = false;
+    await this.userRepository.save(user);
+
+    return { secret, otpAuthUrl: this.totpService.buildOtpAuthUrl(secret, user.email) };
+  }
+
+  async confirmTotpEnrollment(userId: string, code: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user || !user.totp_secret) {
+      throw new BadRequestException('No pending two-factor enrollment for this account');
+    }
+    if (!this.totpService.verify(user.totp_secret, code)) {
+      throw new UnauthorizedException('Invalid two-factor authentication code');
+    }
+
+    user.totp_enabled = true;
+    user.totp_enabled_at = new Date();
+    await this.userRepository.save(user);
+
+    return { message: 'Two-factor authentication enabled.' };
+  }
+
+  async disableTotp(userId: string, currentPassword: string): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user || !user.password_hash) {
+      throw new NotFoundException('User not found');
+    }
+    const isMatch = await this.tokenService.comparePassword(currentPassword, user.password_hash);
+    if (!isMatch) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    user.totp_secret = null;
+    user.totp_enabled = false;
+    user.totp_enabled_at = null;
+    await this.userRepository.save(user);
+
+    return { message: 'Two-factor authentication disabled.' };
   }
 
   /**
@@ -591,6 +693,37 @@ export class AuthService implements OnModuleInit {
     await this.tokenRepository.save(record);
 
     return { message: 'Password has been updated successfully. You can now log in.' };
+  }
+
+  /**
+   * Authenticated password change (current password required). Used both
+   * for voluntary rotation and for the forced-change flow on bootstrap
+   * admin accounts (must_change_password), which have no signup path so
+   * this is the only way that credential is ever rotated.
+   */
+  async changePassword(
+    userId: string,
+    dto: { currentPassword: string; newPassword: string },
+  ): Promise<{ message: string }> {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user || !user.password_hash) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isMatch = await this.tokenService.comparePassword(dto.currentPassword, user.password_hash);
+    if (!isMatch) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    if (!dto.newPassword || dto.newPassword.length < 8) {
+      throw new BadRequestException('New password must be at least 8 characters');
+    }
+
+    user.password_hash = await this.tokenService.hashPassword(dto.newPassword);
+    user.must_change_password = false;
+    await this.userRepository.save(user);
+
+    return { message: 'Password updated successfully.' };
   }
 
   /**
@@ -717,6 +850,9 @@ export class AuthService implements OnModuleInit {
       dateOfBirth: user.date_of_birth,
       createdAt: user.created_at,
       doctorProfile,
+      mustChangePassword: user.must_change_password,
+      adminSubRole: user.admin_sub_role,
+      totpEnabled: user.totp_enabled,
       bloodGroup: medicalProfile?.blood_group || null,
       genotype: medicalProfile?.genotype || null,
       allergies: medicalProfile?.allergies || null,

@@ -320,10 +320,10 @@ export default function BookingDetailPage() {
               }}
             >
               <div>
-                <h1 style={{ fontSize: '1.8rem', fontWeight: 800, color: '#2A170F', fontFamily: 'var(--font-heading)' }}>
+                <h1 className="page-title">
                   Consultation Details
                 </h1>
-                <p style={{ color: '#6B5E55', fontSize: '0.875rem', marginTop: '2px' }}>
+                <p className="page-subtitle" style={{ margin: '2px 0 0' }}>
                   Booking ID: <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{booking?.id}</span>
                 </p>
               </div>

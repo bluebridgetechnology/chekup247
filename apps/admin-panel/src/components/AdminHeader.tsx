@@ -1,12 +1,33 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Shield, Clock, LogOut, KeyRound } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Clock, LogOut, Shield, ShieldCheck } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 
+const ROUTE_LABELS: Record<string, string> = {
+  '/': 'Executive Analytics',
+  '/bookings': 'Consultations & Bookings',
+  '/consultations/live': 'Live Telehealth Sessions',
+  '/transactions': 'Financial Ledger',
+  '/payouts': 'Doctor Payout Batches',
+  '/disputes': 'Dispute Resolution',
+  '/disputes/cases': 'Dispute Case Files',
+  '/doctors/verification': 'HPCSA Verification Queue',
+  '/doctors': 'Doctor Registry',
+  '/users/patients': 'Patient Directory',
+  '/admins': 'Admin User Accounts',
+  '/notifications': 'Notifications Console',
+  '/reviews': 'Review Moderation',
+  '/audit-logs': 'POPIA Compliance Audit Trail',
+  '/security': 'Platform Security & Policies',
+  '/settings': 'System Platform Settings',
+};
+
 export function AdminHeader() {
+  const pathname = usePathname();
   const { admin, logout } = useAdminAuth();
-  const [sessionSecondsRemaining, setSessionSecondsRemaining] = useState(1800); // 30 min session
+  const [sessionSecondsRemaining, setSessionSecondsRemaining] = useState(1776); // 29:36 format default
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -21,6 +42,8 @@ export function AdminHeader() {
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  const pageLabel = ROUTE_LABELS[pathname] || 'Governance Console';
+
   const initials = admin?.fullName
     ? admin.fullName
         .split(' ')
@@ -28,122 +51,156 @@ export function AdminHeader() {
         .join('')
         .slice(0, 2)
         .toUpperCase()
-    : 'AD';
+    : 'CM';
+
+  const isSuperAdmin = admin?.adminSubRole !== 'support';
 
   return (
     <header
       style={{
-        height: '72px',
-        background: '#0f172a',
-        borderBottom: '1px solid #1e293b',
+        height: 'var(--admin-topbar-h, 64px)',
+        minHeight: 'var(--admin-topbar-h, 64px)',
+        backgroundColor: '#FFFFFF',
+        borderBottom: '1px solid #E9E0D5',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '0 32px',
+        padding: '0 24px',
         position: 'sticky',
         top: 0,
         zIndex: 30,
       }}
     >
-      {/* Isolated Domain Badge */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            padding: '4px 10px',
-            borderRadius: '6px',
-            fontSize: '0.75rem',
-            color: '#f87171',
-            fontWeight: 700,
-          }}
-        >
-          <KeyRound size={12} />
-          <span>admin.chekup247.co.za</span>
+      {/* Left: Dynamic Breadcrumb & Subtle Title */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+        <div>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: '0.72rem',
+              color: '#766C64',
+              fontWeight: 500,
+            }}
+          >
+            <span>Governance</span>
+            <span style={{ color: '#DFA34F' }}>/</span>
+            <span style={{ color: '#B98232' }}>{pageLabel}</span>
+          </div>
+          <h2
+            style={{
+              fontSize: '1.05rem',
+              fontWeight: 700,
+              color: '#201712',
+              lineHeight: 1.2,
+              margin: '2px 0 0 0',
+            }}
+          >
+            {pageLabel}
+          </h2>
         </div>
-        <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
-          Isolated Security Zone
-        </span>
       </div>
 
-      {/* Session & Admin Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-        {/* Session Expiry Indicator */}
+      {/* Right Controls: Session Timer, Admin Identity & Logout */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+
+        {/* Session Expiry Indicator (Visually Secondary) */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '6px',
-            background: '#1e293b',
-            border: '1px solid #334155',
-            padding: '6px 12px',
-            borderRadius: 'var(--radius-full)',
-            fontSize: '0.8rem',
-            color: '#cbd5e1',
+            fontSize: '0.78rem',
+            color: '#766C64',
+            fontWeight: 500,
           }}
         >
-          <Clock size={14} color="#94a3b8" />
-          <span>Session: {formatTime(sessionSecondsRemaining)}</span>
+          <Clock size={14} color="#766C64" />
+          <span>Session: <strong style={{ color: '#201712', fontWeight: 600 }}>{formatTime(sessionSecondsRemaining)}</strong></span>
         </div>
 
-        {/* Admin Identity */}
+        {/* Admin Identity Card */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '10px',
-            paddingLeft: '12px',
-            borderLeft: '1px solid #1e293b',
+            paddingLeft: '14px',
+            borderLeft: '1px solid #E9E0D5',
           }}
         >
           <div
             style={{
-              width: '36px',
-              height: '36px',
+              width: '34px',
+              height: '34px',
               borderRadius: '8px',
-              background: '#334155',
+              background: '#2B170F',
+              border: '1px solid #DFA34F',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#f8fafc',
+              color: '#DFA34F',
               fontWeight: 700,
-              fontSize: '0.85rem',
+              fontSize: '0.8rem',
+              letterSpacing: '-0.02em',
             }}
           >
             {initials}
           </div>
           <div>
-            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#f8fafc' }}>
-              {admin?.fullName || 'Admin Operations'}
+            <div
+              style={{
+                fontSize: '0.825rem',
+                fontWeight: 700,
+                color: '#201712',
+                lineHeight: 1.2,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {admin?.fullName || 'ChekUp247 Master Administrator'}
             </div>
-            <div style={{ fontSize: '0.7rem', color: '#94a3b8' }}>
-              Superuser (MFA Active)
+            <div
+              style={{
+                fontSize: '0.65rem',
+                color: isSuperAdmin ? '#B98232' : '#766C64',
+                fontWeight: 700,
+                textTransform: 'uppercase',
+                letterSpacing: '0.04em',
+              }}
+            >
+              {isSuperAdmin ? 'Super Admin' : 'Support Admin'}
             </div>
           </div>
         </div>
 
-        {/* Logout */}
+        {/* Logout Button */}
         <button
           onClick={() => logout()}
           style={{
-            background: 'none',
-            border: 'none',
-            color: '#64748b',
-            cursor: 'pointer',
-            padding: '8px',
-            borderRadius: '6px',
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            border: '1px solid #E9E0D5',
+            background: '#FFFFFF',
+            color: '#766C64',
             display: 'flex',
             alignItems: 'center',
-            transition: 'color 0.2s ease',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            transition: 'all 0.15s ease',
           }}
-          onMouseEnter={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#ef4444')}
-          onMouseLeave={(e) => ((e.currentTarget as HTMLButtonElement).style.color = '#64748b')}
-          title="End Admin Session"
+          title="Sign out of Admin Session"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = '#2B170F';
+            e.currentTarget.style.color = '#201712';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = '#E9E0D5';
+            e.currentTarget.style.color = '#766C64';
+          }}
         >
-          <LogOut size={18} />
+          <LogOut size={15} />
         </button>
       </div>
     </header>

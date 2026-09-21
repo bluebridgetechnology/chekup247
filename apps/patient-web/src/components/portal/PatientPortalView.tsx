@@ -35,6 +35,24 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
   const [selectedHealthNote, setSelectedHealthNote] = useState<any | null>(null);
   const [notesSearchQuery, setNotesSearchQuery] = useState('');
   const [hoveredNoteId, setHoveredNoteId] = useState<string | null>(null);
+
+  const formatPatientCareNotes = (rawNotes?: string | null) => {
+    if (!rawNotes) return 'No specific care notes recorded.';
+    try {
+      const trimmed = rawNotes.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        const parsed = JSON.parse(trimmed);
+        if (typeof parsed === 'object' && parsed !== null) {
+          if (parsed.patientInstructions) return parsed.patientInstructions;
+          if (parsed.patientNotes) return parsed.patientNotes;
+          if (parsed.plan) return parsed.plan;
+          if (parsed.assessment) return parsed.assessment;
+        }
+      }
+    } catch {}
+    return rawNotes;
+  };
+
   const [activeTab, setActiveTab] = useState<'upcoming' | 'past' | 'cancelled'>('upcoming');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -271,32 +289,13 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
           className="portal-page-intro"
         >
           <div>
-            <div
-              style={{
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: '#B88647',
-                textTransform: 'uppercase',
-                marginBottom: '4px',
-              }}
-            >
+            <div className="page-eyebrow">
               YOUR HEALTHCARE TEAM
             </div>
-            <h1
-              style={{
-                fontSize: '1.85rem',
-                fontWeight: 800,
-                letterSpacing: '-0.025em',
-                color: '#2A170F',
-                margin: '0 0 4px 0',
-                fontFamily: 'var(--font-heading), sans-serif',
-                lineHeight: 1.2,
-              }}
-            >
+            <h1 className="page-title">
               My Doctors
             </h1>
-            <p style={{ fontSize: '0.88rem', color: '#6B5E55', margin: 0, lineHeight: 1.45 }}>
+            <p className="page-subtitle" style={{ margin: 0 }}>
               Accredited South African healthcare practitioners you have consulted with on Chekup247.
             </p>
           </div>
@@ -528,36 +527,14 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
           className="portal-page-intro"
         >
           <div>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                color: '#B88647',
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                marginBottom: '4px',
-              }}
-            >
-              <SolarIcon name="shield-check-linear" size={14} color="#B88647" />
+            <div className="page-eyebrow">
+              <SolarIcon name="shield-check-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
               <span>HPCSA Doctor Care Guidance</span>
             </div>
-            <h1
-              style={{
-                fontSize: '1.85rem',
-                fontWeight: 800,
-                letterSpacing: '-0.025em',
-                color: '#2A170F',
-                margin: '0 0 4px 0',
-                fontFamily: 'var(--font-heading), sans-serif',
-                lineHeight: 1.2,
-              }}
-            >
+            <h1 className="page-title">
               Health Notes & Recommendations
             </h1>
-            <p style={{ fontSize: '0.88rem', color: '#6B5E55', margin: 0, lineHeight: 1.45, maxWidth: '640px' }}>
+            <p className="page-subtitle" style={{ margin: 0, maxWidth: '640px' }}>
               Post-consultation recovery instructions and lifestyle guidance provided directly by your attending doctors. Prescriptions are kept distinct and linked below.
             </p>
           </div>
@@ -964,9 +941,9 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                                   WebkitBoxOrient: 'vertical',
                                   overflow: 'hidden',
                                 }}
-                                title={note.notes}
+                                title={formatPatientCareNotes(note.notes)}
                               >
-                                {note.notes}
+                                {formatPatientCareNotes(note.notes)}
                               </p>
                             </td>
 
@@ -1320,7 +1297,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                     whiteSpace: 'pre-line',
                   }}
                 >
-                  {selectedHealthNote.notes}
+                  {formatPatientCareNotes(selectedHealthNote.notes)}
                 </div>
               </div>
 
@@ -1563,32 +1540,13 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
           className="portal-page-intro"
         >
           <div>
-            <div
-              style={{
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: '#B88647',
-                textTransform: 'uppercase',
-                marginBottom: '4px',
-              }}
-            >
+            <div className="page-eyebrow">
               CERTIFICATES & RECEIPTS
             </div>
-            <h1
-              style={{
-                fontSize: '1.85rem',
-                fontWeight: 800,
-                letterSpacing: '-0.025em',
-                color: '#2A170F',
-                margin: '0 0 4px 0',
-                fontFamily: 'var(--font-heading), sans-serif',
-                lineHeight: 1.2,
-              }}
-            >
+            <h1 className="page-title">
               Medical Documents
             </h1>
-            <p style={{ fontSize: '0.88rem', color: '#6B5E55', margin: 0, lineHeight: 1.45 }}>
+            <p className="page-subtitle" style={{ margin: 0 }}>
               Official medical sick certificates complying with HPCSA ethical rules, prescriptions, and consultation payment receipts.
             </p>
           </div>
@@ -1793,43 +1751,17 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
             >
           <div>
             {/* Eyebrow */}
-            <div
-              style={{
-                fontSize: '0.74rem',
-                fontWeight: 700,
-                letterSpacing: '0.1em',
-                color: '#B88647',
-                textTransform: 'uppercase',
-                marginBottom: '4px',
-              }}
-            >
+            <div className="page-eyebrow">
               WELCOME BACK{user?.fullName ? `, ${user.fullName.split(' ')[0].toUpperCase()}` : ''}
             </div>
 
             {/* Main Heading */}
-            <h1
-              style={{
-                fontSize: '1.85rem',
-                fontWeight: 800,
-                letterSpacing: '-0.025em',
-                color: '#2A170F',
-                margin: '0 0 4px 0',
-                fontFamily: 'var(--font-heading), sans-serif',
-                lineHeight: 1.2,
-              }}
-            >
+            <h1 className="page-title">
               Your Appointments
             </h1>
 
             {/* Subtitle */}
-            <p
-              style={{
-                fontSize: '0.88rem',
-                color: '#6B5E55',
-                margin: 0,
-                lineHeight: 1.45,
-              }}
-            >
+            <p className="page-subtitle" style={{ margin: 0 }}>
               Manage your upcoming and past consultations, and keep track of your healthcare journey.
             </p>
           </div>

@@ -172,16 +172,14 @@ export default function NotificationPreferencesPage() {
         >
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B88647', marginBottom: '4px' }}>
-                <SolarIcon name="bell-linear" size={20} color="#B88647" />
-                <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Patient Communication Settings
-                </span>
+              <div className="page-eyebrow">
+                <SolarIcon name="bell-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
+                <span>Patient Communication Settings</span>
               </div>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: '#2A170F', margin: '0 0 6px' }}>
+              <h1 className="page-title">
                 Notification Preferences
               </h1>
-              <p style={{ margin: 0, fontSize: '0.9rem', color: '#7A6A5E' }}>
+              <p className="page-subtitle" style={{ margin: 0 }}>
                 Customize which channels ChekUp247 uses to send booking confirmations and automated reminders.
               </p>
             </div>

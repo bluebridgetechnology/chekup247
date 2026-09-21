@@ -44,6 +44,7 @@ export interface PrescriptionRecord {
     hpcsa_number?: string;
     practice_number?: string;
     specialty?: string;
+    signature_url?: string;
   };
   items: PrescriptionItem[];
 }
@@ -317,43 +318,14 @@ export default function PatientPrescriptionsPage() {
               }}
             >
               <div>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    color: '#B88647',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    marginBottom: '4px',
-                  }}
-                >
-                  <SolarIcon name="shield-check-linear" size={14} color="#B88647" />
+                <div className="page-eyebrow">
+                  <SolarIcon name="shield-check-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
                   <span>HPCSA Registered Digital Prescriptions</span>
                 </div>
-                <h1
-                  style={{
-                    fontSize: '1.65rem',
-                    fontWeight: 800,
-                    color: '#2A170F',
-                    letterSpacing: '-0.02em',
-                    margin: 0,
-                    fontFamily: 'var(--font-heading), sans-serif',
-                  }}
-                >
+                <h1 className="page-title">
                   My E-Prescriptions
                 </h1>
-                <p
-                  style={{
-                    color: '#7A6A5E',
-                    fontSize: '0.88rem',
-                    marginTop: '4px',
-                    maxWidth: '600px',
-                    lineHeight: 1.5,
-                  }}
-                >
+                <p className="page-subtitle" style={{ maxWidth: '600px' }}>
                   View and download tamper-evident, digitally signed electronic prescriptions issued by your
                   licensed ChekUp247 healthcare providers.
                 </p>
@@ -1607,6 +1579,15 @@ export default function PatientPrescriptionsPage() {
                       <SolarIcon name="lock-linear" size={13} color="#7A6A5E" />
                       <span>Tamper-evident record cryptographically secured in ChekUp247 immutable compliance ledger.</span>
                     </div>
+                    {selectedPrescription.doctor?.signature_url && (
+                      <div style={{ marginTop: '10px', marginLeft: '34px' }}>
+                        <img
+                          src={selectedPrescription.doctor.signature_url}
+                          alt="Doctor Digital Signature"
+                          style={{ maxHeight: '48px', maxWidth: '170px', objectFit: 'contain' }}
+                        />
+                      </div>
+                    )}
                   </div>
 
                   {/* Middle: QR Code */}

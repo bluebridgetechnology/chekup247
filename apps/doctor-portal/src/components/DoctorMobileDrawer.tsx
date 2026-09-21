@@ -19,7 +19,7 @@ const navItems = [
   { label: 'E-Prescriptions', href: '/prescriptions', icon: 'document-text-linear' },
   { label: 'ICD-10 Coding', href: '/icd10', icon: 'stethoscope-linear' },
   { label: 'Earnings & Payouts', href: '/earnings', icon: 'wallet-money-linear' },
-  { label: 'Doctor Profile', href: '/profile', icon: 'user-circle-linear' },
+  { label: 'My Profile', href: '/profile', icon: 'user-circle-linear' },
 ];
 
 export function DoctorMobileDrawer({ isOpen, onClose }: DoctorMobileDrawerProps) {
@@ -81,7 +81,7 @@ export function DoctorMobileDrawer({ isOpen, onClose }: DoctorMobileDrawerProps)
                 style={{
                   fontFamily: 'var(--font-heading), sans-serif',
                   fontSize: '1.15rem',
-                  fontWeight: 700,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   letterSpacing: '-0.02em',
                   lineHeight: 1,
                 }}
@@ -207,9 +207,15 @@ export function DoctorMobileDrawer({ isOpen, onClose }: DoctorMobileDrawerProps)
                   fontWeight: 700,
                   fontSize: '0.9rem',
                   border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                  overflow: 'hidden',
+                  flexShrink: 0,
                 }}
               >
-                {doctor?.fullName ? doctor.fullName.substring(0, 2).toUpperCase() : 'DR'}
+                <img
+                  src={profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url || '/images/doctor_sarah_avatar.jpg'}
+                  alt={doctor?.fullName || 'Doctor'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

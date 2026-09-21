@@ -214,7 +214,7 @@ export function BlackoutManagerModal({
                 style={{
                   fontFamily: 'var(--font-heading)',
                   fontSize: '1.25rem',
-                  fontWeight: 800,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   color: 'var(--color-chocolate-base, #2A170F)',
                   margin: 0,
                 }}
@@ -298,7 +298,7 @@ export function BlackoutManagerModal({
               style={{
                 fontFamily: 'var(--font-heading)',
                 fontSize: '1rem',
-                fontWeight: 800,
+                fontWeight: 'var(--font-heading-weight, 400)',
                 color: 'var(--color-chocolate-base, #2A170F)',
                 marginBottom: '14px',
               }}
@@ -389,7 +389,7 @@ export function BlackoutManagerModal({
               style={{
                 fontFamily: 'var(--font-heading)',
                 fontSize: '1rem',
-                fontWeight: 800,
+                fontWeight: 'var(--font-heading-weight, 400)',
                 color: 'var(--color-chocolate-base, #2A170F)',
                 marginBottom: '12px',
               }}
@@ -442,7 +442,7 @@ export function BlackoutManagerModal({
                           <span className="badge-gold">
                             {b.reason}
                           </span>
-                          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '0.875rem', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-chocolate-base, #2A170F)' }}>
                             {s} — {e}
                           </span>
                         </div>
@@ -548,7 +548,7 @@ export function BlackoutManagerModal({
                 style={{
                   fontFamily: 'var(--font-heading), sans-serif',
                   fontSize: '1.2rem',
-                  fontWeight: 600,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   color: 'var(--color-chocolate-base, #2A170F)',
                   margin: '0 0 8px',
                   letterSpacing: '-0.02em',

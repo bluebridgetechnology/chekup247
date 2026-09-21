@@ -564,20 +564,10 @@ export function PortalDoctorFinder() {
           >
             ACCREDITED MEDICAL SPECIALISTS
           </div>
-          <h1
-            style={{
-              fontSize: '1.85rem',
-              fontWeight: 800,
-              letterSpacing: '-0.025em',
-              color: '#2A170F',
-              margin: '0 0 4px 0',
-              fontFamily: 'var(--font-heading), sans-serif',
-              lineHeight: 1.2,
-            }}
-          >
+          <h1 className="page-title" style={{ marginBottom: '4px' }}>
             Find a Healthcare Practitioner
           </h1>
-          <p style={{ fontSize: '0.88rem', color: '#6B5E55', margin: 0, lineHeight: 1.45 }}>
+          <p className="page-subtitle" style={{ margin: 0, lineHeight: 1.45 }}>
             Browse verified General Practitioners and Specialists. Book an instant telehealth consultation without leaving your account.
           </p>
         </div>

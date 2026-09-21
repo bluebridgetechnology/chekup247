@@ -201,17 +201,17 @@ export class ReviewsService {
       doctorId = doctor.id;
     }
 
-    // 1. Fetch paginated reviews from AWS RDS
+    // 1. Fetch paginated reviews from AWS RDS (excluding admin-hidden reviews)
     const [reviews, total] = await this.reviewRepository.findAndCount({
-      where: { doctor_id: doctorId },
+      where: { doctor_id: doctorId, is_hidden: false },
       order: { created_at: 'DESC' },
       skip,
       take: limit,
     });
 
-    // 2. Compute rating distribution and aggregate
+    // 2. Compute rating distribution and aggregate (also excludes hidden reviews)
     const allDoctorReviews = await this.reviewRepository.find({
-      where: { doctor_id: doctorId },
+      where: { doctor_id: doctorId, is_hidden: false },
       select: ['rating'],
     });
 

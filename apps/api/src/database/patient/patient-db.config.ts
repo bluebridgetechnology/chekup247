@@ -11,6 +11,7 @@ import {
   WalletCredit,
   PatientMedicalProfile,
   PatientDocument,
+  Dispute,
 } from './entities';
 
 export const patientEntities = [
@@ -24,6 +25,7 @@ export const patientEntities = [
   WalletCredit,
   PatientMedicalProfile,
   PatientDocument,
+  Dispute,
 ];
 
 export const getPatientDbConfig = (): TypeOrmModuleOptions => ({

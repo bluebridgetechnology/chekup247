@@ -73,7 +73,7 @@ function DoctorLayoutInner({ children }: { children: React.ReactNode }) {
           style={{
             fontFamily: 'var(--font-heading)',
             fontSize: '0.95rem',
-            fontWeight: 600,
+            fontWeight: 'var(--font-heading-weight, 400)',
             color: 'var(--color-chocolate-base, #2A170F)',
             letterSpacing: '-0.01em',
           }}

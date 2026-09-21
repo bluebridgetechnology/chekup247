@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Put,
+  Delete,
   Body,
   Param,
   Query,
@@ -14,9 +15,11 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { AdminIpAllowlistGuard } from '../../common/guards/admin-ip-allowlist.guard';
-import { Roles, CurrentUser } from '../../common/decorators/auth.decorators';
-import { UserRole, VerificationStatus } from '../../database/operational/entities';
+import { Roles, CurrentUser, AdminSubRoles } from '../../common/decorators/auth.decorators';
+import { UserRole, VerificationStatus, AdminSubRole } from '../../database/operational/entities';
+import { DisputeResolutionType } from '../../database/patient/entities';
 import { JwtPayload } from '../auth/token.service';
+import { AdminSubRolesGuard } from '../../common/guards/admin-sub-roles.guard';
 
 @Controller('admin')
 @UseGuards(AdminIpAllowlistGuard, JwtAuthGuard, RolesGuard)
@@ -83,13 +86,7 @@ export class AdminController {
     @Query() query: any,
     @Res() res: Response,
   ) {
-    const csv = await this.adminService.exportTransactionsCsv(query);
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="chekup247_transactions_${new Date().toISOString().split('T')[0]}.csv"`,
-    );
-    return res.end(csv);
+    await this.adminService.streamTransactionsCsv(query, res);
   }
 
   // ==========================================
@@ -148,6 +145,42 @@ export class AdminController {
     return this.adminService.resolveDisputeCredit(dto, admin?.sub);
   }
 
+  // ------------------------------------------
+  // Dispute lifecycle (Sprint B, P1-1) — a real Dispute entity with
+  // open→investigating→resolved/rejected states, distinct from the
+  // booking-status-derived list above (kept for backward compatibility
+  // with the existing Dispute Resolution Workspace page).
+  // ------------------------------------------
+
+  @Get('disputes/lifecycle')
+  getDisputesLifecycle(
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.getDisputesLifecycle({ status, search, page, limit });
+  }
+
+  @Get('disputes/lifecycle/:id')
+  getDisputeDetail(@Param('id') id: string) {
+    return this.adminService.getDisputeDetail(id);
+  }
+
+  @Post('disputes/lifecycle/:id/assign')
+  assignDispute(@Param('id') id: string, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.assignDispute(id, admin?.sub);
+  }
+
+  @Post('disputes/lifecycle/:id/resolve')
+  resolveDisputeLifecycle(
+    @Param('id') id: string,
+    @Body() dto: { resolutionType: DisputeResolutionType; amount?: number; notes: string },
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.adminService.resolveDisputeLifecycle(id, dto, admin?.sub);
+  }
+
   // ==========================================
   // BE-907: POPIA AUDIT LOGS
   // ==========================================
@@ -185,6 +218,8 @@ export class AdminController {
   }
 
   @Put('settings')
+  @UseGuards(AdminSubRolesGuard)
+  @AdminSubRoles(AdminSubRole.SUPER_ADMIN)
   updateSettings(
     @Body()
     dto: {
@@ -206,10 +241,11 @@ export class AdminController {
 
   @Get('doctors/pending')
   getPendingDoctors(
+    @Query('search') search?: string,
     @Query('page') page = 1,
     @Query('limit') limit = 20,
   ) {
-    return this.adminService.getPendingDoctorVerifications(Number(page), Number(limit));
+    return this.adminService.getPendingDoctorVerifications(Number(page), Number(limit), search);
   }
 
   @Post('doctors/:id/verify')
@@ -247,6 +283,15 @@ export class AdminController {
     });
   }
 
+  @Put('doctors/:id/suspend')
+  suspendDoctor(
+    @Param('id') id: string,
+    @Body() dto: { suspend: boolean; reason?: string },
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.adminService.suspendDoctor(id, dto?.suspend !== false, admin?.sub, dto?.reason);
+  }
+
   @Put('verifications/:id')
   updateVerification(
     @Param('id') id: string,
@@ -261,14 +306,172 @@ export class AdminController {
   }
 
   @Post('users/invite')
+  @UseGuards(AdminSubRolesGuard)
+  @AdminSubRoles(AdminSubRole.SUPER_ADMIN)
   inviteAdmin(
-    @Body() dto: { email: string; full_name: string; password?: string },
+    @Body() dto: { email: string; full_name: string; password?: string; subRole?: AdminSubRole },
   ) {
     return this.adminService.createAdmin(dto);
   }
 
   @Put('users/:id/revoke')
+  @UseGuards(AdminSubRolesGuard)
+  @AdminSubRoles(AdminSubRole.SUPER_ADMIN)
   revokeAdmin(@Param('id') id: string) {
     return this.adminService.revokeAdmin(id);
+  }
+
+  // ==========================================
+  // PATIENT USER MANAGEMENT (Sprint B, P1-3)
+  // ==========================================
+
+  @Get('patients')
+  getPatients(
+    @Query('search') search?: string,
+    @Query('status') status?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.getPatients({ search, status, page, limit });
+  }
+
+  @Get('patients/:id')
+  getPatientDetail(@Param('id') id: string) {
+    return this.adminService.getPatientDetail(id);
+  }
+
+  @Put('patients/:id/suspend')
+  suspendPatient(
+    @Param('id') id: string,
+    @Body() dto: { suspend: boolean; reason?: string },
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.adminService.suspendPatient(id, dto?.suspend !== false, admin?.sub, dto?.reason);
+  }
+
+  @Post('patients/:id/popia-export')
+  exportPatientPopiaData(@Param('id') id: string, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.exportPatientPopiaData(id, admin?.sub);
+  }
+
+  @Delete('patients/:id')
+  deletePatient(
+    @Param('id') id: string,
+    @Query('reason') reason: string | undefined,
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.adminService.deletePatient(id, admin?.sub, reason);
+  }
+
+  // ==========================================
+  // DOCTOR PAYOUT MANAGEMENT (Sprint C, P1-2)
+  // ==========================================
+
+  @Get('payouts')
+  getPayouts(
+    @Query('status') status?: string,
+    @Query('doctorId') doctorId?: string,
+    @Query('search') search?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.getPayouts({ status, doctorId, search, page, limit });
+  }
+
+  @Post('payouts/:id/approve')
+  approvePayout(@Param('id') id: string, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.approvePayout(id, admin?.sub);
+  }
+
+  @Post('payouts/:id/hold')
+  holdPayout(
+    @Param('id') id: string,
+    @Body() dto: { reason: string },
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.adminService.holdPayout(id, dto?.reason, admin?.sub);
+  }
+
+  @Post('payouts/:id/mark-paid')
+  @UseGuards(AdminSubRolesGuard)
+  @AdminSubRoles(AdminSubRole.SUPER_ADMIN)
+  markPayoutPaid(
+    @Param('id') id: string,
+    @Body() dto: { transactionReference: string },
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.adminService.markPayoutPaid(id, dto?.transactionReference, admin?.sub);
+  }
+
+  // ==========================================
+  // LIVE CONSULTATION OVERSIGHT (Sprint C, P1-4)
+  // ==========================================
+
+  @Get('consultations')
+  getConsultations(
+    @Query('inFlightOnly') inFlightOnly?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.getConsultations({ inFlightOnly: inFlightOnly === 'true', page, limit });
+  }
+
+  @Get('consultations/:id')
+  getConsultationDetail(@Param('id') id: string) {
+    return this.adminService.getConsultationDetail(id);
+  }
+
+  // ==========================================
+  // NOTIFICATIONS / BROADCAST CONSOLE (Sprint D, P1-5)
+  // ==========================================
+
+  @Get('notifications')
+  getNotifications(
+    @Query('status') status?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.getNotifications({ status, page, limit });
+  }
+
+  @Post('notifications/:id/resend')
+  resendNotification(@Param('id') id: string, @CurrentUser() admin: JwtPayload) {
+    return this.adminService.resendNotification(id, admin?.sub);
+  }
+
+  @Post('notifications/broadcast')
+  broadcastNotification(
+    @Body() dto: { targetRole: 'patient' | 'doctor' | 'all'; title: string; message: string; deepLink?: string },
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.adminService.broadcastNotification(dto, admin?.sub);
+  }
+
+  // ==========================================
+  // REVIEW MODERATION (Sprint D, P1-6)
+  // ==========================================
+
+  @Get('reviews')
+  getReviews(
+    @Query('hidden') hidden?: string,
+    @Query('doctorId') doctorId?: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.adminService.getReviews({
+      hidden: hidden === undefined ? undefined : hidden === 'true',
+      doctorId,
+      page,
+      limit,
+    });
+  }
+
+  @Put('reviews/:id/hide')
+  hideReview(
+    @Param('id') id: string,
+    @Body() dto: { hidden: boolean; reason?: string },
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.adminService.setReviewHidden(id, dto?.hidden !== false, dto?.reason, admin?.sub);
   }
 }

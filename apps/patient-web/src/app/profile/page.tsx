@@ -306,32 +306,13 @@ export default function PatientProfilePage() {
         <div style={{ maxWidth: '920px', margin: '0 auto' }}>
           {/* Header */}
           <div style={{ marginBottom: '28px' }}>
-            <div
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                letterSpacing: '0.12em',
-                color: '#B88647',
-                textTransform: 'uppercase',
-                marginBottom: '6px',
-              }}
-            >
+            <div className="page-eyebrow">
               ACCOUNT SETTINGS
             </div>
-            <h1
-              style={{
-                fontSize: '2.1rem',
-                fontWeight: 800,
-                letterSpacing: '-0.03em',
-                color: '#2A170F',
-                margin: '0 0 8px 0',
-                fontFamily: 'var(--font-heading), sans-serif',
-                lineHeight: 1.15,
-              }}
-            >
+            <h1 className="page-title">
               Profile & Settings
             </h1>
-            <p style={{ fontSize: '0.94rem', color: '#6B5E55', margin: 0, lineHeight: 1.5 }}>
+            <p className="page-subtitle" style={{ margin: 0 }}>
               Manage your personal demographics, contact details, and multi-channel notification preferences.
             </p>
           </div>

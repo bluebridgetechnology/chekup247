@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&family=Caveat:wght@600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap');
 @import '../../../../packages/design-tokens/src/tokens.css';
 
 * {
@@ -22,7 +22,84 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
   letter-spacing: -0.02em;
   color: var(--color-chocolate-base, #2A170F);
+  font-weight: var(--font-heading-weight, 400);
+  line-height: 1.25;
+}
+
+h1 {
+  font-size: var(--font-page-title-size, 1.875rem);
+}
+
+h2 {
+  font-size: var(--font-section-title-size, 1.25rem);
+}
+
+h3 {
+  font-size: var(--text-lg, 1.125rem);
+}
+
+/* ==========================================================================
+   Page Header & Typography Utilities (Centralized Inheritance)
+   ========================================================================== */
+.page-title {
+  font-family: var(--font-heading);
+  font-size: var(--font-page-title-size, 1.875rem) !important;
+  font-weight: var(--font-heading-weight, 400) !important;
+  color: var(--color-chocolate-base, #2A170F);
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.page-subtitle {
+  font-size: var(--text-sm, 0.925rem);
+  color: var(--color-cream-text-muted, #6B5E55);
+  line-height: 1.5;
+  margin-top: 6px;
+  font-weight: 400;
+}
+
+.page-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-xs, 0.75rem);
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-gold-bronze, #B88647);
+  margin-bottom: 6px;
+}
+
+.section-title {
+  font-family: var(--font-heading);
+  font-size: var(--font-section-title-size, 1.25rem) !important;
+  font-weight: var(--font-heading-weight, 400) !important;
+  color: var(--color-chocolate-base, #2A170F);
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.section-subtitle {
+  font-size: var(--text-sm, 0.85rem);
+  color: var(--color-cream-text-muted, #6B5E55);
+  margin-top: 2px;
+}
+
+.stat-number {
+  font-family: var(--font-heading);
+  font-size: var(--font-stat-number-size, 1.875rem) !important;
+  font-weight: var(--font-heading-weight, 400) !important;
+  color: var(--color-chocolate-base, #2A170F);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+  color: var(--color-cream-text-muted, #6B5E55);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 a {
@@ -199,7 +276,91 @@ a {
   padding: 20px 22px;
 }
 
-/* Flat cards without hover shadow on appointments queue & prescriptions */
+/* ==========================================================================
+   Dashboard Grid Layout (main + sidebar)
+   ========================================================================== */
+
+/* 4-column KPI grid */
+.dashboard-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+@media (max-width: 900px) {
+  .dashboard-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-kpi-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}
+
+/* Dashboard content grid: main + sidebar */
+.dashboard-content-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.dashboard-content-grid > * {
+  min-width: 0;
+}
+
+.dashboard-main {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.dashboard-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  position: sticky;
+  top: 24px;
+}
+
+/* Mobile schedule card: above grid on mobile, hidden on desktop */
+.dashboard-schedule-mobile {
+  display: none;
+  margin-bottom: 24px;
+}
+
+.dashboard-schedule-desktop {
+  display: block;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-content-grid {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-schedule-mobile {
+    display: block;
+  }
+  .dashboard-schedule-desktop {
+    display: none !important;
+  }
+  .dashboard-sidebar {
+    position: static;
+  }
+}
+
+/* Schedule summary two-number layout */
+.schedule-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+/* Flat cards without hover shadow on appointments queue, prescriptions & earnings */
 .appointments-page .portal-card,
 .appointments-page .portal-card:hover,
 .appointments-page .doctor-table-card,
@@ -217,14 +378,48 @@ a {
 .prescriptions-page .kpi-card,
 .prescriptions-page .kpi-card:hover,
 .prescribe-page .portal-card,
-.prescribe-page .portal-card:hover {
+.prescribe-page .portal-card:hover,
+.icd10-page .portal-card,
+.icd10-page .portal-card:hover,
+.icd10-page .clinical-table-container,
+.icd10-page .clinical-table-container:hover,
+.earnings-page .portal-card,
+.earnings-page .portal-card:hover,
+.earnings-page .doctor-table-card,
+.earnings-page .doctor-table-card:hover,
+.earnings-page .doctor-mobile-card,
+.earnings-page .doctor-mobile-card:hover,
+.earnings-page .kpi-card,
+.earnings-page .kpi-card:hover,
+.earnings-page .clinical-table-container,
+.earnings-page .clinical-table-container:hover,
+.earnings-page .specialty-chip,
+.earnings-page .specialty-chip:hover,
+.earnings-page .specialty-chip.active,
+.earnings-page .doctors-search-pill,
+.earnings-page .doctors-search-pill:focus-within,
+.earnings-page .earnings-kpi-card,
+.earnings-page .earnings-kpi-card:hover,
+.earnings-page .earnings-chart-card,
+.earnings-page .earnings-chart-card:hover,
+.earnings-page .earnings-review-card,
+.earnings-page .earnings-review-card:hover,
+.profile-page .portal-card,
+.profile-page .portal-card:hover {
   box-shadow: none !important;
   transform: none !important;
 }
 
 .appointments-page .portal-card:hover,
 .prescriptions-page .portal-card:hover,
-.prescribe-page .portal-card:hover {
+.prescribe-page .portal-card:hover,
+.icd10-page .portal-card:hover,
+.icd10-page .clinical-table-container:hover,
+.earnings-page .portal-card:hover,
+.earnings-page .earnings-kpi-card:hover,
+.earnings-page .earnings-chart-card:hover,
+.earnings-page .clinical-table-container:hover,
+.profile-page .portal-card:hover {
   border-color: var(--color-gold-border, rgba(223, 171, 98, 0.28)) !important;
 }
 
@@ -482,10 +677,10 @@ a {
   border-color: var(--color-gold-base, #DFAB62);
 }
 
-/* Doctor consultations table — mirrors patient directory sample */
+/* Doctor consultations table — crisp visual separation without shadows */
 .doctor-table-card {
-  background-color: var(--color-cream-surface, #FDFBF7);
-  border: 1.5px solid #DDD0BC;
+  background-color: #ffffff;
+  border: 1.5px solid #D8CCB8;
   border-radius: 16px;
   overflow: hidden;
 }
@@ -500,10 +695,11 @@ a {
   border-collapse: collapse;
   min-width: 640px;
   font-size: 0.875rem;
+  background-color: #ffffff;
 }
 
 .doctor-table th {
-  padding: 12px 18px;
+  padding: 13px 18px;
   font-size: 0.72rem;
   font-weight: 700;
   color: #3D2B20;
@@ -511,7 +707,7 @@ a {
   letter-spacing: 0.06em;
   text-align: left;
   border-bottom: 1.5px solid #D8CCB8;
-  background: #EBE2D3;
+  background-color: #F6EFE5;
   white-space: nowrap;
 }
 
@@ -519,16 +715,18 @@ a {
   padding: 14px 18px;
   font-size: 0.875rem;
   color: var(--color-chocolate-base, #2A170F);
-  border-bottom: 1px solid #F0E6D8;
+  border-bottom: 1px solid #EAE1D3;
   vertical-align: middle;
+  background-color: #ffffff;
+  transition: background-color 0.15s ease;
 }
 
 .doctor-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.doctor-table tbody tr:hover {
-  background-color: #FAF5EB;
+.doctor-table tbody tr:hover td {
+  background-color: #FAF6EF;
 }
 
 /* Responsive: table on desktop, stacked cards on mobile */
@@ -552,8 +750,8 @@ a {
 }
 
 .doctor-mobile-card {
-  background-color: var(--color-cream-surface, #FDFBF7);
-  border: 1.5px solid #DDD0BC;
+  background-color: #ffffff;
+  border: 1.5px solid #D8CCB8;
   border-radius: 16px;
   padding: 16px;
   display: flex;
@@ -662,7 +860,7 @@ a {
 .calendar-stat-value {
   font-family: var(--font-heading);
   font-size: 1.25rem;
-  font-weight: 600;
+  font-weight: var(--font-heading-weight, 400);
   color: var(--color-chocolate-base, #2A170F);
   line-height: 1.1;
 }
@@ -953,6 +1151,7 @@ a {
   font-size: 0.75rem;
   font-weight: 700;
   font-family: var(--font-sans);
+  white-space: nowrap;
 }
 
 .badge-success {
@@ -966,6 +1165,7 @@ a {
   border: 1px solid #a7f3d0;
   font-size: 0.75rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .badge-warning {
@@ -979,6 +1179,7 @@ a {
   border: 1px solid #fde68a;
   font-size: 0.75rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 .badge-danger {
@@ -992,6 +1193,7 @@ a {
   border: 1px solid #fecaca;
   font-size: 0.75rem;
   font-weight: 700;
+  white-space: nowrap;
 }
 
 /* Initials Avatar Circle */
@@ -1002,7 +1204,7 @@ a {
   background-color: var(--color-gold-pale, #F0E5D3);
   color: var(--color-chocolate-base, #2A170F);
   font-family: var(--font-heading), sans-serif;
-  font-weight: 700;
+  font-weight: 600;
   font-size: 0.95rem;
   display: flex;
   align-items: center;
@@ -1076,16 +1278,27 @@ a {
   background-color: #ffffff;
 }
 
-.doctors-search-input {
+.doctors-search-input,
+.doctors-search-input:focus,
+.doctors-search-input:focus-visible,
+.doctors-search-pill input,
+.doctors-search-pill input:focus,
+.doctors-search-pill input:focus-visible {
   flex: 1 1 0%;
   min-width: 0;
-  border: none;
-  outline: none;
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
   background: transparent;
   font-family: var(--font-sans);
   font-size: 0.9rem;
   color: var(--color-chocolate-base, #2A170F);
   padding: 9px 10px;
+}
+
+.icd10-page .doctors-search-pill:focus-within {
+  box-shadow: none !important;
+  border-color: var(--color-gold-base, #DFAB62) !important;
 }
 
 .doctors-search-input::placeholder {
@@ -1218,8 +1431,17 @@ a {
   color: var(--color-chocolate-base, #2A170F);
 }
 
+.clinical-table tbody tr:nth-child(even) {
+  background-color: rgba(223, 171, 98, 0.07);
+}
+
+.clinical-table tbody tr:nth-child(odd) {
+  background-color: var(--color-cream-surface, #FDFBF7);
+}
+
+.clinical-table tbody tr:hover,
 .clinical-tr:hover {
-  background-color: rgba(223, 171, 98, 0.06);
+  background-color: rgba(223, 171, 98, 0.14) !important;
 }
 
 /* ==========================================================================
@@ -1370,7 +1592,7 @@ a {
 .auth-social-badge-val {
   font-family: var(--font-heading);
   font-size: 1.25rem;
-  font-weight: 700;
+  font-weight: var(--font-heading-weight, 400);
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -1409,4 +1631,420 @@ a {
 .skip-to-content:focus {
   top: 16px;
   outline: 3px solid var(--color-gold-base, #DFAB62);
+}
+
+/* ==========================================================================
+   Doctor's Earnings & Payouts Suite (.earnings-page)
+   ========================================================================== */
+.earnings-page {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding-bottom: 48px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.earnings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.earnings-payout-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: var(--radius-full, 9999px);
+  background-color: var(--color-success-bg, #ecfdf5);
+  border: 1px solid var(--color-brand-200, #a7f3d0);
+  color: var(--color-brand-800, #0e4e47);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.earnings-payout-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-brand-500, #0e9384);
+}
+
+.earnings-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 1024px) {
+  .earnings-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 540px) {
+  .earnings-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.earnings-kpi-card {
+  background-color: var(--color-cream-surface, #FDFBF7);
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  border-radius: 16px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: border-color 0.2s ease;
+}
+
+.earnings-kpi-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.earnings-kpi-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background-color: var(--color-gold-pale, #F0E5D3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-chocolate-base, #2A170F);
+}
+
+.earnings-kpi-value {
+  font-family: var(--font-heading);
+  font-size: var(--font-stat-number-size, 1.875rem);
+  font-weight: var(--font-heading-weight, 400);
+  color: var(--color-chocolate-base, #2A170F);
+  line-height: 1.15;
+  margin: 6px 0;
+}
+
+.earnings-kpi-value-success {
+  color: var(--color-brand-600, #0b7b6e);
+}
+
+.earnings-kpi-meta {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-cream-text-muted, #6B5E55);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.earnings-kpi-meta-success {
+  color: var(--color-brand-700, #0b6259);
+  font-weight: 600;
+}
+
+/* Revenue Trajectory Chart Card */
+.earnings-chart-card {
+  background-color: var(--color-cream-surface, #FDFBF7);
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+  transition: border-color 0.2s ease;
+}
+
+.earnings-chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.earnings-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: var(--text-xs, 0.75rem);
+}
+
+.earnings-chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.earnings-chart-legend-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.earnings-chart-legend-box.gold {
+  background-color: var(--color-gold-primary, #E2B467);
+}
+
+.earnings-chart-legend-box.pale {
+  background-color: var(--color-gold-pale, #F0E5D3);
+}
+
+.earnings-chart-bars-wrap {
+  height: 200px;
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  padding-top: 20px;
+  border-bottom: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.2));
+}
+
+.earnings-chart-bar-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  min-width: 54px;
+}
+
+.earnings-chart-val-lbl {
+  font-family: var(--font-heading);
+  font-size: var(--text-xs, 0.75rem);
+  font-weight: var(--font-heading-weight, 400);
+  color: var(--color-brand-600, #0b7b6e);
+  margin-bottom: 8px;
+  white-space: nowrap;
+}
+
+.earnings-chart-bar-capsule {
+  width: 48px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  border-radius: 10px 10px 0 0;
+  overflow: hidden;
+  border: 1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+}
+
+.earnings-chart-segment-fee {
+  background-color: var(--color-gold-pale, #F0E5D3);
+  transition: opacity 0.15s ease;
+}
+
+.earnings-chart-segment-net {
+  background-color: var(--color-gold-primary, #E2B467);
+  transition: opacity 0.15s ease;
+}
+
+.earnings-chart-bar-item:hover .earnings-chart-segment-fee {
+  opacity: 0.85;
+}
+
+.earnings-chart-bar-item:hover .earnings-chart-segment-net {
+  opacity: 0.9;
+}
+
+.earnings-chart-month-lbl {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--color-chocolate-base, #2A170F);
+  font-weight: 700;
+  margin-top: 10px;
+  text-align: center;
+}
+
+/* Toolbar: Tabs and Search Row */
+.earnings-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 20px;
+}
+
+.earnings-tab-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.earnings-search-box {
+  width: 100%;
+  max-width: 320px;
+}
+
+/* Patient Reviews Tab */
+.earnings-reviews-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 32px;
+  align-items: center;
+  padding: 24px 28px;
+  border-radius: 16px;
+  background: var(--color-cream-base, #FAF6EE);
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  margin-bottom: 24px;
+}
+
+@media (max-width: 640px) {
+  .earnings-reviews-summary {
+    grid-template-columns: 1fr;
+    gap: 20px;
+    padding: 18px 16px;
+    text-align: center;
+  }
+}
+
+.earnings-rating-score {
+  font-family: var(--font-heading);
+  font-size: 3.25rem;
+  font-weight: var(--font-heading-weight, 400);
+  color: var(--color-chocolate-base, #2A170F);
+  line-height: 1;
+}
+
+.earnings-reviews-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.earnings-review-card {
+  padding: 20px 22px;
+  border-radius: 14px;
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.22));
+  background: var(--color-cream-surface, #FDFBF7);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.earnings-review-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.earnings-review-text {
+  margin: 0;
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--color-cream-text-muted, #6B5E55);
+  line-height: 1.55;
+}
+
+/* ==========================================================================
+   Doctor Profile Page Utilities
+   ========================================================================== */
+.profile-page {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+
+.profile-tab-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.22));
+  padding-bottom: 2px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.profile-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--color-cream-text-muted, #6B5E55);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+  position: relative;
+}
+
+.profile-tab-btn:hover {
+  color: var(--color-chocolate-base, #2A170F);
+}
+
+.profile-tab-btn.active {
+  color: var(--color-chocolate-base, #2A170F);
+  font-weight: 700;
+  border-bottom-color: var(--color-gold-base, #DFAB62);
+}
+
+.profile-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: var(--radius-full, 9999px);
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.profile-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--color-white, #ffffff);
+  box-shadow: 0 1px 3px rgba(42, 23, 15, 0.18);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.profile-switch[aria-checked="true"] .profile-switch-thumb {
+  transform: translateX(20px);
+}
+
+.profile-action-bar,
+.profile-sticky-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 28px;
+  margin-bottom: 32px;
+  padding: 18px 24px;
+  background: var(--color-cream-surface, #FDFBF7);
+  border: 1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25));
+  border-radius: var(--radius-xl, 16px);
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 640px) {
+  .profile-action-bar,
+  .profile-sticky-bar {
+    padding: 14px 16px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .profile-action-bar .btn-primary,
+  .profile-sticky-bar .btn-primary {
+    width: 100%;
+    justify-content: center;
+  }
 }

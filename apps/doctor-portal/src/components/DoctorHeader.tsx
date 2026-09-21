@@ -33,7 +33,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/prescriptions': 'E-Prescriptions Management',
   '/icd10': 'ICD-10 Diagnostic Coding',
   '/earnings': 'Earnings & Payouts',
-  '/profile': 'Doctor Practice Profile',
+  '/profile': 'My Profile',
 };
 
 export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
@@ -62,7 +62,12 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
     offline: { bg: 'var(--color-cream-surface, #FDFBF7)', text: 'var(--color-cream-text-muted, #6B5E55)', dot: '#94a3b8', label: 'Offline' },
   };
 
-  const current = statusColors[status];
+  const isHoliday = profile?.isOnHoliday === true;
+  const current = isHoliday
+    ? { bg: '#fffbeb', text: '#92400e', dot: '#f59e0b', label: 'On Holiday' }
+    : statusColors[status] || statusColors.active;
+
+  const doctorAvatar = profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url || '/images/doctor_sarah_avatar.jpg';
 
   // Anything the doctor should notice: unread alerts or a pending HPCSA verification
   const isPendingVerification = profile?.verificationStatus === 'pending';
@@ -250,16 +255,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
             <span>/</span>
             <span style={{ color: 'var(--color-gold-bronze, #B88647)' }}>{pageLabel}</span>
           </div>
-          <h2
-            style={{
-              fontSize: '1.2rem',
-              color: 'var(--color-chocolate-base, #2A170F)',
-              margin: 0,
-              fontWeight: 700,
-              fontFamily: 'var(--font-heading), sans-serif',
-              letterSpacing: '-0.02em',
-            }}
-          >
+          <h2 className="section-title">
             {pageLabel}
           </h2>
         </div>
@@ -655,15 +651,11 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                   flexShrink: 0,
                 }}
               >
-                {doctor?.avatarUrl ? (
-                  <img
-                    src={doctor.avatarUrl}
-                    alt={doctor?.fullName || 'Doctor avatar'}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  />
-                ) : (
-                  doctor?.fullName ? doctor.fullName.substring(0, 2).toUpperCase() : 'DR'
-                )}
+                <img
+                  src={doctorAvatar}
+                  alt={doctor?.fullName || 'Doctor avatar'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
               </div>
               <div style={{ textAlign: 'left', display: 'none' }} className="desktop-doctor-info">
                 <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1.2 }}>

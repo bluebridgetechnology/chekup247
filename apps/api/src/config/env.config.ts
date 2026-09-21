@@ -109,6 +109,13 @@ const envSchema = z.object({
   // Security & Operations (Sprint 10)
   ADMIN_IP_ALLOWLIST: z.string().default(''),
   SENTRY_DSN: z.string().optional().default(''),
+
+  // One-time bootstrap credential for the FIRST admin account. Required
+  // in production since the admin panel has no signup route — this is
+  // the only way an initial administrator gets created. The seeded
+  // account must change this password on first login (see AdminService).
+  ADMIN_BOOTSTRAP_EMAIL: z.string().default('admin@chekup247.co.za'),
+  ADMIN_BOOTSTRAP_PASSWORD: z.string().optional().default(''),
 });
 
 
@@ -122,3 +129,32 @@ if (!parsed.success) {
 
 export const envConfig = parsed.data;
 export type EnvConfig = typeof envConfig;
+
+// ---------------------------------------------------------------------------
+// Production secret hardening — fail loudly at boot rather than silently
+// running with a known, publicly-visible development default.
+// ---------------------------------------------------------------------------
+if (envConfig.NODE_ENV === 'production') {
+  const productionFatalErrors: string[] = [];
+
+  if (envConfig.JWT_SECRET === 'super-secret-development-jwt-key-minimum-32-chars') {
+    productionFatalErrors.push('JWT_SECRET is still the development default — set a unique production secret.');
+  }
+  if (envConfig.ADMIN_SESSION_SECRET === 'admin-isolated-session-secret-key-32-chars') {
+    productionFatalErrors.push('ADMIN_SESSION_SECRET is still the development default — set a unique production secret.');
+  }
+  if (!envConfig.ADMIN_BOOTSTRAP_PASSWORD) {
+    productionFatalErrors.push(
+      'ADMIN_BOOTSTRAP_PASSWORD is required in production: the admin panel has no signup route, ' +
+        'so this is the only way to provision the first administrator account.',
+    );
+  }
+
+  if (productionFatalErrors.length > 0) {
+    console.error('❌ FATAL: Production environment failed security validation:');
+    for (const msg of productionFatalErrors) {
+      console.error(`  - ${msg}`);
+    }
+    process.exit(1);
+  }
+}

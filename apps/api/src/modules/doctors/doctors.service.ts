@@ -72,6 +72,11 @@ export class DoctorsService implements OnModuleInit {
 
   async onModuleInit() {
     try {
+      await this.userRepository.query('ALTER TABLE users ALTER COLUMN avatar_url TYPE text;');
+    } catch (err: any) {
+      // Column may already be text
+    }
+    try {
       await this.ensureTestDoctorAccount();
     } catch (err: any) {
       this.logger.warn(`Test doctor seed check deferred: ${err.message}`);
@@ -99,6 +104,7 @@ export class DoctorsService implements OnModuleInit {
         status: UserStatus.ACTIVE,
         is_email_verified: true,
         email_verified_at: new Date(),
+        avatar_url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80',
       });
       user = await this.userRepository.save(user);
       this.logger.log(`Created default test doctor account: ${testDoctorEmail}`);
@@ -106,6 +112,9 @@ export class DoctorsService implements OnModuleInit {
       user.role = UserRole.DOCTOR;
       user.status = UserStatus.ACTIVE;
       user.password_hash = passwordHash;
+      if (!user.avatar_url) {
+        user.avatar_url = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80';
+      }
       user = await this.userRepository.save(user);
     }
 
@@ -144,6 +153,11 @@ export class DoctorsService implements OnModuleInit {
       profile.slug = profile.slug || 'dr-thabo-molefe';
       profile.specialty = 'General Practitioner';
       profile.experience_years = profile.experience_years || 12;
+      if (user.avatar_url && profile.photo_url !== user.avatar_url) {
+        profile.photo_url = user.avatar_url;
+      } else if (!profile.photo_url) {
+        profile.photo_url = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80';
+      }
       profile.consultation_types = profile.consultation_types?.length
         ? profile.consultation_types
         : [
@@ -231,11 +245,22 @@ export class DoctorsService implements OnModuleInit {
 
     const [doctors, total] = await qb.getManyAndCount();
 
-    // Ensure all returned doctors have a slug
+    // Ensure all returned doctors have a slug and synced photo_url
     for (const doc of doctors) {
+      if (
+        doc.user?.avatar_url &&
+        (!doc.photo_url ||
+          doc.photo_url.includes('images.unsplash.com') ||
+          doc.photo_url !== doc.user.avatar_url)
+      ) {
+        doc.photo_url = doc.user.avatar_url;
+        await this.doctorRepository
+          .update(doc.id, { photo_url: doc.user.avatar_url })
+          .catch(() => null);
+      }
       if (!doc.slug && doc.user?.full_name) {
         doc.slug = this.formatSlug(doc.user.full_name);
-        await this.doctorRepository.update(doc.id, { slug: doc.slug });
+        await this.doctorRepository.update(doc.id, { slug: doc.slug }).catch(() => null);
       }
     }
 
@@ -281,6 +306,16 @@ export class DoctorsService implements OnModuleInit {
 
     if (!doctor) {
       throw new NotFoundException(`Doctor with identifier '${idOrSlug}' was not found`);
+    }
+
+    // Sync avatar / photo if user updated their avatar
+    if (
+      doctor.user?.avatar_url &&
+      (!doctor.photo_url ||
+        doctor.photo_url.includes('images.unsplash.com') ||
+        doctor.photo_url !== doctor.user.avatar_url)
+    ) {
+      doctor.photo_url = doctor.user.avatar_url;
     }
 
     // Ensure slug is populated
@@ -522,10 +557,29 @@ export class DoctorsService implements OnModuleInit {
       'branch_code',
       'account_type',
       'account_holder',
+      'photo_url',
     ] as const satisfies readonly (keyof UpdateDoctorProfileDto & keyof DoctorProfile)[];
 
     if (dto.signature_url && dto.signature_url !== profile.signature_url) {
       profile.signature_uploaded_at = new Date();
+    }
+
+    const avatar = dto.photo_url || (dto as any).avatar_url;
+    if (avatar) {
+      profile.photo_url = avatar;
+      if (profile.user) {
+        try {
+          profile.user.avatar_url = avatar;
+          await this.userRepository.save(profile.user);
+        } catch (err: any) {
+          if (err.message?.includes('varying(500)') || err.message?.includes('too long')) {
+            await this.userRepository.query('ALTER TABLE users ALTER COLUMN avatar_url TYPE text;');
+            await this.userRepository.save(profile.user);
+          } else {
+            throw err;
+          }
+        }
+      }
     }
 
     for (const field of updatableFields) {

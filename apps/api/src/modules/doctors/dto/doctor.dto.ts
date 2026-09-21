@@ -154,6 +154,14 @@ export class UpdateDoctorProfileDto {
   @IsOptional()
   @IsString()
   account_holder?: string;
+
+  @IsOptional()
+  @IsString()
+  photo_url?: string;
+
+  @IsOptional()
+  @IsString()
+  avatar_url?: string;
 }
 
 export class GetDoctorsQueryDto {

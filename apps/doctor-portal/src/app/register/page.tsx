@@ -188,7 +188,7 @@ export default function DoctorRegisterPage() {
             <h1
               style={{
                 fontSize: '2.5rem',
-                fontWeight: 800,
+                fontWeight: 'var(--font-heading-weight, 400)',
                 color: '#ffffff',
                 lineHeight: 1.15,
                 letterSpacing: '-0.025em',
@@ -256,7 +256,7 @@ export default function DoctorRegisterPage() {
                 fontSize: '1.85rem',
                 color: 'var(--color-chocolate-base, #2A170F)',
                 marginBottom: '6px',
-                fontWeight: 800,
+                fontWeight: 'var(--font-heading-weight, 400)',
                 fontFamily: 'var(--font-heading), sans-serif',
                 letterSpacing: '-0.02em',
               }}

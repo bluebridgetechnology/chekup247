@@ -378,6 +378,7 @@ export class PrescriptionsService {
       let doctorName = 'Dr. ChekUp247';
       let doctorSpecialty = 'General Practitioner';
       let hpcsaNumber = 'MP 0789012';
+      let signatureUrl: string | undefined = undefined;
 
       if (p.doctor_id) {
         const docProf = await this.doctorProfileRepository.findOne({
@@ -387,6 +388,7 @@ export class PrescriptionsService {
         if (docProf) {
           doctorSpecialty = docProf.specialty || doctorSpecialty;
           hpcsaNumber = docProf.hpcsa_number || hpcsaNumber;
+          signatureUrl = docProf.signature_url || undefined;
           if (docProf.user?.full_name) {
             doctorName = docProf.user.full_name;
           }
@@ -425,6 +427,7 @@ export class PrescriptionsService {
           fullName: doctorName,
           specialty: doctorSpecialty,
           hpcsa_number: hpcsaNumber,
+          signature_url: signatureUrl,
         },
       });
     }
@@ -448,6 +451,7 @@ export class PrescriptionsService {
     let doctorName = 'Dr. ChekUp247';
     let doctorSpecialty = 'General Practitioner';
     let hpcsaNumber = 'MP 0789012';
+    let signatureUrl: string | undefined = undefined;
 
     if (prescription.doctor_id) {
       const docProf = await this.doctorProfileRepository.findOne({
@@ -457,6 +461,7 @@ export class PrescriptionsService {
       if (docProf) {
         doctorSpecialty = docProf.specialty || doctorSpecialty;
         hpcsaNumber = docProf.hpcsa_number || hpcsaNumber;
+        signatureUrl = docProf.signature_url || undefined;
         if (docProf.user?.full_name) {
           doctorName = docProf.user.full_name;
         }
@@ -467,8 +472,10 @@ export class PrescriptionsService {
       ...prescription,
       doctor: {
         name: doctorName,
+        fullName: doctorName,
         specialty: doctorSpecialty,
         hpcsa_number: hpcsaNumber,
+        signature_url: signatureUrl,
       },
     };
   }

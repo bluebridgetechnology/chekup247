@@ -354,19 +354,10 @@ export default function DoctorCalendarPage() {
         }}
       >
         <div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: '1.45rem',
-              fontWeight: 600,
-              color: 'var(--color-chocolate-base, #2A170F)',
-              margin: '0 0 4px',
-              letterSpacing: '-0.01em',
-            }}
-          >
+          <h1 className="page-title">
             Calendar &amp; Shifts
           </h1>
-          <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.85rem', fontWeight: 400, margin: 0 }}>
+          <p className="page-subtitle" style={{ margin: '4px 0 0' }}>
             Manage consultation slots, view appointments, and synchronize shifts.
           </p>
         </div>
@@ -1252,7 +1243,7 @@ export default function DoctorCalendarPage() {
                           <span style={{ fontSize: '0.68rem', fontWeight: 500, textTransform: 'uppercase' }}>
                             {dayDate.toLocaleDateString('en-ZA', { weekday: 'short' })}
                           </span>
-                          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 600 }}>
+                          <span style={{ fontFamily: 'var(--font-heading)', fontSize: '1.1rem', fontWeight: 'var(--font-heading-weight, 400)' }}>
                             {dayDate.getDate()}
                           </span>
                           <div style={{ display: 'flex', gap: '3px', marginTop: '2px' }}>
@@ -1439,7 +1430,7 @@ export default function DoctorCalendarPage() {
                                       color={slot.isBooked ? 'var(--color-chocolate-base)' : isLocum ? '#7e22ce' : '#0f766e'}
                                     />
                                     <div>
-                                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.88rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                                      <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.88rem', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-chocolate-base, #2A170F)' }}>
                                         {sTime} – {eTime}
                                       </div>
                                       <div style={{ fontSize: '0.74rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 400 }}>
@@ -2271,7 +2262,7 @@ export default function DoctorCalendarPage() {
                 <SolarIcon name="lock-bold" size={20} color="#7e22ce" />
               </div>
               <div>
-                <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1rem', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-chocolate-base, #2A170F)' }}>
                   LocumStaff Hospital Roster Integration
                 </div>
                 <div style={{ fontSize: '0.82rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 400, marginTop: '2px' }}>
@@ -2302,7 +2293,7 @@ export default function DoctorCalendarPage() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 600, margin: 0, color: 'var(--color-chocolate-base)' }}>
+              <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.05rem', fontWeight: 'var(--font-heading-weight, 400)', margin: 0, color: 'var(--color-chocolate-base)' }}>
                 Synced Duty Shifts ({locumSlots.length})
               </h3>
               <span
@@ -2390,7 +2381,7 @@ export default function DoctorCalendarPage() {
                           <SolarIcon name="lock-bold" size={16} color="#7e22ce" />
                         </div>
                         <div>
-                          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.95rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                          <div style={{ fontFamily: 'var(--font-heading)', fontSize: '0.95rem', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-chocolate-base, #2A170F)' }}>
                             {start.toLocaleDateString('en-ZA', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })}
                           </div>
                           <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 400, marginTop: '2px' }}>

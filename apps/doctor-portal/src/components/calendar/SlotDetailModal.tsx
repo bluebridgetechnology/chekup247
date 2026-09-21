@@ -160,7 +160,7 @@ export function SlotDetailModal({
                 style={{
                   fontFamily: 'var(--font-heading)',
                   fontSize: '1.125rem',
-                  fontWeight: 600,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   color: 'var(--color-chocolate-base, #2A170F)',
                   margin: 0,
                   letterSpacing: '-0.01em',
@@ -329,7 +329,7 @@ export function SlotDetailModal({
                 style={{
                   fontFamily: 'var(--font-heading)',
                   fontSize: '0.95rem',
-                  fontWeight: 600,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   color: 'var(--color-chocolate-base, #2A170F)',
                 }}
               >
@@ -343,7 +343,7 @@ export function SlotDetailModal({
                 style={{
                   fontFamily: 'var(--font-heading)',
                   fontSize: '1.05rem',
-                  fontWeight: 600,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   color: 'var(--color-chocolate-base, #2A170F)',
                 }}
               >
@@ -461,7 +461,7 @@ export function SlotDetailModal({
               style={{
                 fontFamily: 'var(--font-heading), sans-serif',
                 fontSize: '1.25rem',
-                fontWeight: 600,
+                fontWeight: 'var(--font-heading-weight, 400)',
                 color: 'var(--color-chocolate-base, #2A170F)',
                 margin: '0 0 8px',
                 letterSpacing: '-0.02em',

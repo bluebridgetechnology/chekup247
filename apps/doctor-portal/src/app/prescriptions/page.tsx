@@ -221,43 +221,15 @@ export default function PrescriptionsListPage() {
                 Clinical EHR • Digital Medicine Compliance
               </span>
             </div>
-            <h1
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: '1.95rem',
-                fontWeight: 700,
-                color: 'var(--color-chocolate-base, #2A170F)',
-                letterSpacing: '-0.02em',
-                margin: 0,
-              }}
-            >
+            <h1 className="page-title">
               E-Prescriptions Management
             </h1>
-            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.925rem', marginTop: '6px', maxWidth: '680px', lineHeight: 1.5 }}>
+            <p className="page-subtitle" style={{ maxWidth: '680px' }}>
               HPCSA-compliant digital prescriptions issued with verified electronic signature, cryptographic seal, and audit ledger.
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={() => loadPrescriptions(true)}
-              disabled={isRefreshing}
-              className="btn-secondary"
-              title="Refresh prescriptions list"
-              style={{ padding: '9px 16px', fontSize: '0.84rem' }}
-            >
-              <SolarIcon
-                name="refresh-linear"
-                size={16}
-                color="var(--color-chocolate-base, #2A170F)"
-                style={{
-                  animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
-                }}
-              />
-              <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-            </button>
-
             <Link href="/appointments" className="btn-primary" style={{ padding: '9px 20px', fontSize: '0.84rem' }}>
               <SolarIcon name="add-circle-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
               <span>Issue From Appointment</span>
@@ -270,7 +242,7 @@ export default function PrescriptionsListPage() {
           {/* Total Issued */}
           <div className="portal-card" style={{ padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span className="stat-label">
                 Total Issued
               </span>
               <div
@@ -287,7 +259,7 @@ export default function PrescriptionsListPage() {
                 <SolarIcon name="document-text-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1 }}>
+            <div className="stat-number">
               {counts.total}
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '8px' }}>
@@ -298,7 +270,7 @@ export default function PrescriptionsListPage() {
           {/* Standard S2–S4 */}
           <div className="portal-card" style={{ padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span className="stat-label">
                 Standard (S2 – S4)
               </span>
               <div
@@ -315,7 +287,7 @@ export default function PrescriptionsListPage() {
                 <SolarIcon name="pill-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1 }}>
+            <div className="stat-number">
               {counts.standard}
             </div>
             <div style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 600, marginTop: '8px' }}>
@@ -326,7 +298,7 @@ export default function PrescriptionsListPage() {
           {/* Controlled S5–S6 */}
           <div className="portal-card" style={{ padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span className="stat-label">
                 Controlled (S5 – S6)
               </span>
               <div
@@ -347,7 +319,7 @@ export default function PrescriptionsListPage() {
                 />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 700, color: counts.controlled > 0 ? '#991b1b' : 'var(--color-chocolate-base, #2A170F)', lineHeight: 1 }}>
+            <div className="stat-number" style={{ color: counts.controlled > 0 ? '#991b1b' : 'var(--color-chocolate-base, #2A170F)' }}>
               {counts.controlled}
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '8px' }}>
@@ -358,7 +330,7 @@ export default function PrescriptionsListPage() {
           {/* Compliance Status */}
           <div className="portal-card" style={{ padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span className="stat-label">
                 Compliance Seal
               </span>
               <div
@@ -375,7 +347,7 @@ export default function PrescriptionsListPage() {
                 <SolarIcon name="shield-check-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.25rem', fontWeight: 700, color: '#047857', lineHeight: 1.2, marginTop: '4px' }}>
+            <div className="stat-number" style={{ fontSize: '1.25rem', color: '#047857', marginTop: '4px' }}>
               100% Sealed
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '12px' }}>
@@ -539,7 +511,7 @@ export default function PrescriptionsListPage() {
               fontFamily: 'var(--font-heading)',
               fontSize: '1.25rem',
               color: 'var(--color-chocolate-base, #2A170F)',
-              fontWeight: 700,
+              fontWeight: 'var(--font-heading-weight, 400)',
               margin: '0 0 6px',
             }}
           >
@@ -578,36 +550,68 @@ export default function PrescriptionsListPage() {
         </div>
       ) : (
         <>
-          {/* Desktop Table View */}
-          <div className="doctor-table-card doctor-table-view">
-            {/* Top Table Header Banner */}
+          {/* Header Section Above Table */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px',
+              marginBottom: '14px',
+              padding: '0 4px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <h2
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1.05rem',
+                  fontWeight: 'var(--font-heading-weight, 400)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  margin: 0,
+                  letterSpacing: '-0.01em',
+                }}
+              >
+                Official Issued Prescriptions
+              </h2>
+              <span
+                style={{
+                  backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
+                }}
+              >
+                {filtered.length}
+              </span>
+            </div>
             <div
               style={{
-                padding: '14px 20px',
-                borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
-                background: 'var(--color-cream-base, #FAF6EE)',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '10px',
+                gap: '6px',
+                fontSize: '0.78rem',
+                color: 'var(--color-cream-text-muted, #6B5E55)',
+                fontWeight: 500,
               }}
             >
-              <div style={{ fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', fontSize: '0.9rem' }}>
-                Official Issued Prescriptions ({filtered.length})
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                <SolarIcon name="shield-check-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
-                <span>Cryptographically Verified under Section 22A Medicines Act</span>
-              </div>
+              <SolarIcon name="shield-check-linear" size={15} color="var(--color-gold-bronze, #B88647)" />
+              <span>Cryptographically Verified under Section 22A Medicines Act</span>
             </div>
+          </div>
 
+          {/* Desktop Table View */}
+          <div className="doctor-table-card doctor-table-view">
             <div className="doctor-table-scroll" style={{ minHeight: '260px' }}>
               <table className="doctor-table">
                 <thead>
                   <tr>
-                    <th>Patient &amp; Rx Ref</th>
-                    <th>Primary Diagnosis (ICD-10)</th>
+                    <th>Patient</th>
+                    <th>Primary Diagnosis</th>
                     <th>Medications</th>
                     <th>Schedule</th>
                     <th style={{ textAlign: 'center' }}>Status</th>
@@ -620,6 +624,9 @@ export default function PrescriptionsListPage() {
                     const isControlled = rx.schedule_flag === 'S5' || rx.schedule_flag === 'S6';
                     const isRevoked = rx.status === 'REVOKED';
                     const shortRef = rx.id.substring(0, 8).toUpperCase();
+                    const schedDisplay = rx.schedule_flag
+                      ? (rx.schedule_flag.toUpperCase().startsWith('S') ? rx.schedule_flag.toUpperCase() : `S${rx.schedule_flag}`)
+                      : 'S2';
 
                     // Format medications preview
                     let medsPreview = `${rx.medications_count} medication${rx.medications_count === 1 ? '' : 's'}`;
@@ -634,65 +641,107 @@ export default function PrescriptionsListPage() {
 
                     return (
                       <tr key={rx.id}>
-                        {/* Patient & Rx Ref (No Avatar Circle) */}
+                        {/* Patient (Constrained with ellipsis) */}
                         <td>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
-                              {rx.patient_name}
-                            </div>
-                            <div style={{ fontSize: '0.74rem', color: 'var(--color-cream-text-muted, #6B5E55)', display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                              <span style={{ fontFamily: 'monospace', fontWeight: 600, color: 'var(--color-gold-bronze, #B88647)' }}>
-                                #{shortRef}
-                              </span>
-                              {rx.patient_email && (
-                                <>
-                                  <span>•</span>
-                                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
-                                    {rx.patient_email}
-                                  </span>
-                                </>
-                              )}
-                            </div>
+                          <div
+                            title={rx.patient_name}
+                            style={{
+                              fontWeight: 600,
+                              fontSize: '0.88rem',
+                              color: 'var(--color-chocolate-base, #2A170F)',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                              maxWidth: '180px',
+                            }}
+                          >
+                            {rx.patient_name}
                           </div>
                         </td>
 
-                        {/* ICD-10 Diagnosis */}
+                        {/* Primary Diagnosis (Inline code & description, constrained with ellipsis) */}
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                            <span className="badge-gold" style={{ fontFamily: 'monospace', fontWeight: 700, fontSize: '0.78rem' }}>
+                          <div
+                            title={rx.icd10_description && rx.icd10_description !== rx.icd10_code ? `${rx.icd10_code} • ${rx.icd10_description}` : rx.icd10_code}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              maxWidth: '260px',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <span
+                              className="badge-gold"
+                              style={{
+                                fontFamily: 'monospace',
+                                fontWeight: 700,
+                                fontSize: '0.76rem',
+                                flexShrink: 0,
+                              }}
+                            >
                               {rx.icd10_code}
                             </span>
                             {rx.icd10_description && rx.icd10_description !== rx.icd10_code && (
-                              <span style={{ fontSize: '0.825rem', color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 500 }}>
+                              <span
+                                style={{
+                                  fontSize: '0.825rem',
+                                  color: 'var(--color-chocolate-base, #2A170F)',
+                                  fontWeight: 500,
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
                                 {rx.icd10_description}
                               </span>
                             )}
                           </div>
                         </td>
 
-                        {/* Medications */}
+                        {/* Medications (Constrained to 1 line with ellipsis) */}
                         <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <SolarIcon name="pill-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
-                            <span style={{ fontSize: '0.825rem', color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 500 }}>
+                          <div
+                            title={medsPreview}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              maxWidth: '220px',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <SolarIcon name="pill-linear" size={14} color="var(--color-gold-bronze, #B88647)" style={{ flexShrink: 0 }} />
+                            <span
+                              style={{
+                                fontSize: '0.825rem',
+                                color: 'var(--color-chocolate-base, #2A170F)',
+                                fontWeight: 500,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
                               {medsPreview}
                             </span>
                           </div>
                         </td>
 
-                        {/* Schedule Badge */}
+                        {/* Schedule Badge (e.g. S4) */}
                         <td>
                           <span
                             className={isControlled ? 'badge-danger' : 'badge-gold'}
                             style={{
                               whiteSpace: 'nowrap',
+                              fontWeight: 700,
+                              fontSize: '0.75rem',
+                              padding: '2px 8px',
                               ...(isControlled
                                 ? { backgroundColor: '#fee2e2', color: '#991b1b', borderColor: '#fecaca' }
                                 : {}),
                             }}
                           >
-                            Schedule {rx.schedule_flag}
-                            {isControlled ? ' (Controlled)' : ''}
+                            {schedDisplay}
                           </span>
                         </td>
 
@@ -889,6 +938,9 @@ export default function PrescriptionsListPage() {
               const isControlled = rx.schedule_flag === 'S5' || rx.schedule_flag === 'S6';
               const isRevoked = rx.status === 'REVOKED';
               const shortRef = rx.id.substring(0, 8).toUpperCase();
+              const schedDisplay = rx.schedule_flag
+                ? (rx.schedule_flag.toUpperCase().startsWith('S') ? rx.schedule_flag.toUpperCase() : `S${rx.schedule_flag}`)
+                : 'S2';
 
               let medsPreview = `${rx.medications_count} medication${rx.medications_count === 1 ? '' : 's'}`;
               if (rx.medications && rx.medications.length > 0) {
@@ -1088,10 +1140,12 @@ export default function PrescriptionsListPage() {
                       className={isControlled ? 'badge-danger' : 'badge-gold'}
                       style={{
                         fontSize: '0.72rem',
+                        fontWeight: 700,
+                        padding: '2px 7px',
                         ...(isControlled ? { backgroundColor: '#fee2e2', color: '#991b1b' } : {}),
                       }}
                     >
-                      Schedule {rx.schedule_flag}
+                      {schedDisplay}
                     </span>
                   </div>
                 </div>
@@ -1157,7 +1211,7 @@ export default function PrescriptionsListPage() {
                 <SolarIcon name="danger-triangle-linear" size={22} color="#dc2626" />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-chocolate-base, #2A170F)' }}>
                   Revoke E-Prescription
                 </h3>
                 <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>

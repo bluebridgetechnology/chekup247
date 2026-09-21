@@ -31,6 +31,7 @@ export default function AdminUsersManagementPage() {
   const [inviteName, setInviteName] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
   const [invitePassword, setInvitePassword] = useState('');
+  const [inviteSubRole, setInviteSubRole] = useState<'support' | 'super_admin'>('support');
   const [inviting, setInviting] = useState(false);
 
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -82,6 +83,7 @@ export default function AdminUsersManagementPage() {
           full_name: inviteName.trim(),
           email: inviteEmail.trim(),
           password: invitePassword.trim() || undefined,
+          subRole: inviteSubRole,
         }),
         credentials: 'include',
       });
@@ -98,6 +100,7 @@ export default function AdminUsersManagementPage() {
       setInviteName('');
       setInviteEmail('');
       setInvitePassword('');
+      setInviteSubRole('support');
       setInviteModalOpen(false);
       fetchAdmins();
     } catch (err: any) {
@@ -140,12 +143,13 @@ export default function AdminUsersManagementPage() {
   return (
     <div style={{ maxWidth: '1100px', margin: '0 auto', color: '#ffffff' }}>
       {/* Header Row */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
         <div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 800, letterSpacing: '-0.02em', marginBottom: '4px' }}>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Users size={26} color="var(--color-gold-dark)" />
             Administrator User Management
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem' }}>
+          <p className="page-subtitle">
             Privileged access controls and admin audit logs. Public registration is strictly disabled.
           </p>
         </div>
@@ -153,20 +157,7 @@ export default function AdminUsersManagementPage() {
         <button
           type="button"
           onClick={() => setInviteModalOpen(true)}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 18px',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--color-brand-500)',
-            color: '#ffffff',
-            border: 'none',
-            fontWeight: 600,
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            boxShadow: '0 4px 12px rgba(14, 147, 132, 0.3)',
-          }}
+          className="btn-primary"
         >
           <UserPlus size={18} />
           <span>Provision New Administrator</span>
@@ -180,11 +171,12 @@ export default function AdminUsersManagementPage() {
             alignItems: 'center',
             gap: '10px',
             padding: '14px 18px',
-            borderRadius: 'var(--radius-md)',
-            background: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(239, 68, 68, 0.15)',
-            border: `1px solid ${feedback.type === 'success' ? '#059669' : '#dc2626'}`,
-            color: feedback.type === 'success' ? '#34d399' : '#f87171',
+            borderRadius: '10px',
+            background: feedback.type === 'success' ? 'rgba(16, 185, 129, 0.12)' : 'rgba(220, 38, 38, 0.1)',
+            border: `1px solid ${feedback.type === 'success' ? 'rgba(16, 185, 129, 0.35)' : 'rgba(220, 38, 38, 0.35)'}`,
+            color: feedback.type === 'success' ? '#047857' : '#DC2626',
             fontSize: '0.9rem',
+            fontWeight: 600,
             marginBottom: '24px',
           }}
         >
@@ -194,121 +186,107 @@ export default function AdminUsersManagementPage() {
       )}
 
       {/* Admins Table */}
-      <div
-        style={{
-          background: 'rgba(30, 41, 59, 0.7)',
-          backdropFilter: 'blur(12px)',
-          borderRadius: 'var(--radius-xl)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          overflow: 'hidden',
-          boxShadow: 'var(--shadow-lg)',
-        }}
-      >
+      <div className="admin-table-container">
         <div
           style={{
-            padding: '20px 24px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            padding: '18px 24px',
+            borderBottom: '1px solid rgba(42, 23, 15, 0.08)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
+            background: 'var(--color-cream-canvas)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 700, fontSize: '1.05rem' }}>
-            <Shield size={20} style={{ color: 'var(--color-brand-400)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontWeight: 700, fontSize: '1rem', color: 'var(--color-chocolate)' }}>
+            <Shield size={20} color="var(--color-gold-dark)" />
             <span>Active System Administrators ({adminsList.length})</span>
           </div>
 
           <button
             onClick={fetchAdmins}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '0.85rem',
-            }}
+            className="btn-secondary"
+            style={{ padding: '6px 12px', fontSize: '0.8rem' }}
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={14} style={{ animation: loadingList ? 'spin 1s linear infinite' : 'none' }} />
             <span>Refresh</span>
           </button>
         </div>
 
         {loadingList ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: '#94a3b8' }}>
+          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--color-chocolate-muted)' }}>
             Loading administrators...
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
+          <table className="admin-table">
             <thead>
-              <tr style={{ background: 'rgba(15, 23, 42, 0.6)', color: '#94a3b8', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
-                <th style={{ padding: '14px 24px' }}>Administrator</th>
-                <th style={{ padding: '14px 20px' }}>Email Address</th>
-                <th style={{ padding: '14px 20px' }}>Status</th>
-                <th style={{ padding: '14px 20px' }}>Provisioned Date</th>
-                <th style={{ padding: '14px 24px', textAlign: 'right' }}>Actions</th>
+              <tr>
+                <th>Administrator</th>
+                <th>Email Address</th>
+                <th>Status</th>
+                <th>Provisioned Date</th>
+                <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {adminsList.map((adm) => (
-                <tr
-                  key={adm.id}
-                  style={{
-                    borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                    transition: 'background 0.2s',
-                  }}
-                >
-                  <td style={{ padding: '16px 24px' }}>
+                <tr key={adm.id}>
+                  <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                       <div
                         style={{
                           width: '36px',
                           height: '36px',
                           borderRadius: '50%',
-                          background: 'rgba(14, 147, 132, 0.25)',
-                          color: '#57c7bc',
+                          background: 'rgba(223, 171, 98, 0.15)',
+                          color: 'var(--color-chocolate)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           fontWeight: 700,
+                          fontSize: '0.9rem',
                         }}
                       >
                         {adm.full_name ? adm.full_name[0].toUpperCase() : 'A'}
                       </div>
                       <div>
-                        <div style={{ fontWeight: 600, color: '#ffffff' }}>{adm.full_name}</div>
-                        <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Role: {adm.role}</div>
+                        <div style={{ fontWeight: 600, color: 'var(--color-chocolate)' }}>{adm.full_name}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--color-chocolate-muted)' }}>
+                          Role: {adm.role}
+                          {adm.admin_sub_role && (
+                            <span style={{ marginLeft: '8px', padding: '2px 8px', borderRadius: '999px', fontSize: '0.68rem', fontWeight: 700, background: adm.admin_sub_role === 'super_admin' ? 'rgba(42, 23, 15, 0.1)' : 'rgba(223, 171, 98, 0.15)', color: adm.admin_sub_role === 'super_admin' ? 'var(--color-chocolate)' : 'var(--color-gold-dark)' }}>
+                              {adm.admin_sub_role === 'super_admin' ? 'Super Admin' : 'Support'}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>
 
-                  <td style={{ padding: '16px 20px', color: '#cbd5e1' }}>{adm.email}</td>
+                  <td style={{ color: 'var(--color-chocolate)' }}>{adm.email}</td>
 
-                  <td style={{ padding: '16px 20px' }}>
+                  <td>
                     <span
                       style={{
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '4px',
-                        padding: '3px 10px',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.75rem',
+                        padding: '3px 9px',
+                        borderRadius: '999px',
+                        fontSize: '0.72rem',
                         fontWeight: 700,
-                        background: adm.status === 'active' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)',
-                        color: adm.status === 'active' ? '#34d399' : '#f87171',
+                        background: adm.status === 'active' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(220, 38, 38, 0.1)',
+                        color: adm.status === 'active' ? '#047857' : '#DC2626',
                       }}
                     >
                       {adm.status.toUpperCase()}
                     </span>
                   </td>
 
-                  <td style={{ padding: '16px 20px', color: '#94a3b8', fontSize: '0.85rem' }}>
+                  <td style={{ color: 'var(--color-chocolate-muted)', fontSize: '0.85rem' }}>
                     {adm.created_at ? new Date(adm.created_at).toLocaleDateString() : 'Initial Seed'}
                   </td>
 
-                  <td style={{ padding: '16px 24px', textAlign: 'right' }}>
+                  <td style={{ textAlign: 'right' }}>
                     {adm.email !== admin.email && adm.status === 'active' ? (
                       <button
                         onClick={() => handleRevoke(adm.id, adm.email)}
@@ -317,20 +295,20 @@ export default function AdminUsersManagementPage() {
                           alignItems: 'center',
                           gap: '6px',
                           padding: '6px 12px',
-                          borderRadius: 'var(--radius-sm)',
-                          background: 'rgba(239, 68, 68, 0.15)',
-                          color: '#f87171',
-                          border: '1px solid rgba(239, 68, 68, 0.3)',
-                          fontSize: '0.8rem',
+                          borderRadius: '8px',
+                          background: 'rgba(220, 38, 38, 0.1)',
+                          color: '#DC2626',
+                          border: '1px solid rgba(220, 38, 38, 0.35)',
+                          fontSize: '0.78rem',
                           fontWeight: 600,
                           cursor: 'pointer',
                         }}
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                         <span>Revoke Access</span>
                       </button>
                     ) : (
-                      <span style={{ fontSize: '0.8rem', color: '#64748b' }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--color-chocolate-muted)' }}>
                         {adm.email === admin.email ? 'Current User' : 'Revoked'}
                       </span>
                     )}
@@ -348,8 +326,8 @@ export default function AdminUsersManagementPage() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(8px)',
+            background: 'rgba(42, 23, 15, 0.6)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -358,26 +336,24 @@ export default function AdminUsersManagementPage() {
           }}
         >
           <div
+            className="admin-card"
             style={{
               width: '100%',
               maxWidth: '480px',
-              background: '#1e293b',
-              borderRadius: 'var(--radius-xl)',
               padding: '32px',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+              boxShadow: 'var(--shadow-xl)',
             }}
           >
-            <h2 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '6px', color: '#ffffff' }}>
+            <h2 className="section-title" style={{ fontSize: '1.35rem', marginBottom: '6px' }}>
               Provision New Administrator
             </h2>
-            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginBottom: '24px' }}>
+            <p style={{ color: 'var(--color-chocolate-muted)', fontSize: '0.85rem', marginBottom: '24px' }}>
               Administrators hold elevated permissions over platform settings, financials, and doctor verification.
             </p>
 
             <form onSubmit={handleInvite}>
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-chocolate)', marginBottom: '6px' }}>
                   Full Legal Name
                 </label>
                 <input
@@ -386,21 +362,12 @@ export default function AdminUsersManagementPage() {
                   value={inviteName}
                   onChange={(e) => setInviteName(e.target.value)}
                   placeholder="e.g. Nomvula Dlamini"
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid #334155',
-                    background: '#0f172a',
-                    color: '#ffffff',
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                  }}
+                  className="admin-input"
                 />
               </div>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-chocolate)', marginBottom: '6px' }}>
                   Official Email Address
                 </label>
                 <input
@@ -409,21 +376,12 @@ export default function AdminUsersManagementPage() {
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
                   placeholder="nomvula@chekup247.co.za"
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid #334155',
-                    background: '#0f172a',
-                    color: '#ffffff',
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                  }}
+                  className="admin-input"
                 />
               </div>
 
-              <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#cbd5e1', marginBottom: '6px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-chocolate)', marginBottom: '6px' }}>
                   Initial Password (leave empty for auto-generated secure key)
                 </label>
                 <input
@@ -431,47 +389,37 @@ export default function AdminUsersManagementPage() {
                   value={invitePassword}
                   onChange={(e) => setInvitePassword(e.target.value)}
                   placeholder="Leave blank to auto-generate"
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    border: '1px solid #334155',
-                    background: '#0f172a',
-                    color: '#ffffff',
-                    fontSize: '0.9rem',
-                    outline: 'none',
-                  }}
+                  className="admin-input"
                 />
+              </div>
+
+              <div style={{ marginBottom: '24px' }}>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-chocolate)', marginBottom: '6px' }}>
+                  Admin Sub-Role
+                </label>
+                <select
+                  value={inviteSubRole}
+                  onChange={(e) => setInviteSubRole(e.target.value as 'support' | 'super_admin')}
+                  className="admin-select"
+                  style={{ width: '100%' }}
+                >
+                  <option value="support">Support (read + case-work — bookings, disputes, patients)</option>
+                  <option value="super_admin">Super Admin (full access — settings, admin accounts, payouts)</option>
+                </select>
               </div>
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
                 <button
                   type="button"
                   onClick={() => setInviteModalOpen(false)}
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'transparent',
-                    color: '#94a3b8',
-                    border: '1px solid #334155',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                  }}
+                  className="btn-secondary"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={inviting}
-                  style={{
-                    padding: '10px 20px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'var(--color-brand-500)',
-                    color: '#ffffff',
-                    border: 'none',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                  }}
+                  className="btn-primary"
                 >
                   {inviting ? 'Provisioning...' : 'Confirm Provisioning'}
                 </button>

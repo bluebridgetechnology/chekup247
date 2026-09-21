@@ -19,7 +19,7 @@ const navItems = [
   { label: 'E-Prescriptions', href: '/prescriptions', icon: 'document-text-linear' },
   { label: 'ICD-10 Coding', href: '/icd10', icon: 'stethoscope-linear' },
   { label: 'Earnings & Payouts', href: '/earnings', icon: 'wallet-money-linear' },
-  { label: 'Doctor Profile', href: '/profile', icon: 'user-circle-linear' },
+  { label: 'My Profile', href: '/profile', icon: 'user-circle-linear' },
 ];
 
 export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
@@ -70,7 +70,7 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
               <div
                 style={{
                   fontFamily: 'var(--font-heading), sans-serif',
-                  fontWeight: 800,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   fontSize: '1.2rem',
                   letterSpacing: '-0.02em',
                   lineHeight: 1,
@@ -327,9 +327,15 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
                   fontWeight: 700,
                   fontSize: '0.85rem',
                   flexShrink: 0,
+                  overflow: 'hidden',
+                  border: '1.5px solid rgba(223, 171, 98, 0.35)',
                 }}
               >
-                {doctor?.fullName ? doctor.fullName.substring(0, 2).toUpperCase() : 'DR'}
+                <img
+                  src={profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url || '/images/doctor_sarah_avatar.jpg'}
+                  alt={doctor?.fullName || 'Doctor'}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div

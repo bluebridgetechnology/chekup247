@@ -12,6 +12,7 @@
     "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
+    "types": ["node", "jest", "express", "bcryptjs", "jsonwebtoken", "pg"],
     "strictNullChecks": false,
     "noImplicitAny": false,
     "strictBindCallApply": false,

@@ -66,6 +66,33 @@ export class TokenService {
     return { token, hash };
   }
 
+  /**
+   * Short-lived (5 min) token proving the password step of a two-factor
+   * login already succeeded. Deliberately NOT accepted by JwtAuthGuard —
+   * it is signed with the same secret for convenience, but carries a
+   * `type: 'totp_challenge'` marker instead of a `role`, and is only ever
+   * read by AuthService.completeTotpLogin, which checks that marker
+   * explicitly before trusting it for anything.
+   */
+  generateTotpChallengeToken(userId: string): string {
+    return jwt.sign({ sub: userId, type: 'totp_challenge' }, this.jwtSecret, { expiresIn: '5m' });
+  }
+
+  verifyTotpChallengeToken(token: string): { sub: string } {
+    let payload: any;
+    try {
+      payload = jwt.verify(token, this.jwtSecret);
+    } catch (err: any) {
+      throw new UnauthorizedException(
+        err.name === 'TokenExpiredError' ? 'Two-factor challenge has expired, please log in again' : 'Invalid two-factor challenge',
+      );
+    }
+    if (payload?.type !== 'totp_challenge' || !payload?.sub) {
+      throw new UnauthorizedException('Invalid two-factor challenge');
+    }
+    return { sub: payload.sub };
+  }
+
   generateOtp(): { otp: string; hash: string } {
     const otp = crypto.randomInt(100000, 999999).toString();
     const hash = this.hashToken(otp);

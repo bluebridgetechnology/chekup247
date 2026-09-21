@@ -194,43 +194,15 @@ export default function DoctorAppointmentsPage() {
                 Telehealth Queue • Direct Daily.co Launcher
               </span>
             </div>
-            <h1
-              style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: '1.95rem',
-                fontWeight: 700,
-                color: 'var(--color-chocolate-base, #2A170F)',
-                letterSpacing: '-0.02em',
-                margin: 0,
-              }}
-            >
+            <h1 className="page-title">
               Consultation Queue & Appointments
             </h1>
-            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.925rem', marginTop: '6px', maxWidth: '680px', lineHeight: 1.5 }}>
+            <p className="page-subtitle" style={{ maxWidth: '680px' }}>
               Manage today&apos;s clinical consultations, connect to high-definition video rooms, and inspect scheduled patient records.
             </p>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <button
-              type="button"
-              onClick={() => loadAppointments(true)}
-              disabled={isRefreshing}
-              className="btn-secondary"
-              title="Refresh appointment queue"
-              style={{ padding: '9px 16px', fontSize: '0.84rem' }}
-            >
-              <SolarIcon
-                name="refresh-linear"
-                size={16}
-                color="var(--color-chocolate-base, #2A170F)"
-                style={{
-                  animation: isRefreshing ? 'spin 1s linear infinite' : 'none',
-                }}
-              />
-              <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
-            </button>
-
             <Link href="/calendar" className="btn-secondary" style={{ padding: '9px 18px', fontSize: '0.84rem' }}>
               <SolarIcon name="calendar-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
               <span>Manage Roster</span>
@@ -243,7 +215,7 @@ export default function DoctorAppointmentsPage() {
           {/* Today's Patients */}
           <div className="portal-card" style={{ padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span className="stat-label">
                 Today&apos;s Queue
               </span>
               <div
@@ -260,7 +232,7 @@ export default function DoctorAppointmentsPage() {
                 <SolarIcon name="user-rounded-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1 }}>
+            <div className="stat-number">
               {counts.today}
             </div>
             <div style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 600, marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -272,7 +244,7 @@ export default function DoctorAppointmentsPage() {
           {/* Estimated Payout Today */}
           <div className="portal-card" style={{ padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span className="stat-label">
                 Estimated Payout Today
               </span>
               <div
@@ -289,7 +261,7 @@ export default function DoctorAppointmentsPage() {
                 <SolarIcon name="wallet-money-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1 }}>
+            <div className="stat-number">
               R{counts.todayPayout.toFixed(2)}
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '8px' }}>
@@ -300,7 +272,7 @@ export default function DoctorAppointmentsPage() {
           {/* Upcoming Total */}
           <div className="portal-card" style={{ padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span className="stat-label">
                 Upcoming Consultations
               </span>
               <div
@@ -317,7 +289,7 @@ export default function DoctorAppointmentsPage() {
                 <SolarIcon name="calendar-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1 }}>
+            <div className="stat-number">
               {counts.upcoming}
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '8px' }}>
@@ -328,7 +300,7 @@ export default function DoctorAppointmentsPage() {
           {/* Completed Visits */}
           <div className="portal-card" style={{ padding: '20px 22px' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <span className="stat-label">
                 Completed Visits
               </span>
               <div
@@ -345,7 +317,7 @@ export default function DoctorAppointmentsPage() {
                 <SolarIcon name="check-circle-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
               </div>
             </div>
-            <div style={{ fontFamily: 'var(--font-heading)', fontSize: '2rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1 }}>
+            <div className="stat-number">
               {counts.completed}
             </div>
             <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '8px' }}>
@@ -435,7 +407,7 @@ export default function DoctorAppointmentsPage() {
                 </span>
               </div>
 
-              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
+              <div style={{ fontFamily: 'var(--font-heading)', fontSize: '1.15rem', fontWeight: 'var(--font-heading-weight, 400)', color: 'var(--color-chocolate-base, #2A170F)' }}>
                 {imminentAppointment.patient?.fullName || 'Scheduled Patient'}
               </div>
 
@@ -980,7 +952,7 @@ export default function DoctorAppointmentsPage() {
                 <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-gold-bronze, #B88647)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                   Patient Client
                 </div>
-                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '1.1rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '4px' }}>
+                <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', fontSize: '1.1rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '4px' }}>
                   {selectedAppointment.patient?.fullName || 'Patient Client'}
                 </div>
                 <div style={{ fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1008,7 +980,7 @@ export default function DoctorAppointmentsPage() {
                   <div style={{ fontSize: '0.72rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, textTransform: 'uppercase' }}>
                     Date
                   </div>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '0.925rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '3px' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', fontSize: '0.925rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '3px' }}>
                     {selectedAppointment.slot?.startTime
                       ? new Date(selectedAppointment.slot.startTime).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
                       : 'Today'}
@@ -1026,7 +998,7 @@ export default function DoctorAppointmentsPage() {
                   <div style={{ fontSize: '0.72rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 700, textTransform: 'uppercase' }}>
                     Time Window
                   </div>
-                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: '0.925rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '3px' }}>
+                  <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', fontSize: '0.925rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '3px' }}>
                     {selectedAppointment.slot?.startTime
                       ? new Date(selectedAppointment.slot.startTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
                       : '10:00'}{' '}

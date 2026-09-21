@@ -272,14 +272,15 @@ function DisputeResolutionWorkspaceInner() {
   const totalPages = Math.ceil((data?.total || 0) / limit) || 1;
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '28px' }}>
+    <div style={{ maxWidth: '1400px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px' }}>
         <div>
-          <h1 style={{ fontSize: '1.85rem', color: '#f8fafc', fontWeight: 800, margin: '0 0 6px 0' }}>
+          <h1 className="page-title" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Scale size={26} color="var(--color-gold-dark)" />
             Dispute & Refund Resolution Workspace
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: '0.925rem', margin: 0 }}>
+          <p className="page-subtitle">
             Investigate cancelled appointments, no-show disputes, and LiveKit telemetry to adjudicate Paystack refunds or patient wallet credits.
           </p>
         </div>
@@ -287,19 +288,7 @@ function DisputeResolutionWorkspaceInner() {
         <button
           onClick={() => fetchDisputes()}
           disabled={isLoading}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: '#1e293b',
-            border: '1px solid #334155',
-            color: '#cbd5e1',
-            padding: '8px 14px',
-            borderRadius: '8px',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-          }}
+          className="btn-secondary"
         >
           <RefreshCw size={14} style={{ animation: isLoading ? 'spin 1s linear infinite' : 'none' }} />
           <span>Refresh Queue</span>
@@ -315,12 +304,11 @@ function DisputeResolutionWorkspaceInner() {
           alignItems: 'center',
           gap: '16px',
           flexWrap: 'wrap',
-          background: '#162032',
         }}
       >
         {/* Search */}
         <div style={{ flex: 1, minWidth: '240px', position: 'relative' }}>
-          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
+          <Search size={16} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-chocolate-muted)' }} />
           <input
             type="text"
             value={search}
@@ -329,35 +317,21 @@ function DisputeResolutionWorkspaceInner() {
               setPage(1);
             }}
             placeholder="Search booking ref, patient or doctor..."
-            style={{
-              width: '100%',
-              padding: '10px 12px 10px 36px',
-              background: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              color: '#f8fafc',
-              fontSize: '0.85rem',
-            }}
+            className="admin-input"
+            style={{ paddingLeft: '36px' }}
           />
         </div>
 
         {/* Status Filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Status:</span>
+          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-chocolate-muted)' }}>Status:</span>
           <select
             value={statusFilter}
             onChange={(e) => {
               setStatusFilter(e.target.value);
               setPage(1);
             }}
-            style={{
-              padding: '10px 14px',
-              background: '#0f172a',
-              border: '1px solid #334155',
-              borderRadius: '8px',
-              color: '#f8fafc',
-              fontSize: '0.85rem',
-            }}
+            className="admin-select"
           >
             <option value="all">All Disputed & Cancelled</option>
             <option value="cancelled">Cancelled</option>
@@ -367,7 +341,7 @@ function DisputeResolutionWorkspaceInner() {
       </div>
 
       {/* Disputes Queue Table */}
-      <div className="admin-card" style={{ padding: 0, overflow: 'hidden' }}>
+      <div className="admin-table-container">
         <div style={{ overflowX: 'auto' }}>
           <table className="admin-table">
             <thead>
@@ -385,7 +359,7 @@ function DisputeResolutionWorkspaceInner() {
             <tbody>
               {disputes.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '48px', color: '#94a3b8' }}>
+                  <td colSpan={8} style={{ textAlign: 'center', padding: '48px', color: 'var(--color-chocolate-muted)' }}>
                     No outstanding cancellation disputes or no-show flags requiring resolution.
                   </td>
                 </tr>
@@ -393,47 +367,47 @@ function DisputeResolutionWorkspaceInner() {
                 disputes.map((d) => (
                   <tr key={d.bookingId}>
                     <td>
-                      <div style={{ fontFamily: 'monospace', color: 'var(--color-brand-400)', fontWeight: 700 }}>
+                      <div style={{ fontFamily: 'monospace', color: 'var(--color-gold-dark)', fontWeight: 700 }}>
                         {d.reference || d.bookingId}
                       </div>
-                      <div style={{ fontSize: '0.7rem', color: '#64748b' }}>{d.bookingId}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--color-chocolate-muted)' }}>{d.bookingId}</div>
                     </td>
-                    <td style={{ color: '#cbd5e1' }}>{d.patientMasked}</td>
+                    <td style={{ color: 'var(--color-chocolate)' }}>{d.patientMasked}</td>
                     <td>
-                      <div style={{ fontWeight: 600, color: '#f8fafc' }}>{d.doctorName}</div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{d.doctorSpecialty}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--color-chocolate)' }}>{d.doctorName}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--color-chocolate-muted)' }}>{d.doctorSpecialty}</div>
                     </td>
                     <td>
                       <span
                         style={{
                           display: 'inline-block',
-                          padding: '3px 8px',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          fontWeight: 600,
-                          background: d.status === 'cancelled' ? 'rgba(239, 68, 68, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                          color: d.status === 'cancelled' ? '#f87171' : '#fbbf24',
+                          padding: '3px 9px',
+                          borderRadius: '999px',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          background: d.status === 'cancelled' ? 'rgba(220, 38, 38, 0.1)' : 'rgba(217, 119, 6, 0.1)',
+                          color: d.status === 'cancelled' ? '#DC2626' : '#B45309',
                           textTransform: 'capitalize',
                         }}
                       >
                         {d.status.replace('_', ' ')}
                       </span>
                     </td>
-                    <td style={{ fontWeight: 700, color: '#f8fafc' }}>R {d.amount}</td>
-                    <td style={{ fontSize: '0.8rem', color: '#cbd5e1', maxWidth: '300px' }}>
+                    <td style={{ fontWeight: 700, color: 'var(--color-chocolate)' }}>R {d.amount}</td>
+                    <td style={{ fontSize: '0.8rem', color: 'var(--color-chocolate)', maxWidth: '300px' }}>
                       {d.cancellationReason || 'No dispute statement provided.'}
                     </td>
                     <td>
                       {d.hasRefund ? (
-                        <span style={{ fontSize: '0.75rem', color: '#34d399', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', color: '#047857', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                           <CheckCircle2 size={12} /> Refunded
                         </span>
                       ) : d.hasCredit ? (
-                        <span style={{ fontSize: '0.75rem', color: '#a78bfa', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--color-gold-dark)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                           <CheckCircle2 size={12} /> Credited
                         </span>
                       ) : (
-                        <span style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>
+                        <span style={{ fontSize: '0.75rem', color: '#DC2626', fontWeight: 600 }}>
                           Pending Adjudication
                         </span>
                       )}
@@ -441,18 +415,10 @@ function DisputeResolutionWorkspaceInner() {
                     <td style={{ textAlign: 'right' }}>
                       <button
                         onClick={() => openResolution(d)}
+                        className="btn-primary"
                         style={{
-                          background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-                          border: 'none',
-                          color: '#ffffff',
-                          padding: '6px 12px',
-                          borderRadius: '6px',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
+                          padding: '6px 14px',
+                          fontSize: '0.78rem',
                         }}
                       >
                         <Scale size={13} />
@@ -469,15 +435,15 @@ function DisputeResolutionWorkspaceInner() {
         {/* Pagination */}
         <div
           style={{
-            padding: '16px 24px',
-            borderTop: '1px solid #334155',
+            padding: '14px 20px',
+            borderTop: '1px solid rgba(42, 23, 15, 0.08)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            background: '#0f172a',
+            background: 'var(--color-cream-canvas)',
           }}
         >
-          <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+          <span style={{ fontSize: '0.8rem', color: 'var(--color-chocolate-muted)', fontWeight: 500 }}>
             Showing {disputes.length} of {data?.total || 0} disputes (Page {page} of {totalPages})
           </span>
 
@@ -485,16 +451,9 @@ function DisputeResolutionWorkspaceInner() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1}
+              className="btn-secondary"
               style={{
-                background: '#1e293b',
-                border: '1px solid #334155',
-                color: page <= 1 ? '#64748b' : '#f8fafc',
                 padding: '6px 12px',
-                borderRadius: '6px',
-                cursor: page <= 1 ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
                 fontSize: '0.8rem',
               }}
             >
@@ -503,16 +462,9 @@ function DisputeResolutionWorkspaceInner() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
+              className="btn-secondary"
               style={{
-                background: '#1e293b',
-                border: '1px solid #334155',
-                color: page >= totalPages ? '#64748b' : '#f8fafc',
                 padding: '6px 12px',
-                borderRadius: '6px',
-                cursor: page >= totalPages ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
                 fontSize: '0.8rem',
               }}
             >
@@ -528,8 +480,8 @@ function DisputeResolutionWorkspaceInner() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.75)',
-            backdropFilter: 'blur(5px)',
+            background: 'rgba(42, 23, 15, 0.6)',
+            backdropFilter: 'blur(4px)',
             zIndex: 60,
             display: 'flex',
             alignItems: 'center',
@@ -544,25 +496,23 @@ function DisputeResolutionWorkspaceInner() {
               maxWidth: '680px',
               maxHeight: '90vh',
               overflowY: 'auto',
-              background: '#0f172a',
-              border: '1px solid #334155',
               padding: '28px',
-              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
+              boxShadow: 'var(--shadow-xl)',
               display: 'flex',
               flexDirection: 'column',
               gap: '20px',
             }}
           >
             {/* Modal Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid #334155', paddingBottom: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid rgba(42, 23, 15, 0.08)', paddingBottom: '16px' }}>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <Scale size={20} color="#f87171" />
-                  <h2 style={{ fontSize: '1.35rem', color: '#f8fafc', margin: 0, fontWeight: 700 }}>
+                  <Scale size={20} color="var(--color-gold-dark)" />
+                  <h2 className="section-title" style={{ margin: 0, fontSize: '1.25rem' }}>
                     Adjudicate Dispute: {selectedDispute.reference || selectedDispute.bookingId}
                   </h2>
                 </div>
-                <p style={{ color: '#94a3b8', fontSize: '0.825rem', margin: 0 }}>
+                <p style={{ color: 'var(--color-chocolate-muted)', fontSize: '0.85rem', margin: 0 }}>
                   Review connection logs, verify grounds, and execute financial remedy.
                 </p>
               </div>
@@ -572,7 +522,7 @@ function DisputeResolutionWorkspaceInner() {
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#94a3b8',
+                  color: 'var(--color-chocolate-muted)',
                   cursor: 'pointer',
                   padding: '4px',
                 }}
@@ -583,32 +533,32 @@ function DisputeResolutionWorkspaceInner() {
 
             {/* Notification alerts */}
             {actionSuccessMessage && (
-              <div style={{ background: 'rgba(16, 185, 129, 0.15)', border: '1px solid #10b981', borderRadius: '8px', padding: '12px 16px', color: '#34d399', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.35)', borderRadius: '8px', padding: '12px 16px', color: '#047857', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <CheckCircle2 size={16} /> {actionSuccessMessage}
               </div>
             )}
             {actionErrorMessage && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.15)', border: '1px solid #ef4444', borderRadius: '8px', padding: '12px 16px', color: '#f87171', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ background: 'rgba(220, 38, 38, 0.1)', border: '1px solid rgba(220, 38, 38, 0.35)', borderRadius: '8px', padding: '12px 16px', color: '#DC2626', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <AlertCircle size={16} /> {actionErrorMessage}
               </div>
             )}
 
             {/* Dispute Case Summary */}
-            <div style={{ background: '#1e293b', padding: '16px', borderRadius: '8px', border: '1px solid #334155', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div style={{ background: 'var(--color-cream-canvas)', padding: '16px', borderRadius: '10px', border: '1px solid rgba(42, 23, 15, 0.08)', display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Patient</span>
-                  <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.9rem' }}>{selectedDispute.patientMasked}</div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-chocolate-muted)', textTransform: 'uppercase' }}>Patient</span>
+                  <div style={{ fontWeight: 600, color: 'var(--color-chocolate)', fontSize: '0.9rem' }}>{selectedDispute.patientMasked}</div>
                 </div>
                 <div>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Attending Doctor</span>
-                  <div style={{ fontWeight: 600, color: '#f8fafc', fontSize: '0.9rem' }}>{selectedDispute.doctorName}</div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-chocolate-muted)', textTransform: 'uppercase' }}>Attending Doctor</span>
+                  <div style={{ fontWeight: 600, color: 'var(--color-chocolate)', fontSize: '0.9rem' }}>{selectedDispute.doctorName}</div>
                 </div>
               </div>
 
               <div>
-                <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase' }}>Reported Reason</span>
-                <div style={{ color: '#e2e8f0', fontSize: '0.85rem', marginTop: '2px', fontStyle: 'italic', background: '#0f172a', padding: '8px 12px', borderRadius: '6px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-chocolate-muted)', textTransform: 'uppercase' }}>Reported Reason</span>
+                <div style={{ color: 'var(--color-chocolate)', fontSize: '0.85rem', marginTop: '2px', fontStyle: 'italic', background: 'var(--color-cream-surface)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(42, 23, 15, 0.06)' }}>
                   "{selectedDispute.cancellationReason || 'No dispute statement recorded'}"
                 </div>
               </div>
@@ -616,21 +566,21 @@ function DisputeResolutionWorkspaceInner() {
 
             {/* LiveKit Webhook Call Connection Telemetry */}
             {selectedDispute.callLogs && (
-              <div style={{ background: '#162032', padding: '14px 16px', borderRadius: '8px', border: '1px solid #334155' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: '#38bdf8', fontWeight: 700, marginBottom: '8px' }}>
+              <div style={{ background: 'var(--color-cream-canvas)', padding: '14px 16px', borderRadius: '10px', border: '1px solid rgba(42, 23, 15, 0.08)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', color: 'var(--color-gold-dark)', fontWeight: 700, marginBottom: '8px' }}>
                   <PhoneCall size={14} /> LiveKit Session Telemetry
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginBottom: '8px' }}>
-                  Room: <code style={{ color: '#f8fafc' }}>{selectedDispute.callLogs.roomName}</code> • Connected Duration: <strong>{selectedDispute.callLogs.durationSeconds} seconds</strong>
+                <div style={{ fontSize: '0.8rem', color: 'var(--color-chocolate)', marginBottom: '8px' }}>
+                  Room: <code style={{ color: 'var(--color-chocolate)', fontWeight: 600 }}>{selectedDispute.callLogs.roomName}</code> • Connected Duration: <strong>{selectedDispute.callLogs.durationSeconds} seconds</strong>
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   {selectedDispute.callLogs.participantEvents.map((ev, i) => (
-                    <div key={i} style={{ fontSize: '0.75rem', color: '#94a3b8', display: 'flex', justifyContent: 'space-between' }}>
+                    <div key={i} style={{ fontSize: '0.75rem', color: 'var(--color-chocolate-muted)', display: 'flex', justifyContent: 'space-between' }}>
                       <span>
-                        <strong style={{ color: ev.role === 'doctor' ? '#38bdf8' : '#c084fc' }}>{ev.role.toUpperCase()} ({ev.user})</strong> joined at {ev.joinedAt}, left at {ev.leftAt}
+                        <strong style={{ color: ev.role === 'doctor' ? 'var(--color-chocolate)' : 'var(--color-gold-dark)' }}>{ev.role.toUpperCase()} ({ev.user})</strong> joined at {ev.joinedAt}, left at {ev.leftAt}
                       </span>
-                      {ev.reason && <span style={{ color: '#f87171' }}>[{ev.reason}]</span>}
+                      {ev.reason && <span style={{ color: '#DC2626', fontWeight: 600 }}>[{ev.reason}]</span>}
                     </div>
                   ))}
                 </div>
@@ -639,7 +589,7 @@ function DisputeResolutionWorkspaceInner() {
 
             {/* Resolution Type Picker */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#cbd5e1', textTransform: 'uppercase' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-chocolate)', textTransform: 'uppercase' }}>
                 Select Remedial Action
               </label>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
@@ -647,11 +597,11 @@ function DisputeResolutionWorkspaceInner() {
                   type="button"
                   onClick={() => setResolutionType('refund')}
                   style={{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: resolutionType === 'refund' ? '2px solid #ef4444' : '1px solid #334155',
-                    background: resolutionType === 'refund' ? 'rgba(239, 68, 68, 0.15)' : '#1e293b',
-                    color: '#f8fafc',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    border: resolutionType === 'refund' ? '2px solid #DC2626' : '1px solid rgba(42, 23, 15, 0.12)',
+                    background: resolutionType === 'refund' ? 'rgba(220, 38, 38, 0.08)' : 'var(--color-cream-surface)',
+                    color: 'var(--color-chocolate)',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
@@ -661,20 +611,20 @@ function DisputeResolutionWorkspaceInner() {
                     fontWeight: 600,
                   }}
                 >
-                  <CreditCard size={18} color="#f87171" />
+                  <CreditCard size={18} color="#DC2626" />
                   <span>Paystack Refund</span>
-                  <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>R {selectedDispute.amount}</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--color-chocolate-muted)' }}>R {selectedDispute.amount}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setResolutionType('credit')}
                   style={{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: resolutionType === 'credit' ? '2px solid #10b981' : '1px solid #334155',
-                    background: resolutionType === 'credit' ? 'rgba(16, 185, 129, 0.15)' : '#1e293b',
-                    color: '#f8fafc',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    border: resolutionType === 'credit' ? '2px solid #047857' : '1px solid rgba(42, 23, 15, 0.12)',
+                    background: resolutionType === 'credit' ? 'rgba(16, 185, 129, 0.08)' : 'var(--color-cream-surface)',
+                    color: 'var(--color-chocolate)',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
@@ -684,20 +634,20 @@ function DisputeResolutionWorkspaceInner() {
                     fontWeight: 600,
                   }}
                 >
-                  <Wallet size={18} color="#34d399" />
+                  <Wallet size={18} color="#047857" />
                   <span>Wallet Credit</span>
-                  <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>R {creditAmount}</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--color-chocolate-muted)' }}>R {creditAmount}</span>
                 </button>
 
                 <button
                   type="button"
                   onClick={() => setResolutionType('dismiss')}
                   style={{
-                    padding: '12px',
-                    borderRadius: '8px',
-                    border: resolutionType === 'dismiss' ? '2px solid #94a3b8' : '1px solid #334155',
-                    background: resolutionType === 'dismiss' ? 'rgba(148, 163, 184, 0.15)' : '#1e293b',
-                    color: '#f8fafc',
+                    padding: '14px',
+                    borderRadius: '10px',
+                    border: resolutionType === 'dismiss' ? '2px solid var(--color-chocolate)' : '1px solid rgba(42, 23, 15, 0.12)',
+                    background: resolutionType === 'dismiss' ? 'rgba(42, 23, 15, 0.08)' : 'var(--color-cream-surface)',
+                    color: 'var(--color-chocolate)',
                     cursor: 'pointer',
                     display: 'flex',
                     flexDirection: 'column',
@@ -707,9 +657,9 @@ function DisputeResolutionWorkspaceInner() {
                     fontWeight: 600,
                   }}
                 >
-                  <AlertOctagon size={18} color="#94a3b8" />
+                  <AlertOctagon size={18} color="var(--color-chocolate-muted)" />
                   <span>Dismiss Case</span>
-                  <span style={{ fontSize: '0.7rem', color: '#94a3b8' }}>No Financial Action</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--color-chocolate-muted)' }}>No Financial Action</span>
                 </button>
               </div>
             </div>
@@ -717,68 +667,41 @@ function DisputeResolutionWorkspaceInner() {
             {/* If Wallet Credit, allow amount modification */}
             {resolutionType === 'credit' && (
               <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: '#94a3b8' }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-chocolate)' }}>
                   Credit Amount to Patient (Rands):
                 </label>
                 <input
                   type="number"
                   value={creditAmount}
                   onChange={(e) => setCreditAmount(Number(e.target.value))}
-                  style={{
-                    width: '100%',
-                    padding: '10px 14px',
-                    background: '#0f172a',
-                    border: '1px solid #334155',
-                    borderRadius: '8px',
-                    color: '#f8fafc',
-                    fontSize: '0.9rem',
-                    marginTop: '4px',
-                  }}
+                  className="admin-input"
+                  style={{ marginTop: '4px' }}
                 />
               </div>
             )}
 
             {/* Mandatory Justification Note */}
             <div>
-              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#cbd5e1', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <label style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-chocolate)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <span>Mandatory Adjudication Justification Reason</span>
-                <span style={{ color: '#ef4444' }}>* (POPIA Audit Logged)</span>
+                <span style={{ color: '#DC2626' }}>* (POPIA Audit Logged)</span>
               </label>
               <textarea
                 value={justificationReason}
                 onChange={(e) => setJustificationReason(e.target.value)}
                 rows={3}
                 placeholder="e.g. Telemetry confirms doctor experienced intermittent packet loss and disconnected. Issuing full Paystack refund per Platform Terms Section 6.2."
-                style={{
-                  width: '100%',
-                  padding: '10px 14px',
-                  background: '#0f172a',
-                  border: '1px solid #334155',
-                  borderRadius: '8px',
-                  color: '#f8fafc',
-                  fontSize: '0.85rem',
-                  marginTop: '6px',
-                  lineHeight: 1.4,
-                  resize: 'vertical',
-                }}
+                className="admin-input"
+                style={{ marginTop: '6px', resize: 'vertical' }}
               />
             </div>
 
             {/* Action Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid #334155', paddingTop: '16px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', borderTop: '1px solid rgba(42, 23, 15, 0.08)', paddingTop: '16px' }}>
               <button
                 type="button"
                 onClick={() => setSelectedDispute(null)}
-                style={{
-                  padding: '10px 18px',
-                  background: '#1e293b',
-                  border: '1px solid #334155',
-                  color: '#cbd5e1',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                }}
+                className="btn-secondary"
               >
                 Cancel
               </button>
@@ -787,18 +710,9 @@ function DisputeResolutionWorkspaceInner() {
                 type="button"
                 onClick={handleExecuteResolution}
                 disabled={isSubmitting}
+                className="btn-primary"
                 style={{
-                  padding: '10px 22px',
-                  background: resolutionType === 'refund' ? '#ef4444' : resolutionType === 'credit' ? '#10b981' : '#475569',
-                  border: 'none',
-                  color: '#ffffff',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
+                  background: resolutionType === 'refund' ? '#DC2626' : undefined,
                 }}
               >
                 {isSubmitting ? (

@@ -512,7 +512,7 @@ export default function EPrescriptionBuilderPage() {
                 style={{
                   fontFamily: 'var(--font-heading)',
                   fontSize: '1.75rem',
-                  fontWeight: 800,
+                  fontWeight: 'var(--font-heading-weight, 400)',
                   color: 'var(--color-chocolate-base, #2A170F)',
                   letterSpacing: '-0.02em',
                   margin: 0,
@@ -1141,7 +1141,7 @@ export default function EPrescriptionBuilderPage() {
                       style={{
                         fontFamily: 'var(--font-heading)',
                         fontSize: '1.15rem',
-                        fontWeight: 800,
+                        fontWeight: 'var(--font-heading-weight, 400)',
                         color: 'var(--color-chocolate-base, #2A170F)',
                         margin: 0,
                       }}
@@ -1480,7 +1480,7 @@ export default function EPrescriptionBuilderPage() {
                         style={{
                           fontFamily: 'var(--font-heading)',
                           fontSize: '1.55rem',
-                          fontWeight: 900,
+                          fontWeight: 'var(--font-heading-weight, 400)',
                           color: 'var(--color-chocolate-base, #2A170F)',
                           letterSpacing: '-0.02em',
                           margin: 0,
@@ -1506,7 +1506,7 @@ export default function EPrescriptionBuilderPage() {
                     style={{
                       fontFamily: 'var(--font-heading)',
                       fontSize: '1.1rem',
-                      fontWeight: 900,
+                      fontWeight: 'var(--font-heading-weight, 400)',
                       color: 'var(--color-chocolate-base, #2A170F)',
                       letterSpacing: '-0.01em',
                     }}
@@ -1724,6 +1724,15 @@ export default function EPrescriptionBuilderPage() {
                   <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '2px' }}>
                     HPCSA Reg: {hpcsaReg} • Practice: PR 0998822 • SHA-256 Verified Electronic Seal
                   </div>
+                  {(profile?.signatureUrl || (doctor as any)?.signature_url) && (
+                    <div style={{ marginTop: '10px' }}>
+                      <img
+                        src={profile?.signatureUrl || (doctor as any)?.signature_url}
+                        alt="Practitioner Digital Signature"
+                        style={{ maxHeight: '48px', maxWidth: '170px', objectFit: 'contain' }}
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Seal Stamp */}
@@ -1814,7 +1823,7 @@ export default function EPrescriptionBuilderPage() {
               style={{
                 fontFamily: 'var(--font-heading)',
                 fontSize: '1.75rem',
-                fontWeight: 900,
+                fontWeight: 'var(--font-heading-weight, 400)',
                 color: 'var(--color-chocolate-base, #2A170F)',
                 margin: '0 0 8px 0',
               }}

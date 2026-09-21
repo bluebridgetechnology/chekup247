@@ -26,14 +26,15 @@ export default function AdminErrorBoundary({
         textAlign: 'center',
       }}
     >
-      <div style={{ maxWidth: '500px' }}>
+      <div className="admin-card" style={{ maxWidth: '520px', padding: '36px', background: '#FDFBF7' }}>
         <div
           style={{
             width: '64px',
             height: '64px',
-            borderRadius: '50%',
-            background: '#fef2f2',
-            color: '#dc2626',
+            borderRadius: '16px',
+            background: 'rgba(223, 171, 98, 0.15)',
+            border: '1px solid rgba(223, 171, 98, 0.3)',
+            color: '#DFAB62',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -43,47 +44,37 @@ export default function AdminErrorBoundary({
           <AlertTriangle size={32} />
         </div>
 
-        <h1 style={{ fontSize: '1.75rem', color: '#0f172a', marginBottom: '12px', fontWeight: 800 }}>
+        <h1 style={{ fontSize: '1.75rem', color: '#2A170F', marginBottom: '12px', fontWeight: 800 }}>
           Admin Console Error
         </h1>
-        <p style={{ color: '#64748b', marginBottom: '28px', lineHeight: 1.6 }}>
-          An error occurred while executing the requested administrative operation. System audit logs have been recorded.
+        <p style={{ color: '#6B7280', marginBottom: '28px', lineHeight: 1.6, fontSize: '0.92rem' }}>
+          An unexpected error occurred while executing the requested administrative operation. System audit logs and diagnostics have been preserved.
         </p>
 
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '14px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: '14px', flexWrap: 'wrap' }}>
           <button
             onClick={() => reset()}
+            className="btn-primary"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              background: '#0f172a',
-              color: '#ffffff',
-              padding: '12px 24px',
-              borderRadius: '8px',
-              fontWeight: 600,
-              border: 'none',
-              cursor: 'pointer',
             }}
           >
-            <RotateCcw size={18} />
+            <RotateCcw size={17} />
             <span>Retry Action</span>
           </button>
           <Link
             href="/"
+            className="btn-secondary"
             style={{
               display: 'inline-flex',
               alignItems: 'center',
               gap: '8px',
-              background: '#f1f5f9',
-              color: '#334155',
-              padding: '12px 24px',
-              borderRadius: '8px',
-              fontWeight: 600,
               textDecoration: 'none',
             }}
           >
-            <Home size={18} />
+            <Home size={17} />
             <span>Admin Home</span>
           </Link>
         </div>

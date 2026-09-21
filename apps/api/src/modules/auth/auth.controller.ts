@@ -5,12 +5,13 @@ import {
   Put,
   Body,
   Query,
+  Req,
   Res,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { Response } from 'express';
+import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { LocumStaffSsoService } from './locumstaff-sso.service';
 import {
@@ -25,6 +26,7 @@ import {
   GoogleAuthDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { AdminLoginRateLimitGuard } from '../../common/guards/admin-login-rate-limit.guard';
 import { Public, CurrentUser } from '../../common/decorators/auth.decorators';
 import { JwtPayload } from './token.service';
 
@@ -33,6 +35,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly locumStaffSsoService: LocumStaffSsoService,
+    private readonly rateLimitGuard: AdminLoginRateLimitGuard,
   ) {}
 
   @Public()
@@ -58,12 +61,21 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  @UseGuards(AdminLoginRateLimitGuard)
   @HttpCode(HttpStatus.OK)
   async login(
     @Body() dto: LoginDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     const result = await this.authService.login(dto);
+    this.rateLimitGuard.recordSuccess(req);
+
+    // Password was correct but 2FA hasn't been satisfied yet — return the
+    // challenge as-is, no session cookie, no accessToken issued.
+    if ('requiresTotp' in result) {
+      return result;
+    }
 
     // Set HTTP-only session cookie
     const isProduction = process.env.NODE_ENV === 'production';
@@ -83,6 +95,52 @@ export class AuthController {
     });
 
     return result;
+  }
+
+  @Public()
+  @Post('totp/complete-login')
+  @HttpCode(HttpStatus.OK)
+  async completeTotpLogin(
+    @Body() dto: { challengeToken: string; totpCode: string },
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.completeTotpLogin(dto.challengeToken, dto.totpCode);
+
+    const isProduction = process.env.NODE_ENV === 'production';
+    const cookieName =
+      result.user.role === 'admin'
+        ? 'chekup_admin_session'
+        : result.user.role === 'doctor'
+        ? 'chekup_doctor_session'
+        : 'chekup_session';
+
+    res.cookie(cookieName, result.accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+
+    return result;
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('totp/enroll')
+  async beginTotpEnrollment(@CurrentUser() user: JwtPayload) {
+    return this.authService.beginTotpEnrollment(user.sub);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('totp/confirm')
+  async confirmTotpEnrollment(@CurrentUser() user: JwtPayload, @Body() dto: { code: string }) {
+    return this.authService.confirmTotpEnrollment(user.sub, dto.code);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('totp/disable')
+  async disableTotp(@CurrentUser() user: JwtPayload, @Body() dto: { currentPassword: string }) {
+    return this.authService.disableTotp(user.sub, dto.currentPassword);
   }
 
   @Public()
@@ -244,6 +302,15 @@ export class AuthController {
     },
   ) {
     return this.authService.updateProfile(user.sub, dto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Put('change-password')
+  async changePassword(
+    @CurrentUser() user: JwtPayload,
+    @Body() dto: { currentPassword: string; newPassword: string },
+  ) {
+    return this.authService.changePassword(user.sub, dto);
   }
 
   @UseGuards(JwtAuthGuard)

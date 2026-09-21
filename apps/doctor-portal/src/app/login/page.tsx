@@ -106,7 +106,7 @@ export default function DoctorLoginPage() {
               style={{
                 fontFamily: 'var(--font-heading), sans-serif',
                 fontSize: '2rem',
-                fontWeight: 500,
+                fontWeight: 'var(--font-heading-weight, 400)',
                 color: '#ffffff',
                 lineHeight: 1.25,
                 letterSpacing: '-0.02em',
@@ -292,7 +292,7 @@ export default function DoctorLoginPage() {
               style={{
                 fontFamily: 'var(--font-heading), sans-serif',
                 fontSize: '1.7rem',
-                fontWeight: 600,
+                fontWeight: 'var(--font-heading-weight, 400)',
                 color: 'var(--color-chocolate-base, #2A170F)',
                 margin: '0 0 6px',
                 letterSpacing: '-0.02em',
