@@ -86,6 +86,7 @@ describe('PaymentsService (Paystack & Wallet Credits)', () => {
 
       mockBookingRepository.findOne.mockResolvedValue(booking);
       mockWalletCreditRepository.find.mockResolvedValue(credits);
+      mockUserRepository.findOne.mockResolvedValue({ email: 'test@chekup247.com' });
 
       const res = await service.initiatePayment(
         { bookingId: 'booking-1', useWalletCredits: true },
