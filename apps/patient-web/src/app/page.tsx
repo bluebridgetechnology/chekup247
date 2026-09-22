@@ -1,45 +1,50 @@
-'use client';
+import type { Metadata } from 'next';
+import HomeClient from './HomeClient';
+import { HOMEPAGE_FAQS } from '../components/FaqSection';
 
-import React from 'react';
-import { HeroSection } from '../components/HeroSection';
-import { WhyChooseSection } from '../components/WhyChooseSection';
-import { HowItWorksSection } from '../components/HowItWorksSection';
-import { SpecialtiesSection } from '../components/SpecialtiesSection';
-import { TrustSection } from '../components/TrustSection';
-import { FeaturedDoctorsSection } from '../components/FeaturedDoctorsSection';
-import { TestimonialsSection } from '../components/TestimonialsSection';
-import { FaqSection } from '../components/FaqSection';
-import { FinalCtaSection } from '../components/FinalCtaSection';
+export const metadata: Metadata = {
+  title: 'Online Doctor Consultations in South Africa | ChekUp247',
+  description:
+    'Consult verified HPCSA doctors online 24/7. Book virtual GP and specialist video consultations, get valid e-prescriptions and sick notes, and claim from your medical aid.',
+  alternates: { canonical: '/' },
+  openGraph: {
+    title: 'Online Doctor Consultations in South Africa | ChekUp247',
+    description:
+      'Consult verified HPCSA doctors online 24/7. Virtual GP and specialist video consultations, e-prescriptions, sick notes and medical aid receipts.',
+    url: '/',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Online Doctor Consultations in South Africa | ChekUp247',
+    description:
+      'Consult verified HPCSA doctors online 24/7. Virtual GP and specialist video consultations, e-prescriptions and sick notes.',
+  },
+};
+
+// FAQPage structured data — sourced from the same HOMEPAGE_FAQS the UI renders,
+// so the schema can never drift from what the visitor actually sees.
+const faqJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: HOMEPAGE_FAQS.map((faq) => ({
+    '@type': 'Question',
+    name: faq.q,
+    acceptedAnswer: {
+      '@type': 'Answer',
+      text: faq.a,
+    },
+  })),
+};
 
 export default function HomePage() {
   return (
-    <div style={{ background: 'var(--bg-primary)', color: 'var(--text-primary)' }}>
-      {/* 1. HERO SECTION */}
-      <HeroSection />
-
-      {/* 2. WHY CHOOSE CHEKUP247 (BENEFITS) */}
-      <WhyChooseSection />
-
-      {/* 3. HOW IT WORKS (3 STEPS & MOBILE MOCKUP) */}
-      <HowItWorksSection />
-
-      {/* 4. OUR SPECIALTIES SECTION */}
-      <SpecialtiesSection />
-
-      {/* 5. TRUST & SOCIAL PROOF SECTION */}
-      <TrustSection />
-
-      {/* 6. TOP VERIFIED PRACTITIONERS */}
-      <FeaturedDoctorsSection />
-
-      {/* 7. VERIFIED PATIENT TESTIMONIALS */}
-      <TestimonialsSection />
-
-      {/* 8. FREQUENTLY ASKED QUESTIONS */}
-      <FaqSection />
-
-      {/* 9. FINAL HIGH-IMPACT CTA BANNER */}
-      <FinalCtaSection />
-    </div>
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+      />
+      <HomeClient />
+    </>
   );
 }

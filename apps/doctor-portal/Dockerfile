@@ -32,9 +32,9 @@ COPY apps/doctor-portal ./apps/doctor-portal
 RUN npm run build --workspace=@chekup247/design-tokens
 
 # Public Next.js build-time environment variables
-ARG NEXT_PUBLIC_API_URL=https://api.chekup.co.za/api/v1
-ARG NEXT_PUBLIC_WS_URL=https://api.chekup.co.za
-ARG NEXT_PUBLIC_PATIENT_PORTAL_URL=https://chekup.co.za
+ARG NEXT_PUBLIC_API_URL=https://api.chekup247.com/api/v1
+ARG NEXT_PUBLIC_WS_URL=https://api.chekup247.com
+ARG NEXT_PUBLIC_PATIENT_PORTAL_URL=https://chekup247.com
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL

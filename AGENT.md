@@ -12,13 +12,13 @@ The platform consists of **three distinct frontend applications** and **one shar
 
 | Application | Domain | Framework | Description |
 |---|---|---|---|
-| **Patient Web App** | `chekup247.co.za` | Next.js (SSR) | Public landing pages, SEO doctor directory, booking checkout, video call room, prescriptions, patient wallet. |
-| **Doctor Portal** | `doctor.chekup247.co.za` | Next.js | Doctor schedule/calendar manager, consultation workspace (split video + notes), prescription builder, earnings. |
-| **Admin Panel** | `admin.chekup247.co.za` | Next.js | **Isolated application.** Doctor verification queue, commission settings, financial ledger, dispute manager, audit logs. |
-| **Backend API** | `api.chekup247.co.za` | NestJS | Single API enforcing strict Role-Based Access Control (RBAC). Interacts with both databases, Redis/BullMQ, and external services. |
+| **Patient Web App** | `chekup247.com` | Next.js (SSR) | Public landing pages, SEO doctor directory, booking checkout, video call room, prescriptions, patient wallet. |
+| **Doctor Portal** | `doctor.chekup247.com` | Next.js | Doctor schedule/calendar manager, consultation workspace (split video + notes), prescription builder, earnings. |
+| **Admin Panel** | `admin.chekup247.com` | Next.js | **Isolated application.** Doctor verification queue, commission settings, financial ledger, dispute manager, audit logs. |
+| **Backend API** | `api.chekup247.com` | NestJS | Single API enforcing strict Role-Based Access Control (RBAC). Interacts with both databases, Redis/BullMQ, and external services. |
 
 ### ⛔ Critical Boundary Rules
-- **NEVER** build the Admin Panel as a route or sub-folder within the Patient or Doctor frontends (e.g., `chekup247.co.za/admin` is strictly forbidden). It must exist as a completely separate Next.js application on a dedicated subdomain with independent authentication, deployment pipelines, and optional IP allowlisting.
+- **NEVER** build the Admin Panel as a route or sub-folder within the Patient or Doctor frontends (e.g., `chekup247.com/admin` is strictly forbidden). It must exist as a completely separate Next.js application on a dedicated subdomain with independent authentication, deployment pipelines, and optional IP allowlisting.
 - **NEVER** share session tokens, cookies, or local storage between the Admin Panel and the public apps.
 
 ---

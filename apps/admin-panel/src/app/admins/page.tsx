@@ -375,7 +375,7 @@ export default function AdminUsersManagementPage() {
                   required
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="nomvula@chekup247.co.za"
+                  placeholder="nomvula@chekup247.com"
                   className="admin-input"
                 />
               </div>

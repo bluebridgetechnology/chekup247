@@ -11,7 +11,7 @@ dotenv.config();
 async function main() {
   const targetEmail = process.argv[2] || process.env.TEST_EMAIL || process.env.BREVO_SENDER_EMAIL || 'test@example.com';
   const apiKey = (process.env.BREVO_API_KEY || '').trim();
-  const senderEmail = (process.env.BREVO_SENDER_EMAIL || 'notifications@chekup247.co.za').trim();
+  const senderEmail = (process.env.BREVO_SENDER_EMAIL || 'notifications@chekup247.com').trim();
   const senderName = (process.env.BREVO_SENDER_NAME || 'ChekUp247 Telehealth').trim();
 
   console.log('====================================================');

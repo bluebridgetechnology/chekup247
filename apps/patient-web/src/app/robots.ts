@@ -1,7 +1,7 @@
 import { MetadataRoute } from 'next';
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chekup247.co.za';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chekup247.com';
 
   return {
     rules: [
@@ -22,6 +22,12 @@ export default function robots(): MetadataRoute.Robots {
         ],
         disallow: [
           '/api/*',
+          '/login',
+          '/register',
+          '/portal/*',
+          '/appointments/*',
+          '/verify/*',
+          '/verify-email/*',
           '/consultation/*',
           '/consultations/*',
           '/checkout/*',

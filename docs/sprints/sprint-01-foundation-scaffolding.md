@@ -64,13 +64,13 @@ Stand up the core architectural foundation across all four repositories/apps:
 ### Doctor Portal (Next.js)
 | Task ID | Task Description | Points | Deliverable / Acceptance Criteria |
 |---|---|---|---|
-| DP-101 | Initialize Doctor Portal Next.js project with shared design tokens. | 2 | Standalone application configured for `doctor.chekup247.co.za`. |
+| DP-101 | Initialize Doctor Portal Next.js project with shared design tokens. | 2 | Standalone application configured for `doctor.chekup247.com`. |
 | DP-102 | Scaffold doctor dashboard layout shell: collapsible sidebar navigation, header with doctor status indicator, profile menu. | 3 | Layout structure ready for calendar, appointments, consultation workspace, and earnings views. |
 
 ### Admin Panel (Next.js — Isolated Application)
 | Task ID | Task Description | Points | Deliverable / Acceptance Criteria |
 |---|---|---|---|
-| AP-101 | Initialize Admin Panel Next.js project on isolated domain (`admin.chekup247.co.za`). | 2 | Completely isolated deployment pipeline and authentication domain. |
+| AP-101 | Initialize Admin Panel Next.js project on isolated domain (`admin.chekup247.com`). | 2 | Completely isolated deployment pipeline and authentication domain. |
 | AP-102 | Scaffold admin layout shell: sidebar, navigation, secure session indicator, data table UI primitives. | 3 | Foundation ready for verification queue, transaction ledger, and analytics. |
 | AP-103 | Implement admin authentication boundary middleware. | 2 | Unauthorized users receive strict 401/403 responses; no patient/doctor cookies accepted. |
 

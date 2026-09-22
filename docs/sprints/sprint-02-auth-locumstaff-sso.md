@@ -24,7 +24,7 @@ Doctor in LocumStaff Mobile App
         │
         ▼
 Mobile app calls POST /v1/oidc/authorize (LocumStaff JWT)
-        │  → { redirectUrl: "https://doctor.chekup247.co.za/callback?code=...&state=..." }
+        │  → { redirectUrl: "https://doctor.chekup247.com/callback?code=...&state=..." }
         ▼
 Mobile app opens redirectUrl in in-app browser
         │
@@ -74,7 +74,7 @@ Backend verifies id_token against LocumStaff JWKS
 ### Admin Panel (Next.js)
 | Task ID | Task Description | Points | Deliverable / Acceptance Criteria |
 |---|---|---|---|
-| AP-201 | Dedicated admin login page (`admin.chekup247.co.za/login`). | 2 | Clean, secure login form with separate session store from patient app. |
+| AP-201 | Dedicated admin login page (`admin.chekup247.com/login`). | 2 | Clean, secure login form with separate session store from patient app. |
 | AP-202 | Admin user management (creation and revocation). | 3 | Superadmins can invite other admins; no public registration route exists. |
 
 ---

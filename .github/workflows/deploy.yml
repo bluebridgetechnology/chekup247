@@ -60,10 +60,10 @@ jobs:
           file: apps/patient-web/Dockerfile
           push: true
           build-args: |
-            NEXT_PUBLIC_API_URL=https://api.chekup.co.za/api/v1
-            NEXT_PUBLIC_DOCTOR_PORTAL_URL=https://doctor.chekup.co.za
-            NEXT_PUBLIC_SITE_URL=https://chekup.co.za
-            NEXT_PUBLIC_APP_URL=https://chekup.co.za
+            NEXT_PUBLIC_API_URL=https://api.chekup247.com/api/v1
+            NEXT_PUBLIC_DOCTOR_PORTAL_URL=https://doctor.chekup247.com
+            NEXT_PUBLIC_SITE_URL=https://chekup247.com
+            NEXT_PUBLIC_APP_URL=https://chekup247.com
           tags: |
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/chekup247-patient-web:latest
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/chekup247-patient-web:${{ github.sha }}
@@ -78,9 +78,9 @@ jobs:
           file: apps/doctor-portal/Dockerfile
           push: true
           build-args: |
-            NEXT_PUBLIC_API_URL=https://api.chekup.co.za/api/v1
-            NEXT_PUBLIC_WS_URL=https://api.chekup.co.za
-            NEXT_PUBLIC_PATIENT_PORTAL_URL=https://chekup.co.za
+            NEXT_PUBLIC_API_URL=https://api.chekup247.com/api/v1
+            NEXT_PUBLIC_WS_URL=https://api.chekup247.com
+            NEXT_PUBLIC_PATIENT_PORTAL_URL=https://chekup247.com
           tags: |
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/chekup247-doctor-portal:latest
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/chekup247-doctor-portal:${{ github.sha }}
@@ -95,7 +95,7 @@ jobs:
           file: apps/admin-panel/Dockerfile
           push: true
           build-args: |
-            NEXT_PUBLIC_API_URL=https://api.chekup.co.za/api/v1
+            NEXT_PUBLIC_API_URL=https://api.chekup247.com/api/v1
           tags: |
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/chekup247-admin-panel:latest
             ghcr.io/${{ steps.repo_owner.outputs.owner }}/chekup247-admin-panel:${{ github.sha }}

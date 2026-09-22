@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chekup247.co.za';
-  const now = new Date();
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chekup247.com';
+  // Static lastModified prevents sitemap churn on every build (SEO hygiene).
+  const now = new Date('2025-09-22');
 
   return [
     {

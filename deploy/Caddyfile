@@ -5,18 +5,18 @@
 
 # Global options
 {
-    email admin@chekup.co.za
+    email admin@chekup247.com
     admin off
 }
 
 # 1. Patient Web Application (Main Domain)
-chekup.co.za, www.chekup.co.za {
+chekup247.com, www.chekup247.com {
     encode zstd gzip
 
     # Redirect www to non-www
-    @www host www.chekup.co.za
+    @www host www.chekup247.com
     handle @www {
-        redir https://chekup.co.za{uri} permanent
+        redir https://chekup247.com{uri} permanent
     }
 
     # Security headers
@@ -43,7 +43,7 @@ chekup.co.za, www.chekup.co.za {
 }
 
 # 2. Doctor Portal
-doctor.chekup.co.za {
+doctor.chekup247.com {
     encode zstd gzip
 
     header {
@@ -69,7 +69,7 @@ doctor.chekup.co.za {
 }
 
 # 3. Admin Panel (Isolated)
-admin.chekup.co.za {
+admin.chekup247.com {
     encode zstd gzip
 
     header {
@@ -89,7 +89,7 @@ admin.chekup.co.za {
 }
 
 # 4. ChekUp247 NestJS Backend API & WebSockets
-api.chekup.co.za {
+api.chekup247.com {
     encode zstd gzip
 
     # Increase max upload size for medical records & attachments (50MB)
@@ -115,7 +115,7 @@ api.chekup.co.za {
 }
 
 # 5. Object Storage (MinIO S3 API)
-storage.chekup.co.za {
+storage.chekup247.com {
     request_body {
         max_size 100MB
     }

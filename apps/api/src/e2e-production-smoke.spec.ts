@@ -35,7 +35,7 @@ describe('QA-1001: End-to-End Production Smoke Test (Patient & Doctor Lifecycle)
     // Seed verified doctor
     const doctorUser = {
       id: 'doc-user-001',
-      email: 'dr.molefe@chekup247.co.za',
+      email: 'dr.molefe@chekup247.com',
       full_name: 'Dr. Thabo Molefe',
       role: UserRole.DOCTOR,
       status: UserStatus.ACTIVE,
@@ -199,8 +199,8 @@ describe('QA-1001: End-to-End Production Smoke Test (Patient & Doctor Lifecycle)
           repeats: 0,
         },
       ],
-      doctor_signature_url: 'https://storage.chekup247.co.za/signatures/doc-prof-001.png',
-      pdf_download_url: 'https://storage.chekup247.co.za/prescriptions/rx-501-signed.pdf',
+      doctor_signature_url: 'https://storage.chekup247.com/signatures/doc-prof-001.png',
+      pdf_download_url: 'https://storage.chekup247.com/prescriptions/rx-501-signed.pdf',
       issued_at: new Date().toISOString(),
     };
     db.prescriptions.set(prescription.id, prescription);

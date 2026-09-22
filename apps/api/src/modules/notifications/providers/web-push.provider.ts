@@ -18,7 +18,7 @@ export class WebPushProvider {
   constructor() {
     const publicKey = process.env.VAPID_PUBLIC_KEY;
     const privateKey = process.env.VAPID_PRIVATE_KEY;
-    const subject = process.env.VAPID_SUBJECT || 'mailto:support@chekup247.co.za';
+    const subject = process.env.VAPID_SUBJECT || 'mailto:support@chekup247.com';
 
     if (publicKey && privateKey) {
       webPush.setVapidDetails(subject, publicKey, privateKey);

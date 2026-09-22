@@ -379,7 +379,7 @@ export class PatientDemoSeederService implements OnModuleInit {
     // happened to be returned first.
     const doctorDefinitions = [
       {
-        email: 'doctor@chekup247.co.za',
+        email: 'doctor@chekup247.com',
         name: 'Dr. Thabo Molefe',
         specialty: 'General Practitioner & Family Health',
         hpcsa: 'MP 0689432',
@@ -387,7 +387,7 @@ export class PatientDemoSeederService implements OnModuleInit {
         rate: 450,
       },
       {
-        email: 'dr.sarah@chekup247.co.za',
+        email: 'dr.sarah@chekup247.com',
         name: 'Dr. Sarah Van Der Merwe',
         specialty: 'Specialist Paediatrician & Family Medicine',
         hpcsa: 'MP 0712345',
@@ -395,7 +395,7 @@ export class PatientDemoSeederService implements OnModuleInit {
         rate: 650,
       },
       {
-        email: 'dr.kevin@chekup247.co.za',
+        email: 'dr.kevin@chekup247.com',
         name: 'Dr. Kevin Pillay',
         specialty: 'Family Physician & Sports Medicine',
         hpcsa: 'MP 0594321',

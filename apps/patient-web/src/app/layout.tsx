@@ -6,7 +6,7 @@ import { PwaProvider } from '../context/PwaContext';
 import { PwaInstallBanner } from '../components/pwa/PwaInstallBanner';
 import { BrandToaster } from '../components/BrandToaster';
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chekup247.co.za';
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://chekup247.com';
 
 export const viewport: Viewport = {
   themeColor: '#2A170F',
@@ -105,7 +105,7 @@ export default function RootLayout({
     description:
       'Certified South African telehealth platform connecting patients with HPCSA-registered medical doctors for virtual consultations and valid e-prescriptions.',
     telephone: '+27-11-000-0247',
-    email: 'support@chekup247.co.za',
+    email: 'support@chekup247.com',
     address: {
       '@type': 'PostalAddress',
       streetAddress: '150 West Street',
