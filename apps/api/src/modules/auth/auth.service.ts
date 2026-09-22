@@ -369,7 +369,7 @@ export class AuthService implements OnModuleInit {
 
     try {
       if (user.email) {
-        await Promise.race([
+        const emailRes = await Promise.race([
           this.brevoEmailProvider.sendEmail({
             to: [{ email: user.email, name: user.full_name }],
             subject: `${otp} is your ChekUp247 verification code`,
@@ -382,6 +382,9 @@ export class AuthService implements OnModuleInit {
           }),
           timeoutPromise(8000),
         ]);
+        if (emailRes && !emailRes.success) {
+          this.logger.error(`Brevo email delivery failed for ${user.email}: ${JSON.stringify(emailRes.error || 'Unknown error')}`);
+        }
       }
 
       if (user.phone) {

@@ -246,6 +246,13 @@ export class AdminController {
     return this.adminService.testPaystackConnection(body?.secretKey);
   }
 
+  @Post('settings/brevo/test-connection')
+  @UseGuards(AdminSubRolesGuard)
+  @AdminSubRoles(AdminSubRole.SUPER_ADMIN)
+  testBrevoConnection(@Body() body: { recipientEmail?: string }) {
+    return this.adminService.testBrevoConnection(body?.recipientEmail);
+  }
+
   @Get('verifications/pending')
   getPendingVerifications() {
     return this.adminService.getPendingDoctorVerifications();
