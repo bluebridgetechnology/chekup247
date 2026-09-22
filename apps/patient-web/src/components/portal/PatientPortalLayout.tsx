@@ -1,6 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { Loader2 } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
 import { PatientPortalHeader } from './PatientPortalHeader';
 import { PatientPortalSidebar } from './PatientPortalSidebar';
 import { Footer } from '../Footer';
@@ -8,13 +11,50 @@ import { Footer } from '../Footer';
 interface PatientPortalLayoutProps {
   children: React.ReactNode;
   activeNavKey?: string;
+  requireAuth?: boolean;
 }
 
 export function PatientPortalLayout({
   children,
   activeNavKey = 'appointments',
+  requireAuth = true,
 }: PatientPortalLayoutProps) {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const { isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (requireAuth && !isLoading && !isAuthenticated) {
+      const redirectTarget = pathname || '/appointments';
+      router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
+    }
+  }, [requireAuth, isLoading, isAuthenticated, router, pathname]);
+
+  if (requireAuth && isLoading) {
+    return (
+      <div
+        style={{
+          height: '100vh',
+          backgroundColor: '#F8F4EC',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '16px',
+        }}
+      >
+        <Loader2 size={36} className="animate-spin" style={{ color: '#B88647' }} />
+        <span style={{ color: '#6B5E55', fontSize: '0.9rem', fontWeight: 500 }}>
+          Loading your patient portal...
+        </span>
+      </div>
+    );
+  }
+
+  if (requireAuth && !isAuthenticated) {
+    return null;
+  }
 
   return (
     <div

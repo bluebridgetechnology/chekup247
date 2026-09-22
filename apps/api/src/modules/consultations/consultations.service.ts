@@ -818,7 +818,10 @@ export class ConsultationsService {
     const patientUser = await this.userRepository.findOne({
       where: { id: patientId || booking.patient_id },
     });
-    const patientEmail = patientUser?.email || 'patient@chekup247.com';
+    const patientEmail = patientUser?.email;
+    if (!patientEmail) {
+      throw new BadRequestException('Patient user account with valid email is required for payment');
+    }
     const amountInCents = Math.round(amount * 100);
 
     const callbackUrl =

@@ -682,7 +682,7 @@ export default function DoctorAppointmentsPage() {
                               </div>
                               <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', display: 'inline-flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
                                 <SolarIcon name="letter-linear" size={13} color="var(--color-gold-bronze, #B88647)" />
-                                <span>{appointment.patient?.email || 'patient@chekup247.com'}</span>
+                                <span>{appointment.patient?.email || '—'}</span>
                               </div>
                             </div>
                           </div>
@@ -801,7 +801,7 @@ export default function DoctorAppointmentsPage() {
                           {appointment.patient?.fullName || 'Patient Client'}
                         </div>
                         <div style={{ fontSize: '0.76rem', color: 'var(--color-cream-text-muted, #6B5E55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {appointment.patient?.email || 'patient@chekup247.com'}
+                          {appointment.patient?.email || '—'}
                         </div>
                       </div>
                     </div>

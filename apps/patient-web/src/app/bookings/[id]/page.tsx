@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { Loader2 } from 'lucide-react';
 import { SolarIcon } from '../../../components/SolarIcon';
 import { useAuth } from '../../../context/AuthContext';
 import { toastSuccess, toastError, errorMessage } from '../../../lib/toast';
@@ -179,48 +180,12 @@ export default function BookingDetailPage() {
           }
         }
 
-        // Mock fallback for testing
         if (isMounted) {
-          const now = new Date();
-          const start = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-          const end = new Date(start.getTime() + 45 * 60 * 1000);
-
-          setBooking({
-            id: bookingId || 'bk-demo-101',
-            patient_id: user?.id || 'pat-1',
-            doctor_id: 'doc-1',
-            slot_id: 'slot-101',
-            status: 'confirmed',
-            price: 850.0,
-            payment_status: 'held',
-            created_at: new Date().toISOString(),
-            doctor: {
-              id: 'doc-1',
-              fullName: 'Dr. Thabo Molefe',
-              specialty: 'General Practitioner & Family Health',
-              hpcsaNumber: 'MP 0689432',
-              ratePerHour: 850.0,
-              avatarUrl: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=600&q=80',
-              facilityName: 'Netcare Sunninghill Hospital Suites',
-              facilityAddress: 'Cnr Witkoppen & Nanyuki Rd, Sunninghill, Sandton, 2157',
-            },
-            slot: {
-              id: 'slot-101',
-              startTime: start.toISOString(),
-              endTime: end.toISOString(),
-            },
-            payment: {
-              id: 'pay-101',
-              amount: 850.0,
-              provider: 'paystack',
-              provider_ref: 'chk_ref_984321',
-              status: 'success',
-              created_at: new Date().toISOString(),
-            },
-          });
+          setBooking(null);
         }
       } catch (err) {
         console.warn('Could not load booking details:', err);
+        if (isMounted) setBooking(null);
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -287,6 +252,82 @@ export default function BookingDetailPage() {
     const diff = new Date(startIso).getTime() - Date.now();
     return diff <= 10 * 60 * 1000 && diff >= -60 * 60 * 1000;
   };
+
+  if (isLoading) {
+    return (
+      <PatientPortalLayout activeNavKey="appointments">
+        <div
+          style={{
+            flex: 1,
+            backgroundColor: '#F8F4EC',
+            minHeight: 'calc(100vh - 72px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Loader2 size={36} className="animate-spin" style={{ color: '#B88647' }} />
+        </div>
+      </PatientPortalLayout>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <PatientPortalLayout activeNavKey="appointments">
+        <div
+          style={{
+            flex: 1,
+            backgroundColor: '#F8F4EC',
+            minHeight: 'calc(100vh - 72px)',
+            padding: '40px 24px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '16px',
+              border: '1px solid #EDE4D4',
+              padding: '40px 32px',
+              maxWidth: '480px',
+              width: '100%',
+              textAlign: 'center',
+            }}
+          >
+            <SolarIcon name="danger-circle-linear" size={48} color="#C59550" />
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#2A170F', marginTop: '16px', marginBottom: '8px' }}>
+              Booking Not Found
+            </h2>
+            <p style={{ fontSize: '0.88rem', color: '#6B5E55', marginBottom: '24px' }}>
+              The consultation booking you are looking for could not be found or you do not have permission to view it.
+            </p>
+            <Link
+              href="/appointments"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#EDD5B3',
+                color: '#2A170F',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                padding: '10px 20px',
+                borderRadius: '24px',
+                textDecoration: 'none',
+              }}
+            >
+              <SolarIcon name="calendar-linear" size={16} color="#2A170F" />
+              <span>Back to Appointments</span>
+            </Link>
+          </div>
+        </div>
+      </PatientPortalLayout>
+    );
+  }
 
   return (
     <PatientPortalLayout activeNavKey="appointments">

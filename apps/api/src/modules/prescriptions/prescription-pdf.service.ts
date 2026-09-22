@@ -571,7 +571,7 @@ export class PrescriptionPdfService {
       color: borderLight,
     });
 
-    page.drawText(`Contact: ${patient.email || patient.phone || 'patient@chekup.co.za'}`, {
+    page.drawText(`Contact: ${patient.email || patient.phone || '—'}`, {
       x: col2X + 24,
       y: y - 61,
       size: 7.5,

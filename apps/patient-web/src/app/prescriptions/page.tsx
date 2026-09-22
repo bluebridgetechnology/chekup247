@@ -1297,13 +1297,13 @@ export default function PatientPrescriptionsPage() {
                       </div>
                     </div>
                     <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2A170F', marginLeft: '38px' }}>
-                      {user?.fullName || (user as any)?.name || 'Lerato Khumalo'}
+                      {user?.fullName || (user as any)?.name || (selectedPrescription as any)?.patient?.fullName || 'Patient'}
                     </div>
                     <div style={{ fontSize: '0.82rem', color: '#6B5E55', marginLeft: '38px', marginTop: '2px' }}>
                       Ref / ID: {selectedPrescription.patient_id}
                     </div>
                     <div style={{ fontSize: '0.78rem', color: '#6B5E55', marginLeft: '38px', marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #F0EAE1' }}>
-                      Contact: {user?.email || (user as any)?.phone || 'patient@chekup.co.za'}
+                      Contact: {user?.email || (user as any)?.phone || (selectedPrescription as any)?.patient?.email || '—'}
                     </div>
                   </div>
                 </div>

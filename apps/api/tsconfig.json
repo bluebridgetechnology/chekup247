@@ -17,12 +17,14 @@
     "noImplicitAny": false,
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
-    "noFallthroughCasesInSwitch": false,
+    "rootDir": "src",
     "paths": {
       "@config/*": ["src/config/*"],
       "@common/*": ["src/common/*"],
       "@modules/*": ["src/modules/*"],
       "@database/*": ["src/database/*"]
     }
-  }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "scripts", "**/*.spec.ts"]
 }

@@ -238,32 +238,8 @@ function SuccessContent() {
           }
         }
 
-        // Fallback mock confirmation for preview / local testing
         if (isMounted) {
-          const now = new Date();
-          const start = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-          start.setHours(10, 0, 0, 0);
-          const end = new Date(start.getTime() + 45 * 60 * 1000);
-
-          setBooking({
-            id: bookingIdParam || 'chk-bk-9021',
-            status: 'confirmed',
-            price: 850.0,
-            payment_status: 'held',
-            reference: referenceParam || 'chk_ref_984321',
-            doctor: {
-              id: 'doc-1',
-              fullName: 'Dr. Thabo Molefe',
-              specialty: 'General Practitioner & Family Health',
-              avatarUrl: '/images/doctor_thabo.jpg',
-              hpcsaNumber: 'MP 0689432',
-              facilityName: 'Netcare Sunninghill Hospital Suites',
-            },
-            slot: {
-              startTime: start.toISOString(),
-              endTime: end.toISOString(),
-            },
-          });
+          setBooking(null);
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -401,7 +377,7 @@ function SuccessContent() {
         });
       }
 
-      setIntakeSavedNotice('Pre-consultation details saved to your EHR record! Dr. Molefe will review this before your call.');
+      setIntakeSavedNotice(`Pre-consultation details saved to your EHR record! ${booking?.doctor?.fullName || 'Your doctor'} will review this before your call.`);
       setTimeout(() => setIntakeSavedNotice(null), 5000);
     } catch (e) {
       console.error('Failed to save intake:', e);
@@ -476,6 +452,58 @@ function SuccessContent() {
         hour12: false,
       })} SAST`
     : '10:00 – 10:45 SAST';
+
+  if (isLoading) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--color-cream-base, #FAF6EE)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Loader2 size={36} className="animate-spin" style={{ color: '#B88647' }} />
+      </div>
+    );
+  }
+
+  if (!booking) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'var(--color-cream-base, #FAF6EE)', padding: '48px 16px 90px' }}>
+        <div className="container" style={{ maxWidth: '600px', margin: '0 auto' }}>
+          <div
+            style={{
+              background: 'var(--color-cream-surface, #FDFBF7)',
+              borderRadius: '24px',
+              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
+              padding: '44px 32px',
+              textAlign: 'center',
+              boxShadow: '0 12px 40px rgba(42, 23, 15, 0.06)',
+            }}
+          >
+            <AlertCircle size={46} color="#C59550" style={{ margin: '0 auto 16px' }} />
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#2A170F', marginBottom: '8px' }}>
+              Booking Confirmation Not Found
+            </h2>
+            <p style={{ fontSize: '0.9rem', color: '#6B5E55', marginBottom: '24px' }}>
+              We could not find the specified booking. Please check your appointments in your patient portal.
+            </p>
+            <Link
+              href="/appointments"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#EDD5B3',
+                color: '#2A170F',
+                fontSize: '0.88rem',
+                fontWeight: 600,
+                padding: '10px 20px',
+                borderRadius: '24px',
+                textDecoration: 'none',
+              }}
+            >
+              <span>View My Appointments</span>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--color-cream-base, #FAF6EE)', padding: '48px 16px 90px' }}>

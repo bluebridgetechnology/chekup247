@@ -348,18 +348,19 @@ export default function PatientProfilePage() {
                   fontSize: '0.92rem',
                 }}
               >
-                {user.fullName
-                  ?.split(' ')
+                {(user.fullName || '')
+                  .split(' ')
                   .filter(Boolean)
                   .map((n) => n[0])
                   .slice(0, 2)
                   .join('')
-                  .toUpperCase() || 'LK'}
+                  .toUpperCase() ||
+                  (user.email ? user.email.slice(0, 2).toUpperCase() : 'PT')}
               </div>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                   <span style={{ fontSize: '1.15rem', fontWeight: 700, color: '#2A170F' }}>
-                    {user.fullName || 'Lerato Khumalo'}
+                    {user.fullName || user.email?.split('@')[0] || 'Patient Profile'}
                   </span>
                   {user.isEmailVerified ? (
                     <span

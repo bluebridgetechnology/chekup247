@@ -68,34 +68,15 @@ export default function PatientWalletPage() {
           }
         }
 
-        // Mock fallback for preview & demo
         if (isMounted) {
-          setBalance(350.0);
-          setLedger([
-            {
-              id: 'cred-1',
-              patient_id: user?.id || 'pat-1',
-              amount: 850.0,
-              currency: 'ZAR',
-              reason: 'Cancellation refund for Dr. Thabo Molefe consultation',
-              booking_id: 'bk-demo-101',
-              is_redeemed: true,
-              created_at: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-            {
-              id: 'cred-2',
-              patient_id: user?.id || 'pat-1',
-              amount: 350.0,
-              currency: 'ZAR',
-              reason: 'Telehealth promotional welcome bonus',
-              booking_id: null,
-              is_redeemed: false,
-              created_at: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-            },
-          ]);
+          setLedger([]);
         }
       } catch (err) {
         console.warn('Error loading wallet data:', err);
+        if (isMounted) {
+          setLedger([]);
+          setBalance(0);
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }

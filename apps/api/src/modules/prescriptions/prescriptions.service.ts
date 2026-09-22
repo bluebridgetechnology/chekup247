@@ -230,13 +230,13 @@ export class PrescriptionsService {
     }
 
     let patientName = 'Patient';
-    let patientEmail = 'patient@chekup.co.za';
+    let patientEmail = '';
     let patientPhone = '';
 
     const patientUser = await this.userRepository.findOne({ where: { id: booking.patient_id } });
     if (patientUser) {
       patientName = patientUser.full_name || patientName;
-      patientEmail = patientUser.email || patientEmail;
+      patientEmail = patientUser.email || '';
       patientPhone = patientUser.phone || '';
     }
 

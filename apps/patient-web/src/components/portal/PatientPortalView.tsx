@@ -9,7 +9,6 @@ import { SolarIcon } from '../SolarIcon';
 import { useAuth } from '../../context/AuthContext';
 import {
   PortalBooking,
-  DEFAULT_PORTAL_BOOKINGS,
   mapApiBookingToPortalBooking,
 } from '../../lib/portalData';
 import { getGoogleCalendarUrl, downloadIcsForBooking } from '../../lib/calendar';

@@ -88,7 +88,10 @@ export class PaymentsService {
       where: { id: patientId },
     });
 
-    const patientEmail = patientUser?.email || 'patient@chekup247.com';
+    const patientEmail = patientUser?.email;
+    if (!patientEmail) {
+      throw new BadRequestException('Patient user account with valid email is required for payment');
+    }
     const totalAmount = Number(booking.price);
     let creditsApplied = 0;
     let payableAmount = totalAmount;
