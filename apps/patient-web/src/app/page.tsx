@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import HomeClient from './HomeClient';
-import { HOMEPAGE_FAQS } from '../components/FaqSection';
+import { HOMEPAGE_FAQS } from '../components/faq-data';
 
 export const metadata: Metadata = {
   title: 'Online Doctor Consultations in South Africa | ChekUp247',
