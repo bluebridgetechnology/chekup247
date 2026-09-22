@@ -1953,7 +1953,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                 }}
                 className="portal-stat-number"
               >
-                {stats.prescriptions || 1}
+                {stats.prescriptions || 0}
               </div>
               <div
                 style={{

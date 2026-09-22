@@ -146,6 +146,9 @@ jobs:
             IMAGE_PREFIX=ghcr.io/${{ steps.repo_owner.outputs.owner }} IMAGE_TAG=latest \
               docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
+            echo "🔄 Reloading Caddy to pick up config changes..."
+            docker restart chekup-caddy
+
             echo "🧹 Cleaning up dangling images..."
             docker image prune -f
 
