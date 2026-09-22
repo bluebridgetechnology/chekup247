@@ -115,6 +115,7 @@ export class BrevoEmailProvider {
 
     switch (templateId) {
       case 'otp_verification':
+        const verifyLink = `${portalUrl}/verify-email?email=${encodeURIComponent(params.patientEmail || '')}&token=${params.otp || ''}`;
         return `
           <div style="${baseStyles}">
             <div style="${cardStyles}">
@@ -123,6 +124,9 @@ export class BrevoEmailProvider {
               <p>Your one-time security code to verify your ChekUp247 account and access your telehealth consultation is:</p>
               <div style="background: #FAF6EE; border: 1.5px dashed #DFAB62; border-radius: 12px; padding: 20px; margin: 24px 0; text-align: center;">
                 <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #2A170F; font-family: monospace;">${params.otp || '000000'}</span>
+              </div>
+              <div style="text-align: center; margin: 24px 0;">
+                <a href="${verifyLink}" style="${buttonStyles}">Verify Account & Continue</a>
               </div>
               <p style="color: #64748b; font-size: 13px; line-height: 1.5;">This code expires in 15 minutes. Never share this code with anyone. ChekUp247 staff will never ask for your code.</p>
               <p style="color: #64748b; font-size: 13px; margin-top: 12px;">Verifying your account allows you to securely enter consultation rooms with doctors, receive HPCSA e-prescriptions, and review medical records.</p>

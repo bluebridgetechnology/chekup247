@@ -61,7 +61,7 @@ export interface AuthSessionResponse {
 export interface RegisterPatientResponse {
   message: string;
   userId: string;
-  accessToken: string;
+  accessToken?: string;
   user: AuthSessionResponse['user'];
   verificationToken?: string;
   otp?: string;
@@ -201,23 +201,19 @@ export class AuthService implements OnModuleInit {
     });
     await this.tokenRepository.save(verificationToken);
 
-    // Dispatch verification code via Email & SMS
-    await this.sendVerificationOtp(savedUser, otp);
-
-    this.logger.log(`Patient registered: ${savedUser.email}. OTP: ${otp}`);
-
-    // Generate immediate session accessToken so patient can continue to booking checkout
-    const accessToken = this.tokenService.generateAccessToken({
-      sub: savedUser.id,
-      email: savedUser.email,
-      role: savedUser.role,
-      fullName: savedUser.full_name,
+    // Dispatch verification code via Email & SMS in background so registration response never hangs
+    this.sendVerificationOtp(savedUser, otp).catch((err) => {
+      this.logger.error(`Failed to dispatch verification OTP for ${savedUser.email}: ${err.message}`);
     });
+
+    this.logger.log(`Patient registered: ${savedUser.email}`);
+
+    // In unit test environment, return verificationToken so tests can execute verifyEmail
+    const isTest = process.env.NODE_ENV === 'test';
 
     return {
       message: 'Registration successful. A 6-digit verification code has been dispatched.',
       userId: savedUser.id,
-      accessToken,
       user: {
         id: savedUser.id,
         email: savedUser.email,
@@ -229,8 +225,7 @@ export class AuthService implements OnModuleInit {
         avatarUrl: savedUser.avatar_url,
         dateOfBirth: savedUser.date_of_birth,
       },
-      verificationToken: otp,
-      otp,
+      ...(isTest ? { verificationToken: otp, otp } : {}),
     };
   }
 
@@ -369,27 +364,37 @@ export class AuthService implements OnModuleInit {
    * Helper to dispatch 6-digit OTP code via email and SMS
    */
   private async sendVerificationOtp(user: User, otp: string): Promise<void> {
+    const timeoutPromise = (ms: number) =>
+      new Promise<void>((_, reject) => setTimeout(() => reject(new Error('Notification dispatch timed out')), ms));
+
     try {
       if (user.email) {
-        await this.brevoEmailProvider.sendEmail({
-          to: [{ email: user.email, name: user.full_name }],
-          subject: `${otp} is your ChekUp247 verification code`,
-          templateId: 'otp_verification',
-          templateParams: {
-            patientName: user.full_name,
-            otp,
-          },
-        });
+        await Promise.race([
+          this.brevoEmailProvider.sendEmail({
+            to: [{ email: user.email, name: user.full_name }],
+            subject: `${otp} is your ChekUp247 verification code`,
+            templateId: 'otp_verification',
+            templateParams: {
+              patientName: user.full_name,
+              patientEmail: user.email,
+              otp,
+            },
+          }),
+          timeoutPromise(8000),
+        ]);
       }
 
       if (user.phone) {
-        await this.smsProvider.sendSms({
-          to: user.phone,
-          message: `Your ChekUp247 clinical verification code is: ${otp}. Valid for 15 minutes.`,
-        });
+        await Promise.race([
+          this.smsProvider.sendSms({
+            to: user.phone,
+            message: `Your ChekUp247 clinical verification code is: ${otp}. Valid for 15 minutes.`,
+          }),
+          timeoutPromise(8000),
+        ]);
       }
     } catch (err: any) {
-      this.logger.warn(`Could not dispatch OTP notification: ${err.message}`);
+      this.logger.warn(`Could not dispatch OTP notification for ${user.email}: ${err.message}`);
     }
   }
 

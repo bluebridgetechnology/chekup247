@@ -56,7 +56,9 @@ export class AuthController {
       });
     }
 
-    return result;
+    // Strip OTP and verification token so they are never exposed to browser HTTP clients
+    const { verificationToken, otp, ...sanitized } = result as any;
+    return sanitized;
   }
 
   @Public()

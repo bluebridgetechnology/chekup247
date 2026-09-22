@@ -14,27 +14,30 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
+  Video,
+  FileText,
+  Receipt,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import { ChekupCrossLogo } from '../../components/Navbar';
-import { SolarIcon } from '../../components/SolarIcon';
 
 const HIGHLIGHTS = [
   {
-    icon: 'videocamera-record-bold-duotone',
+    IconComponent: Video,
     text: 'Instant video consultations with HPCSA-registered GPs',
   },
   {
-    icon: 'document-medicine-bold-duotone',
+    IconComponent: FileText,
     text: 'Valid digital e-prescriptions sent to any pharmacy',
   },
   {
-    icon: 'bill-list-bold-duotone',
+    IconComponent: Receipt,
     text: 'Medical aid claimable invoices & ICD-10 codes',
   },
   {
-    icon: 'shield-check-bold-duotone',
+    IconComponent: ShieldCheck,
     text: 'POPIA-compliant end-to-end encrypted medical records',
   },
 ];
@@ -103,7 +106,7 @@ function RegisterContent() {
 
     setLoading(true);
     try {
-      const res = await register({
+      await register({
         full_name: fullName.trim(),
         email: email.trim(),
         password,
@@ -111,7 +114,7 @@ function RegisterContent() {
         date_of_birth: dateOfBirth || undefined,
       });
 
-      setRegisteredSuccess(res.verificationToken || 'sent');
+      setRegisteredSuccess(email.trim());
       toastSuccess('Account created', 'Check your email for a verification code to activate your account.');
     } catch (err: any) {
       const msg = errorMessage(err, 'Registration failed. Please try again.');
@@ -189,33 +192,40 @@ function RegisterContent() {
           </h1>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {HIGHLIGHTS.map((item, idx) => (
-              <div
-                key={idx}
-                className="hero-feature-item"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '14px',
-                  fontSize: '0.9375rem',
-                  color: 'var(--color-white-90)',
-                  lineHeight: 1.45,
-                }}
-              >
+            {HIGHLIGHTS.map((item, idx) => {
+              const IconComp = item.IconComponent;
+              return (
                 <div
-                  className="hero-feature-box"
+                  key={idx}
+                  className="hero-feature-item"
                   style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '9px',
-                    flexShrink: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '14px',
+                    fontSize: '0.9375rem',
+                    color: 'var(--color-white-90)',
+                    lineHeight: 1.45,
                   }}
                 >
-                  <SolarIcon name={item.icon} size={18} color="var(--color-gold-base)" />
+                  <div
+                    className="hero-feature-box"
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '9px',
+                      flexShrink: 0,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: 'rgba(223, 171, 98, 0.15)',
+                    }}
+                  >
+                    <IconComp size={18} color="var(--color-gold-base)" />
+                  </div>
+                  <span>{item.text}</span>
                 </div>
-                <span>{item.text}</span>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -307,7 +317,7 @@ function RegisterContent() {
               </p>
 
               <Link
-                href={`/verify-email?token=${registeredSuccess !== 'sent' ? registeredSuccess : ''}${redirectUrl && redirectUrl !== '/appointments' && redirectUrl !== '/portal' ? `&redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
+                href={`/verify-email?email=${encodeURIComponent(registeredSuccess || email.trim())}${redirectUrl && redirectUrl !== '/appointments' && redirectUrl !== '/portal' ? `&redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
                 className="btn-primary"
                 style={{
                   width: '100%',
