@@ -32,7 +32,7 @@ COPY apps/admin-panel ./apps/admin-panel
 RUN npm run build --workspace=@chekup247/design-tokens
 
 # Public Next.js build-time environment variables
-ARG NEXT_PUBLIC_API_URL=https://api.chekup.co.za/api/v1
+ARG NEXT_PUBLIC_API_URL=https://api.chekup247.com/api/v1
 
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1

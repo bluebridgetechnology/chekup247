@@ -1102,12 +1102,12 @@ export default function PatientPrescriptionsPage() {
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                           <SolarIcon name="letter-linear" size={14} color="#6B5E55" />
-                          support@chekup.co.za
+                          support@chekup247.com
                         </span>
                         <span style={{ color: '#DDD0BC' }}>|</span>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                           <SolarIcon name="global-linear" size={14} color="#6B5E55" />
-                          www.chekup.co.za
+                          www.chekup247.com
                         </span>
                       </div>
                     </div>

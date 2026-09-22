@@ -16,10 +16,10 @@ describe('TotpService', () => {
 
   it('buildOtpAuthUrl should embed the issuer, account, and secret', () => {
     const secret = service.generateSecret();
-    const url = service.buildOtpAuthUrl(secret, 'admin@chekup247.co.za');
+    const url = service.buildOtpAuthUrl(secret, 'admin@chekup247.com');
 
     expect(url).toMatch(/^otpauth:\/\/totp\//);
-    expect(url).toContain(encodeURIComponent('ChekUp247 Admin:admin@chekup247.co.za'));
+    expect(url).toContain(encodeURIComponent('ChekUp247 Admin:admin@chekup247.com'));
     expect(url).toContain(`secret=${secret}`);
   });
 

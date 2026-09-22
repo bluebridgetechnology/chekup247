@@ -216,11 +216,11 @@ export class PrescriptionPdfService {
       .digest('hex')
       .toUpperCase();
 
-    // Dynamic verification URL using domain chekup.co.za
+    // Dynamic verification URL using domain chekup247.com
     const verificationBaseUrl =
       process.env.FRONTEND_PATIENT_URL ||
       process.env.NEXT_PUBLIC_APP_URL ||
-      'https://chekup.co.za';
+      'https://chekup247.com';
     const cleanBaseUrl = verificationBaseUrl.replace(/\/$/, '');
     const verificationUrl = `${cleanBaseUrl}/verify/rx/${prescription.id}`;
 
@@ -327,7 +327,7 @@ export class PrescriptionPdfService {
       color: textLight,
     });
 
-    page.drawText('support@chekup.co.za  |  www.chekup.co.za', {
+    page.drawText('support@chekup247.com  |  www.chekup247.com', {
       x: marginX + 46,
       y: y - 32,
       size: 7,
@@ -1038,7 +1038,7 @@ export class PrescriptionPdfService {
     );
 
     page.drawText(
-      'Dispensary & Pharmacist Verification: Scan QR code above or verify online at https://chekup.co.za/verify',
+      'Dispensary & Pharmacist Verification: Scan QR code above or verify online at https://chekup247.com/verify',
       {
         x: marginX + 16,
         y: footerY - 8,

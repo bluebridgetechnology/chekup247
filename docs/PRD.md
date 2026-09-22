@@ -44,9 +44,9 @@ ChekUp247 is a South African telehealth marketplace that connects patients with 
 
 | Application | Domain (example) | Framework | Purpose |
 |---|---|---|---|
-| **Patient App** | `chekup247.co.za` | Next.js 16 (React 19, SSR) | Public pages, patient registration, doctor search, booking, video, prescriptions |
-| **Doctor Portal** | `doctor.chekup247.co.za` | Next.js 16 (React 19) | Doctor dashboard, calendar, consultation workspace, prescription builder, earnings |
-| **Admin Panel** | `admin.chekup247.co.za` | Next.js 16 (React 19) | Doctor verification, commission, transactions, analytics, disputes — fully isolated |
+| **Patient App** | `chekup247.com` | Next.js 16 (React 19, SSR) | Public pages, patient registration, doctor search, booking, video, prescriptions |
+| **Doctor Portal** | `doctor.chekup247.com` | Next.js 16 (React 19) | Doctor dashboard, calendar, consultation workspace, prescription builder, earnings |
+| **Admin Panel** | `admin.chekup247.com` | Next.js 16 (React 19) | Doctor verification, commission, transactions, analytics, disputes — fully isolated |
 
 All three apps connect to the **same NestJS backend API**, which enforces role-based access control. The admin panel's isolation means:
 - Separate deployment pipeline

@@ -26,9 +26,9 @@ npm run dev:admin     # http://localhost:3002 (Admin Panel)
 | Persona | Role | Email | Password | Characteristics |
 |---|---|---|---|---|
 | **Sarah Patient** | `patient` | `sarah.patient@example.co.za` | `Patient@12345!` | Active patient with wallet credit balance |
-| **Dr. Thabo Molefe** | `doctor` | `dr.molefe@chekup247.co.za` | `Doctor@12345!` | Verified GP, HPCSA: `MP 0689432`, Rate: R800/hr |
+| **Dr. Thabo Molefe** | `doctor` | `dr.molefe@chekup247.com` | `Doctor@12345!` | Verified GP, HPCSA: `MP 0689432`, Rate: R800/hr |
 | **Dr. Elena Rostova** | `doctor` | `dr.rostova@direct.co.za` | `Doctor@12345!` | Direct applicant, pending HPCSA verification |
-| **Platform Superadmin** | `admin` | `admin@chekup247.co.za` | `Admin@Secure2026!` | Superadmin with full access to audit & disputes |
+| **Platform Superadmin** | `admin` | `admin@chekup247.com` | `Admin@Secure2026!` | Superadmin with full access to audit & disputes |
 
 ---
 
@@ -50,7 +50,7 @@ npm run dev:admin     # http://localhost:3002 (Admin Panel)
 | **QA-202** | Patient Login & Session | Registered patient | Go to `/login`, enter credentials, click "Sign In" | Session cookie set; user redirected to `/doctors` or `/bookings` | [ ] Pass / [ ] Fail |
 | **QA-203** | LocumStaff SSO Handshake | Doctor Portal open | Navigate to `/callback?code=mock_code&state=xyz` | Backend exchanges PKCE token, matches or provisions doctor, logs in doctor | [ ] Pass / [ ] Fail |
 | **QA-204** | Direct Doctor Onboarding | Logged out on Doctor Portal | Navigate to `/register`. Complete 4-step wizard with HPCSA ID and document upload | Doctor profile created with status `pending`. Restricted dashboard shown | [ ] Pass / [ ] Fail |
-| **QA-205** | Admin Login Isolation | Admin Panel open | Navigate to `/login` on port 3002. Login with `admin@chekup247.co.za` | Admin session established. Patient/Doctor credentials rejected on this domain | [ ] Pass / [ ] Fail |
+| **QA-205** | Admin Login Isolation | Admin Panel open | Navigate to `/login` on port 3002. Login with `admin@chekup247.com` | Admin session established. Patient/Doctor credentials rejected on this domain | [ ] Pass / [ ] Fail |
 | **QA-206** | RBAC Guard Enforcement | Logged in as Patient | Attempt to access `GET /admin/analytics` with patient JWT | Intercepted with HTTP 403 Forbidden | [ ] Pass / [ ] Fail |
 
 ---

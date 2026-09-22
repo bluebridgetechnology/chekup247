@@ -43,7 +43,7 @@ export default function DoctorLoginPage() {
   };
 
   const handleQuickFill = () => {
-    setEmail('doctor@chekup247.co.za');
+    setEmail('doctor@chekup247.com');
     setPassword('DoctorChekup2026!');
     setError(null);
   };

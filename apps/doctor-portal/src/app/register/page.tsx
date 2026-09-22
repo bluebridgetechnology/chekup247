@@ -38,9 +38,9 @@ export default function DoctorRegisterPage() {
   const [specialty, setSpecialty] = useState('General Practitioner');
 
   // Step 3: Document Uploads
-  const [idDocUrl, setIdDocUrl] = useState('https://storage.chekup247.co.za/docs/id-doc-verified.pdf');
-  const [hpcsaCertUrl, setHpcsaCertUrl] = useState('https://storage.chekup247.co.za/docs/hpcsa-cert-verified.pdf');
-  const [indemnityCertUrl, setIndemnityCertUrl] = useState('https://storage.chekup247.co.za/docs/indemnity-cert.pdf');
+  const [idDocUrl, setIdDocUrl] = useState('https://storage.chekup247.com/docs/id-doc-verified.pdf');
+  const [hpcsaCertUrl, setHpcsaCertUrl] = useState('https://storage.chekup247.com/docs/hpcsa-cert-verified.pdf');
+  const [indemnityCertUrl, setIndemnityCertUrl] = useState('https://storage.chekup247.com/docs/indemnity-cert.pdf');
 
   // Step 4: Practice details
   const [ratePerHour, setRatePerHour] = useState('850');

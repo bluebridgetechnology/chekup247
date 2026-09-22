@@ -100,10 +100,10 @@ const envSchema = z.object({
 
   // Brevo Transactional Email Integration (BE-804)
   BREVO_API_KEY: z.string().optional().default(''),
-  BREVO_SENDER_EMAIL: z.string().default('notifications@chekup247.co.za'),
+  BREVO_SENDER_EMAIL: z.string().default('notifications@chekup247.com'),
   BREVO_SENDER_NAME: z.string().default('ChekUp247 Telehealth'),
   // Destination inbox for patient/visitor contact-support inquiries.
-  SUPPORT_EMAIL: z.string().default('support@chekup247.co.za'),
+  SUPPORT_EMAIL: z.string().default('support@chekup247.com'),
   SUPPORT_EMAIL_NAME: z.string().default('ChekUp247 Support'),
 
   // SMS Gateway Integration (SMS Portal primary, Twilio fallback)
@@ -126,7 +126,7 @@ const envSchema = z.object({
   // in production since the admin panel has no signup route — this is
   // the only way an initial administrator gets created. The seeded
   // account must change this password on first login (see AdminService).
-  ADMIN_BOOTSTRAP_EMAIL: z.string().default('admin@chekup247.co.za'),
+  ADMIN_BOOTSTRAP_EMAIL: z.string().default('admin@chekup247.com'),
   ADMIN_BOOTSTRAP_PASSWORD: z.string().optional().default(''),
 });
 

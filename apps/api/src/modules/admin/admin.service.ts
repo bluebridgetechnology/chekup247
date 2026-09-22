@@ -101,7 +101,7 @@ export class AdminService implements OnModuleInit {
    */
   async onModuleInit() {
     try {
-      const defaultAdminEmail = 'admin@chekup247.co.za';
+      const defaultAdminEmail = 'admin@chekup247.com';
       const adminCount = await this.userRepository.count({
         where: { role: UserRole.ADMIN },
       });

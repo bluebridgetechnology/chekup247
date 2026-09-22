@@ -34,7 +34,7 @@ export class BrevoEmailProvider {
   }
 
   private get senderEmail(): string {
-    return (process.env.BREVO_SENDER_EMAIL || envConfig.BREVO_SENDER_EMAIL || 'notifications@chekup247.co.za').trim();
+    return (process.env.BREVO_SENDER_EMAIL || envConfig.BREVO_SENDER_EMAIL || 'notifications@chekup247.com').trim();
   }
 
   private get senderName(): string {
@@ -323,7 +323,7 @@ export class BrevoEmailProvider {
     const footerHtml = `
       <div style="margin-top: 32px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #94a3b8; line-height: 1.5;">
         <p style="margin: 0; font-weight: 600; color: #64748b;">ChekUp247 (Pty) Ltd &bull; HPCSA Compliant &bull; POPIA Certified</p>
-        <p style="margin: 4px 0 0 0;">Need clinical or technical assistance? Contact <a href="mailto:support@chekup247.co.za" style="color: #0e9384; text-decoration: none; font-weight: 600;">support@chekup247.co.za</a></p>
+        <p style="margin: 4px 0 0 0;">Need clinical or technical assistance? Contact <a href="mailto:support@chekup247.com" style="color: #0e9384; text-decoration: none; font-weight: 600;">support@chekup247.com</a></p>
       </div>
     `;
 

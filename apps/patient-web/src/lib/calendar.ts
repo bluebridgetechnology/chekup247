@@ -69,7 +69,7 @@ export function downloadIcsForBooking(booking: PortalBooking): void {
   const summary = `Chekup247 Consultation — ${booking.doctor.name}`;
   const description = `Virtual Telehealth Consultation\\nDoctor: ${booking.doctor.name} (${booking.doctor.specialty})\\nFacility: ${booking.doctor.facilityName || booking.doctor.location}\\nJoin Link: ${booking.joinUrl || 'https://chekup247.com/appointments'}\\nBooking ID: #${booking.id}`;
   const location = 'Chekup247 Encrypted Telehealth Video Room';
-  const uid = `chk-consultation-${booking.id}@chekup247.co.za`;
+  const uid = `chk-consultation-${booking.id}@chekup247.com`;
 
   const icsLines = [
     'BEGIN:VCALENDAR',

@@ -643,7 +643,7 @@ export class PrescriptionsService {
         docInfo,
         {
           name: 'Lerato Khumalo',
-          email: 'lerato.khumalo@chekup.co.za',
+          email: 'lerato.khumalo@chekup247.com',
           phone: '+27 82 123 4567',
         },
       );

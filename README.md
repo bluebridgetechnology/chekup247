@@ -52,13 +52,13 @@ Before deploying ChekUp247 to live production servers (VPS, AWS ECS/EC2, or Dock
 ### 1. Daily.co Video & Webhook Configuration
 - [ ] **Production API Key**: Set your live Daily.co Production API Key in your cloud secret manager (AWS Secrets Manager, Doppler, or production `.env`).
 - [ ] **WebRTC HTTPS Enforcement**: Ensure SSL/TLS certificates are active on all domains (`https://`). Browsers strictly require HTTPS for camera, microphone, and background blur permissions outside of `localhost`.
-- [ ] **Daily Webhook Registration**: Register your production webhook endpoint `https://api.chekup247.co.za/consultations/webhooks/daily` in the [Daily.co Webhooks Dashboard](https://dashboard.daily.co/webhooks) (or via `POST https://api.daily.co/v1/webhooks`) for events `["participant.joined", "participant.left"]`. Daily sends a verification probe `{"test": "test"}` which the backend automatically verifies with HTTP 200.
+- [ ] **Daily Webhook Registration**: Register your production webhook endpoint `https://api.chekup247.com/consultations/webhooks/daily` in the [Daily.co Webhooks Dashboard](https://dashboard.daily.co/webhooks) (or via `POST https://api.daily.co/v1/webhooks`) for events `["participant.joined", "participant.left"]`. Daily sends a verification probe `{"test": "test"}` which the backend automatically verifies with HTTP 200.
 
 ### 2. Platform URLs & Routing
-- [ ] `API_BASE_URL` -> `https://api.chekup247.co.za`
-- [ ] `PATIENT_WEB_URL` -> `https://chekup247.co.za`
-- [ ] `DOCTOR_PORTAL_URL` -> `https://doctor.chekup247.co.za`
-- [ ] `ADMIN_PANEL_URL` -> `https://admin.chekup247.co.za`
+- [ ] `API_BASE_URL` -> `https://api.chekup247.com`
+- [ ] `PATIENT_WEB_URL` -> `https://chekup247.com`
+- [ ] `DOCTOR_PORTAL_URL` -> `https://doctor.chekup247.com`
+- [ ] `ADMIN_PANEL_URL` -> `https://admin.chekup247.com`
 - [ ] `NEXT_PUBLIC_API_URL` on all Next.js frontends pointing to production backend HTTPS.
 
 ### 3. Databases & Infrastructure
@@ -102,11 +102,11 @@ Whenever code is pushed to the `main` branch, GitHub Actions builds and compiles
 
 | Service | Domain / URL | Container | Port | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **Patient Web** | `https://chekup.co.za` | `chekup-patient-web` | `3000` | Next.js 16 (React 19) Patient Portal & Booking |
-| **Doctor Portal** | `https://doctor.chekup.co.za` | `chekup-doctor-portal` | `3001` | Next.js 16 Doctor Workspace & E-prescribing |
-| **Admin Panel** | `https://admin.chekup.co.za` | `chekup-admin-panel` | `3002` | Next.js 16 Isolated Back-Office Governance |
-| **Backend API** | `https://api.chekup.co.za` | `chekup-api` | `4000` | NestJS API, WebSockets & BullMQ |
-| **Object Storage** | `https://storage.chekup.co.za`| `chekup-minio` | `9000` | MinIO S3 API for Documents & Prescriptions |
+| **Patient Web** | `https://chekup247.com` | `chekup-patient-web` | `3000` | Next.js 16 (React 19) Patient Portal & Booking |
+| **Doctor Portal** | `https://doctor.chekup247.com` | `chekup-doctor-portal` | `3001` | Next.js 16 Doctor Workspace & E-prescribing |
+| **Admin Panel** | `https://admin.chekup247.com` | `chekup-admin-panel` | `3002` | Next.js 16 Isolated Back-Office Governance |
+| **Backend API** | `https://api.chekup247.com` | `chekup-api` | `4000` | NestJS API, WebSockets & BullMQ |
+| **Object Storage** | `https://storage.chekup247.com`| `chekup-minio` | `9000` | MinIO S3 API for Documents & Prescriptions |
 | **Reverse Proxy** | Ports `80` & `443` | `chekup-caddy` | `80/443`| Automatic Let's Encrypt SSL & HTTP/3 |
 | **Operational DB**| `localhost:5434` (internal: 5432) | `chekup-operational-postgres` | `5432` | PostgreSQL 16 (Users, Profiles, Slots) |
 | **Patient DB** | `localhost:5433` (internal: 5432) | `chekup-patient-postgres` | `5432` | PostgreSQL 16 (Consultations, Records) |
@@ -120,12 +120,12 @@ In your domain registrar / DNS management dashboard (e.g. Cloudflare, Namecheap,
 
 | Type | Name / Host | Target IP | Description |
 | :--- | :--- | :--- | :--- |
-| **A** | `@` (or `chekup.co.za`) | `94.237.91.42` | Root Domain (Patient Portal) |
-| **A** | `www` | `94.237.91.42` | Auto-redirects to `https://chekup.co.za` |
-| **A** | `doctor` | `94.237.91.42` | Doctor Portal (`doctor.chekup.co.za`) |
-| **A** | `admin` | `94.237.91.42` | Admin Panel (`admin.chekup.co.za`) |
-| **A** | `api` | `94.237.91.42` | Backend API & WebSockets (`api.chekup.co.za`) |
-| **A** | `storage` | `94.237.91.42` | MinIO S3 API (`storage.chekup.co.za`) |
+| **A** | `@` (or `chekup247.com`) | `94.237.91.42` | Root Domain (Patient Portal) |
+| **A** | `www` | `94.237.91.42` | Auto-redirects to `https://chekup247.com` |
+| **A** | `doctor` | `94.237.91.42` | Doctor Portal (`doctor.chekup247.com`) |
+| **A** | `admin` | `94.237.91.42` | Admin Panel (`admin.chekup247.com`) |
+| **A** | `api` | `94.237.91.42` | Backend API & WebSockets (`api.chekup247.com`) |
+| **A** | `storage` | `94.237.91.42` | MinIO S3 API (`storage.chekup247.com`) |
 
 > **Automatic SSL**: Caddy listens on ports 80 and 443. As traffic arrives, Caddy automatically provisions and auto-renews free Let's Encrypt certificates for all domains and subdomains.
 

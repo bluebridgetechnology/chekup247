@@ -87,7 +87,7 @@ export class DoctorsService implements OnModuleInit {
    * Seed or verify the default verified test doctor account
    */
   async ensureTestDoctorAccount(): Promise<{ email: string; message: string; doctorProfile: DoctorProfile }> {
-    const testDoctorEmail = 'doctor@chekup247.co.za';
+    const testDoctorEmail = 'doctor@chekup247.com';
     let user = await this.userRepository.findOne({
       where: { email: testDoctorEmail },
     });
