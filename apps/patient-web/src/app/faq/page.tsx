@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
-import FaqClient, { ALL_FAQS } from './FaqClient';
+import FaqClient from './FaqClient';
+import { ALL_FAQS } from './faq-data';
 
 export const metadata: Metadata = {
   title: 'FAQ — Virtual Consultations, Prescriptions & Medical Aid | ChekUp247',
