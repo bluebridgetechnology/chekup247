@@ -375,6 +375,30 @@ export class AdminController {
     return this.adminService.deletePatient(id, admin?.sub, reason);
   }
 
+  @Delete('doctors/:id')
+  deleteDoctor(
+    @Param('id') id: string,
+    @Query('reason') reason: string | undefined,
+    @CurrentUser() admin: JwtPayload,
+  ) {
+    return this.adminService.deleteDoctor(id, admin?.sub, reason);
+  }
+
+  @Get('deleted-users')
+  getDeletedUsers(
+    @Query('role') role?: string,
+    @Query('search') search?: string,
+    @Query('page') page = 1,
+    @Query('limit') limit = 15,
+  ) {
+    return this.adminService.getDeletedUsers({
+      role,
+      search,
+      page: Number(page),
+      limit: Number(limit),
+    });
+  }
+
   // ==========================================
   // DOCTOR PAYOUT MANAGEMENT (Sprint C, P1-2)
   // ==========================================

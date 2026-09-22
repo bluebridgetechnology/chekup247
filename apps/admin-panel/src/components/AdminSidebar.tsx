@@ -22,6 +22,7 @@ import {
   Shield,
   Coins,
   AlertCircle,
+  Archive,
 } from 'lucide-react';
 import { useAdminAuth } from '../context/AdminAuthContext';
 import { ChekupCrossLogo } from './ChekupCrossLogo';
@@ -73,6 +74,7 @@ const navSections: NavSection[] = [
     items: [
       { label: 'Doctors Directory', href: '/doctors', icon: Stethoscope },
       { label: 'Patient Directory', href: '/users/patients', icon: Users },
+      { label: 'Deleted Records (POPIA)', href: '/users/deleted', icon: Archive },
       { label: 'Admin Accounts', href: '/admins', icon: UserCog, superAdminOnly: true },
     ],
   },

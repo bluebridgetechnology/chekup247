@@ -353,24 +353,11 @@ export class PrescriptionsService {
    * Retrieves all prescriptions issued for a patient in chronological order (PA-703).
    */
   async getPatientPrescriptions(patientId: string) {
-    if (this.patientDemoSeederService) {
-      await this.patientDemoSeederService.seedPatientDemoData(patientId);
-    }
-
     let prescriptions = await this.prescriptionRepository.find({
       where: { patient_id: patientId },
       order: { issued_at: 'DESC' },
       relations: ['consultation'],
     });
-
-    if (prescriptions.length === 0 && this.patientDemoSeederService) {
-      await this.patientDemoSeederService.seedPatientDemoData(patientId);
-      prescriptions = await this.prescriptionRepository.find({
-        where: { patient_id: patientId },
-        order: { issued_at: 'DESC' },
-        relations: ['consultation'],
-      });
-    }
 
     // Enrich with doctor details and frontend-friendly items mapping
     const enriched = [];

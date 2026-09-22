@@ -766,6 +766,13 @@ export class AdminService implements OnModuleInit {
     return [first, last].filter(Boolean).join(' ') || 'Patient';
   }
 
+  private maskEmail(email: string): string {
+    if (!email || !email.includes('@')) return '***@anonymized.local';
+    const [local, domain] = email.split('@');
+    const maskedLocal = local.length <= 2 ? `${local[0]}*` : `${local[0]}***${local[local.length - 1]}`;
+    return `${maskedLocal}@${domain}`;
+  }
+
   async getBookings(query: {
     page?: number;
     limit?: number;
@@ -1235,7 +1242,9 @@ export class AdminService implements OnModuleInit {
 
     const qb = this.userRepository
       .createQueryBuilder('user')
-      .where('user.role = :role', { role: UserRole.PATIENT });
+      .where('user.role = :role', { role: UserRole.PATIENT })
+      .andWhere('user.status != :banned', { banned: UserStatus.BANNED })
+      .andWhere('NOT user.email LIKE :deletedPrefix', { deletedPrefix: 'deleted_%' });
 
     if (query.status && query.status !== 'all') {
       qb.andWhere('user.status = :status', { status: query.status });
@@ -1267,7 +1276,12 @@ export class AdminService implements OnModuleInit {
       for (const r of rows) bookingCounts[r.patientId] = Number(r.count);
     }
 
-    const allPatients = await this.userRepository.find({ where: { role: UserRole.PATIENT } });
+    const allPatients = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.role = :role', { role: UserRole.PATIENT })
+      .andWhere('user.status != :banned', { banned: UserStatus.BANNED })
+      .andWhere('NOT user.email LIKE :deletedPrefix', { deletedPrefix: 'deleted_%' })
+      .getMany();
     let activePatients = 0;
     let suspendedPatients = 0;
     for (const p of allPatients) {
@@ -1421,12 +1435,10 @@ export class AdminService implements OnModuleInit {
   }
 
   /**
-   * Soft delete: the account is banned (login blocked) and PII fields are
-   * scrubbed, but the row and its foreign-keyed history (bookings,
-   * payments, audit trail) are retained for financial/legal record-keeping
-   * — a hard delete would break referential integrity across both
-   * databases and audit requirements. This is a deliberate design choice,
-   * not a partial implementation.
+   * POPIA De-identification & Soft Delete:
+   * The user account is banned, all PII fields (name, phone, email, date of birth, avatar)
+   * are scrubbed/anonymized to satisfy POPIA Right to be Forgotten (Section 24),
+   * while preserving referential integrity for historic financial & clinical audit trails (Section 14).
    */
   async deletePatient(patientId: string, adminId?: string, reason?: string) {
     const patient = await this.userRepository.findOne({
@@ -1436,9 +1448,14 @@ export class AdminService implements OnModuleInit {
       throw new NotFoundException('Patient not found');
     }
 
+    const originalEmail = patient.email;
+    const originalName = patient.full_name;
+
     patient.status = UserStatus.BANNED;
-    patient.full_name = 'Deleted Patient';
+    patient.email = `deleted_${patient.id.slice(0, 8)}_${Date.now()}@anonymized.chekup.local`;
+    patient.full_name = 'Anonymized Patient (POPIA)';
     patient.phone = null as any;
+    patient.date_of_birth = null as any;
     patient.avatar_url = null;
     await this.userRepository.save(patient);
 
@@ -1447,14 +1464,163 @@ export class AdminService implements OnModuleInit {
         user_id: adminId || 'admin',
         user_role: 'admin',
         patient_id: patientId,
-        action: 'ADMIN_PATIENT_DELETED',
-        metadata: { patientId, reason: reason || null, mode: 'soft_delete' },
+        action: 'ADMIN_PATIENT_DELETED_POPIA',
+        metadata: {
+          patientId,
+          originalEmailMasked: this.maskEmail(originalEmail),
+          originalNameMasked: this.maskName(originalName),
+          reason: reason || 'Deleted by administrator under POPIA Right to be Forgotten (Section 24)',
+          mode: 'popia_scrubbed',
+        },
       }),
     );
 
-    this.logger.log(`Patient ${patientId} soft-deleted by admin ${adminId || 'system'}`);
+    this.logger.log(`Patient ${patientId} scrubbed and deleted under POPIA by admin ${adminId || 'system'}`);
 
-    return { message: 'Patient account has been deleted (data retained per POPIA/financial record-keeping requirements).' };
+    return {
+      message:
+        'Patient account has been deleted and personal information scrubbed in compliance with POPIA. Referential records retained for statutory audit.',
+    };
+  }
+
+  async deleteDoctor(doctorId: string, adminId?: string, reason?: string) {
+    const doctor = await this.doctorRepository.findOne({
+      where: { id: doctorId },
+      relations: ['user'],
+    });
+    if (!doctor) {
+      throw new NotFoundException('Doctor not found');
+    }
+
+    const user = doctor.user;
+    const originalEmail = user?.email || '';
+    const originalName = user?.full_name || '';
+
+    // De-identify user credentials & PII
+    if (user) {
+      user.status = UserStatus.BANNED;
+      user.email = `deleted_doc_${user.id.slice(0, 8)}_${Date.now()}@anonymized.chekup.local`;
+      user.full_name = 'Anonymized Doctor (POPIA)';
+      user.phone = null as any;
+      user.avatar_url = null;
+      await this.userRepository.save(user);
+    }
+
+    // De-identify doctor profile & remove from directory
+    doctor.verification_status = VerificationStatus.REJECTED;
+    doctor.presence_status = 'offline';
+    doctor.is_on_holiday = true;
+    doctor.bio = 'Doctor record archived and scrubbed under POPIA.';
+    doctor.bank_name = null;
+    doctor.account_number = null;
+    doctor.branch_code = null;
+    doctor.account_holder = null;
+    await this.doctorRepository.save(doctor);
+
+    await this.auditLogRepository.save(
+      this.auditLogRepository.create({
+        user_id: adminId || 'admin',
+        user_role: 'admin',
+        action: 'ADMIN_DOCTOR_DELETED_POPIA',
+        metadata: {
+          doctorId,
+          doctorUserId: user?.id,
+          originalEmailMasked: this.maskEmail(originalEmail),
+          originalNameMasked: this.maskName(originalName),
+          reason: reason || 'Doctor removed by administrator under POPIA retention policy',
+          mode: 'popia_scrubbed',
+        },
+      }),
+    );
+
+    this.logger.log(`Doctor ${doctorId} scrubbed and deleted under POPIA by admin ${adminId || 'system'}`);
+
+    return { message: 'Doctor account has been deleted and personal information scrubbed in compliance with POPIA.' };
+  }
+
+  async getDeletedUsers(query: { page?: number; limit?: number; role?: string; search?: string }) {
+    const page = Math.max(1, Number(query.page || 1));
+    const limit = Math.min(100, Math.max(1, Number(query.limit || 15)));
+    const skip = (page - 1) * limit;
+
+    const qb = this.userRepository
+      .createQueryBuilder('user')
+      .where('user.status = :status', { status: UserStatus.BANNED })
+      .andWhere('user.email LIKE :deletedPrefix', { deletedPrefix: 'deleted_%' });
+
+    if (query.role && query.role !== 'all') {
+      qb.andWhere('user.role = :role', { role: query.role });
+    }
+
+    if (query.search && query.search.trim()) {
+      const term = `%${query.search.trim()}%`;
+      qb.andWhere('(user.id::text ILIKE :term OR user.email ILIKE :term OR user.full_name ILIKE :term)', { term });
+    }
+
+    qb.orderBy('user.updated_at', 'DESC');
+    qb.skip(skip).take(limit);
+
+    const [users, total] = await qb.getManyAndCount();
+
+    const userIds = users.map((u) => u.id);
+    const auditLogs = userIds.length > 0
+      ? await this.auditLogRepository.find({
+          where: [
+            ...userIds.map((uid) => ({ patient_id: uid, action: 'ADMIN_PATIENT_DELETED_POPIA' })),
+            ...userIds.map((uid) => ({ user_id: uid, action: 'ADMIN_DOCTOR_DELETED_POPIA' })),
+            ...userIds.map((uid) => ({ patient_id: uid, action: 'ADMIN_PATIENT_DELETED' })),
+          ],
+          order: { created_at: 'DESC' },
+        })
+      : [];
+
+    const auditByUserId: Record<string, AuditLog> = {};
+    for (const log of auditLogs) {
+      const targetId = log.patient_id || (log.metadata as any)?.doctorUserId || (log.metadata as any)?.patientId;
+      if (targetId && !auditByUserId[targetId]) {
+        auditByUserId[targetId] = log;
+      }
+    }
+
+    const records = users.map((u) => {
+      const log = auditByUserId[u.id];
+      return {
+        id: u.id,
+        role: u.role,
+        anonymizedName: u.full_name,
+        anonymizedEmail: u.email,
+        deletedAt: u.updated_at || u.created_at,
+        deletedBy: log?.user_id || 'admin',
+        reason: (log?.metadata as any)?.reason || 'POPIA Right to be Forgotten / Compliance Scrubbing',
+        popiaCompliant: true,
+        retentionPolicy:
+          u.role === UserRole.PATIENT
+            ? 'Section 14 & 24 POPIA: Personal data scrubbed; financial/clinical encounter IDs retained for statutory audit.'
+            : 'Section 14 & 24 POPIA: Practitioner credentials de-identified; historic clinical notes protected.',
+      };
+    });
+
+    const allDeleted = await this.userRepository
+      .createQueryBuilder('user')
+      .where('user.status = :status', { status: UserStatus.BANNED })
+      .andWhere('user.email LIKE :deletedPrefix', { deletedPrefix: 'deleted_%' })
+      .getMany();
+
+    const deletedPatients = allDeleted.filter((u) => u.role === UserRole.PATIENT).length;
+    const deletedDoctors = allDeleted.filter((u) => u.role === UserRole.DOCTOR).length;
+
+    return {
+      records,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit) || 1,
+      summary: {
+        totalDeleted: allDeleted.length,
+        deletedPatients,
+        deletedDoctors,
+      },
+    };
   }
 
   // ==========================================
@@ -2342,7 +2508,9 @@ export class AdminService implements OnModuleInit {
 
     const qb = this.doctorRepository
       .createQueryBuilder('doctor')
-      .leftJoinAndSelect('doctor.user', 'user');
+      .leftJoinAndSelect('doctor.user', 'user')
+      .where('(user.status != :banned OR user.status IS NULL)', { banned: UserStatus.BANNED })
+      .andWhere('(NOT user.email LIKE :deletedPrefix OR user.email IS NULL)', { deletedPrefix: 'deleted_%' });
 
     if (query.status && query.status !== 'all') {
       qb.andWhere('doctor.verification_status = :status', { status: query.status });
@@ -2365,7 +2533,12 @@ export class AdminService implements OnModuleInit {
 
     const [doctors, total] = await qb.getManyAndCount();
 
-    const allDoctors = await this.doctorRepository.find();
+    const allDoctors = await this.doctorRepository
+      .createQueryBuilder('doctor')
+      .leftJoinAndSelect('doctor.user', 'user')
+      .where('(user.status != :banned OR user.status IS NULL)', { banned: UserStatus.BANNED })
+      .andWhere('(NOT user.email LIKE :deletedPrefix OR user.email IS NULL)', { deletedPrefix: 'deleted_%' })
+      .getMany();
     let verifiedCount = 0;
     let pendingCount = 0;
     let locumstaffCount = 0;

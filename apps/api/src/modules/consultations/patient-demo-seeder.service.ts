@@ -61,6 +61,12 @@ export class PatientDemoSeederService implements OnModuleInit {
    */
   async seedPatientDemoData(patientId: string): Promise<void> {
     try {
+      // Guard: ONLY seed demo data for the designated sandbox test patient (patient@chekup247.com)
+      const user = await this.userRepo.findOne({ where: { id: patientId } });
+      if (!user || user.email !== 'patient@chekup247.com') {
+        return;
+      }
+
       // 1. Check if patient already has bookings
       const bookingCount = await this.bookingRepo.count({
         where: { patient_id: patientId },
