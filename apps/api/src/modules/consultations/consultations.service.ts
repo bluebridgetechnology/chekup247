@@ -476,10 +476,6 @@ export class ConsultationsService {
    * Retrieves Health Notes for patient, linking to associated prescription if issued.
    */
   async getPatientHealthNotes(patientId: string) {
-    if (this.patientDemoSeederService) {
-      await this.patientDemoSeederService.seedPatientDemoData(patientId);
-    }
-
     const bookings = await this.bookingRepository.find({
       where: { patient_id: patientId },
       order: { created_at: 'DESC' },

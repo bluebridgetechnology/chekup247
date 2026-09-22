@@ -494,7 +494,12 @@ describe('AdminService', () => {
 
       expect(result.message).toContain('retained');
       expect(saveSpy).toHaveBeenCalledWith(
-        expect.objectContaining({ status: 'banned', full_name: 'Deleted Patient', phone: null, avatar_url: null }),
+        expect.objectContaining({
+          status: 'banned',
+          full_name: 'Anonymized Patient (POPIA)',
+          phone: null,
+          avatar_url: null,
+        }),
       );
       expect(auditLogRepo.save).toHaveBeenCalled();
     });

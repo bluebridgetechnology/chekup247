@@ -39,6 +39,7 @@ import {
   Activity,
   MessageSquare,
   FileSpreadsheet,
+  Trash2,
 } from 'lucide-react';
 import { useAdminAuth } from '../../context/AdminAuthContext';
 
@@ -129,6 +130,8 @@ export default function DoctorManagementPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [suspendModalFor, setSuspendModalFor] = useState<DoctorItem | null>(null);
   const [suspendReason, setSuspendReason] = useState('');
+  const [deleteDoctorModalFor, setDeleteDoctorModalFor] = useState<DoctorItem | null>(null);
+  const [deleteDoctorReason, setDeleteDoctorReason] = useState('');
 
   // Image error state map
   const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
@@ -310,6 +313,39 @@ export default function DoctorManagementPage() {
       fetchDoctors();
     } catch (err: any) {
       setFeedback({ type: 'error', message: err.message });
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  // Delete Doctor Account (POPIA)
+  const handleDeleteDoctor = async () => {
+    if (!deleteDoctorModalFor) return;
+    setActionBusy(true);
+    try {
+      const reasonParam = encodeURIComponent(
+        deleteDoctorReason.trim() || 'Deleted by administrator under POPIA Right to be Forgotten',
+      );
+      const res = await fetch(`${API_BASE}/admin/doctors/${deleteDoctorModalFor.id}?reason=${reasonParam}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Failed to delete doctor account');
+      }
+
+      setFeedback({
+        type: 'success',
+        message: `Doctor account ${deleteDoctorModalFor.user?.full_name || 'Practitioner'} deleted and personal data scrubbed under POPIA.`,
+      });
+      setSelectedDoctor(null);
+      setDeleteDoctorModalFor(null);
+      setDeleteDoctorReason('');
+      fetchDoctors();
+    } catch (err: any) {
+      setFeedback({ type: 'error', message: err.message || 'Delete failed' });
     } finally {
       setActionBusy(false);
     }
@@ -1562,6 +1598,34 @@ export default function DoctorManagementPage() {
                           </>
                         )}
                       </button>
+
+                      {/* Delete Doctor Account (POPIA) */}
+                      <button
+                        onClick={() => {
+                          setDeleteDoctorModalFor(selectedDoctor);
+                          setDeleteDoctorReason('');
+                        }}
+                        disabled={actionBusy || selectedDoctor.user?.status === 'banned'}
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '10px',
+                          borderRadius: '8px',
+                          background: '#FEF2F2',
+                          border: '1px solid #FECACA',
+                          color: '#991B1B',
+                          fontWeight: 600,
+                          fontSize: '0.85rem',
+                          cursor: 'pointer',
+                          marginTop: '8px',
+                        }}
+                      >
+                        <Trash2 size={15} />
+                        <span>Delete Doctor Account (POPIA)</span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1852,6 +1916,92 @@ export default function DoctorManagementPage() {
                   : suspendModalFor.user?.status === 'suspended'
                   ? 'Confirm Reactivate'
                   : 'Confirm Suspension'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Doctor Account Modal (POPIA) */}
+      {deleteDoctorModalFor && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(32, 23, 18, 0.6)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 110,
+            padding: '20px',
+          }}
+        >
+          <div
+            className="admin-card"
+            style={{
+              padding: '28px',
+              width: '100%',
+              maxWidth: '460px',
+              background: '#FFFFFF',
+              border: '1px solid #E9E0D5',
+              boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)',
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '8px',
+                    background: '#FEF2F2',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Trash2 size={18} color="#991B1B" />
+                </div>
+                <h2 className="section-title" style={{ fontSize: '1.1rem', margin: 0 }}>
+                  Delete Doctor Account
+                </h2>
+              </div>
+              <button
+                onClick={() => setDeleteDoctorModalFor(null)}
+                style={{ background: 'transparent', border: 'none', color: '#766C64', cursor: 'pointer' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: '#766C64', marginBottom: '14px', lineHeight: 1.4 }}>
+              Are you sure you want to delete <strong>{deleteDoctorModalFor.user?.full_name}</strong>? In compliance with POPIA Sections 14 & 24, practitioner credentials, personal identifiable information, and bank details will be permanently scrubbed while preserving anonymized clinical and payout audit logs.
+            </p>
+
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#201712', marginBottom: '6px' }}>
+              Reason for Deletion (Required)
+            </label>
+            <textarea
+              value={deleteDoctorReason}
+              onChange={(e) => setDeleteDoctorReason(e.target.value)}
+              rows={2}
+              placeholder="e.g. Practitioner deregistered, request under POPIA Section 24, account decommissioned..."
+              className="admin-input"
+              style={{ width: '100%', marginBottom: '20px', resize: 'vertical' }}
+            />
+
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'flex-end' }}>
+              <button onClick={() => setDeleteDoctorModalFor(null)} className="btn-secondary">
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteDoctor}
+                disabled={!deleteDoctorReason.trim() || actionBusy}
+                className="btn-primary"
+                style={{ background: '#991B1B', borderColor: '#991B1B', color: '#FFFFFF' }}
+              >
+                {actionBusy ? 'Deleting…' : 'Confirm Deletion'}
               </button>
             </div>
           </div>
