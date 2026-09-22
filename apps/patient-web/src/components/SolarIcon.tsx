@@ -1,11 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Icon, addCollection } from '@iconify/react';
-import solarData from '@iconify-json/solar/icons.json';
-
-// Register complete Solar Icons collection locally for zero-latency offline rendering
-addCollection(solarData as any);
+import { Icon } from '@iconify/react';
 
 interface SolarIconProps {
   name: string;
