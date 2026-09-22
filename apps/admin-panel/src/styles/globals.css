@@ -219,6 +219,41 @@ a {
   letter-spacing: 0.06em;
 }
 
+.stat-card {
+  background-color: var(--surface-bg, #FFFFFF);
+  border: 1px solid var(--border-subtle, #E9E0D5);
+  border-radius: 12px;
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(32, 23, 18, 0.04);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.stat-card:hover {
+  border-color: #DFD5C7;
+  box-shadow: 0 2px 8px rgba(32, 23, 18, 0.06);
+}
+
+.stat-grid-5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 1280px) {
+  .stat-grid-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .stat-grid-5 {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ==========================================================================
    ChekUp247 Button Primitives (WCAG AA Compliant)
    ========================================================================== */
