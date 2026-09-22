@@ -364,23 +364,35 @@ export default function AdminSettingsPage() {
       )}
 
       {/* Quick Summary Stats Ribbon */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-          gap: '14px',
-        }}
-      >
+      <div className="stat-grid-5">
         <div
-          className="stat-card"
+          className="stat-card admin-card"
           onClick={() => setActiveTab('gateway')}
-          style={{ cursor: 'pointer', border: activeTab === 'gateway' ? '2px solid #DFA34F' : '1px solid #E9E0D5' }}
+          style={{
+            cursor: 'pointer',
+            padding: '16px 18px',
+            background: activeTab === 'gateway' ? '#FFFDF8' : '#FFFFFF',
+            border: activeTab === 'gateway' ? '2px solid #DFA34F' : '1px solid #E9E0D5',
+            boxShadow: activeTab === 'gateway' ? '0 2px 10px rgba(223, 163, 79, 0.18)' : '0 1px 3px rgba(32, 23, 18, 0.04)',
+          }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <span className="stat-label">Payment Gateway</span>
-            <CreditCard size={18} color={settings.paystack_mode === 'live' ? '#166534' : '#B98232'} />
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: settings.paystack_mode === 'live' ? '#ECF9F3' : '#F7EFE3',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CreditCard size={16} color={settings.paystack_mode === 'live' ? '#166534' : '#B98232'} />
+            </div>
           </div>
-          <div className="stat-number" style={{ fontSize: '1.25rem', color: settings.paystack_mode === 'live' ? '#166534' : '#B98232' }}>
+          <div className="stat-number" style={{ fontSize: '1.2rem', color: settings.paystack_mode === 'live' ? '#166534' : '#B98232' }}>
             {settings.paystack_mode === 'live' ? 'Live Mode' : 'Sandbox (Test)'}
           </div>
           <div style={{ fontSize: '0.75rem', color: '#766C64', marginTop: '4px' }}>
@@ -389,13 +401,31 @@ export default function AdminSettingsPage() {
         </div>
 
         <div
-          className="stat-card"
+          className="stat-card admin-card"
           onClick={() => setActiveTab('financial')}
-          style={{ cursor: 'pointer', border: activeTab === 'financial' ? '2px solid #DFA34F' : '1px solid #E9E0D5' }}
+          style={{
+            cursor: 'pointer',
+            padding: '16px 18px',
+            background: activeTab === 'financial' ? '#FFFDF8' : '#FFFFFF',
+            border: activeTab === 'financial' ? '2px solid #DFA34F' : '1px solid #E9E0D5',
+            boxShadow: activeTab === 'financial' ? '0 2px 10px rgba(223, 163, 79, 0.18)' : '0 1px 3px rgba(32, 23, 18, 0.04)',
+          }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span className="stat-label">Platform Commission</span>
-            <Percent size={18} color="#B98232" />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span className="stat-label">Commission</span>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: '#F7EFE3',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Percent size={16} color="#B98232" />
+            </div>
           </div>
           <div className="stat-number">{settings.commission_percent}%</div>
           <div style={{ fontSize: '0.75rem', color: '#766C64', marginTop: '4px' }}>
@@ -404,13 +434,31 @@ export default function AdminSettingsPage() {
         </div>
 
         <div
-          className="stat-card"
+          className="stat-card admin-card"
           onClick={() => setActiveTab('financial')}
-          style={{ cursor: 'pointer', border: activeTab === 'financial' ? '2px solid #DFA34F' : '1px solid #E9E0D5' }}
+          style={{
+            cursor: 'pointer',
+            padding: '16px 18px',
+            background: activeTab === 'financial' ? '#FFFDF8' : '#FFFFFF',
+            border: activeTab === 'financial' ? '2px solid #DFA34F' : '1px solid #E9E0D5',
+            boxShadow: activeTab === 'financial' ? '0 2px 10px rgba(223, 163, 79, 0.18)' : '0 1px 3px rgba(32, 23, 18, 0.04)',
+          }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span className="stat-label">Late Cancellation Fee</span>
-            <Coins size={18} color="#B91C1C" />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span className="stat-label">Late Cancel Fee</span>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: '#FEF2F2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Coins size={16} color="#B91C1C" />
+            </div>
           </div>
           <div className="stat-number" style={{ color: '#B91C1C' }}>
             {settings.late_cancellation_deduction_percent}%
@@ -421,13 +469,31 @@ export default function AdminSettingsPage() {
         </div>
 
         <div
-          className="stat-card"
+          className="stat-card admin-card"
           onClick={() => setActiveTab('scheduling')}
-          style={{ cursor: 'pointer', border: activeTab === 'scheduling' ? '2px solid #DFA34F' : '1px solid #E9E0D5' }}
+          style={{
+            cursor: 'pointer',
+            padding: '16px 18px',
+            background: activeTab === 'scheduling' ? '#FFFDF8' : '#FFFFFF',
+            border: activeTab === 'scheduling' ? '2px solid #DFA34F' : '1px solid #E9E0D5',
+            boxShadow: activeTab === 'scheduling' ? '0 2px 10px rgba(223, 163, 79, 0.18)' : '0 1px 3px rgba(32, 23, 18, 0.04)',
+          }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <span className="stat-label">Default Slot Duration</span>
-            <CalendarCheck size={18} color="#0F8F72" />
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <span className="stat-label">Slot Duration</span>
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: '#ECF9F3',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CalendarCheck size={16} color="#0F8F72" />
+            </div>
           </div>
           <div className="stat-number" style={{ color: '#0F8F72' }}>
             {settings.default_slot_duration_minutes}m
@@ -438,13 +504,31 @@ export default function AdminSettingsPage() {
         </div>
 
         <div
-          className="stat-card"
+          className="stat-card admin-card"
           onClick={() => setActiveTab('scheduling')}
-          style={{ cursor: 'pointer', border: activeTab === 'scheduling' ? '2px solid #DFA34F' : '1px solid #E9E0D5' }}
+          style={{
+            cursor: 'pointer',
+            padding: '16px 18px',
+            background: activeTab === 'scheduling' ? '#FFFDF8' : '#FFFFFF',
+            border: activeTab === 'scheduling' ? '2px solid #DFA34F' : '1px solid #E9E0D5',
+            boxShadow: activeTab === 'scheduling' ? '0 2px 10px rgba(223, 163, 79, 0.18)' : '0 1px 3px rgba(32, 23, 18, 0.04)',
+          }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
             <span className="stat-label">Clinical Buffer</span>
-            <Hourglass size={18} color="#B98232" />
+            <div
+              style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '8px',
+                background: '#F7EFE3',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Hourglass size={16} color="#B98232" />
+            </div>
           </div>
           <div className="stat-number">{settings.default_buffer_minutes}m</div>
           <div style={{ fontSize: '0.75rem', color: '#766C64', marginTop: '4px' }}>
