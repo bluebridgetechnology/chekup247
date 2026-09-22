@@ -48,6 +48,7 @@ import {
 import { TokenService } from '../auth/token.service';
 import { AuditService, AuditLogsFilterQuery } from '../audit/audit.service';
 import { ReviewsService } from '../reviews/reviews.service';
+import { BrevoEmailProvider, BrevoTestResult } from '../notifications/providers/brevo.provider';
 
 @Injectable()
 export class AdminService implements OnModuleInit {
@@ -91,6 +92,8 @@ export class AdminService implements OnModuleInit {
     private readonly notificationsService?: NotificationsService,
     @Optional()
     private readonly paystackService?: PaystackService,
+    @Optional()
+    private readonly brevoEmailProvider?: BrevoEmailProvider,
   ) {}
 
   /**
@@ -266,6 +269,21 @@ export class AdminService implements OnModuleInit {
       success: false,
       mode: 'test',
       message: 'PaystackService is not available',
+    };
+  }
+
+  async testBrevoConnection(recipientEmail?: string): Promise<BrevoTestResult> {
+    if (this.brevoEmailProvider) {
+      return this.brevoEmailProvider.testConnection(recipientEmail);
+    }
+    return {
+      success: false,
+      apiKeyConfigured: false,
+      senderEmail: '',
+      senderName: '',
+      recipient: recipientEmail || '',
+      message: 'BrevoEmailProvider is not available in AdminService',
+      recommendations: ['Ensure NotificationsModule is imported and exports BrevoEmailProvider.'],
     };
   }
 

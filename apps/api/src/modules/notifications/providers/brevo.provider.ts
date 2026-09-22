@@ -7,22 +7,70 @@ export interface SendEmailOptions {
   templateId?: string;
   templateParams?: Record<string, any>;
   htmlContent?: string;
+  textContent?: string;
+}
+
+export interface BrevoTestResult {
+  success: boolean;
+  serverIp?: string;
+  apiKeyConfigured: boolean;
+  apiKeyPrefix?: string;
+  senderEmail: string;
+  senderName: string;
+  recipient: string;
+  brevoHttpStatus?: number;
+  brevoResponse?: any;
+  message: string;
+  recommendations?: string[];
 }
 
 @Injectable()
 export class BrevoEmailProvider {
   private readonly logger = new Logger(BrevoEmailProvider.name);
-  private readonly apiKey = envConfig.BREVO_API_KEY;
-  private readonly senderEmail = envConfig.BREVO_SENDER_EMAIL;
-  private readonly senderName = envConfig.BREVO_SENDER_NAME;
 
-  async sendEmail(options: SendEmailOptions): Promise<{ success: boolean; messageId?: string }> {
-    const { to, subject, templateParams, templateId, htmlContent } = options;
+  // Dynamically resolve configuration from environment or envConfig
+  private get apiKey(): string {
+    return (process.env.BREVO_API_KEY || envConfig.BREVO_API_KEY || '').trim();
+  }
+
+  private get senderEmail(): string {
+    return (process.env.BREVO_SENDER_EMAIL || envConfig.BREVO_SENDER_EMAIL || 'notifications@chekup247.co.za').trim();
+  }
+
+  private get senderName(): string {
+    return (process.env.BREVO_SENDER_NAME || envConfig.BREVO_SENDER_NAME || 'ChekUp247 Telehealth').trim();
+  }
+
+  async sendEmail(options: SendEmailOptions): Promise<{ success: boolean; messageId?: string; error?: any }> {
+    const { to, subject, templateParams, templateId, htmlContent, textContent } = options;
     const finalHtml = htmlContent || this.renderTemplate(templateId || 'default', templateParams || {});
+    const plainText =
+      textContent ||
+      finalHtml
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
 
-    if (!this.apiKey) {
-      this.logger.log(
-        `[Brevo Sandbox] Simulated Email to: ${to.map((r) => r.email).join(', ')} | Subject: "${subject}" | Template: ${templateId}`,
+    const apiKey = this.apiKey;
+    const senderEmail = this.senderEmail;
+    const senderName = this.senderName;
+
+    // Sanitize recipient list
+    const sanitizedTo = (to || [])
+      .filter((r) => r && r.email && r.email.trim())
+      .map((r) => ({
+        email: r.email.trim(),
+        ...(r.name && r.name.trim() ? { name: r.name.trim() } : {}),
+      }));
+
+    if (sanitizedTo.length === 0) {
+      this.logger.error(`Brevo sendEmail aborted: no valid recipient email addresses provided`);
+      return { success: false, error: 'No valid recipient email addresses provided' };
+    }
+
+    if (!apiKey) {
+      this.logger.warn(
+        `[Brevo Sandbox] BREVO_API_KEY is not configured in environment! Simulated Email to: ${sanitizedTo.map((r) => r.email).join(', ')} | Subject: "${subject}" | Template: ${templateId}. To dispatch real emails, define BREVO_API_KEY in .env.production.`,
       );
       return { success: true, messageId: `mock-brevo-${Date.now()}` };
     }
@@ -31,29 +79,195 @@ export class BrevoEmailProvider {
       const response = await fetch('https://api.brevo.com/v3/smtp/email', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'api-key': this.apiKey,
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'api-key': apiKey,
         },
         body: JSON.stringify({
-          sender: { name: this.senderName, email: this.senderEmail },
-          to,
+          sender: { name: senderName, email: senderEmail },
+          to: sanitizedTo,
           subject,
           htmlContent: finalHtml,
+          textContent: plainText,
         }),
       });
 
       if (!response.ok) {
         const errText = await response.text();
-        this.logger.error(`Brevo email API error (${response.status}): ${errText}`);
-        return { success: false };
+        let parsedError: any;
+        try {
+          parsedError = JSON.parse(errText);
+        } catch {
+          parsedError = { message: errText };
+        }
+
+        this.logger.error(
+          `Brevo email API rejected request (HTTP ${response.status}): ${JSON.stringify(parsedError)} | Sender: "${senderName}" <${senderEmail}> | Recipients: ${sanitizedTo.map((t) => t.email).join(', ')}`,
+        );
+
+        // Targeted diagnostics for common Brevo issues
+        if (response.status === 401 && parsedError.code === 'unauthorized' && parsedError.message === 'not verified') {
+          this.logger.error(
+            `[BREVO SECURITY ALERT] IP Authorization Required! Brevo blocked this request because your server's IP address is not authorized. Check your Brevo account email for an authorization link, or log in to Brevo Dashboard -> Settings -> Security -> Authorized IPs to whitelist your server IP.`,
+          );
+        } else if (response.status === 400 && parsedError.message?.toLowerCase().includes('sender')) {
+          this.logger.error(
+            `[BREVO CONFIG ERROR] Sender email "${senderEmail}" is not verified in Brevo! Go to Brevo Dashboard -> Senders & IP -> Senders and add/verify "${senderEmail}".`,
+          );
+        } else if (response.status === 401) {
+          this.logger.error(
+            `[BREVO AUTH ERROR] API Key rejected by Brevo. Ensure you are using a valid v3 API Key (starts with "xkeysib-"), NOT an SMTP key (starts with "xsmtpsib-").`,
+          );
+        }
+
+        return { success: false, error: parsedError };
       }
 
       const data = (await response.json()) as { messageId?: string };
-      this.logger.log(`Brevo email dispatched successfully: ${data.messageId}`);
+      this.logger.log(`Brevo email dispatched successfully: ${data.messageId} to ${sanitizedTo.map((t) => t.email).join(', ')}`);
       return { success: true, messageId: data.messageId };
     } catch (err: any) {
-      this.logger.error(`Failed to send email via Brevo: ${err.message}`);
-      return { success: false };
+      this.logger.error(`Failed to connect to Brevo API: ${err.message}`);
+      return { success: false, error: err.message };
+    }
+  }
+
+  /**
+   * Diagnostic test method: checks API key, detects public IP, sends a test email,
+   * and returns full technical feedback.
+   */
+  async testConnection(targetEmail?: string): Promise<BrevoTestResult> {
+    const apiKey = this.apiKey;
+    const senderEmail = this.senderEmail;
+    const senderName = this.senderName;
+    const recipient = targetEmail || senderEmail;
+
+    // Detect server public IP to help with Brevo IP authorization
+    let serverIp = 'Unknown';
+    try {
+      const ipRes = await fetch('https://api.ipify.org?format=json', { signal: AbortSignal.timeout(3000) });
+      if (ipRes.ok) {
+        const ipData = (await ipRes.json()) as { ip: string };
+        serverIp = ipData.ip;
+      }
+    } catch {
+      // ignore
+    }
+
+    if (!apiKey) {
+      return {
+        success: false,
+        serverIp,
+        apiKeyConfigured: false,
+        senderEmail,
+        senderName,
+        recipient,
+        message: 'BREVO_API_KEY is not set in environment or .env.production.',
+        recommendations: [
+          'Generate a v3 API Key in Brevo under Settings -> SMTP & API -> API Keys (starts with xkeysib-).',
+          'Add BREVO_API_KEY=xkeysib-... to your .env.production on the VPS.',
+          'Rebuild and restart the container with: docker compose -f docker-compose.prod.yml up -d --build api',
+        ],
+      };
+    }
+
+    const apiKeyPrefix = apiKey.length > 12 ? `${apiKey.slice(0, 10)}...${apiKey.slice(-4)}` : '***';
+
+    try {
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: {
+          'accept': 'application/json',
+          'content-type': 'application/json',
+          'api-key': apiKey,
+        },
+        body: JSON.stringify({
+          sender: { name: senderName, email: senderEmail },
+          to: [{ email: recipient, name: 'ChekUp247 Admin Diagnostic' }],
+          subject: 'ChekUp247 Brevo Integration Diagnostic Test',
+          htmlContent: `
+            <div style="font-family: sans-serif; padding: 20px; color: #201712;">
+              <h2>ChekUp247 Brevo Integration Test</h2>
+              <p>This is a diagnostic email verifying that Brevo Transactional Email is properly connected and operating.</p>
+              <ul>
+                <li><strong>Server IP:</strong> ${serverIp}</li>
+                <li><strong>Sender:</strong> ${senderName} &lt;${senderEmail}&gt;</li>
+                <li><strong>Timestamp:</strong> ${new Date().toISOString()}</li>
+              </ul>
+            </div>
+          `,
+          textContent: `ChekUp247 Brevo Integration Test. Server IP: ${serverIp}. Sender: ${senderEmail}. Timestamp: ${new Date().toISOString()}`,
+        }),
+      });
+
+      const responseText = await response.text();
+      let responseBody: any;
+      try {
+        responseBody = JSON.parse(responseText);
+      } catch {
+        responseBody = { raw: responseText };
+      }
+
+      if (response.ok) {
+        return {
+          success: true,
+          serverIp,
+          apiKeyConfigured: true,
+          apiKeyPrefix,
+          senderEmail,
+          senderName,
+          recipient,
+          brevoHttpStatus: response.status,
+          brevoResponse: responseBody,
+          message: `Email successfully accepted by Brevo! Message ID: ${responseBody.messageId}`,
+        };
+      }
+
+      const recommendations: string[] = [];
+      if (response.status === 401 && responseBody.code === 'unauthorized' && responseBody.message === 'not verified') {
+        recommendations.push(
+          `Brevo IP Authorization Required: Brevo blocked request from server IP ${serverIp}.`,
+          `Check the email inbox of your Brevo account owner for a "Security Alert: Verify a new IP" message and click the verification link.`,
+          `Alternatively, go to Brevo Dashboard -> Settings -> Security -> Authorized IPs and add server IP: ${serverIp}`,
+        );
+      } else if (response.status === 400 && responseBody.message?.toLowerCase().includes('sender')) {
+        recommendations.push(
+          `Sender email "${senderEmail}" is not verified in Brevo.`,
+          `Go to Brevo Dashboard -> Senders & IP -> Senders, click "Add a sender", and verify "${senderEmail}".`,
+        );
+      } else if (response.status === 401) {
+        recommendations.push(
+          `API Key rejected. Make sure you generated an API Key (starts with "xkeysib-"), NOT an SMTP key (starts with "xsmtpsib-").`,
+        );
+      }
+
+      return {
+        success: false,
+        serverIp,
+        apiKeyConfigured: true,
+        apiKeyPrefix,
+        senderEmail,
+        senderName,
+        recipient,
+        brevoHttpStatus: response.status,
+        brevoResponse: responseBody,
+        message: `Brevo API rejected the request with HTTP ${response.status}: ${JSON.stringify(responseBody)}`,
+        recommendations,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        serverIp,
+        apiKeyConfigured: true,
+        apiKeyPrefix,
+        senderEmail,
+        senderName,
+        recipient,
+        message: `Network error connecting to Brevo API: ${err.message}`,
+        recommendations: [
+          'Verify outbound HTTPS (port 443) connectivity from your VPS to api.brevo.com.',
+        ],
+      };
     }
   }
 

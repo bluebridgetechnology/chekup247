@@ -30,6 +30,6 @@ import { AuthModule } from '../auth/auth.module';
     WebPushProvider,
     NotificationsGateway,
   ],
-  exports: [NotificationsService, NotificationsGateway, WebPushProvider],
+  exports: [NotificationsService, NotificationsGateway, WebPushProvider, BrevoEmailProvider],
 })
 export class NotificationsModule {}
