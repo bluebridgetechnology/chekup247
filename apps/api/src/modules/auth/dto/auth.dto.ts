@@ -78,9 +78,11 @@ export class LocumStaffCallbackDto {
   @IsString()
   code_verifier?: string;
 
-  @IsOptional()
+  // Contract §2 always returns state on the callback URL; it is used for
+  // CSRF protection and is required for a genuine handshake.
+  @IsNotEmpty({ message: 'OIDC state is required' })
   @IsString()
-  state?: string;
+  state: string;
 }
 
 export class GoogleAuthDto {

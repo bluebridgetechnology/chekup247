@@ -25,6 +25,7 @@ import { AdminSubRolesGuard } from '../../common/guards/admin-sub-roles.guard';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { ReviewsModule } from '../reviews/reviews.module';
+import { PaymentsModule } from '../payments/payments.module';
 
 @Module({
   imports: [
@@ -39,6 +40,7 @@ import { ReviewsModule } from '../reviews/reviews.module';
     AuthModule,
     NotificationsModule,
     ReviewsModule,
+    PaymentsModule,
   ],
   controllers: [AdminController],
   providers: [AdminService, AdminSubRolesGuard],

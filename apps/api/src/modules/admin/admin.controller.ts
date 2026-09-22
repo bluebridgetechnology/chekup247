@@ -228,10 +228,22 @@ export class AdminController {
       no_show_grace_minutes?: number;
       default_slot_duration_minutes?: number;
       default_buffer_minutes?: number;
+      paystack_mode?: 'test' | 'live';
+      paystack_test_secret_key?: string;
+      paystack_test_public_key?: string;
+      paystack_live_secret_key?: string;
+      paystack_live_public_key?: string;
     },
     @CurrentUser() admin: JwtPayload,
   ) {
     return this.adminService.updatePlatformSettings(dto, admin?.sub);
+  }
+
+  @Post('settings/paystack/test-connection')
+  @UseGuards(AdminSubRolesGuard)
+  @AdminSubRoles(AdminSubRole.SUPER_ADMIN)
+  testPaystackConnection(@Body() body: { secretKey?: string }) {
+    return this.adminService.testPaystackConnection(body?.secretKey);
   }
 
   @Get('verifications/pending')

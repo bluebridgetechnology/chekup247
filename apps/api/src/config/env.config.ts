@@ -69,9 +69,16 @@ const envSchema = z.object({
   DOCTOR_PORTAL_URL: z.string().default('http://localhost:3001'),
   ADMIN_PANEL_URL: z.string().default('http://localhost:3002'),
 
-  // LocumStaff Partner Directory Integration
+  // LocumStaff Partner Directory + OIDC SSO Integration.
+  // These four values are registered on the LocumStaff side under
+  // Admin → System → Integrations and must match exactly (handover §4).
   LOCUMSTAFF_API_URL: z.string().default('https://api.locumstaff.example'),
   LOCUMSTAFF_DIRECTORY_API_KEY: z.string().optional().default(''),
+  LOCUMSTAFF_OIDC_CLIENT_ID: z.string().optional().default(''),
+  LOCUMSTAFF_OIDC_CLIENT_SECRET: z.string().optional().default(''),
+  // Must exactly match the redirect URI sent in /authorize and /token.
+  // Defaults to the doctor portal's /callback when unset.
+  LOCUMSTAFF_OIDC_REDIRECT_URI: z.string().optional().default(''),
 
   // WHO ICD-10 API Integration
   WHO_ICD_CLIENT_ID: z

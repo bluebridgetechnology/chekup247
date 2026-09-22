@@ -8,6 +8,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PaystackService } from '../payments/paystack.service';
 import { envConfig } from '../../config/env.config';
 import { Response } from 'express';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -88,6 +89,8 @@ export class AdminService implements OnModuleInit {
     private readonly reviewsService: ReviewsService,
     @Optional()
     private readonly notificationsService?: NotificationsService,
+    @Optional()
+    private readonly paystackService?: PaystackService,
   ) {}
 
   /**
@@ -142,8 +145,38 @@ export class AdminService implements OnModuleInit {
   // PLATFORM SETTINGS
   // ==========================================
 
-  async getPlatformSettings(): Promise<PlatformSetting | null> {
-    return this.settingsRepository.findOne({ where: {} });
+  async getPlatformSettings(): Promise<any> {
+    let settings = await this.settingsRepository.findOne({ where: {} });
+    if (!settings) {
+      settings = this.settingsRepository.create();
+      await this.settingsRepository.save(settings);
+    }
+
+    const maskKey = (key?: string | null) => {
+      if (!key) return null;
+      if (key.length <= 8) return '••••••••';
+      const prefix = key.substring(0, 7); // e.g. "sk_test" or "sk_live"
+      const suffix = key.substring(key.length - 4);
+      return `${prefix}••••••••${suffix}`;
+    };
+
+    return {
+      id: settings.id,
+      commission_percent: Number(settings.commission_percent),
+      late_cancellation_deduction_percent: Number(settings.late_cancellation_deduction_percent),
+      no_show_grace_minutes: Number(settings.no_show_grace_minutes),
+      default_slot_duration_minutes: Number(settings.default_slot_duration_minutes),
+      default_buffer_minutes: Number(settings.default_buffer_minutes),
+      paystack_mode: settings.paystack_mode || 'test',
+      paystack_test_public_key: settings.paystack_test_public_key || null,
+      paystack_live_public_key: settings.paystack_live_public_key || null,
+      paystack_test_secret_key_masked: maskKey(settings.paystack_test_secret_key),
+      paystack_live_secret_key_masked: maskKey(settings.paystack_live_secret_key),
+      has_paystack_test_secret: Boolean(settings.paystack_test_secret_key),
+      has_paystack_live_secret: Boolean(settings.paystack_live_secret_key),
+      created_at: settings.created_at,
+      updated_at: settings.updated_at,
+    };
   }
 
   async updatePlatformSettings(
@@ -153,9 +186,14 @@ export class AdminService implements OnModuleInit {
       no_show_grace_minutes?: number;
       default_slot_duration_minutes?: number;
       default_buffer_minutes?: number;
+      paystack_mode?: 'test' | 'live';
+      paystack_test_secret_key?: string;
+      paystack_test_public_key?: string;
+      paystack_live_secret_key?: string;
+      paystack_live_public_key?: string;
     },
     adminId?: string,
-  ): Promise<PlatformSetting> {
+  ): Promise<any> {
     let settings = await this.settingsRepository.findOne({ where: {} });
     if (!settings) {
       settings = this.settingsRepository.create();
@@ -177,20 +215,58 @@ export class AdminService implements OnModuleInit {
       settings.default_buffer_minutes = Number(dto.default_buffer_minutes);
     }
 
-    const saved = await this.settingsRepository.save(settings);
+    // Paystack Configuration
+    if (dto.paystack_mode !== undefined && (dto.paystack_mode === 'test' || dto.paystack_mode === 'live')) {
+      settings.paystack_mode = dto.paystack_mode;
+    }
+    if (dto.paystack_test_public_key !== undefined) {
+      settings.paystack_test_public_key = dto.paystack_test_public_key.trim() || null;
+    }
+    if (dto.paystack_live_public_key !== undefined) {
+      settings.paystack_live_public_key = dto.paystack_live_public_key.trim() || null;
+    }
+    // Only update secret keys if non-empty and not masked
+    if (dto.paystack_test_secret_key && !dto.paystack_test_secret_key.includes('••••')) {
+      settings.paystack_test_secret_key = dto.paystack_test_secret_key.trim() || null;
+    }
+    if (dto.paystack_live_secret_key && !dto.paystack_live_secret_key.includes('••••')) {
+      settings.paystack_live_secret_key = dto.paystack_live_secret_key.trim() || null;
+    }
 
-    // Audit log
+    await this.settingsRepository.save(settings);
+
+    // Audit log (omit secrets from audit metadata)
+    const auditMeta = { ...dto };
+    delete auditMeta.paystack_test_secret_key;
+    delete auditMeta.paystack_live_secret_key;
+
     await this.auditLogRepository.save(
       this.auditLogRepository.create({
         user_id: adminId || 'admin',
         user_role: 'admin',
         action: 'PLATFORM_SETTINGS_UPDATED',
-        metadata: { ...dto },
+        metadata: auditMeta,
       }),
     );
 
     this.logger.log(`Platform settings updated by admin ${adminId || 'system'}`);
-    return saved;
+    return this.getPlatformSettings();
+  }
+
+  async testPaystackConnection(secretKey?: string): Promise<{
+    success: boolean;
+    mode: 'test' | 'live' | 'mock';
+    message: string;
+    details?: any;
+  }> {
+    if (this.paystackService) {
+      return this.paystackService.testConnection(secretKey);
+    }
+    return {
+      success: false,
+      mode: 'test',
+      message: 'PaystackService is not available',
+    };
   }
 
   // ==========================================

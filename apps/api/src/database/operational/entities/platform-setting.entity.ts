@@ -26,6 +26,21 @@ export class PlatformSetting {
   @Column({ type: 'int', default: 5 })
   default_buffer_minutes: number;
 
+  @Column({ type: 'varchar', length: 10, default: 'test' })
+  paystack_mode: 'test' | 'live';
+
+  @Column({ type: 'text', nullable: true })
+  paystack_test_secret_key: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  paystack_test_public_key: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  paystack_live_secret_key: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  paystack_live_public_key: string | null;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 

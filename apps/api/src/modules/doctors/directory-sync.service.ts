@@ -64,10 +64,29 @@ export class DirectorySyncService {
     try {
       records = await this.fetchFromLocumStaff();
     } catch (err: any) {
-      this.logger.warn(
-        `Failed to fetch from live LocumStaff API (${err.message}). Falling back to verified mock partner dataset.`,
-      );
-      records = this.getMockPartnerDirectory();
+      // Fail CLOSED: a real handshake must not fabricate a partner directory
+      // when LocumStaff is unreachable. Syncing nothing this cycle is correct —
+      // existing profiles are left untouched and the job retries next tick.
+      // The ONLY exception is an explicit local-dev opt-in.
+      if (this.isMockEnabled()) {
+        this.logger.warn(
+          `LocumStaff API unreachable (${err.message}). LOCUMSTAFF_DIRECTORY_MOCK=true — using mock dataset for local dev.`,
+        );
+        records = this.getMockPartnerDirectory();
+      } else {
+        this.logger.error(
+          `LocumStaff directory fetch failed (${err.message}). Failing closed — syncing 0 records this cycle. ` +
+            `Set LOCUMSTAFF_DIRECTORY_API_KEY + a live LOCUMSTAFF_API_URL, or LOCUMSTAFF_DIRECTORY_MOCK=true for local dev.`,
+        );
+        return {
+          totalFetched: 0,
+          eligible: 0,
+          created: 0,
+          updated: 0,
+          errors: 1,
+          durationMs: Date.now() - startTime,
+        };
+      }
     }
 
     const eligibleRecords = records.filter(
@@ -115,15 +134,37 @@ export class DirectorySyncService {
   }
 
   /**
-   * Fetch doctors from remote LocumStaff Partner Directory
+   * Whether the mock partner directory may be used. This is an explicit
+   * local-dev opt-in ONLY — it must never be true in a real deployment.
+   * Without it, an unreachable/unconfigured LocumStaff fails closed.
+   */
+  private isMockEnabled(): boolean {
+    return (
+      process.env.LOCUMSTAFF_DIRECTORY_MOCK === 'true' &&
+      envConfig.NODE_ENV !== 'production'
+    );
+  }
+
+  /**
+   * Fetch doctors from the remote LocumStaff Partner Directory (§3.1).
+   * Throws if not configured or unreachable so the caller fails closed;
+   * only returns the mock dataset when LOCUMSTAFF_DIRECTORY_MOCK=true.
    */
   private async fetchFromLocumStaff(): Promise<LocumStaffDoctorRecord[]> {
     const apiUrl = envConfig.LOCUMSTAFF_API_URL;
     const apiKey = envConfig.LOCUMSTAFF_DIRECTORY_API_KEY;
 
     if (!apiKey || apiUrl.includes('example.com') || apiUrl.includes('.example')) {
-      this.logger.debug('No valid LocumStaff API key or live URL provided. Using mock directory dataset.');
-      return this.getMockPartnerDirectory();
+      if (this.isMockEnabled()) {
+        this.logger.warn(
+          'LocumStaff directory not configured; LOCUMSTAFF_DIRECTORY_MOCK=true — using mock dataset for local dev.',
+        );
+        return this.getMockPartnerDirectory();
+      }
+      // Fail closed: no valid API key / live URL and no dev opt-in.
+      throw new Error(
+        'LocumStaff directory is not configured (missing LOCUMSTAFF_DIRECTORY_API_KEY or live LOCUMSTAFF_API_URL).',
+      );
     }
 
     const controller = new AbortController();

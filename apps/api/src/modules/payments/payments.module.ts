@@ -1,7 +1,7 @@
 import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Payment, Booking, WalletCredit } from '../../database/patient/entities';
-import { User, AvailabilitySlot, DoctorProfile } from '../../database/operational/entities';
+import { User, AvailabilitySlot, DoctorProfile, PlatformSetting } from '../../database/operational/entities';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PaystackService } from './paystack.service';
@@ -12,7 +12,7 @@ import { ConsultationsModule } from '../consultations/consultations.module';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Payment, Booking, WalletCredit], 'patient'),
-    TypeOrmModule.forFeature([User, AvailabilitySlot, DoctorProfile], 'operational'),
+    TypeOrmModule.forFeature([User, AvailabilitySlot, DoctorProfile, PlatformSetting], 'operational'),
     AuthModule,
     NotificationsModule,
     forwardRef(() => ConsultationsModule),

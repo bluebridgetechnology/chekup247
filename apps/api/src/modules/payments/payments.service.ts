@@ -216,7 +216,7 @@ export class PaymentsService {
    * Cryptographically verifies and processes Paystack webhook events (BE-503).
    */
   async handleWebhook(rawBody: string | Buffer, signature?: string, eventPayload?: any) {
-    const isValid = this.paystackService.verifyWebhookSignature(rawBody, signature);
+    const isValid = await this.paystackService.verifyWebhookSignature(rawBody, signature);
     if (!isValid) {
       this.logger.warn('Paystack webhook signature verification failed');
       throw new UnauthorizedException('Invalid Paystack webhook signature');

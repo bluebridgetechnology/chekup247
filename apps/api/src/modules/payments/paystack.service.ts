@@ -1,6 +1,16 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
 import { envConfig } from '../../config/env.config';
+import { PlatformSetting } from '../../database/operational/entities';
+
+export interface PaystackActiveConfig {
+  mode: 'test' | 'live';
+  secretKey: string;
+  publicKey?: string;
+  isMock: boolean;
+}
 
 export interface PaystackInitializeOptions {
   email: string;
@@ -51,15 +61,138 @@ export interface PaystackTransactionData {
 @Injectable()
 export class PaystackService {
   private readonly logger = new Logger(PaystackService.name);
-  private readonly secretKey = envConfig.PAYSTACK_SECRET_KEY;
   private readonly apiUrl = envConfig.PAYSTACK_API_URL || 'https://api.paystack.co';
 
-  private isMockMode(): boolean {
-    return (
-      !this.secretKey ||
-      this.secretKey.includes('mock') ||
-      this.secretKey.startsWith('sk_test_mock')
-    );
+  constructor(
+    @InjectRepository(PlatformSetting, 'operational')
+    @Optional()
+    private readonly platformSettingRepository?: Repository<PlatformSetting>,
+  ) {}
+
+  /**
+   * Dynamically resolves active Paystack configuration from PlatformSetting or env fallbacks.
+   */
+  async getActiveConfig(): Promise<PaystackActiveConfig> {
+    let mode: 'test' | 'live' = 'test';
+    let secretKey = envConfig.PAYSTACK_SECRET_KEY;
+    let publicKey = envConfig.PAYSTACK_PUBLIC_KEY;
+
+    if (this.platformSettingRepository) {
+      try {
+        const settings = await this.platformSettingRepository.findOne({ where: {} });
+        if (settings) {
+          mode = settings.paystack_mode || 'test';
+          if (mode === 'test') {
+            if (settings.paystack_test_secret_key) {
+              secretKey = settings.paystack_test_secret_key;
+            }
+            if (settings.paystack_test_public_key) {
+              publicKey = settings.paystack_test_public_key;
+            }
+          } else {
+            if (settings.paystack_live_secret_key) {
+              secretKey = settings.paystack_live_secret_key;
+            }
+            if (settings.paystack_live_public_key) {
+              publicKey = settings.paystack_live_public_key;
+            }
+          }
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not load Paystack settings from DB: ${err.message}`);
+      }
+    }
+
+    const isMock =
+      !secretKey ||
+      secretKey.includes('mock') ||
+      secretKey.startsWith('sk_test_mock');
+
+    return {
+      mode,
+      secretKey,
+      publicKey,
+      isMock,
+    };
+  }
+
+  /**
+   * Tests connection to Paystack API using the provided secret key or the active one.
+   * Calls GET https://api.paystack.co/bank which is a lightweight authenticated endpoint.
+   */
+  async testConnection(secretKeyOverride?: string): Promise<{
+    success: boolean;
+    mode: 'test' | 'live' | 'mock';
+    message: string;
+    details?: any;
+  }> {
+    let keyToUse = secretKeyOverride;
+    let mode: 'test' | 'live' | 'mock' = 'test';
+
+    if (!keyToUse) {
+      const config = await this.getActiveConfig();
+      keyToUse = config.secretKey;
+      mode = config.isMock ? 'mock' : config.mode;
+    } else {
+      if (keyToUse.includes('mock') || keyToUse.startsWith('sk_test_mock')) {
+        mode = 'mock';
+      } else if (keyToUse.startsWith('sk_test_')) {
+        mode = 'test';
+      } else if (keyToUse.startsWith('sk_live_')) {
+        mode = 'live';
+      }
+    }
+
+    if (!keyToUse) {
+      return {
+        success: false,
+        mode,
+        message: 'No Paystack secret key configured.',
+      };
+    }
+
+    if (mode === 'mock') {
+      return {
+        success: true,
+        mode: 'mock',
+        message: 'Paystack is running in simulated mock mode (offline development).',
+      };
+    }
+
+    try {
+      const response = await fetch(`${this.apiUrl}/bank?country=south%20africa`, {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${keyToUse}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.status) {
+        return {
+          success: false,
+          mode,
+          message: data.message || `Paystack responded with HTTP ${response.status}`,
+          details: data,
+        };
+      }
+
+      return {
+        success: true,
+        mode,
+        message: `Successfully connected to Paystack API in ${mode.toUpperCase()} mode.`,
+        details: {
+          banks_count: Array.isArray(data.data) ? data.data.length : undefined,
+        },
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        mode,
+        message: `Network error connecting to Paystack: ${err.message}`,
+      };
+    }
   }
 
   /**
@@ -69,8 +202,9 @@ export class PaystackService {
     options: PaystackInitializeOptions,
   ): Promise<PaystackInitializeResponse> {
     const { email, amountInCents, reference, callbackUrl, metadata } = options;
+    const config = await this.getActiveConfig();
 
-    if (this.isMockMode()) {
+    if (config.isMock) {
       this.logger.log(
         `[PaystackMock] Initialized simulated checkout for ref=${reference}, amount=${amountInCents} cents`,
       );
@@ -90,7 +224,7 @@ export class PaystackService {
       const response = await fetch(`${this.apiUrl}/transaction/initialize`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.secretKey}`,
+          Authorization: `Bearer ${config.secretKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
@@ -140,7 +274,9 @@ export class PaystackService {
    * Verifies a Paystack transaction by reference.
    */
   async verifyTransaction(reference: string): Promise<PaystackTransactionData> {
-    if (this.isMockMode() || reference.startsWith('mock_') || reference.startsWith('chk_test_')) {
+    const config = await this.getActiveConfig();
+
+    if (config.isMock || reference.startsWith('mock_') || reference.startsWith('chk_test_')) {
       this.logger.log(`[PaystackMock] Verified mock transaction reference=${reference}`);
       return {
         id: Math.floor(Math.random() * 1000000),
@@ -169,7 +305,7 @@ export class PaystackService {
       const response = await fetch(`${this.apiUrl}/transaction/verify/${encodeURIComponent(reference)}`, {
         method: 'GET',
         headers: {
-          Authorization: `Bearer ${this.secretKey}`,
+          Authorization: `Bearer ${config.secretKey}`,
         },
       });
 
@@ -214,8 +350,9 @@ export class PaystackService {
     reason?: string;
   }): Promise<any> {
     const { transactionRef, amountInCents, reason } = params;
+    const config = await this.getActiveConfig();
 
-    if (this.isMockMode()) {
+    if (config.isMock) {
       this.logger.log(`[PaystackMock] Created refund for ref=${transactionRef}, amount=${amountInCents}`);
       return {
         status: true,
@@ -240,7 +377,7 @@ export class PaystackService {
       const response = await fetch(`${this.apiUrl}/refund`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.secretKey}`,
+          Authorization: `Bearer ${config.secretKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),
@@ -261,22 +398,39 @@ export class PaystackService {
   /**
    * Verifies the cryptographic HMAC SHA512 signature on incoming Paystack webhooks.
    */
-  verifyWebhookSignature(rawBody: string | Buffer, signatureHeader?: string): boolean {
+  async verifyWebhookSignature(rawBody: string | Buffer, signatureHeader?: string): Promise<boolean> {
     if (!signatureHeader) {
       return false;
     }
 
-    if (this.isMockMode()) {
+    const config = await this.getActiveConfig();
+
+    if (config.isMock) {
       return true; // Allow mock testing
     }
 
     try {
       const hash = crypto
-        .createHmac('sha512', this.secretKey)
+        .createHmac('sha512', config.secretKey)
         .update(rawBody)
         .digest('hex');
 
-      return hash === signatureHeader;
+      if (hash === signatureHeader) {
+        return true;
+      }
+
+      // Check fallback to env key if different from active DB key
+      if (envConfig.PAYSTACK_SECRET_KEY && envConfig.PAYSTACK_SECRET_KEY !== config.secretKey) {
+        const fallbackHash = crypto
+          .createHmac('sha512', envConfig.PAYSTACK_SECRET_KEY)
+          .update(rawBody)
+          .digest('hex');
+        if (fallbackHash === signatureHeader) {
+          return true;
+        }
+      }
+
+      return false;
     } catch (e) {
       return false;
     }
@@ -294,8 +448,9 @@ export class PaystackService {
     metadata?: Record<string, any>;
   }): Promise<PaystackTransactionData> {
     const { authorizationCode, email, amountInCents, reference, metadata } = params;
+    const config = await this.getActiveConfig();
 
-    if (this.isMockMode() || authorizationCode.startsWith('AUTH_') || authorizationCode.startsWith('mock_')) {
+    if (config.isMock || authorizationCode.startsWith('AUTH_') || authorizationCode.startsWith('mock_')) {
       this.logger.log(
         `[PaystackMock] Simulated chargeAuthorization for ref=${reference}, authCode=${authorizationCode}, amount=${amountInCents} cents`,
       );
@@ -327,7 +482,7 @@ export class PaystackService {
       const response = await fetch(`${this.apiUrl}/transaction/charge_authorization`, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.secretKey}`,
+          Authorization: `Bearer ${config.secretKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
