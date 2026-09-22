@@ -96,76 +96,45 @@ function LoginContent() {
           />
         </div>
 
-        {/* Top Brand Logo Link */}
-        <div style={{ position: 'relative', zIndex: 1, marginBottom: '32px' }}>
-          <Link
-            href="/"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '12px',
-              textDecoration: 'none',
-            }}
-          >
-            <ChekupCrossLogo size={32} />
-            <span
+        {/* Top: Brand Logo */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ height: '36px', display: 'flex', alignItems: 'center' }}>
+            <Link
+              href="/"
               style={{
-                fontFamily: 'var(--font-heading)',
-                fontSize: '1.4rem',
-                fontWeight: 700,
-                color: 'var(--color-white)',
-                letterSpacing: '-0.02em',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '12px',
+                textDecoration: 'none',
               }}
             >
-              Chek<span style={{ color: 'var(--color-gold-base)' }}>Up</span>247
-            </span>
-          </Link>
+              <ChekupCrossLogo size={32} />
+              <span
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontSize: '1.4rem',
+                  fontWeight: 700,
+                  color: 'var(--color-white)',
+                  letterSpacing: '-0.02em',
+                }}
+              >
+                Chek<span style={{ color: 'var(--color-gold-base)' }}>Up</span>247
+              </span>
+            </Link>
+          </div>
         </div>
 
-        {/* Center Content: Trust Floating Bubble + Headline */}
-        <div style={{ position: 'relative', zIndex: 1, margin: 'auto 0' }}>
-          {/* Trust Floating Speech Bubble */}
-          <div
-            className="trust-floating-bubble"
-            style={{
-              position: 'relative',
-              top: 'auto',
-              right: 'auto',
-              display: 'inline-block',
-              transform: 'rotate(3deg)',
-              marginBottom: '28px',
-              backgroundColor: 'var(--color-cream-surface)',
-              border: '1px solid var(--color-gold-border)',
-              boxShadow: '0 12px 28px var(--color-chocolate-shadow)',
-            }}
-            aria-hidden="true"
-          >
-            <div
-              className="trust-floating-text"
-              style={{
-                fontFamily: "'Caveat', cursive, sans-serif",
-                fontSize: '1.32rem',
-                fontWeight: 700,
-                color: 'var(--color-chocolate-base)',
-                lineHeight: 1.2,
-              }}
-            >
-              Real people.
-              <br />
-              Real care.
-            </div>
-          </div>
-
-          {/* Headline in var(--font-heading) */}
+        {/* Middle: Headline & Text — centred vertically between logo and stats */}
+        <div style={{ marginTop: 'auto', marginBottom: 'auto', paddingTop: '32px', paddingBottom: '32px', position: 'relative', zIndex: 1, maxWidth: '460px' }}>
           <h1
             style={{
               fontFamily: 'var(--font-heading)',
-              fontSize: 'clamp(2.1rem, 3.2vw, 2.75rem)',
+              fontSize: '2.15rem',
               fontWeight: 700,
-              lineHeight: 1.18,
+              lineHeight: 1.2,
               color: 'var(--color-white)',
               letterSpacing: '-0.025em',
-              marginBottom: '16px',
+              marginBottom: '10px',
             }}
           >
             Healthcare made effortless,<br />
@@ -175,9 +144,9 @@ function LoginContent() {
           <p
             style={{
               color: 'var(--color-white-78)',
-              fontSize: '1rem',
-              lineHeight: 1.6,
-              maxWidth: '460px',
+              fontSize: '0.925rem',
+              lineHeight: 1.55,
+              margin: 0,
             }}
           >
             Connect with trusted, HPCSA-registered South African practitioners for consultations,
@@ -185,40 +154,48 @@ function LoginContent() {
           </p>
         </div>
 
-        {/* Social Proof Badges */}
+        {/* Bottom: Stats Strip */}
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div className="auth-social-proof-grid">
-            {/* 4.95★ Rating */}
-            <div className="auth-social-badge">
-              <div className="auth-social-badge-val">
-                <Star
-                  size={16}
-                  fill="var(--color-star-gold)"
-                  stroke="var(--color-star-gold)"
-                  style={{ color: 'var(--color-star-gold)' }}
-                />
-                <span>4.95★</span>
+          <div className="auth-stats-strip">
+            <div className="auth-stats-row">
+              {/* 4.95★ Rating */}
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <Star
+                    size={16}
+                    fill="var(--color-star-gold)"
+                    stroke="var(--color-star-gold)"
+                    style={{ color: 'var(--color-star-gold)' }}
+                  />
+                  <span>4.95★</span>
+                </div>
+                <div className="auth-stat-lbl">Patient Rating</div>
               </div>
-              <div className="auth-social-badge-lbl">Patient Rating</div>
+
+              <div className="auth-stat-divider" aria-hidden="true" />
+
+              {/* 120+ Verified Doctors */}
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <Users size={16} style={{ color: 'var(--color-gold-base)' }} />
+                  <span>120+</span>
+                </div>
+                <div className="auth-stat-lbl">Verified Doctors</div>
+              </div>
+
+              <div className="auth-stat-divider" aria-hidden="true" />
+
+              {/* 100% HPCSA & POPIA Compliant */}
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <ShieldCheck size={16} style={{ color: 'var(--color-status-online)' }} />
+                  <span>100%</span>
+                </div>
+                <div className="auth-stat-lbl">HPCSA &amp; POPIA</div>
+              </div>
             </div>
 
-            {/* 120+ Verified Doctors */}
-            <div className="auth-social-badge">
-              <div className="auth-social-badge-val">
-                <Users size={16} style={{ color: 'var(--color-gold-base)' }} />
-                <span>120+</span>
-              </div>
-              <div className="auth-social-badge-lbl">Verified Doctors</div>
-            </div>
-
-            {/* 100% HPCSA & POPIA Compliant */}
-            <div className="auth-social-badge">
-              <div className="auth-social-badge-val">
-                <ShieldCheck size={16} style={{ color: 'var(--color-status-online)' }} />
-                <span>100%</span>
-              </div>
-              <div className="auth-social-badge-lbl">HPCSA & POPIA</div>
-            </div>
+            <hr className="auth-stats-hr" />
           </div>
         </div>
       </div>
@@ -228,23 +205,53 @@ function LoginContent() {
           ==================================================================== */}
       <div className="auth-form-pane">
         <div className="auth-form-wrapper">
-          {/* Eyebrow: SECURE PATIENT ACCESS */}
-          <div
+          {/* LocumStaff SSO Button */}
+          <button
+            type="button"
+            onClick={() => {/* LocumStaff SSO — coming soon */}}
             style={{
-              display: 'inline-flex',
+              width: '100%',
+              height: '48px',
+              display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              fontFamily: 'var(--font-sans)',
-              fontSize: '0.75rem',
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              color: 'var(--color-gold-base)',
-              marginBottom: '10px',
+              justifyContent: 'center',
+              gap: '10px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+              border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.4))',
+              color: 'var(--color-chocolate-base)',
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              marginBottom: '0',
+              transition: 'background-color 0.18s ease, border-color 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-gold-border, rgba(223, 171, 98, 0.25))';
+              e.currentTarget.style.borderColor = 'var(--color-gold-base, #DFAB62)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F0E5D3)';
+              e.currentTarget.style.borderColor = 'var(--color-gold-border, rgba(223, 171, 98, 0.4))';
             }}
           >
-            <ShieldCheck size={15} style={{ color: 'var(--color-gold-base)' }} />
-            <span>SECURE PATIENT ACCESS</span>
+            <ShieldCheck size={18} style={{ color: 'var(--color-gold-bronze)' }} />
+            Sign in with LocumStaff account
+          </button>
+
+          {/* Divider */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              margin: '20px 0',
+              color: 'var(--color-cream-text-muted)',
+              fontSize: '0.78rem',
+            }}
+          >
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
+            <span style={{ padding: '0 14px', fontWeight: 500 }}>or sign in with email</span>
+            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
           </div>
 
           {/* Heading */}
@@ -254,7 +261,7 @@ function LoginContent() {
               fontSize: '2.15rem',
               fontWeight: 700,
               color: 'var(--color-chocolate-base)',
-              marginBottom: '8px',
+              marginBottom: '10px',
               letterSpacing: '-0.025em',
               lineHeight: 1.2,
             }}
@@ -498,7 +505,7 @@ export default function PatientLoginPage() {
       fallback={
         <div
           style={{
-            minHeight: 'calc(100vh - 74px)',
+            minHeight: '100vh',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

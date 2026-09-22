@@ -18,6 +18,8 @@ import {
   FileText,
   Receipt,
   ShieldCheck,
+  Star,
+  Users,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
@@ -131,67 +133,67 @@ function RegisterContent() {
       {/* Left side: Branded Visual Pane */}
       <div className="auth-visual-pane">
         {/* Top: Brand Logo */}
-        <Link
-          href="/"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '10px',
-            textDecoration: 'none',
-            position: 'relative',
-            zIndex: 1,
-            width: 'fit-content',
-          }}
-          aria-label="Chekup247 Home"
-        >
-          <ChekupCrossLogo size={32} />
-          <span
-            style={{
-              fontSize: '1.38rem',
-              fontWeight: 700,
-              letterSpacing: '-0.02em',
-              lineHeight: 1,
-              fontFamily: 'var(--font-heading), sans-serif',
-            }}
-          >
-            <span style={{ color: 'var(--color-white)' }}>Chekup</span>
-            <span style={{ color: 'var(--color-gold-base)' }}>247</span>
-          </span>
-        </Link>
-
-        {/* Center: Value Prop & Features List */}
-        <div style={{ position: 'relative', zIndex: 1, margin: '48px 0 36px 0' }}>
-          <div
-            style={{
-              color: 'var(--color-gold-base)',
-              fontSize: '0.8125rem',
-              fontWeight: 700,
-              letterSpacing: '0.12em',
-              textTransform: 'uppercase',
-              marginBottom: '14px',
-              fontFamily: 'var(--font-sans)',
-            }}
-          >
-            JOIN CHEKUP247
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ height: '36px', display: 'flex', alignItems: 'center' }}>
+            <Link
+              href="/"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '10px',
+                textDecoration: 'none',
+              }}
+              aria-label="Chekup247 Home"
+            >
+              <ChekupCrossLogo size={32} />
+              <span
+                style={{
+                  fontSize: '1.38rem',
+                  fontWeight: 700,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1,
+                  fontFamily: 'var(--font-heading), sans-serif',
+                }}
+              >
+                <span style={{ color: 'var(--color-white)' }}>Chekup</span>
+                <span style={{ color: 'var(--color-gold-base)' }}>247</span>
+              </span>
+            </Link>
           </div>
+        </div>
 
+        {/* Middle: Text & Highlights — centred vertically between logo and stats */}
+        <div style={{ marginTop: 'auto', marginBottom: 'auto', paddingTop: '32px', paddingBottom: '32px', position: 'relative', zIndex: 1, maxWidth: '460px' }}>
+          {/* Heading */}
           <h1
             style={{
               fontFamily: 'var(--font-heading)',
-              fontSize: 'clamp(2rem, 3.2vw, 2.75rem)',
+              fontSize: '2.15rem',
               fontWeight: 700,
-              lineHeight: 1.18,
+              lineHeight: 1.2,
               color: 'var(--color-white)',
-              letterSpacing: '-0.02em',
-              marginBottom: '36px',
+              letterSpacing: '-0.025em',
+              marginBottom: '10px',
             }}
           >
-            Skip the waiting room.
-            <br />
+            Skip the waiting room.<br />
             See a doctor today.
           </h1>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Subtitle */}
+          <p
+            style={{
+              color: 'var(--color-white-78)',
+              fontSize: '0.925rem',
+              lineHeight: 1.55,
+              marginBottom: '24px',
+            }}
+          >
+            Connect with verified HPCSA medical doctors across South Africa in minutes.
+          </p>
+
+          {/* Highlights List */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {HIGHLIGHTS.map((item, idx) => {
               const IconComp = item.IconComponent;
               return (
@@ -229,24 +231,48 @@ function RegisterContent() {
           </div>
         </div>
 
-        {/* Bottom: Floating Trust Bubble */}
-        <div style={{ position: 'relative', zIndex: 1, paddingTop: '12px' }}>
-          <div
-            className="trust-floating-bubble"
-            style={{
-              position: 'relative',
-              top: 'unset',
-              right: 'unset',
-              display: 'inline-block',
-              zIndex: 2,
-            }}
-            aria-hidden="true"
-          >
-            <div className="trust-floating-text">
-              Real people.
-              <br />
-              Real care.
+        {/* Bottom: Stats Strip */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div className="auth-stats-strip">
+            <div className="auth-stats-row">
+              {/* 4.95★ Rating */}
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <Star
+                    size={16}
+                    fill="var(--color-star-gold)"
+                    stroke="var(--color-star-gold)"
+                    style={{ color: 'var(--color-star-gold)' }}
+                  />
+                  <span>4.95★</span>
+                </div>
+                <div className="auth-stat-lbl">Patient Rating</div>
+              </div>
+
+              <div className="auth-stat-divider" aria-hidden="true" />
+
+              {/* 120+ Verified Doctors */}
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <Users size={16} style={{ color: 'var(--color-gold-base)' }} />
+                  <span>120+</span>
+                </div>
+                <div className="auth-stat-lbl">Verified Doctors</div>
+              </div>
+
+              <div className="auth-stat-divider" aria-hidden="true" />
+
+              {/* 100% HPCSA & POPIA Compliant */}
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <ShieldCheck size={16} style={{ color: 'var(--color-status-online)' }} />
+                  <span>100%</span>
+                </div>
+                <div className="auth-stat-lbl">HPCSA &amp; POPIA</div>
+              </div>
             </div>
+
+            <hr className="auth-stats-hr" />
           </div>
         </div>
       </div>
@@ -339,12 +365,16 @@ function RegisterContent() {
               {/* Eyebrow */}
               <div
                 style={{
+                  height: '36px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
                   color: 'var(--color-gold-base)',
-                  fontSize: '0.8125rem',
+                  fontSize: '0.75rem',
                   fontWeight: 700,
                   letterSpacing: '0.12em',
                   textTransform: 'uppercase',
-                  marginBottom: '8px',
+                  marginBottom: '32px',
                   fontFamily: 'var(--font-sans)',
                 }}
               >
@@ -355,12 +385,12 @@ function RegisterContent() {
               <h2
                 style={{
                   fontFamily: 'var(--font-heading)',
-                  fontSize: 'clamp(1.75rem, 2.5vw, 2.15rem)',
+                  fontSize: '2.15rem',
                   fontWeight: 700,
                   color: 'var(--color-chocolate-base)',
-                  letterSpacing: '-0.02em',
+                  letterSpacing: '-0.025em',
                   lineHeight: 1.2,
-                  marginBottom: '8px',
+                  marginBottom: '10px',
                 }}
               >
                 Create Patient Account
@@ -370,9 +400,9 @@ function RegisterContent() {
               <p
                 style={{
                   color: 'var(--color-cream-text-muted)',
-                  fontSize: '0.9375rem',
-                  lineHeight: 1.5,
-                  marginBottom: '28px',
+                  fontSize: '0.925rem',
+                  lineHeight: 1.55,
+                  marginBottom: '32px',
                   fontFamily: 'var(--font-sans)',
                 }}
               >
@@ -644,7 +674,7 @@ export default function PatientRegisterPage() {
       fallback={
         <div
           style={{
-            minHeight: 'calc(100vh - 74px)',
+            minHeight: '100vh',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

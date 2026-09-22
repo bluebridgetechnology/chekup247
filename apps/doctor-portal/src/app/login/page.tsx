@@ -52,183 +52,132 @@ export default function DoctorLoginPage() {
     <div className="auth-split-layout">
       {/* LEFT COLUMN: Clean Brand & Trust Panel */}
       <div className="auth-visual-pane">
-        {/* Brand Top Header */}
+        {/* Top: Brand Logo */}
         <div style={{ position: 'relative', zIndex: 2 }}>
-          <Link
-            href="/"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '12px',
-              textDecoration: 'none',
-              marginBottom: '36px',
-            }}
-          >
-            <ChekupCrossLogo size={32} />
-            <span
-              style={{
-                fontFamily: 'var(--font-heading), sans-serif',
-                fontSize: '1.4rem',
-                fontWeight: 600,
-                letterSpacing: '-0.02em',
-                lineHeight: 1,
-              }}
-            >
-              <span style={{ color: '#ffffff' }}>Chekup</span>
-              <span style={{ color: 'var(--color-gold-base, #DFAB62)' }}>247</span>
-            </span>
-          </Link>
-
-          {/* Hero Content */}
-          <div style={{ maxWidth: '420px' }}>
-            <div
+          <div style={{ height: '36px', display: 'flex', alignItems: 'center' }}>
+            <Link
+              href="/"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '4px 12px',
-                borderRadius: 'var(--radius-full, 9999px)',
-                backgroundColor: 'rgba(223, 171, 98, 0.12)',
-                border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-                color: 'var(--color-gold-base, #DFAB62)',
-                fontSize: '0.74rem',
-                fontWeight: 600,
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                marginBottom: '16px',
+                gap: '12px',
+                textDecoration: 'none',
               }}
             >
-              <SolarIcon name="shield-check-linear" size={14} color="var(--color-gold-base, #DFAB62)" />
-              <span>HPCSA Compliant Practice</span>
+              <ChekupCrossLogo size={32} />
+              <span
+                style={{
+                  fontFamily: 'var(--font-heading), sans-serif',
+                  fontSize: '1.4rem',
+                  fontWeight: 600,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1,
+                }}
+              >
+                <span style={{ color: '#ffffff' }}>Chekup</span>
+                <span style={{ color: 'var(--color-gold-base, #DFAB62)' }}>247</span>
+              </span>
+            </Link>
+          </div>
+        </div>
+
+        {/* Middle: Headline, Text & Features — centred vertically */}
+        <div style={{ marginTop: 'auto', marginBottom: 'auto', paddingTop: '32px', paddingBottom: '32px', position: 'relative', zIndex: 2, maxWidth: '440px' }}>
+          <h1
+            style={{
+              fontFamily: 'var(--font-heading), sans-serif',
+              fontSize: '2rem',
+              fontWeight: 700,
+              color: '#ffffff',
+              lineHeight: 1.2,
+              letterSpacing: '-0.025em',
+              margin: '0 0 10px',
+            }}
+          >
+            South Africa&apos;s Digital Clinical Practice
+          </h1>
+
+          <p
+            style={{
+              color: 'rgba(255, 255, 255, 0.75)',
+              fontSize: '0.925rem',
+              lineHeight: 1.55,
+              margin: '0 0 20px',
+              fontWeight: 400,
+            }}
+          >
+            Connect with patients nationwide, issue compliant e-prescriptions with ICD-10 diagnostic codes, and automate medical practice earnings.
+          </p>
+
+          {/* Feature Points */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(223, 171, 98, 0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <SolarIcon name="videocamera-record-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: '0.85rem', color: '#ffffff' }}>Encrypted Telehealth Consultations</div>
+                <div style={{ fontSize: '0.76rem', color: 'rgba(255, 255, 255, 0.55)', fontWeight: 400 }}>HD virtual consultations with automated waiting queue.</div>
+              </div>
             </div>
 
-            <h1
-              style={{
-                fontFamily: 'var(--font-heading), sans-serif',
-                fontSize: '2rem',
-                fontWeight: 'var(--font-heading-weight, 400)',
-                color: '#ffffff',
-                lineHeight: 1.25,
-                letterSpacing: '-0.02em',
-                margin: '0 0 14px',
-              }}
-            >
-              South Africa&apos;s Digital Clinical Practice
-            </h1>
-
-            <p
-              style={{
-                color: 'rgba(255, 255, 255, 0.7)',
-                fontSize: '0.9rem',
-                lineHeight: 1.6,
-                margin: '0 0 28px',
-                fontWeight: 400,
-              }}
-            >
-              Connect with patients nationwide, issue compliant e-prescriptions with ICD-10 diagnostic codes, and automate medical practice earnings.
-            </p>
-
-            {/* Feature Points (clean inline rows without heavy boxes) */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '28px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'rgba(223, 171, 98, 0.14)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    color: 'var(--color-gold-base, #DFAB62)',
-                  }}
-                >
-                  <SolarIcon name="videocamera-record-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: '0.85rem', color: '#ffffff' }}>
-                    Encrypted Telehealth Consultations
-                  </div>
-                  <div style={{ fontSize: '0.76rem', color: 'rgba(255, 255, 255, 0.55)', fontWeight: 400 }}>
-                    HD virtual consultations with automated waiting queue.
-                  </div>
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(223, 171, 98, 0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <SolarIcon name="document-text-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'rgba(223, 171, 98, 0.14)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    color: 'var(--color-gold-base, #DFAB62)',
-                  }}
-                >
-                  <SolarIcon name="document-text-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: '0.85rem', color: '#ffffff' }}>
-                    ICD-10 Coding &amp; E-Prescriptions
-                  </div>
-                  <div style={{ fontSize: '0.76rem', color: 'rgba(255, 255, 255, 0.55)', fontWeight: 400 }}>
-                    Digital scripts delivered directly to patient pharmacies.
-                  </div>
-                </div>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: '0.85rem', color: '#ffffff' }}>ICD-10 Coding &amp; E-Prescriptions</div>
+                <div style={{ fontSize: '0.76rem', color: 'rgba(255, 255, 255, 0.55)', fontWeight: 400 }}>Digital scripts delivered directly to patient pharmacies.</div>
               </div>
+            </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '8px',
-                    background: 'rgba(223, 171, 98, 0.14)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    color: 'var(--color-gold-base, #DFAB62)',
-                  }}
-                >
-                  <SolarIcon name="card-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
-                </div>
-                <div>
-                  <div style={{ fontWeight: 500, fontSize: '0.85rem', color: '#ffffff' }}>
-                    Automated Direct Settlements
-                  </div>
-                  <div style={{ fontSize: '0.76rem', color: 'rgba(255, 255, 255, 0.55)', fontWeight: 400 }}>
-                    Scheduled EFT payouts with zero billing administration.
-                  </div>
-                </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'rgba(223, 171, 98, 0.14)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <SolarIcon name="card-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+              </div>
+              <div>
+                <div style={{ fontWeight: 500, fontSize: '0.85rem', color: '#ffffff' }}>Automated Direct Settlements</div>
+                <div style={{ fontSize: '0.76rem', color: 'rgba(255, 255, 255, 0.55)', fontWeight: 400 }}>Scheduled EFT payouts with zero billing administration.</div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Subtle Bottom Trust Note */}
-        <div
-          style={{
-            position: 'relative',
-            zIndex: 2,
-            marginTop: 'auto',
-            paddingTop: '20px',
-            borderTop: '1px solid rgba(223, 171, 98, 0.12)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '0.75rem',
-            color: 'rgba(255, 255, 255, 0.55)',
-            fontWeight: 400,
-          }}
-        >
-          <SolarIcon name="shield-check-linear" size={15} color="var(--color-gold-base, #DFAB62)" />
-          <span>Trusted by HPCSA registered doctors nationwide • 256-bit TLS</span>
+        {/* Bottom: Stats Strip */}
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <div className="auth-stats-strip">
+            <div className="auth-stats-row">
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <SolarIcon name="diploma-verified-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+                  <span>HPCSA</span>
+                </div>
+                <div className="auth-stat-lbl">Verified Network</div>
+              </div>
+
+              <div className="auth-stat-divider" aria-hidden="true" />
+
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <SolarIcon name="clock-circle-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+                  <span>Flexible</span>
+                </div>
+                <div className="auth-stat-lbl">Practice Shifts</div>
+              </div>
+
+              <div className="auth-stat-divider" aria-hidden="true" />
+
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <SolarIcon name="card-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+                  <span>85%</span>
+                </div>
+                <div className="auth-stat-lbl">Revenue Share</div>
+              </div>
+            </div>
+
+            <hr className="auth-stats-hr" />
+          </div>
         </div>
       </div>
 
@@ -268,20 +217,21 @@ export default function DoctorLoginPage() {
           </div>
 
           {/* Form Header */}
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: '28px' }}>
             <div
               style={{
+                height: '36px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '6px',
-                padding: '3px 10px',
+                padding: '4px 12px',
                 borderRadius: 'var(--radius-full, 9999px)',
                 backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
                 color: 'var(--color-chocolate-base, #2A170F)',
                 border: '1px solid rgba(223, 171, 98, 0.25)',
-                fontSize: '0.72rem',
-                fontWeight: 600,
-                marginBottom: '10px',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                marginBottom: '32px',
               }}
             >
               <SolarIcon name="stethoscope-linear" size={14} color="var(--color-chocolate-base)" />
@@ -291,59 +241,60 @@ export default function DoctorLoginPage() {
             <h2
               style={{
                 fontFamily: 'var(--font-heading), sans-serif',
-                fontSize: '1.7rem',
-                fontWeight: 'var(--font-heading-weight, 400)',
+                fontSize: '2rem',
+                fontWeight: 700,
                 color: 'var(--color-chocolate-base, #2A170F)',
-                margin: '0 0 6px',
-                letterSpacing: '-0.02em',
+                margin: '0 0 10px',
+                letterSpacing: '-0.025em',
+                lineHeight: 1.2,
               }}
             >
               Doctor Sign In
             </h2>
-            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.85rem', margin: 0, fontWeight: 400 }}>
+            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.925rem', lineHeight: 1.55, margin: 0, fontWeight: 400 }}>
               Access your clinical queue, calendar availability, and prescriptions.
             </p>
           </div>
 
-          {/* LocumStaff SSO note — the handshake is initiated from the
-              LocumStaff MOBILE APP, not a button here. A doctor already
-              signed into LocumStaff taps "Open ChekUp247" there and lands
-              on our /callback already authenticated (handover §2). There is
-              no browser login page for us to redirect to, so we do not show
-              a "Continue with LocumStaff" button that goes nowhere. */}
-          <div
+          {/* LocumStaff SSO Button */}
+          <button
+            type="button"
+            onClick={() => {/* LocumStaff SSO — coming soon */}}
             style={{
+              width: '100%',
+              height: '48px',
               display: 'flex',
-              alignItems: 'flex-start',
+              alignItems: 'center',
+              justifyContent: 'center',
               gap: '10px',
-              padding: '11px 14px',
-              borderRadius: '11px',
+              borderRadius: 'var(--radius-full, 9999px)',
               backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
-              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
+              border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.4))',
               color: 'var(--color-chocolate-base, #2A170F)',
-              fontSize: '0.8rem',
-              lineHeight: 1.5,
+              fontSize: '0.9rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'background-color 0.18s ease, border-color 0.18s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.25)';
+              e.currentTarget.style.borderColor = 'var(--color-gold-base, #DFAB62)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F0E5D3)';
+              e.currentTarget.style.borderColor = 'var(--color-gold-border, rgba(223, 171, 98, 0.4))';
             }}
           >
-            <SolarIcon
-              name="smartphone-linear"
-              size={18}
-              color="var(--color-gold-bronze, #B88647)"
-              style={{ flexShrink: 0, marginTop: '1px' }}
-            />
-            <span>
-              <strong style={{ fontWeight: 600 }}>Registered with LocumStaff?</strong>{' '}
-              Open ChekUp247 from your LocumStaff mobile app to sign in
-              automatically — no password needed.
-            </span>
-          </div>
+            <SolarIcon name="shield-check-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
+            Sign in with LocumStaff account
+          </button>
 
           {/* Clean Divider */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              margin: '18px 0',
+              margin: '20px 0',
               color: 'var(--color-cream-text-muted, #6B5E55)',
               fontSize: '0.78rem',
             }}
@@ -543,7 +494,7 @@ export default function DoctorLoginPage() {
           </form>
 
           {/* Registration Link */}
-          <div style={{ marginTop: '20px', textAlign: 'center', fontSize: '0.825rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+          <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
             New medical practitioner?{' '}
             <Link
               href="/register"
@@ -556,24 +507,6 @@ export default function DoctorLoginPage() {
             >
               Register HPCSA Practice
             </Link>
-          </div>
-
-          {/* Security & Compliance Footer */}
-          <div
-            style={{
-              marginTop: '24px',
-              paddingTop: '16px',
-              borderTop: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.18))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              fontSize: '0.7rem',
-              color: 'var(--color-cream-text-muted, #6B5E55)',
-            }}
-          >
-            <SolarIcon name="shield-check-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
-            <span>256-bit TLS Encryption • POPIA &amp; HPCSA Act 101/1965 Compliant</span>
           </div>
         </div>
       </div>

@@ -12,8 +12,8 @@ interface LayoutShellProps {
 export function LayoutShell({ children }: LayoutShellProps) {
   const pathname = usePathname() || '';
 
-  // Dedicated authenticated portal routes should NOT render public marketing header & footer
-  const isPortalRoute =
+  // Dedicated authenticated portal and auth routes should NOT render public marketing header & footer
+  const isExcludedRoute =
     pathname.startsWith('/appointments') ||
     pathname.startsWith('/portal') ||
     pathname.startsWith('/bookings') ||
@@ -21,9 +21,11 @@ export function LayoutShell({ children }: LayoutShellProps) {
     pathname.startsWith('/settings') ||
     pathname.startsWith('/prescriptions') ||
     pathname.startsWith('/consultations') ||
-    pathname.startsWith('/consultation');
+    pathname.startsWith('/consultation') ||
+    pathname === '/login' ||
+    pathname === '/register';
 
-  if (isPortalRoute) {
+  if (isExcludedRoute) {
     return <>{children}</>;
   }
 

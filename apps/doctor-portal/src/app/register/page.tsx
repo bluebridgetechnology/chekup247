@@ -137,105 +137,98 @@ export default function DoctorRegisterPage() {
     <div className="auth-split-layout">
       {/* LEFT COLUMN: Deep Chocolate Brand Visual Panel */}
       <div className="auth-visual-pane">
-        <div>
-          <Link
-            href="/"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '12px',
-              textDecoration: 'none',
-              marginBottom: '48px',
-            }}
-          >
-            <ChekupCrossLogo size={32} />
-            <span
-              style={{
-                fontFamily: 'var(--font-heading), sans-serif',
-                fontSize: '1.45rem',
-                fontWeight: 800,
-                letterSpacing: '-0.02em',
-                lineHeight: 1,
-              }}
-            >
-              <span style={{ color: '#ffffff' }}>Chekup</span>
-              <span style={{ color: 'var(--color-gold-base, #DFAB62)' }}>247</span>
-            </span>
-          </Link>
-
-          <div style={{ maxWidth: '440px', position: 'relative', zIndex: 2 }}>
-            <span
+        {/* Top: Logo only */}
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <div style={{ height: '36px', display: 'flex', alignItems: 'center' }}>
+            <Link
+              href="/"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '4px 14px',
-                borderRadius: 'var(--radius-full, 9999px)',
-                backgroundColor: 'rgba(223, 171, 98, 0.16)',
-                border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
-                color: 'var(--color-gold-base, #DFAB62)',
-                fontSize: '0.78rem',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                letterSpacing: '0.08em',
-                marginBottom: '16px',
+                gap: '12px',
+                textDecoration: 'none',
               }}
             >
-              <SolarIcon name="shield-check-linear" size={15} color="var(--color-gold-base, #DFAB62)" />
-              <span>Medical Practice Onboarding</span>
-            </span>
-
-            <h1
-              style={{
-                fontSize: '2.5rem',
-                fontWeight: 'var(--font-heading-weight, 400)',
-                color: '#ffffff',
-                lineHeight: 1.15,
-                letterSpacing: '-0.025em',
-                marginBottom: '16px',
-                fontFamily: 'var(--font-heading), sans-serif',
-              }}
-            >
-              Join South Africa&apos;s Verified Medical Network
-            </h1>
-
-            <p
-              style={{
-                color: 'rgba(255, 255, 255, 0.75)',
-                fontSize: '1rem',
-                lineHeight: 1.6,
-                marginBottom: '32px',
-              }}
-            >
-              Set your own consultation schedule, consult with verified patients across all 9 provinces, and receive guaranteed payouts with automated 85% revenue share.
-            </p>
+              <ChekupCrossLogo size={32} />
+              <span
+                style={{
+                  fontFamily: 'var(--font-heading), sans-serif',
+                  fontSize: '1.4rem',
+                  fontWeight: 600,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1,
+                }}
+              >
+                <span style={{ color: '#ffffff' }}>Chekup</span>
+                <span style={{ color: 'var(--color-gold-base, #DFAB62)' }}>247</span>
+              </span>
+            </Link>
           </div>
         </div>
 
-        {/* Doctor Trust Badges */}
-        <div className="auth-social-proof-grid">
-          <div className="auth-social-badge">
-            <div className="auth-social-badge-val">
-              <SolarIcon name="diploma-verified-linear" size={18} color="var(--color-gold-primary, #E2B467)" />
-              <span>HPCSA</span>
-            </div>
-            <div className="auth-social-badge-lbl">Direct Register Verification</div>
-          </div>
+        {/* Middle: Headline & Text — centred vertically between logo and stats */}
+        <div style={{ marginTop: 'auto', marginBottom: 'auto', paddingTop: '32px', paddingBottom: '32px', position: 'relative', zIndex: 2, maxWidth: '440px' }}>
+          <h1
+            style={{
+              fontFamily: 'var(--font-heading), sans-serif',
+              fontSize: '2rem',
+              fontWeight: 700,
+              color: '#ffffff',
+              lineHeight: 1.2,
+              letterSpacing: '-0.025em',
+              margin: '0 0 10px',
+            }}
+          >
+            Join South Africa&apos;s Verified Medical Network
+          </h1>
 
-          <div className="auth-social-badge">
-            <div className="auth-social-badge-val">
-              <SolarIcon name="clock-circle-linear" size={18} color="var(--color-gold-primary, #E2B467)" />
-              <span>Flexible</span>
-            </div>
-            <div className="auth-social-badge-lbl">Set Your Own Shifts</div>
-          </div>
+          <p
+            style={{
+              color: 'rgba(255, 255, 255, 0.75)',
+              fontSize: '0.925rem',
+              lineHeight: 1.55,
+              margin: 0,
+              fontWeight: 400,
+            }}
+          >
+            Set your own consultation schedule, consult with verified patients across all 9 provinces, and receive guaranteed payouts with automated 85% revenue share.
+          </p>
+        </div>
 
-          <div className="auth-social-badge">
-            <div className="auth-social-badge-val">
-              <SolarIcon name="stethoscope-linear" size={18} color="var(--color-gold-primary, #E2B467)" />
-              <span>Bi-Weekly</span>
+        {/* Bottom: Stats Strip */}
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          <div className="auth-stats-strip">
+            <div className="auth-stats-row">
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <SolarIcon name="diploma-verified-linear" size={18} color="var(--color-gold-primary, #E2B467)" />
+                  <span>HPCSA</span>
+                </div>
+                <div className="auth-stat-lbl">Direct Register Verification</div>
+              </div>
+
+              <div className="auth-stat-divider" aria-hidden="true" />
+
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <SolarIcon name="clock-circle-linear" size={18} color="var(--color-gold-primary, #E2B467)" />
+                  <span>Flexible</span>
+                </div>
+                <div className="auth-stat-lbl">Set Your Own Shifts</div>
+              </div>
+
+              <div className="auth-stat-divider" aria-hidden="true" />
+
+              <div className="auth-stat-item">
+                <div className="auth-stat-val">
+                  <SolarIcon name="stethoscope-linear" size={18} color="var(--color-gold-primary, #E2B467)" />
+                  <span>Bi-Weekly</span>
+                </div>
+                <div className="auth-stat-lbl">Automated Direct Payouts</div>
+              </div>
             </div>
-            <div className="auth-social-badge-lbl">Automated Direct Payouts</div>
+
+            <hr className="auth-stats-hr" />
           </div>
         </div>
       </div>
@@ -245,25 +238,45 @@ export default function DoctorRegisterPage() {
         <div className="auth-form-wrapper" style={{ maxWidth: '540px' }}>
           {/* Header */}
           <div style={{ marginBottom: '28px' }}>
-            <span className="badge-gold" style={{ marginBottom: '10px' }}>
-              Step {step} of 4 &bull; {step === 1 && 'Personal & Credentials'}
-              {step === 2 && 'HPCSA Registration'}
-              {step === 3 && 'Compliance Documents'}
-              {step === 4 && 'Practice Details'}
-            </span>
+            <div
+              style={{
+                height: '36px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '4px 12px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                border: '1px solid rgba(223, 171, 98, 0.25)',
+                fontSize: '0.74rem',
+                fontWeight: 700,
+                marginBottom: '32px',
+              }}
+            >
+              <SolarIcon name="shield-check-linear" size={14} color="var(--color-chocolate-base)" />
+              <span>
+                Step {step} of 4 &bull; {step === 1 && 'Personal & Credentials'}
+                {step === 2 && 'HPCSA Registration'}
+                {step === 3 && 'Compliance Documents'}
+                {step === 4 && 'Practice Details'}
+              </span>
+            </div>
+
             <h2
               style={{
-                fontSize: '1.85rem',
-                color: 'var(--color-chocolate-base, #2A170F)',
-                marginBottom: '6px',
-                fontWeight: 'var(--font-heading-weight, 400)',
                 fontFamily: 'var(--font-heading), sans-serif',
-                letterSpacing: '-0.02em',
+                fontSize: '2rem',
+                fontWeight: 700,
+                color: 'var(--color-chocolate-base, #2A170F)',
+                margin: '0 0 10px',
+                letterSpacing: '-0.025em',
+                lineHeight: 1.2,
               }}
             >
               Doctor Registration
             </h2>
-            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.9rem' }}>
+            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.925rem', lineHeight: 1.55, margin: 0, fontWeight: 400 }}>
               Provide your clinical credentials for verification by our medical governance board.
             </p>
           </div>
