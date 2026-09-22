@@ -305,41 +305,38 @@ export default function DoctorLoginPage() {
             </p>
           </div>
 
-          {/* LocumStaff Social-Style Sign In Button (Brand Aligned, No Purple) */}
-          <Link
-            href="/callback?code=mock-locumstaff-sso-verified"
+          {/* LocumStaff SSO note — the handshake is initiated from the
+              LocumStaff MOBILE APP, not a button here. A doctor already
+              signed into LocumStaff taps "Open ChekUp247" there and lands
+              on our /callback already authenticated (handover §2). There is
+              no browser login page for us to redirect to, so we do not show
+              a "Continue with LocumStaff" button that goes nowhere. */}
+          <div
             style={{
-              width: '100%',
-              boxSizing: 'border-box',
               display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
+              alignItems: 'flex-start',
               gap: '10px',
-              padding: '11px 16px',
+              padding: '11px 14px',
               borderRadius: '11px',
-              backgroundColor: '#ffffff',
-              border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
+              backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
               color: 'var(--color-chocolate-base, #2A170F)',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              textDecoration: 'none',
-              boxShadow: '0 1px 3px rgba(42, 23, 15, 0.04)',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-cream-surface, #FDFBF7)';
-              e.currentTarget.style.borderColor = 'var(--color-gold-base, #DFAB62)';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(223, 171, 98, 0.15)';
-            }}
-            onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => {
-              e.currentTarget.style.backgroundColor = '#ffffff';
-              e.currentTarget.style.borderColor = 'var(--color-gold-border, rgba(223, 171, 98, 0.35))';
-              e.currentTarget.style.boxShadow = '0 1px 3px rgba(42, 23, 15, 0.04)';
+              fontSize: '0.8rem',
+              lineHeight: 1.5,
             }}
           >
-            <ChekupCrossLogo size={20} />
-            <span>Continue with LocumStaff</span>
-          </Link>
+            <SolarIcon
+              name="smartphone-linear"
+              size={18}
+              color="var(--color-gold-bronze, #B88647)"
+              style={{ flexShrink: 0, marginTop: '1px' }}
+            />
+            <span>
+              <strong style={{ fontWeight: 600 }}>Registered with LocumStaff?</strong>{' '}
+              Open ChekUp247 from your LocumStaff mobile app to sign in
+              automatically — no password needed.
+            </span>
+          </div>
 
           {/* Clean Divider */}
           <div

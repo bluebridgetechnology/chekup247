@@ -273,11 +273,26 @@ describe('AuthService & LocumStaffSsoService', () => {
   });
 
   describe('LocumStaff Federated OIDC SSO', () => {
-    it('should perform mock OIDC callback and auto-provision verified doctor', async () => {
-      const result = await ssoService.handleCallback({
-        code: 'mock-sso-verified-code-123',
-        codeVerifier: 'mock-verifier-xyz',
-      });
+    const baseClaims = {
+      sub: 'locum-doc-abc123',
+      iss: 'https://api.locumstaff.example',
+      aud: 'chekup247_client',
+      iat: Math.floor(Date.now() / 1000),
+      exp: Math.floor(Date.now() / 1000) + 300,
+      email: 'dr.verified@locumstaff.co.za',
+      given_name: 'Sipho',
+      family_name: 'Khumalo',
+      name: 'Dr. Sipho Khumalo',
+      role: 'LOCUM',
+      status: 'VERIFIED',
+      profession: 'GENERAL_PRACTITIONER',
+      willing_virtual: true,
+    };
+
+    it('auto-provisions a VERIFIED doctor from verified LocumStaff claims', async () => {
+      // matchOrCreateDoctor is the pure post-exchange step — no network,
+      // no mock backdoor. Eligibility is asserted separately (below).
+      const result = await ssoService.matchOrCreateDoctor(baseClaims);
 
       expect(result.accessToken).toBeDefined();
       expect(result.user.role).toBe(UserRole.DOCTOR);
@@ -286,13 +301,26 @@ describe('AuthService & LocumStaffSsoService', () => {
       expect(result.doctorProfile.verification_source).toBe(VerificationSource.LOCUMSTAFF);
     });
 
-    it('should set verification_status to PENDING if LocumStaff doctor is not verified', async () => {
-      const result = await ssoService.handleCallback({
-        code: 'mock-pending-code-456',
-        mockVerificationStatus: 'PENDING',
-      });
+    it('rejects a GP who has not opted in to virtual consultations (§1.1 gate)', () => {
+      const notWilling = { ...baseClaims, willing_virtual: false };
+      // assertEligible is private; exercise it via the public seam.
+      expect(() => (ssoService as any).assertEligible(notWilling)).toThrow(
+        /virtual consultations/i,
+      );
+    });
 
-      expect(result.doctorProfile.verification_status).toBe(VerificationStatus.PENDING);
+    it('rejects an unverified LocumStaff account (fails closed)', () => {
+      const pending = { ...baseClaims, status: 'PENDING' };
+      expect(() => (ssoService as any).assertEligible(pending)).toThrow(/not yet verified/i);
+    });
+
+    it('rejects a non-GP profession (out of scope at launch)', () => {
+      const specialist = { ...baseClaims, profession: 'CARDIOLOGIST' };
+      expect(() => (ssoService as any).assertEligible(specialist)).toThrow(/not in scope/i);
+    });
+
+    it('accepts a fully eligible verified, willing GP', () => {
+      expect(() => (ssoService as any).assertEligible(baseClaims)).not.toThrow();
     });
   });
 });

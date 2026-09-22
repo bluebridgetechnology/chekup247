@@ -25,6 +25,11 @@ function SsoCallbackContent() {
       setErrorMessage('Missing OIDC authorization code in redirect callback.');
       return;
     }
+    if (!state) {
+      setStatus('error');
+      setErrorMessage('Missing OIDC state parameter — this sign-in link is invalid or incomplete.');
+      return;
+    }
 
     let isMounted = true;
 
@@ -63,20 +68,19 @@ function SsoCallbackContent() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '32px',
-        background: 'linear-gradient(180deg, var(--color-slate-900) 0%, #090d16 100%)',
-        color: '#ffffff',
+        background: 'linear-gradient(180deg, var(--color-chocolate-base, #2A170F) 0%, #1c0f09 100%)',
+        color: 'var(--color-chocolate-base, #2A170F)',
       }}
     >
       <div
         style={{
           width: '100%',
           maxWidth: '520px',
-          background: 'rgba(30, 41, 59, 0.75)',
-          backdropFilter: 'blur(16px)',
+          background: 'var(--color-cream-surface, #FDFBF7)',
           borderRadius: 'var(--radius-xl)',
           padding: '44px 36px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+          boxShadow: '0 25px 50px -12px rgba(42, 23, 15, 0.35)',
           textAlign: 'center',
         }}
       >
@@ -94,29 +98,29 @@ function SsoCallbackContent() {
             style={{
               padding: '10px 18px',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              fontWeight: 800,
+              background: 'var(--color-cream-bg, #F7F1E8)',
+              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
+              fontWeight: 700,
               fontSize: '1rem',
               letterSpacing: '-0.02em',
-              color: '#38bdf8',
+              color: 'var(--color-chocolate-base, #2A170F)',
             }}
           >
             LocumStaff
           </div>
 
-          <div style={{ color: 'var(--color-slate-500)', fontSize: '1.25rem' }}>⇄</div>
+          <div style={{ color: 'var(--color-gold-bronze, #B88647)', fontSize: '1.25rem' }}>⇄</div>
 
           <div
             style={{
               padding: '10px 18px',
               borderRadius: '12px',
-              background: 'linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-800) 100%)',
-              border: '1px solid var(--color-brand-400)',
-              fontWeight: 800,
+              background: 'linear-gradient(135deg, var(--color-gold-base, #DFAB62) 0%, var(--color-gold-bronze, #B88647) 100%)',
+              border: '1px solid var(--color-gold-base, #DFAB62)',
+              fontWeight: 700,
               fontSize: '1rem',
               letterSpacing: '-0.02em',
-              color: '#ffffff',
+              color: 'var(--color-chocolate-base, #2A170F)',
             }}
           >
             ChekUp247
@@ -125,14 +129,14 @@ function SsoCallbackContent() {
 
         {status === 'exchanging' && (
           <div>
-            <div style={{ display: 'inline-flex', marginBottom: '20px', color: 'var(--color-brand-400)' }}>
+            <div style={{ display: 'inline-flex', marginBottom: '20px', color: 'var(--color-gold-bronze, #B88647)' }}>
               <SolarIcon name="refresh-linear" size={48} className="animate-spin" />
             </div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px', color: 'var(--color-chocolate-base, #2A170F)' }}>
               Authenticating with LocumStaff SSO...
             </h2>
-            <p style={{ color: 'var(--color-slate-400)', fontSize: '0.9rem', lineHeight: 1.6 }}>
-              Verifying cryptographic OIDC PKCE token with LocumStaff Key Services. Establishing secure doctor practice session.
+            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.9rem', lineHeight: 1.6 }}>
+              Verifying your LocumStaff identity and establishing a secure doctor practice session.
             </p>
           </div>
         )}
@@ -154,13 +158,13 @@ function SsoCallbackContent() {
             >
               <SolarIcon name="check-circle-linear" size={40} color="#10b981" />
             </div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
-              Doctor Verified & Authenticated
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px', color: 'var(--color-chocolate-base, #2A170F)' }}>
+              Doctor Verified &amp; Authenticated
             </h2>
-            <p style={{ color: 'var(--color-slate-300)', fontSize: '0.9rem', marginBottom: '24px' }}>
+            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.9rem', marginBottom: '24px' }}>
               Welcome back to ChekUp247 Practice Suite. Launching your clinical dashboard...
             </p>
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--color-brand-300)', fontSize: '0.85rem' }}>
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: 'var(--color-gold-bronze, #B88647)', fontSize: '0.85rem' }}>
               <SolarIcon name="refresh-linear" size={16} className="animate-spin" />
               <span>Redirecting...</span>
             </div>
@@ -184,14 +188,15 @@ function SsoCallbackContent() {
             >
               <SolarIcon name="danger-circle-linear" size={40} color="#ef4444" />
             </div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px', color: '#ffffff' }}>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, marginBottom: '8px', color: 'var(--color-chocolate-base, #2A170F)' }}>
               SSO Handshake Failed
             </h2>
-            <p style={{ color: 'var(--color-slate-300)', fontSize: '0.9rem', marginBottom: '24px', lineHeight: 1.6 }}>
+            <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '0.9rem', marginBottom: '24px', lineHeight: 1.6 }}>
               {errorMessage || 'Unable to exchange LocumStaff authorization code. The token may have expired.'}
             </p>
             <Link
               href="/login"
+              className="btn-primary"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
@@ -200,15 +205,13 @@ function SsoCallbackContent() {
                 width: '100%',
                 padding: '12px',
                 borderRadius: 'var(--radius-md)',
-                background: 'var(--color-brand-500)',
-                color: '#ffffff',
                 fontWeight: 600,
                 fontSize: '0.9rem',
                 textDecoration: 'none',
               }}
             >
               <span>Return to Doctor Sign In</span>
-              <SolarIcon name="arrow-right-linear" size={16} color="#ffffff" />
+              <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
             </Link>
           </div>
         )}
