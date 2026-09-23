@@ -4,6 +4,8 @@ import {
   IsNumber,
   IsArray,
   IsOptional,
+  IsIn,
+  Matches,
   IsBoolean,
   IsEmail,
   Min,
@@ -11,6 +13,17 @@ import {
 } from 'class-validator';
 
 export class OnboardDoctorDto {
+  @IsNotEmpty({ message: 'Identity document type is required' })
+  @IsIn(['id', 'passport'], { message: 'Identity document type must be ID or passport' })
+  document_type: 'id' | 'passport';
+
+  @IsNotEmpty({ message: 'ID or passport number is required' })
+  @IsString()
+  @Matches(/^(?:\d{13}|[A-Za-z0-9][A-Za-z0-9 -]{5,19})$/, {
+    message: 'ID numbers must be exactly 13 digits, or passports must be 6 to 20 letters or numbers',
+  })
+  id_number: string;
+
   @IsNotEmpty({ message: 'HPCSA registration number is required' })
   @IsString()
   hpcsa_number: string;

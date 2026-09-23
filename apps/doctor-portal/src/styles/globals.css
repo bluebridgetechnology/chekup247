@@ -456,6 +456,16 @@ a {
   .doctor-onboard-section .portal-label em { color: #a09287; font-size: 0.68rem; font-style: normal; font-weight: 500; }
   .doctor-onboard-section .portal-input { min-height: 44px; border-color: #e5dace; background: #fffdfa; box-shadow: none; }
   .doctor-onboard-section .portal-input:focus { border-color: #d69e4d; box-shadow: 0 0 0 3px rgba(214, 158, 77, 0.14); }
+  .doctor-onboard-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .doctor-onboard-tabs button { display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 12px 14px; border: 1px solid #e5dace; border-radius: 12px; background: #fffdfa; color: #8a7e73; text-align: left; cursor: pointer; }
+  .doctor-onboard-tabs button:hover,
+  .doctor-onboard-tabs button.is-selected { border-color: #d69e4d; background: #fff9ef; color: #8b5c2b; }
+  .doctor-onboard-tabs button > svg { flex: 0 0 auto; }
+  .doctor-onboard-tabs strong,
+  .doctor-onboard-tabs small { display: block; }
+  .doctor-onboard-tabs strong { color: #49372d; font-size: 0.76rem; }
+  .doctor-onboard-tabs small { margin-top: 3px; color: #8a7e73; font-size: 0.68rem; }
+  .doctor-onboard-identity-field { max-width: 520px; }
   .doctor-onboard-input-prefix { position: relative; }
   .doctor-onboard-input-prefix span { position: absolute; top: 14px; left: 13px; z-index: 1; color: #9a9087; font-size: 0.68rem; font-weight: 800; }
   .doctor-onboard-input-prefix input { padding-left: 48px; }
@@ -503,7 +513,7 @@ a {
     .doctor-onboard-hero-meta { margin-top: 18px; }
     .doctor-onboard-layout { grid-template-columns: 1fr; }
     .doctor-onboard-aside { position: static; }
-    .doctor-onboard-steps { grid-template-columns: repeat(3, 1fr); gap: 8px; padding-bottom: 2px; }
+    .doctor-onboard-steps { grid-template-columns: repeat(4, 1fr); gap: 8px; padding-bottom: 2px; }
     .doctor-onboard-steps li { align-items: flex-start; padding: 8px 0; }
     .doctor-onboard-steps small { display: none; }
     .doctor-onboard-note { margin-top: 12px; }
@@ -519,6 +529,7 @@ a {
     .doctor-onboard-save-state { margin-top: 14px; }
     .doctor-onboard-error { margin-right: 18px; margin-left: 18px; }
     .doctor-onboard-field-grid { grid-template-columns: 1fr; gap: 15px; }
+    .doctor-onboard-tabs { grid-template-columns: 1fr; }
     .doctor-onboard-doc { align-items: flex-start; flex-wrap: wrap; }
     .doctor-onboard-doc-copy { min-width: calc(100% - 50px); }
     .doctor-onboard-upload { margin-left: 49px; }

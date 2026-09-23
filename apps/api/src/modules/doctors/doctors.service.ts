@@ -460,8 +460,9 @@ export class DoctorsService implements OnModuleInit {
 
     if (dto.province) {
       user.province = dto.province;
-      user = await this.userRepository.save(user);
     }
+    user.id_number = dto.id_number.trim().toUpperCase();
+    user = await this.userRepository.save(user);
 
     // Check if doctor profile already exists
     let existingProfile = await this.doctorRepository.findOne({
