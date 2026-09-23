@@ -4,6 +4,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  CreateBucketCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { envConfig } from '../../config/env.config';
@@ -51,6 +52,29 @@ export class StorageService {
         : this.s3Client;
   }
 
+  private async ensureBucket(bucket: string): Promise<void> {
+    try {
+      await this.s3Client.send(new HeadBucketCommand({ Bucket: bucket }));
+      return;
+    } catch (error: any) {
+      const statusCode = error?.$metadata?.httpStatusCode;
+      const errorCode = error?.Code || error?.code || error?.name;
+      if (statusCode !== 404 && errorCode !== 'NoSuchBucket' && errorCode !== 'NotFound') {
+        throw error;
+      }
+    }
+
+    try {
+      await this.s3Client.send(new CreateBucketCommand({ Bucket: bucket }));
+      this.logger.log(`Created storage bucket "${bucket}"`);
+    } catch (error: any) {
+      const errorCode = error?.Code || error?.code || error?.name;
+      if (errorCode !== 'BucketAlreadyOwnedByYou' && errorCode !== 'BucketAlreadyExists') {
+        throw error;
+      }
+    }
+  }
+
   /**
    * Generates a pre-signed PUT URL for direct client-side upload
    */
@@ -60,6 +84,7 @@ export class StorageService {
     contentType: string,
     expiresInSeconds = 900, // 15 minutes
   ): Promise<{ uploadUrl: string; key: string; expiresIn: number }> {
+    await this.ensureBucket(bucket);
     if (!ALLOWED_MIME_TYPES.includes(contentType as AllowedMimeType)) {
       throw new BadRequestException(
         `Unsupported MIME type: ${contentType}. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`,
@@ -116,6 +141,7 @@ export class StorageService {
     contentType = 'application/pdf',
   ): Promise<{ key: string; location: string }> {
     try {
+      await this.ensureBucket(bucket);
       const command = new PutObjectCommand({
         Bucket: bucket,
         Key: key,
@@ -157,6 +183,7 @@ export class StorageService {
       ContentType: contentType,
     });
 
+    await this.ensureBucket(envConfig.STORAGE_BUCKET_DOCUMENTS);
     await this.s3Client.send(command);
 
     const publicEndpoint = envConfig.STORAGE_PUBLIC_ENDPOINT || envConfig.STORAGE_ENDPOINT;
