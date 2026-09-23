@@ -906,11 +906,11 @@ export default function DoctorManagementPage() {
                       {/* Rate & Rating */}
                       <td style={{ verticalAlign: 'middle' }}>
                         <div style={{ fontWeight: 700, color: '#18A875', fontSize: '0.875rem' }}>
-                          R {Number(doc.rate_per_hour || 750).toFixed(2)}/hr
+                          {doc.rate_per_hour ? `R ${Number(doc.rate_per_hour).toFixed(2)}/hr` : 'Not provided'}
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#766C64', marginTop: '2px' }}>
                           <Star size={11} color="#DFA34F" fill="#DFA34F" />
-                          <span style={{ fontWeight: 600, color: '#201712' }}>{Number(doc.rating_avg || 5.0).toFixed(1)}</span>
+                          <span style={{ fontWeight: 600, color: '#201712' }}>{doc.rating_avg ? Number(doc.rating_avg).toFixed(1) : 'No rating'}</span>
                           <span>({doc.reviews_count || 0})</span>
                         </div>
                       </td>
@@ -1389,24 +1389,24 @@ export default function DoctorManagementPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', fontSize: '0.85rem' }}>
                       <div>
                         <span style={{ color: '#766C64', fontSize: '0.75rem' }}>Bank: </span>
-                        <div style={{ fontWeight: 600, color: '#201712' }}>{selectedDoctor.bank_name || 'Standard Bank'}</div>
+                        <div style={{ fontWeight: 600, color: '#201712' }}>{selectedDoctor.bank_name || 'Not provided'}</div>
                       </div>
                       <div>
                         <span style={{ color: '#766C64', fontSize: '0.75rem' }}>Account Type: </span>
-                        <div style={{ fontWeight: 600, color: '#201712' }}>{selectedDoctor.account_type || 'Cheque'}</div>
+                        <div style={{ fontWeight: 600, color: '#201712' }}>{selectedDoctor.account_type || 'Not provided'}</div>
                       </div>
                       <div>
                         <span style={{ color: '#766C64', fontSize: '0.75rem' }}>Account Number: </span>
                         <div style={{ fontFamily: 'monospace', fontWeight: 600, color: '#201712' }}>
                           {selectedDoctor.account_number
                             ? `•••• ${selectedDoctor.account_number.slice(-4)}`
-                            : '•••• 4821'}
+                            : 'Not provided'}
                         </div>
                       </div>
                       <div>
                         <span style={{ color: '#766C64', fontSize: '0.75rem' }}>Branch Code: </span>
                         <div style={{ fontFamily: 'monospace', fontWeight: 600, color: '#201712' }}>
-                          {selectedDoctor.branch_code || '051001'}
+                          {selectedDoctor.branch_code || 'Not provided'}
                         </div>
                       </div>
                     </div>
