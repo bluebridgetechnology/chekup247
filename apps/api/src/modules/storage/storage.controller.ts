@@ -16,11 +16,23 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/auth.decorators';
 import { envConfig } from '../../config/env.config';
 import { PatientDocument, PatientDocumentCategory } from '../../database/patient/entities';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class GetPresignedUrlDto {
+  @IsNotEmpty()
+  @IsString()
   filename: string;
+
+  @IsNotEmpty()
+  @IsString()
   contentType: string;
+
+  @IsOptional()
+  @IsIn(['lab_report', 'prescription', 'id_document', 'other'])
   category?: 'lab_report' | 'prescription' | 'id_document' | 'other';
+
+  @IsOptional()
+  @IsIn(['patient', 'doctor'])
   scope?: 'patient' | 'doctor';
 }
 
