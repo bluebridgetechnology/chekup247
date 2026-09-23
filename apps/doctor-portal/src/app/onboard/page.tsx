@@ -45,6 +45,8 @@ export default function DoctorOnboardPage() {
   const hpcsaRef = useRef<HTMLInputElement>(null);
 
   const [hpcsaNumber, setHpcsaNumber] = useState(profile?.hpcsaNumber ?? '');
+  const [identityType, setIdentityType] = useState<'id' | 'passport'>('id');
+  const [identityNumber, setIdentityNumber] = useState('');
   const [specialty, setSpecialty] = useState(profile?.specialty ?? SPECIALTIES[0]);
   const [province, setProvince] = useState('');
   const [ratePerHour, setRatePerHour] = useState(String(profile?.ratePerHour ?? ''));
@@ -110,6 +112,14 @@ export default function DoctorOnboardPage() {
       setError('HPCSA registration number is required');
       return;
     }
+    if (identityType === 'id' && !/^\d{13}$/.test(identityNumber.trim())) {
+      setError('South African ID number must be exactly 13 digits');
+      return;
+    }
+    if (identityType === 'passport' && !/^[A-Za-z0-9][A-Za-z0-9 -]{5,19}$/.test(identityNumber.trim())) {
+      setError('Passport number must be 6 to 20 letters or numbers');
+      return;
+    }
     if (docs.some((d) => !d.fileUrl)) {
       setError('Please upload your ID, HPCSA certificate, and indemnity certificate');
       return;
@@ -132,6 +142,8 @@ export default function DoctorOnboardPage() {
       await onboard({
         ...(doctor ? {} : {}),
         hpcsa_number: hpcsaNumber.trim().toUpperCase(),
+        document_type: identityType,
+        id_number: identityNumber.trim().toUpperCase(),
         specialty,
         province: province || undefined,
         rate_per_hour: Number(ratePerHour),
@@ -209,12 +221,16 @@ export default function DoctorOnboardPage() {
               <span>1</span>
               <div><strong>Professional details</strong><small>Credentials and practice information</small></div>
             </li>
-            <li className={uploadedCount === docs.length ? 'is-active' : ''}>
+            <li className="is-active">
               <span>2</span>
+              <div><strong>Identity details</strong><small>ID or passport information</small></div>
+            </li>
+            <li className={uploadedCount === docs.length ? 'is-active' : ''}>
+              <span>3</span>
               <div><strong>Verification documents</strong><small>{uploadedCount} of {docs.length} uploaded</small></div>
             </li>
             <li>
-              <span>3</span>
+              <span>4</span>
               <div><strong>Clinical review</strong><small>Usually completed within 2 business days</small></div>
             </li>
           </ol>
@@ -228,7 +244,7 @@ export default function DoctorOnboardPage() {
         <section className="doctor-onboard-form-shell">
           <div className="doctor-onboard-form-heading">
             <div>
-              <span className="doctor-onboard-section-kicker">Step 1 of 3</span>
+              <span className="doctor-onboard-section-kicker">Step 1 of 4</span>
               <h2>Professional details</h2>
               <p>Tell us about your clinical practice and how patients can work with you.</p>
             </div>
@@ -276,6 +292,28 @@ export default function DoctorOnboardPage() {
             <div className="doctor-onboard-section">
               <div className="doctor-onboard-section-title">
                 <span className="doctor-onboard-section-number">02</span>
+                <div><h3>Identity details</h3><p>Use the same identity document you will upload below.</p></div>
+              </div>
+              <div className="doctor-onboard-tabs" role="tablist" aria-label="Identity document type">
+                <button type="button" className={identityType === 'id' ? 'is-selected' : ''} onClick={() => setIdentityType('id')} role="tab" aria-selected={identityType === 'id'}>
+                  <SolarIcon name="card-2-linear" size={18} />
+                  <span><strong>South African ID</strong><small>13-digit ID number</small></span>
+                </button>
+                <button type="button" className={identityType === 'passport' ? 'is-selected' : ''} onClick={() => setIdentityType('passport')} role="tab" aria-selected={identityType === 'passport'}>
+                  <SolarIcon name="document-text-linear" size={18} />
+                  <span><strong>Passport</strong><small>International passport</small></span>
+                </button>
+              </div>
+              <div className="portal-input-group doctor-onboard-identity-field">
+                <label className="portal-label" htmlFor="identity-number">{identityType === 'id' ? 'South African ID number' : 'Passport number'} <span>*</span></label>
+                <input id="identity-number" type="text" required value={identityNumber} onChange={(e) => setIdentityNumber(identityType === 'id' ? e.target.value.replace(/\D/g, '').slice(0, 13) : e.target.value.toUpperCase().slice(0, 20))} inputMode={identityType === 'id' ? 'numeric' : 'text'} maxLength={identityType === 'id' ? 13 : 20} placeholder={identityType === 'id' ? '8001015009087' : 'A1234567'} className="portal-input" />
+                <span className="doctor-onboard-field-hint">{identityType === 'id' ? 'Enter all 13 digits without spaces.' : 'Use the number shown on your valid passport.'}</span>
+              </div>
+            </div>
+
+            <div className="doctor-onboard-section">
+              <div className="doctor-onboard-section-title">
+                <span className="doctor-onboard-section-number">03</span>
                 <div><h3>Verification documents</h3><p>Clear, current files help us review your application faster.</p></div>
               </div>
               <div className="doctor-onboard-docs">
@@ -294,7 +332,7 @@ export default function DoctorOnboardPage() {
 
             <div className="doctor-onboard-section">
               <div className="doctor-onboard-section-title">
-                <span className="doctor-onboard-section-number">03</span>
+                <span className="doctor-onboard-section-number">04</span>
                 <div><h3>How you practise</h3><p>Help patients understand your approach and availability.</p></div>
               </div>
               <div className="portal-input-group">
