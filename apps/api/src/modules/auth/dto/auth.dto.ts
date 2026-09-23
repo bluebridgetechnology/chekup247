@@ -29,6 +29,10 @@ export class RegisterPatientDto {
   @IsOptional()
   @IsDateString({}, { message: 'Date of birth must be a valid date' })
   date_of_birth?: string;
+
+  @IsOptional()
+  @IsString()
+  province?: string;
 }
 
 export class RegisterDoctorDto {

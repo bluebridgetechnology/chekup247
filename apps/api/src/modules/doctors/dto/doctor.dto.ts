@@ -60,6 +60,10 @@ export class OnboardDoctorDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @IsOptional()
+  @IsString()
+  province?: string;
 }
 
 export class UpdateDoctorProfileDto {
@@ -200,4 +204,3 @@ export class GetDoctorsQueryDto {
   @IsNumber()
   limit?: number;
 }
-

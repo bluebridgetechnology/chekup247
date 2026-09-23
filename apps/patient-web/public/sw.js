@@ -1,5 +1,5 @@
 // ChekUp247 Patient Web App Service Worker
-const CACHE_VERSION = 'chekup247-patient-v1';
+const CACHE_VERSION = 'chekup247-patient-v2';
 const OFFLINE_URL = '/offline';
 
 const PRECACHE_ASSETS = [
@@ -108,7 +108,13 @@ self.addEventListener('fetch', (event) => {
 
   // Default: Network with cache fallback
   event.respondWith(
-    fetch(request).catch(() => caches.match(request))
+    fetch(request)
+      .catch(() => caches.match(request))
+      .then((response) => response || new Response('', {
+        status: 503,
+        statusText: 'Offline',
+        headers: { 'Content-Type': 'text/plain' },
+      }))
   );
 });
 
