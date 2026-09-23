@@ -25,6 +25,7 @@ import { TokenService } from './token.service';
 import { TotpService } from './totp.service';
 import {
   RegisterPatientDto,
+  RegisterDoctorDto,
   LoginDto,
   VerifyEmailDto,
   VerifyOtpDto,
@@ -43,6 +44,9 @@ export interface AuthSessionResponse {
     id: string;
     email: string;
     fullName: string;
+    title?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
     role: UserRole;
     status: UserStatus;
     isEmailVerified: boolean;
@@ -224,6 +228,102 @@ export class AuthService implements OnModuleInit {
         isEmailVerified: savedUser.is_email_verified,
         avatarUrl: savedUser.avatar_url,
         dateOfBirth: savedUser.date_of_birth,
+      },
+      ...(isTest ? { verificationToken: otp, otp } : {}),
+    };
+  }
+
+  /**
+   * Register a new doctor via the SHORT signup form.
+   *
+   * Mirrors registerPatient exactly: captures only the minimal identity
+   * set (title + first/last name, email, phone, password), creates the
+   * user with role DOCTOR, dispatches a 6-digit OTP for email
+   * verification, and — crucially — does NOT auto-login. The doctor portal
+   * then runs the inline verify-otp step (returning the accessToken for
+   * `chekup_doctor_token`) and continues with the /onboard wizard for the
+   * remaining credential fields (HPCSA, specialty, documents, rate, bio,
+   * in-clinic option) via the authenticated POST /doctors/onboard path.
+   */
+  async registerDoctor(dto: RegisterDoctorDto): Promise<RegisterPatientResponse> {
+    const existing = await this.userRepository.findOne({
+      where: { email: dto.email.toLowerCase() },
+    });
+
+    if (existing) {
+      throw new ConflictException('An account with this email address already exists');
+    }
+
+    const passwordHash = await this.tokenService.hashPassword(dto.password);
+
+    // full_name stays NOT NULL / display-facing; structured title + first/last
+    // are stored on their own columns so the credential renders distinctly.
+    const fullName = [dto.title, dto.first_name, dto.last_name]
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+
+    const user = this.userRepository.create({
+      email: dto.email.toLowerCase(),
+      password_hash: passwordHash,
+      full_name: fullName || dto.email.split('@')[0],
+      title: dto.title ?? null,
+      first_name: dto.first_name,
+      last_name: dto.last_name,
+      phone: dto.phone,
+      role: UserRole.DOCTOR,
+      status: UserStatus.ACTIVE,
+      is_email_verified: false,
+    });
+
+    const savedUser = await this.userRepository.save(user);
+
+    // Create default notification preferences
+    const prefs = this.notificationPreferenceRepository.create({
+      user_id: savedUser.id,
+      channels: ['email', 'sms'],
+      reminders_enabled: true,
+    });
+    await this.notificationPreferenceRepository.save(prefs);
+
+    // Generate 6-digit numeric OTP (15 min expiration)
+    const { otp, hash } = this.tokenService.generateOtp();
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+
+    const verificationToken = this.tokenRepository.create({
+      user_id: savedUser.id,
+      token_hash: hash,
+      type: TokenType.EMAIL_VERIFICATION,
+      expires_at: expiresAt,
+    });
+    await this.tokenRepository.save(verificationToken);
+
+    // Dispatch verification code via Email & SMS in background so the
+    // registration response never hangs.
+    this.sendVerificationOtp(savedUser, otp).catch((err) => {
+      this.logger.error(`Failed to dispatch verification OTP for ${savedUser.email}: ${err.message}`);
+    });
+
+    this.logger.log(`Doctor registered: ${savedUser.email}`);
+
+    // In unit test environment, return verificationToken so tests can execute verifyOtp
+    const isTest = process.env.NODE_ENV === 'test';
+
+    return {
+      message: 'Registration successful. A 6-digit verification code has been dispatched.',
+      userId: savedUser.id,
+      user: {
+        id: savedUser.id,
+        email: savedUser.email,
+        fullName: savedUser.full_name,
+        title: savedUser.title,
+        firstName: savedUser.first_name,
+        lastName: savedUser.last_name,
+        role: savedUser.role,
+        status: savedUser.status,
+        phone: savedUser.phone,
+        isEmailVerified: savedUser.is_email_verified,
+        avatarUrl: savedUser.avatar_url,
       },
       ...(isTest ? { verificationToken: otp, otp } : {}),
     };

@@ -44,6 +44,32 @@ const HIGHLIGHTS = [
   },
 ];
 
+const PROVINCES = [
+  'Eastern Cape',
+  'Free State',
+  'Gauteng',
+  'KwaZulu-Natal',
+  'Limpopo',
+  'Mpumalanga',
+  'North West',
+  'Northern Cape',
+  'Western Cape',
+];
+
+const LANGUAGES = [
+  'isiZulu',
+  'isiXhosa',
+  'Afrikaans',
+  'English',
+  'Sepedi',
+  'Setswana',
+  'Sesotho',
+  'Xitsonga',
+  'siSwati',
+  'Tshivenda',
+  'isiNdebele',
+];
+
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -57,6 +83,16 @@ function RegisterContent() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [idNumber, setIdNumber] = useState('');
+  const [gender, setGender] = useState('');
+  const [province, setProvince] = useState('');
+  const [languages, setLanguages] = useState<string[]>([]);
+
+  const toggleLanguage = (lang: string) => {
+    setLanguages((prev) =>
+      prev.includes(lang) ? prev.filter((l) => l !== lang) : [...prev, lang]
+    );
+  };
 
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -114,6 +150,10 @@ function RegisterContent() {
         password,
         phone: phone.trim() || undefined,
         date_of_birth: dateOfBirth || undefined,
+        id_number: idNumber.trim() || undefined,
+        gender: gender || undefined,
+        province: province || undefined,
+        languages_spoken: languages.length ? languages : undefined,
       });
 
       setRegisteredSuccess(email.trim());
@@ -525,6 +565,110 @@ function RegisterContent() {
                         className="auth-input"
                       />
                     </div>
+                  </div>
+                </div>
+
+                {/* ID / Passport & Gender (2-col grid) */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '12px',
+                  }}
+                >
+                  <div className="auth-input-group">
+                    <label htmlFor="idNumber" className="auth-label">
+                      ID / Passport Number
+                    </label>
+                    <div className="auth-input-wrapper">
+                      <input
+                        id="idNumber"
+                        name="idNumber"
+                        type="text"
+                        value={idNumber}
+                        onChange={(e) => setIdNumber(e.target.value)}
+                        placeholder="13-digit ID or passport"
+                        className="auth-input"
+                      />
+                    </div>
+                  </div>
+                  <div className="auth-input-group">
+                    <label htmlFor="gender" className="auth-label">
+                      Gender
+                    </label>
+                    <div className="auth-input-wrapper">
+                      <select
+                        id="gender"
+                        name="gender"
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        className="auth-input"
+                      >
+                        <option value="">Select…</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Province */}
+                <div className="auth-input-group">
+                  <label htmlFor="province" className="auth-label">
+                    Province
+                  </label>
+                  <div className="auth-input-wrapper">
+                    <select
+                      id="province"
+                      name="province"
+                      value={province}
+                      onChange={(e) => setProvince(e.target.value)}
+                      className="auth-input"
+                    >
+                      <option value="">Select your province…</option>
+                      {PROVINCES.map((p) => (
+                        <option key={p} value={p}>
+                          {p}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Languages Spoken */}
+                <div className="auth-input-group">
+                  <label className="auth-label">
+                    Languages Spoken
+                  </label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {LANGUAGES.map((lang) => {
+                      const active = languages.includes(lang);
+                      return (
+                        <button
+                          key={lang}
+                          type="button"
+                          onClick={() => toggleLanguage(lang)}
+                          style={{
+                            padding: '7px 12px',
+                            borderRadius: '999px',
+                            border: active
+                              ? '1.5px solid var(--color-gold-base)'
+                              : '1.5px solid var(--color-border)',
+                            backgroundColor: active
+                              ? 'var(--color-gold-pale)'
+                              : 'transparent',
+                            color: active
+                              ? 'var(--color-chocolate-base)'
+                              : 'var(--color-cream-text-muted)',
+                            fontSize: '0.78rem',
+                            fontWeight: active ? 700 : 500,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {lang}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

@@ -34,6 +34,10 @@ interface AuthContextType {
     password: string;
     phone?: string;
     date_of_birth?: string;
+    id_number?: string;
+    gender?: string;
+    province?: string;
+    languages_spoken?: string[];
   }) => Promise<any>;
   verifyEmail: (token: string) => Promise<any>;
   verifyOtp: (email: string, otp: string) => Promise<any>;
@@ -129,6 +133,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     password: string;
     phone?: string;
     date_of_birth?: string;
+    id_number?: string;
+    gender?: string;
+    province?: string;
+    languages_spoken?: string[];
   }) => {
     const res = await fetch(`${API_BASE}/auth/register`, {
       method: 'POST',

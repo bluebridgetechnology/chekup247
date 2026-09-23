@@ -40,6 +40,9 @@ export class DoctorProfile {
   @Column({ type: 'varchar', length: 100 })
   hpcsa_number: string;
 
+  @Column({ type: 'text', nullable: true })
+  qualifications?: string | null;
+
   @Column({
     type: 'enum',
     enum: VerificationStatus,
