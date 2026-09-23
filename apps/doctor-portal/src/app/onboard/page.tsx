@@ -69,7 +69,18 @@ export default function DoctorOnboardPage() {
     setUploadingKey(index);
     setError(null);
     try {
-      const presignedRes = await fetch(`http://localhost:4000/api/v1/storage/presigned-upload`, {
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_URL ||
+        (typeof window !== 'undefined' && window.location.hostname.endsWith('chekup247.com')
+          ? 'https://api.chekup247.com/api/v1'
+          : 'http://localhost:4000/api/v1');
+      const contentType = file.type || (
+        file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' :
+        file.name.toLowerCase().endsWith('.png') ? 'image/png' :
+        file.name.toLowerCase().match(/\.(jpg|jpeg)$/) ? 'image/jpeg' :
+        'application/octet-stream'
+      );
+      const presignedRes = await fetch(`${apiBase}/storage/presigned-upload`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -77,7 +88,7 @@ export default function DoctorOnboardPage() {
         },
         body: JSON.stringify({
           filename: file.name,
-          contentType: file.type,
+          contentType,
           category: 'other',
           scope: 'doctor',
         }),
@@ -88,10 +99,12 @@ export default function DoctorOnboardPage() {
 
       const putRes = await fetch(presigned.uploadUrl, {
         method: 'PUT',
-        headers: { 'Content-Type': file.type },
+        headers: { 'Content-Type': contentType },
         body: file,
       });
-      if (!putRes.ok) throw new Error('Upload failed');
+      if (!putRes.ok) {
+        throw new Error(`Upload failed (${putRes.status}). Please try again or choose a PDF, JPG, or PNG file.`);
+      }
 
       setDocs((prev) =>
         prev.map((d, i) => (i === index ? { ...d, filename: file.name, fileUrl: presigned.fileUrl } : d)),

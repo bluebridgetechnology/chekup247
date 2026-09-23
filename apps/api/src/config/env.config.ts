@@ -48,6 +48,7 @@ const envSchema = z.object({
 
   // Storage (MinIO / S3)
   STORAGE_ENDPOINT: z.string().default('http://localhost:9000'),
+  STORAGE_PUBLIC_ENDPOINT: z.string().optional(),
   STORAGE_REGION: z.string().default('af-south-1'),
   STORAGE_ACCESS_KEY: z.string().default('minioadmin'),
   STORAGE_SECRET_KEY: z.string().default('minioadminpassword'),

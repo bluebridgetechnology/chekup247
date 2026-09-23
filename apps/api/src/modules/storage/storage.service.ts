@@ -24,6 +24,7 @@ const ALLOWED_MIME_TYPES: AllowedMimeType[] = [
 @Injectable()
 export class StorageService {
   private readonly s3Client: S3Client;
+  private readonly publicS3Client: S3Client;
   private readonly logger = new Logger(StorageService.name);
 
   constructor() {
@@ -36,6 +37,18 @@ export class StorageService {
         secretAccessKey: envConfig.STORAGE_SECRET_KEY,
       },
     });
+    this.publicS3Client =
+      envConfig.STORAGE_PUBLIC_ENDPOINT && envConfig.STORAGE_PUBLIC_ENDPOINT !== envConfig.STORAGE_ENDPOINT
+        ? new S3Client({
+            region: envConfig.STORAGE_REGION,
+            endpoint: envConfig.STORAGE_PUBLIC_ENDPOINT,
+            forcePathStyle: envConfig.STORAGE_FORCE_PATH_STYLE,
+            credentials: {
+              accessKeyId: envConfig.STORAGE_ACCESS_KEY,
+              secretAccessKey: envConfig.STORAGE_SECRET_KEY,
+            },
+          })
+        : this.s3Client;
   }
 
   /**
@@ -59,7 +72,7 @@ export class StorageService {
       ContentType: contentType,
     });
 
-    const uploadUrl = await getSignedUrl(this.s3Client, command, {
+    const uploadUrl = await getSignedUrl(this.publicS3Client, command, {
       expiresIn: expiresInSeconds,
     });
 

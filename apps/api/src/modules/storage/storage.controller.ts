@@ -68,7 +68,8 @@ export class StorageController {
       dto.contentType,
     );
 
-    const publicUrl = `${envConfig.STORAGE_ENDPOINT}/${envConfig.STORAGE_BUCKET_DOCUMENTS}/${key}`;
+    const publicEndpoint = envConfig.STORAGE_PUBLIC_ENDPOINT || envConfig.STORAGE_ENDPOINT;
+    const publicUrl = `${publicEndpoint}/${envConfig.STORAGE_BUCKET_DOCUMENTS}/${key}`;
 
     return {
       ...presigned,
