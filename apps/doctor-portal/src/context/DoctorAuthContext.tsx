@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
@@ -74,6 +74,20 @@ interface DoctorAuthContextType {
   isAuthenticated: boolean;
   isPendingVerification: boolean;
   login: (email: string, password: string) => Promise<any>;
+  registerDoctor: (data: {
+    title?: string;
+    first_name: string;
+    last_name: string;
+    id_number?: string;
+    gender?: string;
+    province?: string;
+    languages_spoken?: string[];
+    email: string;
+    password: string;
+    phone?: string;
+  }) => Promise<any>;
+  verifyOtp: (email: string, otp: string) => Promise<any>;
+  resendOtp: (email: string) => Promise<any>;
   onboard: (data: any) => Promise<any>;
   handleSsoCallback: (code: string, codeVerifier?: string, state?: string) => Promise<any>;
   logout: () => Promise<void>;
@@ -198,10 +212,72 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
     return data;
   };
 
-  const onboard = async (onboardData: any) => {
-    const res = await fetch(`${API_BASE}/doctors/onboard`, {
+
+  const registerDoctor = async (dto: {
+    title?: string;
+    first_name: string;
+    last_name: string;
+    id_number?: string;
+    gender?: string;
+    province?: string;
+    languages_spoken?: string[];
+    email: string;
+    password: string;
+    phone?: string;
+  }) => {
+    const res = await fetch(`${API_BASE}/auth/register-doctor`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dto),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Doctor registration failed');
+    return data;
+  };
+
+  const verifyOtp = async (email: string, otp: string) => {
+    const res = await fetch(`${API_BASE}/auth/verify-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, otp }),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'OTP verification failed');
+    if (data.accessToken) {
+      localStorage.setItem('chekup_doctor_token', data.accessToken);
+      setToken(data.accessToken);
+      await refreshDoctor();
+    }
+    return data;
+  };
+
+  const resendOtp = async (email: string) => {
+    const res = await fetch(`${API_BASE}/auth/resend-otp`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || 'Failed to resend OTP');
+    return data;
+  };
+
+  const onboard = async (onboardData: any) => {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    const storedToken = typeof window !== 'undefined' ? localStorage.getItem('chekup_doctor_token') : null;
+    if (storedToken) {
+      headers.Authorization = `Bearer ${storedToken}`;
+    }
+
+    const res = await fetch(`${API_BASE}/doctors/onboard`, {
+      method: 'POST',
+      headers,
       body: JSON.stringify(onboardData),
       credentials: 'include',
     });
@@ -351,6 +427,9 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
         isPendingVerification,
         login,
         onboard,
+        registerDoctor,
+        verifyOtp,
+        resendOtp,
         handleSsoCallback,
         logout,
         refreshDoctor,

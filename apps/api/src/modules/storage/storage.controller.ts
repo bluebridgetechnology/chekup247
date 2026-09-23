@@ -21,6 +21,7 @@ export class GetPresignedUrlDto {
   filename: string;
   contentType: string;
   category?: 'lab_report' | 'prescription' | 'id_document' | 'other';
+  scope?: 'patient' | 'doctor';
 }
 
 export class CreateDocumentDto {
@@ -58,7 +59,8 @@ export class StorageController {
     const sanitizedName = dto.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
     const timestamp = Date.now();
     const category = dto.category || 'lab_report';
-    const key = `patient-records/${userId}/${category}/${timestamp}-${sanitizedName}`;
+    const scopePrefix = dto.scope === 'doctor' ? 'doctor-records' : 'patient-records';
+    const key = `${scopePrefix}/${userId}/${category}/${timestamp}-${sanitizedName}`;
 
     const presigned = await this.storageService.getPresignedUploadUrl(
       envConfig.STORAGE_BUCKET_DOCUMENTS,

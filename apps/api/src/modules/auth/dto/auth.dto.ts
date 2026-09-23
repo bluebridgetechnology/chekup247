@@ -2,6 +2,7 @@ import {
   IsEmail,
   IsNotEmpty,
   IsString,
+  IsBoolean,
   MinLength,
   IsOptional,
   IsDateString,
@@ -28,6 +29,41 @@ export class RegisterPatientDto {
   @IsOptional()
   @IsDateString({}, { message: 'Date of birth must be a valid date' })
   date_of_birth?: string;
+}
+
+export class RegisterDoctorDto {
+  /**
+   * Professional honorific (Dr, Prof, etc.). Kept separate from the name
+   * fields so it renders as a distinct credential, mirroring the column
+   * on the `users` table (title).
+   */
+  @IsOptional()
+  @IsString()
+  title?: string;
+
+  @IsNotEmpty({ message: 'First name is required' })
+  @IsString()
+  first_name: string;
+
+  @IsNotEmpty({ message: 'Last name is required' })
+  @IsString()
+  last_name: string;
+
+  @IsNotEmpty({ message: 'Email address is required' })
+  @IsEmail({}, { message: 'Invalid email address' })
+  email: string;
+
+  @IsNotEmpty({ message: 'Password is required' })
+  @MinLength(8, { message: 'Password must be at least 8 characters long' })
+  password: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  accepts_terms?: boolean;
 }
 
 export class LoginDto {

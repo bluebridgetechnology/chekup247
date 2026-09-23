@@ -16,6 +16,7 @@ import { AuthService } from './auth.service';
 import { LocumStaffSsoService } from './locumstaff-sso.service';
 import {
   RegisterPatientDto,
+  RegisterDoctorDto,
   LoginDto,
   VerifyEmailDto,
   VerifyOtpDto,
@@ -46,6 +47,31 @@ export class AuthController {
   ) {
     const result = await this.authService.registerPatient(dto);
 
+    if (result.accessToken) {
+      res.cookie('chekup_session', result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+    }
+
+    // Strip OTP and verification token so they are never exposed to browser HTTP clients
+    const { verificationToken, otp, ...sanitized } = result as any;
+    return sanitized;
+  }
+
+  @Public()
+  @Post('register-doctor')
+  async registerDoctor(
+    @Body() dto: RegisterDoctorDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.registerDoctor(dto);
+
+    // Mirror `register`: registerDoctor returns no accessToken (the OTP
+    // verify step mints the session), so no cookie is set here.
     if (result.accessToken) {
       res.cookie('chekup_session', result.accessToken, {
         httpOnly: true,

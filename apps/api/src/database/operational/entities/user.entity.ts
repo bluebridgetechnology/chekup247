@@ -45,6 +45,31 @@ export class User {
   @Column({ type: 'varchar', length: 255 })
   full_name: string;
 
+  /**
+   * Professional honorific (Dr, Prof, etc.). Doctors may select this at
+   * signup; kept separate from the name fields so it renders distinctly.
+   */
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  title: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  first_name: string | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  last_name: string | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  id_number: string | null;
+
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  gender: 'male' | 'female' | null;
+
+  @Column({ type: 'varchar', length: 80, nullable: true })
+  province: string | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  languages_spoken: string[] | null;
+
   @Column({ type: 'date', nullable: true })
   date_of_birth: Date;
 
