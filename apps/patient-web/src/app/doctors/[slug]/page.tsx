@@ -106,8 +106,9 @@ const MOCK_DOCTORS: Record<string, any> = {
 
 async function getDoctorData(slug: string) {
   try {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
-    const res = await fetch(`${apiUrl}/api/v1/doctors/${slug}`, {
+    const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const apiBase = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
+    const res = await fetch(`${apiBase}/doctors/${slug}`, {
       next: { revalidate: 60 },
     });
 
