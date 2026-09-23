@@ -308,6 +308,10 @@ export class DoctorsService implements OnModuleInit {
       throw new NotFoundException(`Doctor with identifier '${idOrSlug}' was not found`);
     }
 
+    if (doctor.verification_status !== VerificationStatus.VERIFIED) {
+      throw new NotFoundException(`Doctor with identifier '${idOrSlug}' was not found`);
+    }
+
     // Sync avatar / photo if user updated their avatar
     if (
       doctor.user?.avatar_url &&
