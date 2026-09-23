@@ -446,10 +446,16 @@ export class DoctorsService implements OnModuleInit {
         password_hash: passwordHash,
         full_name: dto.full_name,
         phone: dto.phone,
+        province: dto.province,
         role: UserRole.DOCTOR,
         status: UserStatus.ACTIVE,
         is_email_verified: false,
       });
+      user = await this.userRepository.save(user);
+    }
+
+    if (dto.province) {
+      user.province = dto.province;
       user = await this.userRepository.save(user);
     }
 
@@ -1276,4 +1282,3 @@ export class DoctorsService implements OnModuleInit {
     };
   }
 }
-

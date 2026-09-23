@@ -178,6 +178,7 @@ export class AuthService implements OnModuleInit {
       full_name: dto.full_name,
       phone: dto.phone,
       date_of_birth: dto.date_of_birth ? new Date(dto.date_of_birth) : undefined,
+      province: dto.province,
       role: UserRole.PATIENT,
       status: UserStatus.ACTIVE,
       is_email_verified: false,
