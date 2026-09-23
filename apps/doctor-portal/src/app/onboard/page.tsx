@@ -74,40 +74,24 @@ export default function DoctorOnboardPage() {
         (typeof window !== 'undefined' && window.location.hostname.endsWith('chekup247.com')
           ? 'https://api.chekup247.com/api/v1'
           : 'http://localhost:4000/api/v1');
-      const contentType = file.type || (
-        file.name.toLowerCase().endsWith('.pdf') ? 'application/pdf' :
-        file.name.toLowerCase().endsWith('.png') ? 'image/png' :
-        file.name.toLowerCase().match(/\.(jpg|jpeg)$/) ? 'image/jpeg' :
-        'application/octet-stream'
-      );
-      const presignedRes = await fetch(`${apiBase}/storage/presigned-upload`, {
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await fetch(`${apiBase}/storage/doctor-upload`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('chekup_doctor_token') || ''}`,
         },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType,
-          category: 'other',
-          scope: 'doctor',
-        }),
+        body: formData,
         credentials: 'include',
       });
-      const presigned = await presignedRes.json();
-      if (!presignedRes.ok) throw new Error(presigned.message || 'Failed to prepare upload');
-
-      const putRes = await fetch(presigned.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': contentType },
-        body: file,
-      });
-      if (!putRes.ok) {
-        throw new Error(`Upload failed (${putRes.status}). Please try again or choose a PDF, JPG, or PNG file.`);
+      const uploaded = await uploadRes.json();
+      if (!uploadRes.ok) {
+        const message = Array.isArray(uploaded.message) ? uploaded.message.join(', ') : uploaded.message;
+        throw new Error(message || `Upload failed (${uploadRes.status}). Please try again.`);
       }
 
       setDocs((prev) =>
-        prev.map((d, i) => (i === index ? { ...d, filename: file.name, fileUrl: presigned.fileUrl } : d)),
+        prev.map((d, i) => (i === index ? { ...d, filename: uploaded.filename, fileUrl: uploaded.fileUrl } : d)),
       );
       toastSuccess('Upload complete', `${file.name} staged for verification.`);
     } catch (err: any) {

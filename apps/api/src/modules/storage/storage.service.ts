@@ -136,6 +136,36 @@ export class StorageService {
     }
   }
 
+  async uploadDoctorDocument(
+    userId: string,
+    filename: string,
+    buffer: Buffer,
+    contentType: string,
+  ): Promise<{ key: string; location: string }> {
+    if (!ALLOWED_MIME_TYPES.includes(contentType as AllowedMimeType)) {
+      throw new BadRequestException(
+        `Unsupported MIME type: ${contentType}. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`,
+      );
+    }
+
+    const sanitizedName = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const key = `doctor-records/${userId}/other/${Date.now()}-${sanitizedName}`;
+    const command = new PutObjectCommand({
+      Bucket: envConfig.STORAGE_BUCKET_DOCUMENTS,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    });
+
+    await this.s3Client.send(command);
+
+    const publicEndpoint = envConfig.STORAGE_PUBLIC_ENDPOINT || envConfig.STORAGE_ENDPOINT;
+    return {
+      key,
+      location: `${publicEndpoint}/${envConfig.STORAGE_BUCKET_DOCUMENTS}/${key}`,
+    };
+  }
+
   /**
    * Checks S3 / MinIO connectivity for health checks
    */
