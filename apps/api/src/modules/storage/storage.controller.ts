@@ -6,9 +6,12 @@ import {
   Param,
   Body,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StorageService } from './storage.service';
@@ -87,6 +90,36 @@ export class StorageController {
       ...presigned,
       fileUrl: publicUrl,
       bucket: envConfig.STORAGE_BUCKET_DOCUMENTS,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('doctor-upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  async uploadDoctorDocument(
+    @CurrentUser('id') userId: string,
+    @UploadedFile() file?: { originalname: string; mimetype: string; buffer: Buffer },
+  ) {
+    if (!file) {
+      throw new BadRequestException('A document file is required');
+    }
+
+
+    const uploaded = await this.storageService.uploadDoctorDocument(
+      userId,
+      file.originalname,
+      file.buffer,
+      file.mimetype,
+    );
+
+    return {
+      fileUrl: uploaded.location,
+      key: uploaded.key,
+      filename: file.originalname,
     };
   }
 
