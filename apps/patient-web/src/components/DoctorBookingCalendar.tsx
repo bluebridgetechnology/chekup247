@@ -75,16 +75,13 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     if (doctor.offers_audio) {
       modes.push({ id: 'audio', label: 'Audio Call', icon: 'phone-calling-bold' });
     }
-    if (modes.length === 0) {
-      modes.push({ id: 'video', label: 'Video Call', icon: 'videocamera-record-bold' });
-    }
     return modes;
   }, [doctor.offers_video, doctor.offers_in_clinic, doctor.offers_audio]);
 
   const [consultationMode, setConsultationMode] = useState<'video' | 'in_clinic' | 'audio'>('video');
 
   useEffect(() => {
-    if (!availableModes.some((m) => m.id === consultationMode)) {
+    if (availableModes.length > 0 && !availableModes.some((m) => m.id === consultationMode)) {
       setConsultationMode(availableModes[0].id);
     }
   }, [availableModes, consultationMode]);
@@ -104,7 +101,8 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     let isMounted = true;
     async function loadSlots() {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+        const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiBase = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
         const res = await fetch(`${apiBase}/doctors/${doctor.slug || doctor.id}/availability`);
         if (res.ok) {
           const data = await res.json();
@@ -276,7 +274,17 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
       </div>
 
       {/* Consultation Mode Segmented Tabs (Video / In-Clinic / Audio) */}
-      {availableModes.length > 1 && (
+      {availableModes.length === 0 && (
+        <div className="doctor-booking-mode-context">
+          <div className="doctor-booking-mode-context-info">
+            <div className="doctor-booking-mode-context-title">Consultation options not published</div>
+            <div className="doctor-booking-mode-context-desc">
+              This doctor has not published a video, audio, or in-clinic consultation option yet.
+            </div>
+          </div>
+        </div>
+      )}
+      {availableModes.length > 0 && (
         <div className="doctor-booking-tab-bar-container">
           <div
             className="doctor-booking-tab-bar"
@@ -543,7 +551,7 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
       )}
 
       {/* Proceed to Booking CTA Button */}
-      {selectedSlot && new Date(selectedSlot.startTime).getTime() > Date.now() ? (
+      {availableModes.length > 0 && selectedSlot && new Date(selectedSlot.startTime).getTime() > Date.now() ? (
         <Link
           href={`/bookings/checkout?doctor=${doctor.id}&slot=${selectedSlot.id}&date=${selectedDate}&type=${consultationMode}`}
           className="doctor-booking-cta"

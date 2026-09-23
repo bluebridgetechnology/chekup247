@@ -53,6 +53,7 @@ export class InitPatientSchema1700000001000 implements MigrationInterface {
         "price" decimal(10,2) NOT NULL,
         "commission_amount" decimal(10,2) NOT NULL,
         "payment_status" payment_status_enum NOT NULL DEFAULT 'unpaid',
+        "consultation_mode" varchar(20),
         "created_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
         "updated_at" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
       );
