@@ -30,9 +30,9 @@ export default function DoctorLoginPage() {
 
     setLoading(true);
     try {
-      await login(email.trim(), password);
+      const session = await login(email.trim(), password);
       toastSuccess('Welcome back', 'Signed in to your practice portal.');
-      router.push('/calendar');
+      router.push(session?.user?.doctorProfile ? '/calendar' : '/onboard');
     } catch (err: any) {
       const msg = errorMessage(err, 'Invalid credentials or doctor access restricted');
       setError(msg);

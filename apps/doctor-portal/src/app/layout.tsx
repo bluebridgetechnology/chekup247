@@ -17,7 +17,7 @@ function DoctorLayoutInner({ children }: { children: React.ReactNode }) {
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, isLoading } = useDoctorAuth();
+  const { isAuthenticated, isLoading, profile } = useDoctorAuth();
 
   const isAuthPage =
     pathname === '/login' ||
@@ -26,12 +26,22 @@ function DoctorLayoutInner({ children }: { children: React.ReactNode }) {
 
   const isConsultationRoom = pathname?.startsWith('/consultations/') && !pathname?.includes('/prescribe');
 
-  // If already authenticated and visiting /login or /register, redirect to /calendar
+  // A verified email is enough to create a session, but a new doctor still
+  // needs to submit the professional profile before entering the workspace.
   useEffect(() => {
     if (!isLoading && isAuthenticated && (pathname === '/login' || pathname === '/register')) {
-      router.replace('/calendar');
+      router.replace(profile ? '/calendar' : '/onboard');
     }
-  }, [isLoading, isAuthenticated, pathname, router]);
+  }, [isLoading, isAuthenticated, pathname, profile, router]);
+
+  // Keep newly verified doctors in onboarding until their professional
+  // profile has been submitted. Pending profiles may still use the workspace
+  // to monitor their application.
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !profile && pathname !== '/onboard') {
+      router.replace('/onboard');
+    }
+  }, [isLoading, isAuthenticated, pathname, profile, router]);
 
   // If unauthenticated and visiting any protected doctor user area, redirect immediately to /login
   useEffect(() => {

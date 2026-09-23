@@ -53,7 +53,7 @@ export default function DoctorProfilePage() {
   const [copiedHpcsa, setCopiedHpcsa] = useState(false);
 
   // Avatar state
-  const [avatarUrl, setAvatarUrl] = useState<string>('/images/doctor_sarah_avatar.jpg');
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
 
   // Clinical specialty & rates
   const [specialty, setSpecialty] = useState('');
@@ -154,7 +154,7 @@ export default function DoctorProfilePage() {
     if (currentAvatar) {
       setAvatarUrl(currentAvatar);
     } else {
-      setAvatarUrl('/images/doctor_sarah_avatar.jpg');
+      setAvatarUrl('');
     }
 
     if (profile) {
@@ -583,18 +583,45 @@ export default function DoctorProfilePage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
             {/* Avatar Image with Upload/Change Action */}
             <div style={{ position: 'relative', width: '68px', height: '68px', flexShrink: 0 }}>
-              <img
-                src={avatarUrl}
-                alt={doctor.fullName || 'Doctor profile'}
-                style={{
-                  width: '68px',
-                  height: '68px',
-                  borderRadius: '50%',
-                  objectFit: 'cover',
-                  border: '2.5px solid var(--color-gold-base)',
-                  display: 'block',
-                }}
-              />
+              {avatarUrl ? (
+                <img
+                  src={avatarUrl}
+                  alt={doctor.fullName || 'Doctor profile'}
+                  style={{
+                    width: '68px',
+                    height: '68px',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    border: '2.5px solid var(--color-gold-base)',
+                    display: 'block',
+                  }}
+                />
+              ) : (
+                <div
+                  aria-label={doctor.fullName || 'Doctor profile'}
+                  style={{
+                    width: '68px',
+                    height: '68px',
+                    borderRadius: '50%',
+                    background: 'var(--color-gold-pale, #F0E5D3)',
+                    color: 'var(--color-chocolate-base, #2A170F)',
+                    border: '2.5px solid var(--color-gold-base)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 800,
+                    fontSize: '1.2rem',
+                  }}
+                >
+                  {(doctor.fullName || 'Doctor')
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0])
+                    .join('')
+                    .toUpperCase()}
+                </div>
+              )}
               <label
                 style={{
                   position: 'absolute',

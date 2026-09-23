@@ -67,7 +67,14 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
     ? { bg: '#fffbeb', text: '#92400e', dot: '#f59e0b', label: 'On Holiday' }
     : statusColors[status] || statusColors.active;
 
-  const doctorAvatar = profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url || '/images/doctor_sarah_avatar.jpg';
+  const doctorAvatar = profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url || null;
+  const doctorInitials = (doctor?.fullName || 'Doctor')
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join('')
+    .toUpperCase();
 
   // Anything the doctor should notice: unread alerts or a pending HPCSA verification
   const isPendingVerification = profile?.verificationStatus === 'pending';
@@ -651,11 +658,11 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                   flexShrink: 0,
                 }}
               >
-                <img
-                  src={doctorAvatar}
-                  alt={doctor?.fullName || 'Doctor avatar'}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
+                {doctorAvatar ? (
+                  <img src={doctorAvatar} alt={doctor?.fullName || 'Doctor avatar'} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  doctorInitials
+                )}
               </div>
               <div style={{ textAlign: 'left', display: 'none' }} className="desktop-doctor-info">
                 <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1.2 }}>
