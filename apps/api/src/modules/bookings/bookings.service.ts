@@ -33,6 +33,7 @@ export interface CreateBookingDto {
   slotId: string;
   notes?: string;
   reasonCategory?: string;
+  consultationMode?: 'video' | 'audio' | 'in_clinic';
   attachments?: { name: string; url: string; fileType: string; sizeBytes?: number }[];
   doctorId?: string;
 }
@@ -226,6 +227,7 @@ export class BookingsService {
         payment_status: PaymentStatus.UNPAID,
         notes: dto.notes || null,
         reason_category: dto.reasonCategory || null,
+        consultation_mode: dto.consultationMode || 'video',
         attachments: dto.attachments || null,
       });
 
