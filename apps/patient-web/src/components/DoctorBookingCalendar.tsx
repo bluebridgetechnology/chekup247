@@ -128,43 +128,14 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
 
   // Generate effective slots (live or dynamic deterministic fallback)
   const effectiveSlots = useMemo(() => {
-    const now = new Date();
-
     // If slots are provided from API, strictly filter out past slots
-    if (slots && slots.length > 0) {
+    if (slots) {
+      const now = new Date();
       return slots.filter((s) => new Date(s.startTime).getTime() > now.getTime());
     }
 
-    const mockList: AvailabilitySlotDto[] = [];
-
-    for (let day = 0; day <= 14; day++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() + day);
-      const dateStr = d.toISOString().split('T')[0];
-
-      const times = ['08:30', '10:00', '11:30', '14:00', '15:30', '16:45', '17:30', '18:15', '19:00'];
-      for (const timeStr of times) {
-        const [h, m] = timeStr.split(':').map(Number);
-        const start = new Date(d);
-        start.setHours(h, m, 0, 0);
-        const end = new Date(start.getTime() + defaultDuration * 60 * 1000);
-
-        // Strictly enforce: slot must be in the future
-        if (start.getTime() > now.getTime()) {
-          mockList.push({
-            id: `slot-${dateStr}-${timeStr}`,
-            doctorId: doctor.id,
-            startTime: start.toISOString(),
-            endTime: end.toISOString(),
-            date: dateStr,
-            durationMinutes: defaultDuration,
-            source: 'direct',
-          });
-        }
-      }
-    }
-    return mockList;
-  }, [slots, doctor.id, defaultDuration]);
+    return [];
+  }, [slots]);
 
   // Map slots by date string YYYY-MM-DD
   const daysWithSlots = useMemo(() => {

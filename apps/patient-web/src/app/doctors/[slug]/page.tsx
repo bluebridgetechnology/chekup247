@@ -113,36 +113,15 @@ async function getDoctorData(slug: string) {
 
     if (res.ok) {
       const data = await res.json();
-      // Normalise new telehealth service flags and consultation types
-      return {
-        offers_video: true,
-        offers_audio: true,
-        offers_in_clinic: false,
-        accepts_medical_aid: true,
-        experience_years: 12,
-        verification_status: 'verified',
-        is_board_certified: true,
-        board_certification_title: 'Board Certified',
-        consultation_types: [
-          'Video Telehealth Consultation',
-          'Digital Prescription Renewal',
-          'Medical Certificates / Sick Notes',
-          'Specialist Referral Letters',
-          'Chronic Medication Management',
-        ],
-        ...data,
-      };
+      return data;
     }
   } catch {
     // Return mock data if API is not running during SSG/build
   }
 
-  // Check fallback mock
-  if (MOCK_DOCTORS[slug]) {
-    return MOCK_DOCTORS[slug];
-  }
+  return null;
 
-  // Generate generic profile matching slug if not found
+  /* Generate generic profile matching slug if not found
   const cleanName = slug
     .replace(/^dr-?/i, '')
     .split('-')
@@ -177,7 +156,7 @@ async function getDoctorData(slug: string) {
     offers_audio: true,
     offers_in_clinic: false,
     accepts_medical_aid: true,
-  };
+  }; */
 }
 
 async function getDoctorReviewsData(idOrSlug: string) {
@@ -199,10 +178,14 @@ async function getDoctorReviewsData(idOrSlug: string) {
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const resolvedParams = await params;
   const doctor = await getDoctorData(resolvedParams.slug);
+  if (!doctor) {
+    return { title: 'Doctor profile unavailable | ChekUp247' };
+  }
 
   const name = doctor.user?.full_name || 'Medical Doctor';
-  const title = `${name} — ${doctor.specialty} | ChekUp247 Telehealth`;
-  const description = `Consult online with ${name}, HPCSA-verified ${doctor.specialty} in South Africa. Consultation fee: R${Number(doctor.rate_per_hour).toFixed(2)}. Book your instant virtual consultation today.`;
+  const specialty = doctor.specialty || 'Doctor profile';
+  const title = `${name} — ${specialty} | ChekUp247 Telehealth`;
+  const description = doctor.bio || `View ${name}'s verified ChekUp247 practice profile.`;
 
   return {
     title,
@@ -231,7 +214,7 @@ export default async function DoctorProfilePage({ params }: PageProps) {
 
   const reviewsData = await getDoctorReviewsData(doctor.id || resolvedParams.slug);
 
-  const name = doctor.user?.full_name || 'Dr. Thabo Molefe';
+  const name = doctor.user?.full_name || 'Doctor';
   const displayName = name.startsWith('Dr.') || name.startsWith('Dr ') ? name : `Dr. ${name}`;
 
   // JSON-LD Physician Structured Data Schema
