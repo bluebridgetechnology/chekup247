@@ -29,6 +29,18 @@ const labelStyle: React.CSSProperties = {
   fontWeight: 700,
 };
 
+const PROVINCES = [
+  'Eastern Cape',
+  'Free State',
+  'Gauteng',
+  'KwaZulu-Natal',
+  'Limpopo',
+  'Mpumalanga',
+  'North West',
+  'Northern Cape',
+  'Western Cape',
+];
+
 function RegisterContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,6 +51,7 @@ function RegisterContent() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [province, setProvince] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +106,7 @@ function RegisterContent() {
         password,
         phone: phone.trim() || undefined,
         date_of_birth: dateOfBirth || undefined,
+        province: province || undefined,
       });
       setRegisteredEmail(email.trim());
       toastSuccess('Account created', 'Check your email for a verification code.');
@@ -175,9 +189,9 @@ function RegisterContent() {
           {error && <div role="alert" style={{ padding: '12px 14px', borderRadius: 12, background: '#fff3f1', color: '#a7372d', marginBottom: 20, fontSize: '0.86rem' }}>{error}</div>}
           <form onSubmit={handleNext}>
             {step === 1 && <><div style={{ marginBottom: 16 }}><label style={labelStyle} htmlFor="patient-full-name">Full name</label><div style={{ position: 'relative' }}><UserRound size={18} style={{ position: 'absolute', left: 14, top: 14, color: '#9b9086' }} /><input id="patient-full-name" required value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Sipho Ndlovu" style={{ ...inputStyle, paddingLeft: 42 }} /></div></div><div><label style={labelStyle} htmlFor="patient-email">Email address</label><div style={{ position: 'relative' }}><Mail size={18} style={{ position: 'absolute', left: 14, top: 14, color: '#9b9086' }} /><input id="patient-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" style={{ ...inputStyle, paddingLeft: 42 }} /></div></div></>}
-            {step === 2 && <><div style={{ marginBottom: 16 }}><label style={labelStyle} htmlFor="patient-phone">Phone number</label><div style={{ position: 'relative' }}><Phone size={18} style={{ position: 'absolute', left: 14, top: 14, color: '#9b9086' }} /><input id="patient-phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+27 82 000 0000" style={{ ...inputStyle, paddingLeft: 42 }} /></div><p style={{ color: 'var(--color-cream-text-muted)', fontSize: '0.76rem', marginTop: 7 }}>Used for appointment reminders, never shared.</p></div><div><label style={labelStyle} htmlFor="patient-dob">Date of birth <span style={{ fontWeight: 500, color: '#9b9086' }}>(optional)</span></label><div style={{ position: 'relative' }}><CalendarDays size={18} style={{ position: 'absolute', left: 14, top: 14, color: '#9b9086' }} /><input id="patient-dob" type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={{ ...inputStyle, paddingLeft: 42 }} /></div></div></>}
+            {step === 2 && <><div style={{ marginBottom: 16 }}><label style={labelStyle} htmlFor="patient-phone">Phone number</label><div style={{ position: 'relative' }}><Phone size={18} style={{ position: 'absolute', left: 14, top: 14, color: '#9b9086' }} /><input id="patient-phone" type="tel" required value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+27 82 000 0000" style={{ ...inputStyle, paddingLeft: 42 }} /></div><p style={{ color: 'var(--color-cream-text-muted)', fontSize: '0.76rem', marginTop: 7 }}>Used for appointment reminders, never shared.</p></div><div style={{ marginBottom: 16 }}><label style={labelStyle} htmlFor="patient-province">Province <span style={{ fontWeight: 500, color: '#9b9086' }}>(optional)</span></label><select id="patient-province" value={province} onChange={(e) => setProvince(e.target.value)} style={inputStyle}><option value="">Select your province</option>{PROVINCES.map((item) => <option key={item} value={item}>{item}</option>)}</select></div><div><label style={labelStyle} htmlFor="patient-dob">Date of birth <span style={{ fontWeight: 500, color: '#9b9086' }}>(optional)</span></label><div style={{ position: 'relative' }}><CalendarDays size={18} style={{ position: 'absolute', left: 14, top: 14, color: '#9b9086' }} /><input id="patient-dob" type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} style={{ ...inputStyle, paddingLeft: 42 }} /></div></div></>}
             {step === 3 && <><div style={{ marginBottom: 16 }}><label style={labelStyle} htmlFor="patient-password">Password</label><div style={{ position: 'relative' }}><LockKeyhole size={18} style={{ position: 'absolute', left: 14, top: 14, color: '#9b9086' }} /><input id="patient-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" style={{ ...inputStyle, paddingLeft: 42 }} /></div></div><div><label style={labelStyle} htmlFor="patient-confirm-password">Confirm password</label><input id="patient-confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat password" style={inputStyle} /></div><p style={{ color: 'var(--color-cream-text-muted)', fontSize: '0.76rem', lineHeight: 1.5, marginTop: 12 }}>By creating an account, you agree to our <Link href="/terms" style={{ color: 'var(--color-gold-bronze)', fontWeight: 700 }}>Terms</Link> and <Link href="/privacy" style={{ color: 'var(--color-gold-bronze)', fontWeight: 700 }}>Privacy Policy</Link>.</p></>}
-            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}><button type="button" disabled={step === 1 || loading} onClick={() => { setError(null); setStep((step - 1) as Step); }} className="btn-secondary" style={{ flex: '0 0 34%', height: 50, borderRadius: 12 }}>Back</button><button type="submit" disabled={loading} className="btn-primary" style={{ flex: 1, height: 50, borderRadius: 12 }}>{loading ? 'Creating your account…' : step === 3 ? 'Create my account' : 'Continue →'}</button></div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}><button type="button" disabled={step === 1 || loading} onClick={() => { setError(null); setStep((step - 1) as Step); }} className="btn-secondary" style={{ flex: '0 0 34%', height: 50, borderRadius: 12 }}>Back</button><button type="submit" disabled={loading} className="btn-primary" style={{ flex: 1, height: 50, borderRadius: 12 }}>{loading ? 'Creating your account...' : step === 3 ? 'Create my account' : 'Continue'}</button></div>
           </form>
           <p style={{ textAlign: 'center', color: 'var(--color-cream-text-muted)', fontSize: '0.84rem', marginTop: 28 }}>Already have an account? <Link href="/login" style={{ color: 'var(--color-gold-bronze)', fontWeight: 800 }}>Sign in</Link></p>
         </div>

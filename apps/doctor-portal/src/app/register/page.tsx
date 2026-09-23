@@ -198,17 +198,17 @@ export default function DoctorRegisterPage() {
                 <div><label style={labelStyle} htmlFor="doctor-password">Password</label><input id="doctor-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" style={inputStyle} /></div>
                 <div><label style={labelStyle} htmlFor="doctor-confirm-password">Confirm password</label><input id="doctor-confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat password" style={inputStyle} /></div>
               </div>
-              <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', height: 50, marginTop: 24, borderRadius: 12 }}>{loading ? 'Creating your account…' : 'Continue to email verification →'}</button>
+              <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', height: 50, marginTop: 24, borderRadius: 12 }}>{loading ? 'Creating your account...' : 'Continue to email verification'}</button>
             </form>
           ) : (
             <form onSubmit={handleVerify}>
               <label style={labelStyle} htmlFor="doctor-otp">Verification code</label>
               <input id="doctor-otp" inputMode="numeric" autoComplete="one-time-code" maxLength={6} required value={otp} onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="000000" style={{ ...inputStyle, fontSize: '1.5rem', letterSpacing: '0.28em', textAlign: 'center' }} />
-              <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', height: 50, marginTop: 18, borderRadius: 12 }}>{loading ? 'Verifying…' : 'Verify and continue →'}</button>
+              <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', height: 50, marginTop: 18, borderRadius: 12 }}>{loading ? 'Verifying...' : 'Verify and continue'}</button>
               <button type="button" onClick={handleResend} disabled={resendCountdown > 0} style={{ width: '100%', border: 0, background: 'transparent', color: 'var(--color-gold-bronze)', fontWeight: 700, marginTop: 18, cursor: resendCountdown > 0 ? 'not-allowed' : 'pointer' }}>
                 {resendCountdown > 0 ? `Resend code in ${resendCountdown}s` : 'Resend code'}
               </button>
-              <button type="button" onClick={() => { setStep(1); setError(null); }} style={{ width: '100%', border: 0, background: 'transparent', color: 'var(--color-cream-text-muted)', fontSize: '0.82rem', marginTop: 10, cursor: 'pointer' }}>← Change email address</button>
+              <button type="button" onClick={() => { setStep(1); setError(null); }} style={{ width: '100%', border: 0, background: 'transparent', color: 'var(--color-cream-text-muted)', fontSize: '0.82rem', marginTop: 10, cursor: 'pointer' }}>Change email address</button>
             </form>
           )}
 

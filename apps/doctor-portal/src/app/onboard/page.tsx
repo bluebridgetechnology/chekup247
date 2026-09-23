@@ -20,6 +20,18 @@ const SPECIALTIES = [
   'Dietician',
 ];
 
+const PROVINCES = [
+  'Eastern Cape',
+  'Free State',
+  'Gauteng',
+  'KwaZulu-Natal',
+  'Limpopo',
+  'Mpumalanga',
+  'North West',
+  'Northern Cape',
+  'Western Cape',
+];
+
 interface DocUpload {
   filename: string;
   label: string;
@@ -34,6 +46,7 @@ export default function DoctorOnboardPage() {
 
   const [hpcsaNumber, setHpcsaNumber] = useState(profile?.hpcsaNumber ?? '');
   const [specialty, setSpecialty] = useState(profile?.specialty ?? SPECIALTIES[0]);
+  const [province, setProvince] = useState('');
   const [ratePerHour, setRatePerHour] = useState(String(profile?.ratePerHour ?? ''));
   const [bio, setBio] = useState('');
   const [offersInClinic, setOffersInClinic] = useState(false);
@@ -42,7 +55,7 @@ export default function DoctorOnboardPage() {
   const [termsAgreed, setTermsAgreed] = useState(false);
 
   const [docs, setDocs] = useState<DocUpload[]>([
-    { filename: '', label: 'National ID / Passport', hint: 'PDF, JPG, or PNG â€” verified against Home Affairs', fileUrl: '' },
+    { filename: '', label: 'National ID / Passport', hint: 'PDF, JPG, or PNG - verified against Home Affairs', fileUrl: '' },
     { filename: '', label: 'HPCSA Annual Registration Certificate', hint: 'Current practising certificate (PDF preferred)', fileUrl: '' },
     { filename: '', label: 'Indemnity Insurance Certificate', hint: 'Valid MPS / MDD medical malpractice cover', fileUrl: '' },
   ]);
@@ -120,6 +133,7 @@ export default function DoctorOnboardPage() {
         ...(doctor ? {} : {}),
         hpcsa_number: hpcsaNumber.trim().toUpperCase(),
         specialty,
+        province: province || undefined,
         rate_per_hour: Number(ratePerHour),
         bio: bio.trim(),
         documents_url: docs.map((d) => d.fileUrl),
@@ -149,7 +163,7 @@ export default function DoctorOnboardPage() {
                 color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 800, fontSize: '0.9rem',
               }}
             >
-              âœ“
+              Done
             </div>
             <div>
               <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
@@ -197,6 +211,20 @@ export default function DoctorOnboardPage() {
               >
                 {SPECIALTIES.map((s) => (
                   <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="portal-input-group" style={{ marginBottom: '18px' }}>
+              <label className="portal-label">Province <span style={{ fontWeight: 400, color: 'var(--color-cream-text-muted)' }}>(optional)</span></label>
+              <select
+                value={province}
+                onChange={(e) => setProvince(e.target.value)}
+                className="portal-input portal-select"
+              >
+                <option value="">Select your province</option>
+                {PROVINCES.map((item) => (
+                  <option key={item} value={item}>{item}</option>
                 ))}
               </select>
             </div>
@@ -251,7 +279,7 @@ export default function DoctorOnboardPage() {
                 rows={4}
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                placeholder="Describe your qualifications, sub-specialties, and clinical philosophyâ€¦"
+                placeholder="Describe your qualifications, sub-specialties, and clinical philosophy..."
                 className="portal-input portal-textarea"
                 style={{ resize: 'vertical' }}
               />
@@ -268,7 +296,7 @@ export default function DoctorOnboardPage() {
               <input type="checkbox" checked={offersInClinic} readOnly style={{ accentColor: 'var(--color-gold-base, #DFAB62)', width: '18px', height: '18px', cursor: 'pointer' }} />
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--color-chocolate-base, #2A170F)' }}>Offer In-Clinic Visitn</div>
-                <div style={{ fontSize: '0.74rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>Optional â€” shown to patients who prefer physical consultations.</div>
+                <div style={{ fontSize: '0.74rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>Optional - shown to patients who prefer physical consultations.</div>
               </div>
             </div>
 
@@ -301,7 +329,7 @@ export default function DoctorOnboardPage() {
             </div>
 
             <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', height: '48px' }}>
-              {loading ? 'Submittingâ€¦' : 'Submit for Verification'}
+              {loading ? 'Submitting...' : 'Submit for Verification'}
             </button>
           </form>
 
