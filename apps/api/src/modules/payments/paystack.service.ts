@@ -242,7 +242,16 @@ export class PaystackService {
         reference: data.data.reference,
       };
     } catch (error: any) {
-      this.logger.error(`Network error calling Paystack initialize: ${error.message}`);
+      // Preserve the specific Paystack API error (thrown above) instead of
+      // masking it behind a generic "temporarily unavailable" message.
+      // Without this, invalid keys, bad payloads, etc. are indistinguishable
+      // from real network outages.
+      if (error instanceof ServiceUnavailableException) {
+        throw error;
+      }
+      this.logger.error(
+        `Network error calling Paystack initialize (ref=${reference}, email=${email}, amount=${amountInCents}): ${error.message}`,
+      );
       throw new ServiceUnavailableException(
         'Paystack is temporarily unavailable. Please try again in a moment.',
       );
