@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from '@nestjs/common';
+import { Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
@@ -205,19 +205,9 @@ export class PaystackService {
     const config = await this.getActiveConfig();
 
     if (config.isMock) {
-      this.logger.log(
-        `[PaystackMock] Initialized simulated checkout for ref=${reference}, amount=${amountInCents} cents`,
+      throw new ServiceUnavailableException(
+        'Paystack is not configured. Add a Paystack sandbox secret key before accepting payments.',
       );
-      const accessCode = `acc_${Math.random().toString(36).substring(2, 10)}`;
-      const fallbackUrl =
-        callbackUrl ||
-        `${envConfig.PATIENT_WEB_URL}/bookings/success?reference=${reference}&bookingId=${metadata?.booking_id || ''}`;
-
-      return {
-        authorization_url: fallbackUrl,
-        access_code: accessCode,
-        reference,
-      };
     }
 
     try {
@@ -240,16 +230,10 @@ export class PaystackService {
       const data = await response.json();
 
       if (!response.ok || !data.status) {
-        this.logger.warn(
-          `Paystack API error initializing transaction: ${JSON.stringify(data)}. Falling back to test redirect.`,
+        this.logger.error(`Paystack API error initializing transaction: ${JSON.stringify(data)}`);
+        throw new ServiceUnavailableException(
+          data?.message || 'Paystack could not initialize the payment. Please try again.',
         );
-        return {
-          authorization_url:
-            callbackUrl ||
-            `${envConfig.PATIENT_WEB_URL}/bookings/success?reference=${reference}&bookingId=${metadata?.booking_id || ''}`,
-          access_code: `mock_${reference}`,
-          reference,
-        };
       }
 
       return {
@@ -259,14 +243,9 @@ export class PaystackService {
       };
     } catch (error: any) {
       this.logger.error(`Network error calling Paystack initialize: ${error.message}`);
-      // Fallback for resilient developer experience
-      return {
-        authorization_url:
-          callbackUrl ||
-          `${envConfig.PATIENT_WEB_URL}/bookings/success?reference=${reference}&bookingId=${metadata?.booking_id || ''}`,
-        access_code: `mock_${reference}`,
-        reference,
-      };
+      throw new ServiceUnavailableException(
+        'Paystack is temporarily unavailable. Please try again in a moment.',
+      );
     }
   }
 
