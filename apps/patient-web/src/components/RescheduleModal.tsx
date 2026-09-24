@@ -64,7 +64,12 @@ export function RescheduleModal({
         if (res.ok) {
           const data = await res.json();
           const openSlots = (data.slots || []).filter(
-            (s: AvailableSlot) => !s.is_booked && !s.is_locked && new Date(s.start_time) > new Date(),
+            // Keep slots with at least the minimum bookable time remaining
+            // (must match backend SLOT_BOOKING_MIN_REMAINING_MINUTES).
+            (s: AvailableSlot) =>
+              !s.is_booked &&
+              !s.is_locked &&
+              new Date(s.end_time).getTime() - Date.now() >= 15 * 60 * 1000,
           );
           setSlots(openSlots);
           if (openSlots.length > 0) {

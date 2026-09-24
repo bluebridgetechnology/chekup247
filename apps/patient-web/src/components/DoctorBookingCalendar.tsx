@@ -126,10 +126,13 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
 
   // Generate effective slots (live or dynamic deterministic fallback)
   const effectiveSlots = useMemo(() => {
-    // If slots are provided from API, strictly filter out past slots
+    // Keep slots with at least the minimum bookable time remaining.
+    // Must match backend SLOT_BOOKING_MIN_REMAINING_MINUTES (booking.constants.ts):
+    // a started slot (e.g. 18:00-18:30 at 18:01) is still bookable.
+    const MIN_REMAINING_MS = 15 * 60 * 1000;
     if (slots) {
-      const now = new Date();
-      return slots.filter((s) => new Date(s.startTime).getTime() > now.getTime());
+      const nowMs = Date.now();
+      return slots.filter((s) => new Date(s.endTime).getTime() - nowMs >= MIN_REMAINING_MS);
     }
 
     return [];
@@ -551,7 +554,7 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
       )}
 
       {/* Proceed to Booking CTA Button */}
-      {availableModes.length > 0 && selectedSlot && new Date(selectedSlot.startTime).getTime() > Date.now() ? (
+      {availableModes.length > 0 && selectedSlot && new Date(selectedSlot.endTime).getTime() - Date.now() >= 15 * 60 * 1000 ? (
         <Link
           href={`/bookings/checkout?doctor=${encodeURIComponent(doctor.id)}&slot=${encodeURIComponent(selectedSlot.id)}&date=${encodeURIComponent(selectedDate)}&start=${encodeURIComponent(selectedSlot.startTime)}&end=${encodeURIComponent(selectedSlot.endTime)}&type=${encodeURIComponent(consultationMode)}`}
           className="doctor-booking-cta"
@@ -567,8 +570,8 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
           aria-disabled="true"
         >
           <span>
-            {selectedSlot && new Date(selectedSlot.startTime).getTime() <= Date.now()
-              ? 'Selected Slot Has Passed'
+            {selectedSlot && new Date(selectedSlot.endTime).getTime() - Date.now() < 15 * 60 * 1000
+              ? 'Selected Slot Has Too Little Time Remaining'
               : 'Select a Time Slot to Continue'}
           </span>
           <SolarIcon name="clock-circle-linear" size={16} color="currentColor" />
