@@ -93,6 +93,15 @@ const envSchema = z.object({
   PAYSTACK_SECRET_KEY: z.string().default('sk_test_mock_paystack_secret_key'),
   PAYSTACK_PUBLIC_KEY: z.string().default('pk_test_mock_paystack_public_key'),
   PAYSTACK_API_URL: z.string().default('https://api.paystack.co'),
+  // TEMPORARY test bypass: when 'true', Paystack checkout initialization
+  // returns a simulated success (redirect straight to the success callback)
+  // instead of calling the Paystack API. For local/staging testing of
+  // downstream flows (e.g. video consultations) while the Paystack account
+  // is unavailable. NEVER enable in production with real payments.
+  PAYSTACK_BYPASS: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
 
   // Daily.co Video Consultations
   DAILY_API_KEY: z.string().optional().default(''),
@@ -160,6 +169,11 @@ if (envConfig.NODE_ENV === 'production') {
     productionFatalErrors.push(
       'ADMIN_BOOTSTRAP_PASSWORD is required in production: the admin panel has no signup route, ' +
         'so this is the only way to provision the first administrator account.',
+    );
+  }
+  if (envConfig.PAYSTACK_BYPASS) {
+    productionFatalErrors.push(
+      'PAYSTACK_BYPASS is enabled — simulated payments would run in production. Set PAYSTACK_BYPASS=false and configure live Paystack keys.',
     );
   }
 
