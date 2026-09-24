@@ -12,12 +12,27 @@ export interface DailyMeetingTokenResult {
   token: string;
 }
 
+export class DailyServiceError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'DailyServiceError';
+  }
+}
+
 @Injectable()
 export class DailyService {
   private readonly logger = new Logger(DailyService.name);
   private readonly apiKey = envConfig.DAILY_API_KEY;
   private readonly apiUrl = envConfig.DAILY_API_URL || 'https://api.daily.co/v1';
   private readonly domain = envConfig.DAILY_DOMAIN || 'chekup247';
+
+  private assertConfigured(): void {
+    if (!this.apiKey) {
+      throw new DailyServiceError(
+        'Daily.co API key is not configured (DAILY_API_KEY). Video consultation rooms cannot be created.',
+      );
+    }
+  }
 
   /**
    * Creates a private, ephemeral Daily.co room for a consultation session (BE-601).
@@ -26,25 +41,22 @@ export class DailyService {
    * - Max 2 participants (doctor and patient)
    * - Expiration: slot end time + 15 min buffer
    * - URL is dynamically generated and returned directly by Daily's REST API.
+   *
+   * Throws DailyServiceError when Daily is unreachable or rejects the request.
+   * Never returns a synthetic room: a fabricated URL would let clients join a
+   * room that does not exist and surface as a dead "live" call shell.
    */
   async createRoom(bookingId: string, slotEndTime: Date): Promise<DailyRoomResult> {
+    this.assertConfigured();
+
     const cleanId = bookingId.replace(/[^a-zA-Z0-9_-]/g, '').substring(0, 16);
     // Collision-free unique room name for this consultation session
     const roomName = `chekup-${cleanId}-${Date.now().toString(36)}`;
     const exp = Math.floor(new Date(slotEndTime).getTime() / 1000) + 15 * 60; // 15-minute buffer
 
-    if (!this.apiKey || this.apiKey.startsWith('sk_test_mock') || this.apiKey === '') {
-      this.logger.log(`[DailyMock] Generated mock room for booking ${bookingId}: roomName=${roomName}`);
-      return {
-        name: roomName,
-        url: `https://${this.domain}.daily.co/${roomName}`,
-        privacy: 'private',
-        exp,
-      };
-    }
-
+    let res: Response;
     try {
-      const res = await fetch(`${this.apiUrl}/rooms`, {
+      res = await fetch(`${this.apiUrl}/rooms`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -62,55 +74,51 @@ export class DailyService {
           },
         }),
       });
+    } catch (err: any) {
+      throw new DailyServiceError(`Daily.co is unreachable: ${err.message}`);
+    }
 
-      if (!res.ok) {
-        const errText = await res.text();
-        this.logger.warn(`Daily.co API error (${res.status}): ${errText}`);
+    if (!res.ok) {
+      const errText = await res.text();
+      this.logger.warn(`Daily.co API error (${res.status}): ${errText}`);
 
-        // If room name already exists, attempt to fetch its existing details from Daily
-        if (res.status === 400) {
-          try {
-            const getRes = await fetch(`${this.apiUrl}/rooms/${roomName}`, {
-              headers: { Authorization: `Bearer ${this.apiKey}` },
-            });
-            if (getRes.ok) {
-              const existingData = await getRes.json();
-              return {
-                name: existingData.name || roomName,
-                url: existingData.url,
-                privacy: existingData.privacy || 'private',
-                exp: existingData.properties?.exp || exp,
-              };
-            }
-          } catch {
-            // fall through
+      // If room name already exists, attempt to fetch its existing details from Daily
+      if (res.status === 400) {
+        try {
+          const getRes = await fetch(`${this.apiUrl}/rooms/${roomName}`, {
+            headers: { Authorization: `Bearer ${this.apiKey}` },
+          });
+          if (getRes.ok) {
+            const existingData = await getRes.json();
+            return {
+              name: existingData.name || roomName,
+              url: existingData.url,
+              privacy: existingData.privacy || 'private',
+              exp: existingData.properties?.exp || exp,
+            };
           }
+        } catch {
+          // fall through
         }
-
-        throw new Error(`Daily.co room creation failed (${res.status}): ${errText}`);
       }
 
-      const data = await res.json();
-      // data.url is the authoritative, live room URL provided by Daily for your account
-      return {
-        name: data.name || roomName,
-        url: data.url,
-        privacy: data.privacy || 'private',
-        exp: data.properties?.exp || exp,
-      };
-    } catch (err: any) {
-      this.logger.error(`Daily.co createRoom failed: ${err.message}. Using fallback mock URL.`);
-      return {
-        name: roomName,
-        url: `https://${this.domain}.daily.co/${roomName}`,
-        privacy: 'private',
-        exp,
-      };
+      throw new DailyServiceError(`Daily.co room creation failed (${res.status}): ${errText}`);
     }
+
+    const data = await res.json();
+    // data.url is the authoritative, live room URL provided by Daily for your account
+    return {
+      name: data.name || roomName,
+      url: data.url,
+      privacy: data.privacy || 'private',
+      exp: data.properties?.exp || exp,
+    };
   }
 
   /**
    * Generates a secure participant meeting token for the private room.
+   * Throws DailyServiceError when Daily cannot issue a real token — callers must
+   * not hand clients a token that the Daily network will reject.
    */
   async createMeetingToken(
     roomName: string,
@@ -118,14 +126,11 @@ export class DailyService {
     isOwner: boolean,
     expTimestamp: number,
   ): Promise<DailyMeetingTokenResult> {
-    if (!this.apiKey || this.apiKey.startsWith('sk_test_mock') || this.apiKey === '') {
-      return {
-        token: `mock_daily_token_${isOwner ? 'doctor' : 'patient'}_${Date.now()}`,
-      };
-    }
+    this.assertConfigured();
 
+    let res: Response;
     try {
-      const res = await fetch(`${this.apiUrl}/meeting-tokens`, {
+      res = await fetch(`${this.apiUrl}/meeting-tokens`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.apiKey}`,
@@ -140,33 +145,30 @@ export class DailyService {
           },
         }),
       });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        this.logger.warn(`Daily.co token API error (${res.status}): ${errText}`);
-        return {
-          token: `mock_daily_token_${isOwner ? 'doctor' : 'patient'}_${Date.now()}`,
-        };
-      }
-
-      const data = await res.json();
-      return {
-        token: data.token || `mock_daily_token_${isOwner ? 'doctor' : 'patient'}_${Date.now()}`,
-      };
     } catch (err: any) {
-      this.logger.error(`Daily.co createMeetingToken failed: ${err.message}`);
-      return {
-        token: `mock_daily_token_${isOwner ? 'doctor' : 'patient'}_${Date.now()}`,
-      };
+      throw new DailyServiceError(`Daily.co is unreachable: ${err.message}`);
     }
+
+    if (!res.ok) {
+      const errText = await res.text();
+      this.logger.warn(`Daily.co token API error (${res.status}): ${errText}`);
+      throw new DailyServiceError(`Daily.co meeting token failed (${res.status}): ${errText}`);
+    }
+
+    const data = await res.json();
+    if (!data.token) {
+      throw new DailyServiceError('Daily.co meeting token response did not include a token');
+    }
+    return { token: data.token };
   }
 
   /**
    * Deletes a Daily.co room when consultation is finished or cancelled.
+   * Returns false (no-op) when Daily is not configured or the delete fails.
    */
   async deleteRoom(roomName: string): Promise<boolean> {
-    if (!this.apiKey || this.apiKey.startsWith('sk_test_mock') || this.apiKey === '') {
-      return true;
+    if (!this.apiKey) {
+      return false;
     }
 
     try {
@@ -186,16 +188,18 @@ export class DailyService {
   /**
    * Extends the expiration timestamp of a Daily.co private room (BE-701).
    * Daily endpoint: POST /rooms/:name with properties: { exp: newExp }
+   * Reports failure honestly: the caller has already taken payment, so the
+   * extension must be flagged for retry instead of silently claimed as done.
    */
-  async extendRoomExpiry(roomName: string, addedMinutes: number): Promise<{ success: boolean; newExp: number }> {
+  async extendRoomExpiry(
+    roomName: string,
+    addedMinutes: number,
+  ): Promise<{ success: boolean; newExp: number }> {
     const addedSeconds = addedMinutes * 60;
-    const fallbackExp = Math.floor(Date.now() / 1000) + addedSeconds + 15 * 60;
 
-    if (!this.apiKey || this.apiKey.startsWith('sk_test_mock') || this.apiKey === '') {
-      this.logger.log(
-        `[DailyMock] Extended room ${roomName} expiry by ${addedMinutes}m (newExp=${fallbackExp})`,
-      );
-      return { success: true, newExp: fallbackExp };
+    if (!this.apiKey) {
+      this.logger.error(`Cannot extend room ${roomName}: Daily.co API key is not configured`);
+      return { success: false, newExp: 0 };
     }
 
     try {
@@ -204,7 +208,7 @@ export class DailyService {
         headers: { Authorization: `Bearer ${this.apiKey}` },
       });
 
-      let currentExp = fallbackExp - addedSeconds;
+      let currentExp = Math.floor(Date.now() / 1000);
       if (getRes.ok) {
         const roomData = await getRes.json();
         if (roomData.properties?.exp) {
@@ -229,13 +233,14 @@ export class DailyService {
 
       if (!updateRes.ok) {
         const errText = await updateRes.text();
-        this.logger.warn(`Daily.co extendRoomExpiry warning: ${errText}`);
+        this.logger.error(`Daily.co extendRoomExpiry failed for ${roomName}: ${errText}`);
+        return { success: false, newExp: 0 };
       }
 
       return { success: true, newExp };
     } catch (err: any) {
-      this.logger.warn(`Daily.co extendRoomExpiry error: ${err.message}`);
-      return { success: true, newExp: fallbackExp };
+      this.logger.error(`Daily.co extendRoomExpiry error for ${roomName}: ${err.message}`);
+      return { success: false, newExp: 0 };
     }
   }
 }

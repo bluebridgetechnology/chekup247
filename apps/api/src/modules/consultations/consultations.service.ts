@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ServiceUnavailableException,
   ForbiddenException,
   Logger,
   Inject,
@@ -116,8 +117,17 @@ export class ConsultationsService {
       }
     }
 
-    // Create Daily.co private room with slot end + 15 min buffer
-    const dailyRoom = await this.dailyService.createRoom(bookingId, slotEndTime);
+    // Create Daily.co private room with slot end + 15 min buffer.
+    // A failure here must surface as an error — never persist a synthetic room.
+    let dailyRoom;
+    try {
+      dailyRoom = await this.dailyService.createRoom(bookingId, slotEndTime);
+    } catch (err: any) {
+      this.logger.error(`Failed to provision Daily.co room for booking ${bookingId}: ${err.message}`);
+      throw new ServiceUnavailableException(
+        'The video consultation room could not be created. Please try again shortly or contact support.',
+      );
+    }
 
     const consultation = this.consultationRepository.create({
       booking_id: bookingId,
@@ -237,14 +247,28 @@ export class ConsultationsService {
 
     consultation = await this.consultationRepository.save(consultation);
 
+    if (!consultation.room_url) {
+      throw new ServiceUnavailableException(
+        'The consultation room is not available. Please contact support.',
+      );
+    }
+
     // Generate participant meeting token
     const expTime = Math.floor(Date.now() / 1000) + 2 * 60 * 60; // 2 hours
-    const tokenResult = await this.dailyService.createMeetingToken(
-      consultation.video_room_id,
-      userName || (isDoctor ? 'Consulting Doctor' : 'Patient'),
-      isDoctor,
-      expTime,
-    );
+    let tokenResult;
+    try {
+      tokenResult = await this.dailyService.createMeetingToken(
+        consultation.video_room_id,
+        userName || (isDoctor ? 'Consulting Doctor' : 'Patient'),
+        isDoctor,
+        expTime,
+      );
+    } catch (err: any) {
+      this.logger.error(`Failed to create Daily.co meeting token for booking ${bookingId}: ${err.message}`);
+      throw new ServiceUnavailableException(
+        'Could not issue a secure call token for the consultation room. Please try again shortly.',
+      );
+    }
 
     // Broadcast timer sync if consultation active
     if (consultation.started_at) {
@@ -257,7 +281,7 @@ export class ConsultationsService {
 
     return {
       consultation,
-      roomUrl: consultation.room_url || `https://${envConfig.DAILY_DOMAIN}.daily.co/${consultation.video_room_id}`,
+      roomUrl: consultation.room_url,
       token: tokenResult.token,
       startedAt: consultation.started_at,
       isFirstParticipant: isFirst,
@@ -921,10 +945,16 @@ export class ConsultationsService {
     await this.extensionRepository.save(extension);
 
     // Extend the live Daily.co room — this is what keeps the call going without disconnect.
-    await this.dailyService.extendRoomExpiry(
+    const roomExtension = await this.dailyService.extendRoomExpiry(
       consultation.video_room_id,
       extension.duration_minutes,
     );
+    if (!roomExtension.success) {
+      // Payment is already captured; flag the mismatch loudly instead of pretending the room was extended.
+      this.logger.error(
+        `Extension ${extensionId} PAID but Daily.co room ${consultation.video_room_id} was NOT extended. Manual intervention required.`,
+      );
+    }
 
     const totalDurationSeconds = await this.computeExtendedDurationSeconds(consultation.id);
     const remainingSeconds = this.computeRemainingSeconds(consultation.started_at, totalDurationSeconds);

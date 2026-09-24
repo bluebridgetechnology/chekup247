@@ -13,7 +13,6 @@ import {
   PhoneOff,
   Maximize2,
   Minimize2,
-  Clock,
   User,
   Shield,
   CheckCircle2,
@@ -33,7 +32,6 @@ import {
   Pill,
   Thermometer,
   Weight,
-  Lock,
   Eye,
   MoreHorizontal,
   Share2,
@@ -42,7 +40,6 @@ import {
   FileDown,
   ChevronLeft,
   Settings,
-  Bell,
   PanelRightClose,
   PanelRightOpen,
   ClipboardList,
@@ -104,6 +101,14 @@ interface ConsultationDetail {
   }>;
 }
 
+interface JoinResponse {
+  consultation: ConsultationDetail;
+  roomUrl: string;
+  token: string;
+  startedAt: string | null;
+  isFirstParticipant: boolean;
+}
+
 interface MedicationItem {
   id: string;
   name: string;
@@ -123,7 +128,7 @@ interface DiagnosisItem {
 export default function DoctorConsultationWorkspace() {
   const params = useParams();
   const router = useRouter();
-  const { doctor, profile, token } = useDoctorAuth();
+  const { doctor, token } = useDoctorAuth();
   const bookingId = (params?.bookingId as string) || 'demo-booking-1';
 
   const API_BASE =
@@ -149,8 +154,10 @@ export default function DoctorConsultationWorkspace() {
   const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
-  const [isPatientConnected, setIsPatientConnected] = useState<boolean>(true);
+  const [isPatientConnected, setIsPatientConnected] = useState<boolean>(false);
   const [isPatientVideoActive, setIsPatientVideoActive] = useState<boolean>(false);
+  const [callError, setCallError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Timer State (starts from 0 or calculated from consultation.started_at)
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -291,114 +298,162 @@ export default function DoctorConsultationWorkspace() {
 
     async function initWorkspace() {
       try {
-        if (bookingId && token) {
-          const res = await fetch(`${API_BASE}/consultations/${bookingId}`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (res.ok && isMounted) {
-            const data = await res.json();
-            setConsultation(data);
-            if (data?.started_at) {
-              const startedMs = new Date(data.started_at).getTime();
-              const diffSec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
-              setElapsedSeconds(diffSec);
-            }
-            if (data?.doctor_notes) {
-              try {
-                const parsed = JSON.parse(data.doctor_notes);
-                if (parsed.chiefComplaint) setChiefComplaint(parsed.chiefComplaint);
-                if (parsed.hpi) setHpi(parsed.hpi);
-                if (parsed.assessment) setAssessment(parsed.assessment);
-                if (parsed.plan) setPlan(parsed.plan);
-                if (parsed.patientInstructions) setPatientInstructions(parsed.patientInstructions);
-              } catch {
-                setChiefComplaint(data.doctor_notes);
-              }
-            }
-            if (data?.patient_notes) {
-              setPatientInstructions(data.patient_notes);
-            }
-            if (data?.booking?.consultation_mode === 'in_clinic') {
-              throw new Error('This booking is an in-clinic appointment and does not use a video session.');
-            }
-            const joinRes = await fetch(`${API_BASE}/consultations/${bookingId}/join`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `******`,
-              },
-              body: JSON.stringify({
-                role: 'doctor',
-                userName: doctor?.fullName || 'Doctor',
-              }),
-            });
-            if (!joinRes.ok) {
-              throw new Error('Unable to join the consultation room.');
-            }
-            const joinData = await joinRes.json();
-            if (joinData.consultation) {
-              setConsultation(joinData.consultation);
-            }
+        if (!(bookingId && token)) {
+          return;
+        }
 
-            if (joinData.roomUrl) {
-              const consultationMode = joinData.consultation?.booking?.consultation_mode;
-              dailyCall = DailyIframe.createCallObject({
-                videoSource: consultationMode !== 'audio',
-                audioSource: true,
-                subscribeToTracksAutomatically: true,
-              });
-
-              dailyCall.on('track-started', (ev: DailyEventObjectTrack) => {
-                if (!isMounted) return;
-                if (ev.participant && !ev.participant.local) {
-                  setIsPatientConnected(true);
-                  if (ev.track.kind === 'video' && remoteVideoRef.current) {
-                    remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
-                    setIsPatientVideoActive(true);
-                  }
-                  if (ev.track.kind === 'audio' && remoteAudioRef.current) {
-                    remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
-                  }
-                } else if (ev.participant?.local) {
-                  if (ev.track.kind === 'video' && localVideoRef.current) {
-                    localVideoRef.current.srcObject = new MediaStream([ev.track]);
-                  }
-                }
-              });
-
-              dailyCall.on('track-stopped', (ev: DailyEventObjectTrack) => {
-                if (!isMounted) return;
-                if (ev.participant && !ev.participant.local && ev.track.kind === 'video') {
-                  if (remoteVideoRef.current) {
-                    remoteVideoRef.current.srcObject = null;
-                  }
-                  setIsPatientVideoActive(false);
-                }
-              });
-
-              dailyCall.on('participant-updated', (ev) => {
-                if (!isMounted) return;
-                if (ev.participant && !ev.participant.local) {
-                  const hasVideo = Boolean(ev.participant.video && ev.participant.tracks?.video?.state === 'playable');
-                  setIsPatientVideoActive(hasVideo);
-                }
-              });
-
-              dailyCall.on('participant-left', (ev) => {
-                if (!isMounted) return;
-                if (ev.participant && !ev.participant.local) {
-                  setIsPatientConnected(false);
-                  setIsPatientVideoActive(false);
-                }
-              });
-
-              await dailyCall.join({ url: joinData.roomUrl, token: joinData.token });
-              if (isMounted) setCallObject(dailyCall);
+        // 1) Load consultation context (clinical notes, patient records)
+        const res = await fetch(`${API_BASE}/consultations/${bookingId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => null);
+          if (isMounted) {
+            setLoadError(
+              errData?.message ||
+                'Unable to load this consultation. It may have been cancelled or the room is not provisioned yet.',
+            );
+          }
+          return;
+        }
+        const data = await res.json();
+        if (isMounted) {
+          setConsultation(data);
+          if (data?.started_at) {
+            const startedMs = new Date(data.started_at).getTime();
+            const diffSec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
+            setElapsedSeconds(diffSec);
+          }
+          if (data?.doctor_notes) {
+            try {
+              const parsed = JSON.parse(data.doctor_notes);
+              if (parsed.chiefComplaint) setChiefComplaint(parsed.chiefComplaint);
+              if (parsed.hpi) setHpi(parsed.hpi);
+              if (parsed.assessment) setAssessment(parsed.assessment);
+              if (parsed.plan) setPlan(parsed.plan);
+              if (parsed.patientInstructions) setPatientInstructions(parsed.patientInstructions);
+            } catch {
+              setChiefComplaint(data.doctor_notes);
             }
           }
+          if (data?.patient_notes) {
+            setPatientInstructions(data.patient_notes);
+          }
         }
-      } catch (err) {
-        console.warn('Daily.co / API initialization fallback:', err);
+
+        if (data?.booking?.consultation_mode === 'in_clinic') {
+          if (isMounted) {
+            setLoadError('This booking is an in-clinic appointment and does not use a video session.');
+          }
+          return;
+        }
+
+        // 2) Join the room through the API: stamps presence and returns a real
+        //    meeting token. Never join from a raw room_url without a token.
+        const joinRes = await fetch(`${API_BASE}/consultations/${bookingId}/join`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            role: 'doctor',
+            userName: doctor?.fullName || 'Consulting Doctor',
+          }),
+        });
+        if (!joinRes.ok) {
+          const errData = await joinRes.json().catch(() => null);
+          if (isMounted) {
+            setCallError(
+              errData?.message ||
+                'Unable to join the video consultation room. The video service may be unavailable.',
+            );
+          }
+          return;
+        }
+        const joinData: JoinResponse = await joinRes.json();
+        if (joinData?.consultation && isMounted) {
+          setConsultation(joinData.consultation);
+        }
+        if (joinData?.startedAt && isMounted) {
+          const startedMs = new Date(joinData.startedAt).getTime();
+          const diffSec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
+          setElapsedSeconds(diffSec);
+        }
+        if (!(joinData?.roomUrl && joinData?.token)) {
+          if (isMounted) {
+            setCallError('The consultation room is not available. Please contact support.');
+          }
+          return;
+        }
+
+        const consultationMode =
+          joinData?.consultation?.booking?.consultation_mode ??
+          data?.booking?.consultation_mode;
+        dailyCall = DailyIframe.createCallObject({
+          videoSource: consultationMode !== 'audio',
+          audioSource: true,
+          subscribeToTracksAutomatically: true,
+        });
+
+        dailyCall.on('track-started', (ev: DailyEventObjectTrack) => {
+          if (!isMounted) return;
+          if (ev.participant && !ev.participant.local) {
+            setIsPatientConnected(true);
+            if (ev.track.kind === 'video' && remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
+              setIsPatientVideoActive(true);
+            }
+            if (ev.track.kind === 'audio' && remoteAudioRef.current) {
+              remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
+            }
+          } else if (ev.participant?.local) {
+            if (ev.track.kind === 'video' && localVideoRef.current) {
+              localVideoRef.current.srcObject = new MediaStream([ev.track]);
+            }
+          }
+        });
+
+        dailyCall.on('track-stopped', (ev: DailyEventObjectTrack) => {
+          if (!isMounted) return;
+          if (ev.participant && !ev.participant.local && ev.track.kind === 'video') {
+            if (remoteVideoRef.current) {
+              remoteVideoRef.current.srcObject = null;
+            }
+            setIsPatientVideoActive(false);
+          }
+        });
+
+        dailyCall.on('participant-joined', (ev) => {
+          if (!isMounted) return;
+          if (ev.participant && !ev.participant.local) {
+            setIsPatientConnected(true);
+          }
+        });
+
+        dailyCall.on('participant-updated', (ev) => {
+          if (!isMounted) return;
+          if (ev.participant && !ev.participant.local) {
+            const hasVideo = Boolean(ev.participant.video && ev.participant.tracks?.video?.state === 'playable');
+            setIsPatientVideoActive(hasVideo);
+          }
+        });
+
+        dailyCall.on('participant-left', (ev) => {
+          if (!isMounted) return;
+          if (ev.participant && !ev.participant.local) {
+            setIsPatientConnected(false);
+            setIsPatientVideoActive(false);
+          }
+        });
+
+        await dailyCall.join({ url: joinData.roomUrl, token: joinData.token });
+        if (isMounted) setCallObject(dailyCall);
+      } catch (err: any) {
+        console.warn('Consultation initialization failed:', err);
+        if (isMounted) {
+          setCallError(errorMessage(err, 'Could not connect to the video consultation room.'));
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
@@ -414,7 +469,7 @@ export default function DoctorConsultationWorkspace() {
       }
       if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
     };
-  }, [bookingId, token, API_BASE]);
+  }, [bookingId, token, API_BASE, doctor?.fullName]);
 
   // --------------------------------------------------------------------------
   // WebSocket Consultation Sync & Extension Events
@@ -665,8 +720,114 @@ export default function DoctorConsultationWorkspace() {
   }
 
   // --------------------------------------------------------------------------
+  // Hard Load Error Screen (consultation context could not be loaded at all)
+  // --------------------------------------------------------------------------
+  if (loadError) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '16px',
+          backgroundColor: '#1F130E',
+          color: '#FAF6EE',
+          padding: '24px',
+          textAlign: 'center',
+        }}
+      >
+        <ChekupCrossLogo size={44} />
+        <div
+          style={{
+            width: '64px',
+            height: '64px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(239, 68, 68, 0.12)',
+            border: '2px solid rgba(239, 68, 68, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#F87171',
+          }}
+        >
+          <AlertCircle size={30} />
+        </div>
+        <h2
+          style={{
+            fontFamily: 'var(--font-heading)',
+            fontSize: '1.5rem',
+            fontWeight: 800,
+            color: '#FAF6EE',
+            margin: 0,
+          }}
+        >
+          Couldn&apos;t open the consultation room
+        </h2>
+        <p style={{ color: '#D5C7B8', fontSize: '0.95rem', maxWidth: '480px', lineHeight: 1.5, margin: 0 }}>
+          {loadError}
+        </p>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+          <button
+            onClick={() => window.location.reload()}
+            style={{
+              padding: '10px 22px',
+              borderRadius: '9999px',
+              backgroundColor: '#DFAB62',
+              border: 'none',
+              color: '#2A170F',
+              fontWeight: 700,
+              fontSize: '0.875rem',
+              cursor: 'pointer',
+            }}
+          >
+            Retry
+          </button>
+          <Link
+            href="/appointments"
+            style={{
+              padding: '10px 22px',
+              borderRadius: '9999px',
+              backgroundColor: 'transparent',
+              border: '1.5px solid rgba(223, 171, 98, 0.5)',
+              color: '#FAF6EE',
+              fontWeight: 600,
+              fontSize: '0.875rem',
+              textDecoration: 'none',
+            }}
+          >
+            Back to Appointments
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------------------------------
   // After Consultation Screen (Post-Encounter)
   // --------------------------------------------------------------------------
+  const endedPatientName =
+    consultation?.patient?.fullName || consultation?.booking?.patient?.fullName || null;
+
+  const endedDurationLabel = (() => {
+    if (consultation?.started_at && consultation?.ended_at) {
+      const ms =
+        new Date(consultation.ended_at).getTime() - new Date(consultation.started_at).getTime();
+      if (Number.isFinite(ms) && ms > 0) return formatElapsed(Math.floor(ms / 1000));
+    }
+    return elapsedSeconds > 0 ? formatElapsed(elapsedSeconds) : '—';
+  })();
+
+  const endedDateLabel = (() => {
+    const raw = consultation?.started_at || consultation?.ended_at;
+    if (!raw) return '—';
+    const d = new Date(raw);
+    return Number.isNaN(d.getTime())
+      ? '—'
+      : d.toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' });
+  })();
+
   if (isConsultationEnded) {
     return (
       <div
@@ -724,7 +885,11 @@ export default function DoctorConsultationWorkspace() {
             Consultation Complete
           </h2>
           <p style={{ color: '#6B5E55', fontSize: '0.95rem', lineHeight: 1.5, marginBottom: '28px' }}>
-            The clinical consultation with <strong>Dr. Sarah Van Der Merwe</strong> has been successfully completed and documented.
+            {endedPatientName ? (
+              <>The clinical consultation with <strong>{endedPatientName}</strong> has been successfully completed and documented.</>
+            ) : (
+              <>The clinical consultation has been successfully completed and documented.</>
+            )}
           </p>
 
           <div
@@ -745,7 +910,7 @@ export default function DoctorConsultationWorkspace() {
                 Duration
               </span>
               <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2A170F', marginTop: '3px' }}>
-                14 minutes
+                {endedDurationLabel}
               </div>
             </div>
             <div>
@@ -753,7 +918,7 @@ export default function DoctorConsultationWorkspace() {
                 Encounter Date
               </span>
               <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2A170F', marginTop: '3px' }}>
-                18 September 2026
+                {endedDateLabel}
               </div>
             </div>
             <div>
@@ -761,7 +926,7 @@ export default function DoctorConsultationWorkspace() {
                 Primary Diagnosis
               </span>
               <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#2A170F', marginTop: '3px' }}>
-                {diagnoses[0]?.name || 'Tension headache'} ({diagnoses[0]?.code || 'G44.2'})
+                {diagnoses[0] ? `${diagnoses[0].name} (${diagnoses[0].code})` : '—'}
               </div>
             </div>
             <div>
@@ -871,300 +1036,142 @@ export default function DoctorConsultationWorkspace() {
           ==================================================================== */}
       <header
         style={{
-          height: '64px',
+          height: '60px',
           backgroundColor: '#1F130E',
           borderBottom: '1px solid rgba(223, 171, 98, 0.16)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '0 24px',
+          padding: '0 16px',
           flexShrink: 0,
           zIndex: 30,
+          gap: '12px',
         }}
       >
-        {/* LEFT: Chekup247 Logo + "Consultation Room" */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <Link
-            href="/"
-            style={{ display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none' }}
-            title="Chekup247"
-          >
-            <ChekupCrossLogo size={26} />
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-              <span
-                style={{
-                  fontFamily: 'var(--font-heading)',
-                  fontWeight: 800,
-                  fontSize: '1.2rem',
-                  color: '#FFFFFF',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                Chekup
-              </span>
-              <span
-                style={{
-                  fontFamily: 'var(--font-heading)',
-                  fontWeight: 800,
-                  fontSize: '1.2rem',
-                  color: '#DFAB62',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                247
-              </span>
-            </div>
-          </Link>
+        {/* LEFT: Back to Appointments */}
+        <Link
+          href="/appointments"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 14px 6px 8px',
+            borderRadius: '9999px',
+            backgroundColor: 'rgba(255, 255, 255, 0.08)',
+            border: '1px solid rgba(223, 171, 98, 0.3)',
+            color: '#FAF6EE',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            textDecoration: 'none',
+            transition: 'all 0.18s ease',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.2)')}
+          onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)')}
+          title="Leave room and return to Appointments"
+        >
+          <ChevronLeft size={15} color="#DFAB62" />
+          <span className="header-back-label">Appointments</span>
+        </Link>
 
+        {/* CENTER: Call state + session timer (single pill, reflects real Daily state) */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '9px',
+            padding: '5px 14px',
+            borderRadius: '9999px',
+            backgroundColor: callError
+              ? 'rgba(239, 68, 68, 0.12)'
+              : !callObject
+                ? 'rgba(223, 171, 98, 0.12)'
+                : isPatientConnected
+                  ? 'rgba(34, 197, 94, 0.12)'
+                  : 'rgba(223, 171, 98, 0.12)',
+            border: `1px solid ${
+              callError
+                ? 'rgba(239, 68, 68, 0.4)'
+                : !callObject
+                  ? 'rgba(223, 171, 98, 0.4)'
+                  : isPatientConnected
+                    ? 'rgba(34, 197, 94, 0.3)'
+                    : 'rgba(223, 171, 98, 0.4)'
+            }`,
+            minWidth: 0,
+          }}
+        >
           <span
             style={{
-              color: 'rgba(223, 171, 98, 0.25)',
-              fontSize: '1.1rem',
-              fontWeight: 300,
-              userSelect: 'none',
-            }}
-          >
-            |
-          </span>
-
-          <span
-            style={{
-              fontSize: '0.85rem',
-              color: '#D5C7B8',
-              fontWeight: 500,
-              letterSpacing: '0.01em',
-            }}
-          >
-            Consultation Room
-          </span>
-
-          {/* Back to Appointments Navigation */}
-          <Link
-            href="/appointments"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 12px',
-              borderRadius: '9999px',
-              backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              border: '1px solid rgba(223, 171, 98, 0.3)',
-              color: '#FAF6EE',
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              textDecoration: 'none',
-              marginLeft: '6px',
-              transition: 'all 0.18s ease',
-            }}
-            onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.2)')}
-            onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)')}
-            title="Leave room and return to Appointments"
-          >
-            <ChevronLeft size={14} color="#DFAB62" />
-            <span>Back to Appointments</span>
-          </Link>
-        </div>
-
-        {/* CENTER: ● LIVE Consultation in progress + 14:32 Timer */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '9px',
-              padding: '4px 12px',
-              borderRadius: '9999px',
-              backgroundColor: 'rgba(34, 197, 94, 0.12)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-            }}
-          >
-            <span
-              style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                backgroundColor: '#22C55E',
-                boxShadow: '0 0 8px #22C55E',
-              }}
-            />
-            <span
-              style={{
-                fontSize: '0.725rem',
-                fontWeight: 800,
-                color: '#4ADE80',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-              }}
-            >
-              LIVE
-            </span>
-            <span
-              style={{
-                fontSize: '0.825rem',
-                fontWeight: 500,
-                color: '#FAF6EE',
-                paddingLeft: '4px',
-              }}
-            >
-              Consultation in progress
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              color: '#D5C7B8',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            <Clock size={15} style={{ color: '#DFAB62' }} />
-            <span>{formatElapsed(elapsedSeconds)}</span>
-
-            {/* In-Call Extend Consultation Button */}
-            <button
-              type="button"
-              onClick={() => {
-                setShowExtendModal(true);
-                setExtensionStatus('idle');
-                setExtensionMessage(null);
-              }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '4px 10px',
-                borderRadius: '9999px',
-                backgroundColor: 'rgba(223, 171, 98, 0.18)',
-                border: '1px solid rgba(223, 171, 98, 0.4)',
-                color: '#DFAB62',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                marginLeft: '8px',
-                transition: 'all 0.18s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.3)')}
-              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.18)')}
-              title="Offer Consultation Time Extension (+10, +20, +30 min)"
-            >
-              <Plus size={13} color="#DFAB62" />
-              <span>Extend Call</span>
-            </button>
-          </div>
-        </div>
-
-        {/* RIGHT: Notifications, Doctor Identity & Destructive End Consultation */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          {/* Notification Bell */}
-          <div
-            style={{
-              position: 'relative',
-              width: '34px',
-              height: '34px',
+              width: '8px',
+              height: '8px',
               borderRadius: '50%',
-              backgroundColor: 'rgba(255, 255, 255, 0.05)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              border: '1px solid rgba(223, 171, 98, 0.2)',
+              flexShrink: 0,
+              backgroundColor: callError ? '#EF4444' : !callObject ? '#DFAB62' : isPatientConnected ? '#22C55E' : '#DFAB62',
+              boxShadow: `0 0 8px ${callError ? '#EF4444' : !callObject ? '#DFAB62' : isPatientConnected ? '#22C55E' : '#DFAB62'}`,
             }}
-            title="Notifications"
-          >
-            <Bell size={16} color="#FAF6EE" />
-            <span
-              style={{
-                position: 'absolute',
-                top: '6px',
-                right: '7px',
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: '#EF4444',
-              }}
-            />
-          </div>
-
-          {/* Authenticated Doctor Profile Pill */}
-          <div
+          />
+          <span
+            className="header-status-text"
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '3px 12px 3px 4px',
-              borderRadius: '9999px',
-              backgroundColor: 'rgba(255, 255, 255, 0.06)',
-              border: '1px solid rgba(223, 171, 98, 0.2)',
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              color: callError ? '#F87171' : !callObject ? '#DFAB62' : isPatientConnected ? '#4ADE80' : '#DFAB62',
             }}
           >
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
-                color: 'var(--color-chocolate-base, #2A170F)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '0.75rem',
-                fontWeight: 800,
-                border: '1.5px solid #DFAB62',
-              }}
-            >
-              {doctor?.fullName
-                ? doctor.fullName
-                    .split(' ')
-                    .map((n) => n[0])
-                    .join('')
-                    .substring(0, 2)
-                    .toUpperCase()
-                : 'DR'}
-            </div>
-            <div style={{ textAlign: 'left', lineHeight: 1.2 }}>
-              <div style={{ fontSize: '0.825rem', fontWeight: 700, color: '#FFFFFF' }}>
-                {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'Dr. ChekUp247 Practitioner'}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#DFAB62', fontWeight: 500 }}>
-                {profile?.specialty || 'General Practitioner'}
-              </div>
-            </div>
-          </div>
-
-          {/* Destructive End Consultation Button */}
-          <button
-            onClick={() => setShowEndModal(true)}
+            {callError ? 'Connection failed' : !callObject ? 'Connecting' : isPatientConnected ? 'Live' : 'In session'}
+          </span>
+          <span
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '7px',
-              padding: '7px 16px',
-              borderRadius: '9999px',
-              backgroundColor: 'rgba(220, 38, 38, 0.12)',
-              border: '1.5px solid rgba(239, 68, 68, 0.45)',
-              color: '#F87171',
-              fontWeight: 700,
-              fontSize: '0.825rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
+              width: '1px',
+              height: '14px',
+              backgroundColor: 'rgba(223, 171, 98, 0.25)',
+              flexShrink: 0,
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.25)';
-              e.currentTarget.style.color = '#FFFFFF';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(220, 38, 38, 0.12)';
-              e.currentTarget.style.color = '#F87171';
+          />
+          <span
+            style={{
+              fontSize: '0.85rem',
+              fontWeight: 600,
+              color: '#FAF6EE',
+              fontVariantNumeric: 'tabular-nums',
+              whiteSpace: 'nowrap',
             }}
           >
-            <PhoneOff size={14} />
-            <span>End Consultation</span>
-          </button>
+            {formatElapsed(elapsedSeconds)}
+          </span>
         </div>
+
+        {/* RIGHT: Destructive End Consultation */}
+        <button
+          onClick={() => setShowEndModal(true)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '7px',
+            padding: '8px 16px',
+            borderRadius: '9999px',
+            backgroundColor: '#DC2626',
+            border: 'none',
+            color: '#FFFFFF',
+            fontWeight: 700,
+            fontSize: '0.825rem',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            flexShrink: 0,
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#B91C1C';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#DC2626';
+          }}
+        >
+          <PhoneOff size={15} />
+          <span className="header-end-label">End</span>
+        </button>
       </header>
 
       {/* ====================================================================
@@ -1174,7 +1181,7 @@ export default function DoctorConsultationWorkspace() {
         style={{
           flex: 1,
           display: 'flex',
-          height: 'calc(100vh - 64px)',
+          height: 'calc(100vh - 60px)',
           overflow: 'hidden',
           position: 'relative',
         }}
@@ -1183,6 +1190,7 @@ export default function DoctorConsultationWorkspace() {
             CENTER / MAIN WORKSPACE: VIDEO HUD + CLINICAL NOTES (65–70%)
             ------------------------------------------------------------------ */}
         <main
+          className="consultation-main"
           style={{
             flex: 1,
             display: 'flex',
@@ -1223,6 +1231,7 @@ export default function DoctorConsultationWorkspace() {
               VIDEO HUD CONTAINER
               ================================================================ */}
           <div
+            className="video-stage"
             style={{
               position: 'relative',
               width: '100%',
@@ -1231,15 +1240,12 @@ export default function DoctorConsultationWorkspace() {
               backgroundColor: '#150B07',
               border: '1px solid rgba(223, 171, 98, 0.25)',
               boxShadow: '0 12px 36px rgba(30, 16, 10, 0.22)',
-              minHeight: '480px',
-              maxHeight: '620px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
             }}
           >
-            {/* Real Doctor Video Feed / Fallback Frame */}
-            {/* Fallback Frame when remote video track is pending or audio-only */}
+            {/* Remote Video Fallback Frame: reflects real connection state */}
             <div
               style={{
                 position: 'absolute',
@@ -1255,67 +1261,126 @@ export default function DoctorConsultationWorkspace() {
                 backgroundColor: '#1E120B',
               }}
             >
-              <div
-                style={{
-                  width: '92px',
-                  height: '92px',
-                  borderRadius: '50%',
-                  backgroundColor: 'rgba(223, 171, 98, 0.15)',
-                  border: '2px solid var(--color-gold-base, #DFAB62)',
-                  color: '#DFAB62',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '2.2rem',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-heading)',
-                }}
-              >
-                {consultation?.booking?.patient?.fullName
-                  ? consultation.booking.patient.fullName
-                      .split(' ')
-                      .map((p) => p[0])
-                      .join('')
-                      .substring(0, 2)
-                      .toUpperCase()
-                  : 'PT'}
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#FAF6EE' }}>
-                  {consultation?.booking?.patient?.fullName || 'Patient'}
+              {callError ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '14px',
+                    padding: '0 24px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '74px',
+                      height: '74px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                      border: '2px solid rgba(239, 68, 68, 0.4)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <AlertCircle size={32} color="#F87171" />
+                  </div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FAF6EE' }}>
+                    Couldn&apos;t connect to the video room
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#D5C7B8', maxWidth: '440px', lineHeight: 1.5 }}>
+                    {callError}
+                  </p>
+                  <button
+                    onClick={() => window.location.reload()}
+                    style={{
+                      marginTop: '4px',
+                      padding: '9px 20px',
+                      borderRadius: '9999px',
+                      backgroundColor: '#DFAB62',
+                      border: 'none',
+                      color: '#2A170F',
+                      fontWeight: 700,
+                      fontSize: '0.825rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Retry Connection
+                  </button>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}>
-                  {isPatientConnected ? (
-                    !isPatientVideoActive ? (
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          padding: '4px 12px',
-                          borderRadius: '9999px',
-                          backgroundColor: 'rgba(223, 171, 98, 0.18)',
-                          border: '1px solid rgba(223, 171, 98, 0.35)',
-                          color: '#DFAB62',
-                          fontSize: '0.8rem',
-                          fontWeight: 700,
-                        }}
-                      >
-                        <Mic size={13} color="#4ADE80" />
-                        <span>Audio-Only Mode • Microphone Active</span>
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.825rem', color: '#4ADE80', fontWeight: 600 }}>
-                        Connected • Live in Consultation
-                      </div>
-                    )
-                  ) : (
-                    <div style={{ fontSize: '0.825rem', color: '#DFAB62' }}>
-                      Waiting for patient to connect to room...
+              ) : !callObject ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+                  <Loader2 size={32} className="animate-spin" style={{ color: '#DFAB62' }} />
+                  <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#F0E5D3' }}>
+                    Connecting to the secure consultation room…
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      width: '92px',
+                      height: '92px',
+                      borderRadius: '50%',
+                      backgroundColor: 'rgba(223, 171, 98, 0.15)',
+                      border: '2px solid var(--color-gold-base, #DFAB62)',
+                      color: '#DFAB62',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '2.2rem',
+                      fontWeight: 600,
+                      fontFamily: 'var(--font-heading)',
+                    }}
+                  >
+                    {consultation?.booking?.patient?.fullName
+                      ? consultation.booking.patient.fullName
+                          .split(' ')
+                          .map((p) => p[0])
+                          .join('')
+                          .substring(0, 2)
+                          .toUpperCase()
+                      : 'PT'}
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#FAF6EE' }}>
+                      {consultation?.booking?.patient?.fullName || 'Patient'}
                     </div>
-                  )}
-                </div>
-              </div>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}>
+                      {isPatientConnected ? (
+                        !isPatientVideoActive ? (
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              padding: '4px 12px',
+                              borderRadius: '9999px',
+                              backgroundColor: 'rgba(223, 171, 98, 0.18)',
+                              border: '1px solid rgba(223, 171, 98, 0.35)',
+                              color: '#DFAB62',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                            }}
+                          >
+                            <VideoOff size={13} color="#DFAB62" />
+                            <span>Connected • camera off</span>
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.825rem', color: '#4ADE80', fontWeight: 600 }}>
+                            Connected • Live in Consultation
+                          </div>
+                        )
+                      ) : (
+                        <div style={{ fontSize: '0.825rem', color: '#DFAB62' }}>
+                          Waiting for patient to connect to room...
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Remote Video Stream if Connected via Daily.co */}
@@ -1369,74 +1434,15 @@ export default function DoctorConsultationWorkspace() {
             {/* --------------------------------------------------------------
                 TOP-LEFT: Connection Status Badges
                 -------------------------------------------------------------- */}
-            <div
-              style={{
-                position: 'absolute',
-                top: '18px',
-                left: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                zIndex: 20,
-              }}
-            >
-              {/* Excellent connection */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '7px',
-                  padding: '5px 12px',
-                  borderRadius: '9999px',
-                  backgroundColor: 'rgba(20, 12, 8, 0.75)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(223, 171, 98, 0.25)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: '#FAF6EE',
-                }}
-              >
-                <span
-                  style={{
-                    width: '7px',
-                    height: '7px',
-                    borderRadius: '50%',
-                    backgroundColor: '#22C55E',
-                    boxShadow: '0 0 6px #22C55E',
-                  }}
-                />
-                <span>Excellent connection</span>
-              </div>
-
-              {/* Secure connection */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '5px 12px',
-                  borderRadius: '9999px',
-                  backgroundColor: 'rgba(20, 12, 8, 0.75)',
-                  backdropFilter: 'blur(8px)',
-                  border: '1px solid rgba(223, 171, 98, 0.25)',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  color: '#FAF6EE',
-                }}
-              >
-                <Lock size={12} color="#DFAB62" />
-                <span>Secure connection</span>
-              </div>
-            </div>
-
             {/* --------------------------------------------------------------
                 BOTTOM-RIGHT: Floating Patient Self-View (PiP)
                 -------------------------------------------------------------- */}
             <div
+              className="doctor-pip"
               style={{
                 position: 'absolute',
-                bottom: '20px',
-                right: '20px',
+                bottom: '16px',
+                right: '16px',
                 width: '136px',
                 height: '92px',
                 borderRadius: '12px',
@@ -1509,6 +1515,7 @@ export default function DoctorConsultationWorkspace() {
                 BOTTOM-CENTER: Floating Video Control Bar
                 -------------------------------------------------------------- */}
             <div
+              className="call-control-bar"
               style={{
                 position: 'absolute',
                 bottom: '18px',
@@ -1528,6 +1535,7 @@ export default function DoctorConsultationWorkspace() {
             >
               {/* Mic Toggle */}
               <button
+                className="call-ctrl-btn"
                 onClick={toggleMic}
                 title={isAudioMuted ? 'Unmute Microphone' : 'Mute Microphone'}
                 style={{
@@ -1549,6 +1557,7 @@ export default function DoctorConsultationWorkspace() {
 
               {/* Camera Toggle */}
               <button
+                className="call-ctrl-btn"
                 onClick={toggleVideo}
                 title={isVideoMuted ? 'Turn On Camera' : 'Turn Off Camera'}
                 style={{
@@ -1570,6 +1579,7 @@ export default function DoctorConsultationWorkspace() {
 
               {/* Speaker Toggle */}
               <button
+                className="call-ctrl-btn"
                 onClick={toggleSpeaker}
                 title={isSpeakerMuted ? 'Unmute Speaker' : 'Mute Speaker'}
                 style={{
@@ -1591,6 +1601,7 @@ export default function DoctorConsultationWorkspace() {
 
               {/* Share Screen */}
               <button
+                className="call-ctrl-btn"
                 onClick={toggleScreenShare}
                 title={isSharingScreen ? 'Stop Screen Sharing' : 'Share Screen'}
                 style={{
@@ -1612,6 +1623,7 @@ export default function DoctorConsultationWorkspace() {
 
               {/* Offer Time Extension Button in Floating Bar */}
               <button
+                className="call-extend-btn"
                 onClick={() => {
                   setShowExtendModal(true);
                   setExtensionStatus('idle');
@@ -1643,6 +1655,7 @@ export default function DoctorConsultationWorkspace() {
               {/* More Options (...) */}
               <div style={{ position: 'relative' }}>
                 <button
+                  className="call-ctrl-btn"
                   onClick={() => setShowMoreMenu(!showMoreMenu)}
                   title="More Call Settings"
                   style={{
@@ -1762,54 +1775,21 @@ export default function DoctorConsultationWorkspace() {
                 borderBottom: '1px solid rgba(223, 171, 98, 0.2)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
+              <div>
+                <h3
                   style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    backgroundColor: '#FAF6EE',
-                    border: '1px solid rgba(223, 171, 98, 0.3)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    fontFamily: 'var(--font-heading)',
+                    fontSize: '1.05rem',
+                    fontWeight: 'var(--font-heading-weight, 400)',
+                    color: '#2A170F',
+                    margin: 0,
                   }}
                 >
-                  <FileText size={20} color="#B88647" />
-                </div>
-                <div>
-                  <h3
-                    style={{
-                      fontFamily: 'var(--font-heading)',
-                      fontSize: '1.05rem',
-                      fontWeight: 'var(--font-heading-weight, 400)',
-                      color: '#2A170F',
-                      margin: 0,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <span>Clinical Notes & Care Plan</span>
-                    <span
-                      style={{
-                        fontSize: '0.68rem',
-                        fontWeight: 700,
-                        padding: '2px 8px',
-                        borderRadius: '9999px',
-                        backgroundColor: 'rgba(223, 171, 98, 0.15)',
-                        color: '#8C7768',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                      }}
-                    >
-                      Active Encounter
-                    </span>
-                  </h3>
+                  Clinical Notes & Care Plan
+                </h3>
                   <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#6B5E55' }}>
                     Document live clinical findings, diagnosis, patient guidance, and medications.
                   </p>
-                </div>
               </div>
 
               {/* Autosave Status Indicator */}
@@ -2686,7 +2666,7 @@ export default function DoctorConsultationWorkspace() {
         <aside
           className={`clinical-panel-drawer ${tabletDrawerOpen ? 'drawer-open' : ''}`}
           style={{
-            width: '410px',
+            width: '360px',
             backgroundColor: '#FFFFFF',
             borderLeft: '1px solid rgba(223, 171, 98, 0.22)',
             display: 'flex',
@@ -2711,26 +2691,24 @@ export default function DoctorConsultationWorkspace() {
             const resolvedPatientName =
               !isDoctorSelf && (consultation?.patient?.fullName || consultation?.booking?.patient?.fullName)
                 ? (consultation?.patient?.fullName || consultation?.booking?.patient?.fullName)
-                : 'Sarah Van Der Merwe';
+                : 'Patient';
 
-            const resolvedPatientPhone =
-              !isDoctorSelf && (consultation?.patient?.phone || consultation?.booking?.patient?.phone)
-                ? (consultation?.patient?.phone || consultation?.booking?.patient?.phone)
-                : '+27 82 456 7890';
+            const resolvedPatientPhone = !isDoctorSelf
+              ? (consultation?.patient?.phone || consultation?.booking?.patient?.phone || null)
+              : null;
 
-            const resolvedPatientEmail =
-              !isDoctorSelf && (consultation?.patient?.email || consultation?.booking?.patient?.email)
-                ? (consultation?.patient?.email || consultation?.booking?.patient?.email)
-                : 'sarah.vdm@gmail.com';
+            const resolvedPatientEmail = !isDoctorSelf
+              ? (consultation?.patient?.email || consultation?.booking?.patient?.email || null)
+              : null;
+
+            const profile = consultation?.patientMedicalProfile ?? null;
+            const hasClinicalData = Boolean(profile?.allergies || profile?.blood_group || profile?.genotype);
 
             return (
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                <div style={{ marginBottom: '4px' }}>
                   <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#8C7768', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
                     PATIENT RECORD
-                  </span>
-                  <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)', padding: '2px 8px', borderRadius: '9999px' }}>
-                    Active Encounter
                   </span>
                 </div>
 
@@ -2747,79 +2725,87 @@ export default function DoctorConsultationWorkspace() {
                   {resolvedPatientName}
                 </h2>
 
-                {/* Single full-width row for phone and email with nowrap */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    fontSize: '0.78rem',
-                    color: '#6B5E55',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}
-                >
-                  <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>{resolvedPatientPhone}</span>
-                  <span style={{ color: '#C4B5A5', flexShrink: 0 }}>•</span>
-                  <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{resolvedPatientEmail}</span>
-                </div>
+                {(resolvedPatientPhone || resolvedPatientEmail) && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '0.78rem',
+                      color: '#6B5E55',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                  >
+                    {resolvedPatientPhone && (
+                      <span style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>{resolvedPatientPhone}</span>
+                    )}
+                    {resolvedPatientPhone && resolvedPatientEmail && (
+                      <span style={{ color: '#C4B5A5', flexShrink: 0 }}>•</span>
+                    )}
+                    {resolvedPatientEmail && (
+                      <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{resolvedPatientEmail}</span>
+                    )}
+                  </div>
+                )}
 
-                {/* Clinical Profile Badges */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'nowrap',
-                    gap: '6px',
-                    marginTop: '10px',
-                    padding: '8px 10px',
-                    backgroundColor: '#FAF6EE',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(223, 171, 98, 0.2)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', color: '#6B5E55', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    <Shield size={12} color="#10B981" style={{ flexShrink: 0 }} />
-                    <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {consultation?.patientMedicalProfile?.allergies
-                        ? `Allergies: ${consultation.patientMedicalProfile.allergies}`
-                        : 'No known allergies'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#2A170F', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                      <Heart size={12} color="#DC2626" />
-                      <span>{consultation?.patientMedicalProfile?.blood_group || 'O+'}</span>
+                {/* Clinical profile — real data only */}
+                {hasClinicalData ? (
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'nowrap',
+                      gap: '6px',
+                      marginTop: '10px',
+                      padding: '8px 10px',
+                      backgroundColor: '#FAF6EE',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(223, 171, 98, 0.2)',
+                    }}
+                  >
+                    {profile!.allergies ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', color: '#6B5E55', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <Shield size={12} color="#10B981" style={{ flexShrink: 0 }} />
+                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          Allergies: {profile!.allergies}
+                        </span>
+                      </div>
+                    ) : (
+                      <span />
+                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      {profile!.blood_group && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#2A170F', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          <Heart size={12} color="#DC2626" />
+                          <span>{profile!.blood_group}</span>
+                        </div>
+                      )}
+                      {profile!.genotype && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#8E5A1C', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          <Activity size={12} color="#B88647" />
+                          <span>{profile!.genotype}</span>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.72rem', color: '#8E5A1C', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                      <Activity size={12} color="#B88647" />
-                      <span>{consultation?.patientMedicalProfile?.genotype || 'AA'}</span>
-                    </div>
                   </div>
-                </div>
-
-                {/* Today's Consultation */}
-                <div
-                  style={{
-                    marginTop: '10px',
-                    padding: '10px 12px',
-                    borderRadius: '10px',
-                    backgroundColor: '#FAF6EE',
-                    border: '1px solid rgba(223, 171, 98, 0.2)',
-                  }}
-                >
-                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#B88647', textTransform: 'uppercase' }}>
-                    Today's Consultation
+                ) : (
+                  <div
+                    style={{
+                      marginTop: '10px',
+                      padding: '8px 10px',
+                      backgroundColor: '#FAF6EE',
+                      borderRadius: '8px',
+                      border: '1px solid rgba(223, 171, 98, 0.2)',
+                      fontSize: '0.72rem',
+                      color: '#8C7768',
+                    }}
+                  >
+                    Medical profile not on file
                   </div>
-                  <div style={{ fontSize: '0.825rem', fontWeight: 700, color: '#2A170F', marginTop: '2px' }}>
-                    General Medicine
-                  </div>
-                  <div style={{ fontSize: '0.74rem', color: '#6B5E55', marginTop: '2px' }}>
-                    <strong>Reason for visit:</strong> Persistent headaches and fatigue
-                  </div>
-                </div>
+                )}
               </div>
             );
           })()}
@@ -2951,7 +2937,7 @@ export default function DoctorConsultationWorkspace() {
               </span>
             </div>
             <p style={{ margin: 0, fontSize: '0.75rem', color: '#6B5E55', lineHeight: 1.35 }}>
-              Clinical notes are active under the live video. Use these shortcuts for encounter operations:
+              Clinical notes save automatically under the live video.
             </p>
 
             <button
@@ -2977,32 +2963,6 @@ export default function DoctorConsultationWorkspace() {
               <span>Preview Encounter Summary</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => {
-                setShowExtendModal(true);
-                setExtensionStatus('idle');
-                setExtensionMessage(null);
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '9px 14px',
-                borderRadius: '9999px',
-                backgroundColor: '#FFFFFF',
-                border: '1px solid rgba(223, 171, 98, 0.4)',
-                color: '#2A170F',
-                fontWeight: 700,
-                fontSize: '0.825rem',
-                cursor: 'pointer',
-              }}
-            >
-              <TimerReset size={15} color="#DFAB62" />
-              <span>Offer Time Extension</span>
-            </button>
-
             <Link
               href={`/consultations/${bookingId}/prescribe`}
               style={{
@@ -3022,29 +2982,6 @@ export default function DoctorConsultationWorkspace() {
               <Pill size={15} />
               <span>Full E-Prescription Portal</span>
             </Link>
-
-            <button
-              type="button"
-              onClick={() => setShowEndModal(true)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '9px 14px',
-                borderRadius: '9999px',
-                backgroundColor: 'rgba(220, 38, 38, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                color: '#DC2626',
-                fontWeight: 700,
-                fontSize: '0.825rem',
-                cursor: 'pointer',
-                marginTop: '4px',
-              }}
-            >
-              <PhoneOff size={15} />
-              <span>End Consultation</span>
-            </button>
           </div>
         </aside>
       </div>
@@ -3733,13 +3670,18 @@ export default function DoctorConsultationWorkspace() {
           background: transparent !important;
         }
 
+        /* Video stage: fluid height, grows with viewport instead of fixed band */
+        .video-stage {
+          height: clamp(320px, 46vh, 560px);
+        }
+
         @media (max-width: 1024px) {
           .tablet-toggle-bar {
             display: flex !important;
           }
           .clinical-panel-drawer {
             position: fixed !important;
-            top: 64px;
+            top: 60px;
             right: 0;
             bottom: 0;
             width: 380px !important;
@@ -3752,8 +3694,53 @@ export default function DoctorConsultationWorkspace() {
           }
         }
         @media (max-width: 768px) {
+          .consultation-main {
+            padding: 12px !important;
+            gap: 12px !important;
+          }
+          .video-stage {
+            height: clamp(260px, 38vh, 420px) !important;
+            border-radius: 14px !important;
+          }
+          .doctor-pip {
+            width: 112px !important;
+            height: 76px !important;
+            right: 12px !important;
+            bottom: 78px !important;
+          }
+          /* Dock the call controls as a reachable bottom bar on touch screens */
+          .call-control-bar {
+            left: 12px !important;
+            right: 12px !important;
+            transform: none !important;
+            bottom: 12px !important;
+            flex-wrap: wrap !important;
+            justify-content: center !important;
+            gap: 8px !important;
+            padding: 8px 10px !important;
+            border-radius: 18px !important;
+          }
+          .call-control-bar .call-ctrl-btn {
+            width: 44px !important;
+            height: 44px !important;
+            flex-shrink: 0;
+          }
+          .call-control-bar .call-extend-btn {
+            height: 44px !important;
+          }
           .clinical-panel-drawer {
             width: 100% !important;
+          }
+        }
+        @media (max-width: 560px) {
+          .header-back-label,
+          .header-end-label {
+            display: none !important;
+          }
+        }
+        @media (max-width: 420px) {
+          .header-status-text {
+            display: none !important;
           }
         }
       `}</style>

@@ -83,6 +83,20 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
     add: jest.fn().mockResolvedValue({ id: 'job-1' }),
   };
 
+  const mockDailyService = {
+    createRoom: jest.fn().mockResolvedValue({
+      name: 'chekup-booking-1-abc123',
+      url: 'https://chekup247.daily.co/chekup-booking-1-abc123',
+      privacy: 'private',
+      exp: Math.floor(Date.now() / 1000) + 1800,
+    }),
+    createMeetingToken: jest.fn().mockResolvedValue({ token: 'daily-meeting-token' }),
+    deleteRoom: jest.fn().mockResolvedValue(true),
+    extendRoomExpiry: jest
+      .fn()
+      .mockResolvedValue({ success: true, newExp: Math.floor(Date.now() / 1000) + 1800 }),
+  };
+
   const mockPaymentsService = {
     processRefund: jest.fn().mockResolvedValue({ success: true, refund_method: 'paystack' }),
   };
@@ -108,7 +122,10 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ConsultationsService,
-        DailyService,
+        {
+          provide: DailyService,
+          useValue: mockDailyService,
+        },
         ConsultationGateway,
         NoShowProcessor,
         {
@@ -163,9 +180,32 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
   });
 
   describe('DailyService (BE-601)', () => {
+    const realFetch = global.fetch;
+    let svc: DailyService;
+
+    beforeEach(() => {
+      svc = new DailyService();
+      (svc as any).apiKey = 'test-daily-key';
+    });
+
+    afterEach(() => {
+      global.fetch = realFetch;
+      jest.restoreAllMocks();
+    });
+
     it('should create room with 2-participant limit and buffer expiration', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          name: 'chekup-booking-123-xyz',
+          url: 'https://chekup247.daily.co/chekup-booking-123-xyz',
+          privacy: 'private',
+          properties: { exp: Math.floor(Date.now() / 1000) + 1800 },
+        }),
+      } as unknown as Response);
+
       const slotEnd = new Date(Date.now() + 30 * 60 * 1000);
-      const room = await dailyService.createRoom('booking-123', slotEnd);
+      const room = await svc.createRoom('booking-123', slotEnd);
 
       expect(room).toBeDefined();
       expect(room.name).toContain('chekup-booking-123');
@@ -173,12 +213,62 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       expect(room.exp).toBeGreaterThan(Math.floor(Date.now() / 1000));
     });
 
+    it('should throw when the API key is missing instead of manufacturing a mock room', async () => {
+      const unconfigured = new DailyService();
+      (unconfigured as any).apiKey = '';
+
+      await expect(unconfigured.createRoom('booking-123', new Date())).rejects.toThrow(
+        'not configured',
+      );
+      await expect(
+        unconfigured.createMeetingToken('chekup-room', 'Dr. Smith', true, Math.floor(Date.now() / 1000) + 3600),
+      ).rejects.toThrow('not configured');
+    });
+
+    it('should throw when Daily.co rejects room creation instead of returning a synthetic URL', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: async () => 'Unauthorized',
+      } as unknown as Response);
+
+      await expect(svc.createRoom('booking-123', new Date())).rejects.toThrow(
+        'Daily.co room creation failed',
+      );
+    });
+
+    it('should throw when Daily.co is unreachable', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new Error('network down'));
+
+      await expect(svc.createRoom('booking-123', new Date())).rejects.toThrow(
+        'Daily.co is unreachable',
+      );
+    });
+
     it('should generate participant meeting token', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ token: 'real-daily-token' }),
+      } as unknown as Response);
+
       const exp = Math.floor(Date.now() / 1000) + 3600;
-      const token = await dailyService.createMeetingToken('chekup-room', 'Dr. Smith', true, exp);
+      const token = await svc.createMeetingToken('chekup-room', 'Dr. Smith', true, exp);
 
       expect(token).toBeDefined();
-      expect(token.token).toBeDefined();
+      expect(token.token).toBe('real-daily-token');
+    });
+
+    it('should throw when meeting token issuance fails instead of returning a mock token', async () => {
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        text: async () => 'Unauthorized',
+      } as unknown as Response);
+
+      const exp = Math.floor(Date.now() / 1000) + 3600;
+      await expect(svc.createMeetingToken('chekup-room', 'Dr. Smith', true, exp)).rejects.toThrow(
+        'Daily.co meeting token failed',
+      );
     });
   });
 
