@@ -194,11 +194,14 @@ export class PaymentsService {
         },
       });
     } catch (error) {
-      booking.status = BookingStatus.CANCELLED;
-      await this.bookingRepository.save(booking);
-      if (this.slotRepository) {
-        await this.slotRepository.update({ id: booking.slot_id }, { is_booked: false });
-      }
+      // Do NOT cancel the booking on Paystack initiation failure: the failure
+      // is usually transient (network / invalid key / Paystack error) and the
+      // patient must be able to retry POST /payments/initiate on the same
+      // PENDING booking. Cancelling here forced a full rebook and freed the
+      // slot out from under the patient.
+      this.logger.warn(
+        `Paystack initialize failed for booking ${booking.id}: ${(error as any)?.message}`,
+      );
       throw error;
     }
 
