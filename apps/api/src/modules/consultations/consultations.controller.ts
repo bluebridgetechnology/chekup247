@@ -10,29 +10,57 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { ConsultationsService } from './consultations.service';
+import {
+  IsBoolean,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class JoinConsultationDto {
+  @IsOptional()
+  @IsIn(['doctor', 'patient'])
   role?: 'doctor' | 'patient';
+
+  @IsOptional()
+  @IsString()
   userName?: string;
 }
 
 export class SaveNotesDto {
+  @IsString()
   notes: string;
 }
 
 export class EndConsultationDto {
+  @IsOptional()
+  @IsString()
   doctorId?: string;
 }
 
 export class RequestExtensionDto {
+  @IsNumber()
   durationMinutes: number;
+
+  @IsOptional()
+  @IsBoolean()
   isFree?: boolean;
+
+  @IsOptional()
+  @IsString()
   doctorId?: string;
 }
 
 export class ConsentExtensionDto {
+  @IsString()
   extensionId: string;
+
+  @IsBoolean()
   approved: boolean;
+
+  @IsOptional()
+  @IsString()
   patientId?: string;
 }
 
