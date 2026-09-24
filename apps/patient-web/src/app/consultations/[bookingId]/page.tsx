@@ -536,6 +536,11 @@ export default function PatientConsultationPage() {
           if (bookingMode !== 'video') setIsVideoMuted(true);
         }
 
+        if (bookingMode === 'in_clinic') {
+          setLoadError('This is an in-clinic appointment. Please attend the doctor’s practice at the scheduled time.');
+          return;
+        }
+
         // Set doctor info from API response
         if (joinData.consultation.doctor) {
           setDoctorName(joinData.consultation.doctor.name || 'Doctor');

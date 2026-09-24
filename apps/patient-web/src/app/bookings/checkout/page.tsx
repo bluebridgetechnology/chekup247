@@ -66,6 +66,8 @@ function CheckoutContent() {
   const doctorIdParam = searchParams.get('doctor') || searchParams.get('doctorId') || '';
   const slotIdParam = searchParams.get('slot') || searchParams.get('slotId');
   const dateParam = searchParams.get('date');
+  const startParam = searchParams.get('start');
+  const endParam = searchParams.get('end');
   const typeParam = (searchParams.get('type') || 'video') as 'video' | 'in_clinic' | 'audio';
 
   const [doctor, setDoctor] = useState<DoctorDetail | null>(null);
@@ -198,12 +200,16 @@ function CheckoutContent() {
           }
         }
 
-        if (!resolvedSlot && dateParam) {
-          const baseDate = new Date(`${dateParam}T10:00:00`);
+        if (!resolvedSlot && startParam) {
+          const baseDate = new Date(startParam);
+          const endDate = endParam ? new Date(endParam) : new Date(baseDate.getTime() + 45 * 60 * 1000);
+          if (Number.isNaN(baseDate.getTime()) || Number.isNaN(endDate.getTime())) {
+            throw new Error('The selected appointment time is invalid. Please return to the doctor profile and choose another slot.');
+          }
           resolvedSlot = {
-            id: slotIdParam || `slot-${dateParam}-10:00`,
+            id: slotIdParam || `slot-${baseDate.toISOString()}`,
             startTime: baseDate.toISOString(),
-            endTime: new Date(baseDate.getTime() + 45 * 60 * 1000).toISOString(),
+            endTime: endDate.toISOString(),
           };
         }
 
@@ -2233,7 +2239,7 @@ function CheckoutContent() {
             <div style={{ marginTop: '18px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
               <span>Want to open the full sign in page instead? </span>
               <Link
-                href={`/login?redirect=${encodeURIComponent(`/bookings/checkout?doctor=${doctorIdParam}&slot=${slotIdParam || 'slot'}&date=${dateParam || ''}&type=${typeParam}`)}`}
+                href={`/login?redirect=${encodeURIComponent(`/bookings/checkout?doctor=${encodeURIComponent(doctorIdParam)}&slot=${encodeURIComponent(slotIdParam || 'slot')}&date=${encodeURIComponent(dateParam || '')}&start=${encodeURIComponent(startParam || '')}&end=${encodeURIComponent(endParam || '')}&type=${encodeURIComponent(typeParam)}`)}`}
                 style={{ color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 700, textDecoration: 'underline' }}
               >
                 Go to Sign In

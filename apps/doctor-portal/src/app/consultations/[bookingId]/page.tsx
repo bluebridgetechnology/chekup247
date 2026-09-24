@@ -72,6 +72,7 @@ interface ConsultationDetail {
     doctor_id: string;
     status: string;
     price: number;
+    consultation_mode?: 'video' | 'audio' | 'in_clinic';
     patient?: {
       id: string;
       fullName: string;
@@ -317,9 +318,32 @@ export default function DoctorConsultationWorkspace() {
             if (data?.patient_notes) {
               setPatientInstructions(data.patient_notes);
             }
-            if (data?.room_url) {
+            if (data?.booking?.consultation_mode === 'in_clinic') {
+              throw new Error('This booking is an in-clinic appointment and does not use a video session.');
+            }
+            const joinRes = await fetch(`${API_BASE}/consultations/${bookingId}/join`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `******`,
+              },
+              body: JSON.stringify({
+                role: 'doctor',
+                userName: doctor?.fullName || 'Doctor',
+              }),
+            });
+            if (!joinRes.ok) {
+              throw new Error('Unable to join the consultation room.');
+            }
+            const joinData = await joinRes.json();
+            if (joinData.consultation) {
+              setConsultation(joinData.consultation);
+            }
+
+            if (joinData.roomUrl) {
+              const consultationMode = joinData.consultation?.booking?.consultation_mode;
               dailyCall = DailyIframe.createCallObject({
-                videoSource: true,
+                videoSource: consultationMode !== 'audio',
                 audioSource: true,
                 subscribeToTracksAutomatically: true,
               });
@@ -368,7 +392,7 @@ export default function DoctorConsultationWorkspace() {
                 }
               });
 
-              await dailyCall.join({ url: data.room_url });
+              await dailyCall.join({ url: joinData.roomUrl, token: joinData.token });
               if (isMounted) setCallObject(dailyCall);
             }
           }

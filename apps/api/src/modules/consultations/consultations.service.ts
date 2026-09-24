@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Logger,
   Inject,
   forwardRef,
@@ -165,6 +166,7 @@ export class ConsultationsService {
     bookingId: string,
     role: 'doctor' | 'patient',
     userName?: string,
+    actorId?: string,
   ): Promise<{
     consultation: Consultation;
     roomUrl: string;
@@ -172,6 +174,26 @@ export class ConsultationsService {
     startedAt: Date | null;
     isFirstParticipant: boolean;
   }> {
+    if (actorId) {
+      const booking = await this.bookingRepository.findOne({ where: { id: bookingId } });
+      if (!booking) {
+        throw new NotFoundException(`Booking with id ${bookingId} not found`);
+      }
+
+      if (role === 'patient' && booking.patient_id !== actorId) {
+        throw new ForbiddenException('You are not allowed to join this consultation');
+      }
+
+      if (role === 'doctor') {
+        const doctor = await this.doctorProfileRepository.findOne({
+          where: { id: booking.doctor_id, user_id: actorId },
+        });
+        if (!doctor) {
+          throw new ForbiddenException('You are not allowed to join this consultation');
+        }
+      }
+    }
+
     let consultation = await this.consultationRepository.findOne({
       where: { booking_id: bookingId },
       relations: ['booking'],
@@ -421,7 +443,7 @@ export class ConsultationsService {
     let specialty = 'General Practitioner';
     if (consultation.booking?.doctor_id) {
       const doc = await this.doctorProfileRepository.findOne({
-        where: { user_id: consultation.booking.doctor_id },
+        where: { id: consultation.booking.doctor_id },
         relations: ['user'],
       });
       if (doc) {
