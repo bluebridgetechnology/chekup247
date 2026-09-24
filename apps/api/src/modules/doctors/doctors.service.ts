@@ -8,7 +8,7 @@ import {
   Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThan, MoreThan, In } from 'typeorm';
+import { Repository, LessThan, MoreThan, MoreThanOrEqual, Between, In } from 'typeorm';
 import { NotificationsService } from '../notifications/notifications.service';
 import {
   DoctorProfile,
@@ -35,6 +35,10 @@ import {
 import { TokenService } from '../auth/token.service';
 import { DirectorySyncService } from './directory-sync.service';
 import { AvailabilitySyncService } from './availability-sync.service';
+import {
+  SLOT_BOOKING_MIN_REMAINING_MS,
+  isSlotBookable,
+} from '../bookings/booking.constants';
 
 export interface PaginatedDoctorsResult {
   doctors: DoctorProfile[];
@@ -960,7 +964,14 @@ export class DoctorsService implements OnModuleInit {
     }
 
     const now = new Date();
-    const startDate = query.startDate ? new Date(query.startDate) : now;
+    // Slots stay bookable while enough consultation time remains, so the
+    // cutoff is based on end_time, not start_time. When no explicit startDate
+    // is given, look back a day so already-started but still bookable slots
+    // are included (the end_time cutoff below filters out the rest).
+    const bookableCutoff = new Date(now.getTime() + SLOT_BOOKING_MIN_REMAINING_MS);
+    const startDate = query.startDate
+      ? new Date(query.startDate)
+      : new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const endDate = query.endDate
       ? new Date(query.endDate)
       : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days default
@@ -974,21 +985,24 @@ export class DoctorsService implements OnModuleInit {
       },
     });
 
-    // Query unbooked future slots
+    // Query unbooked slots that still have enough time remaining
     const rawSlots = await this.slotRepository.find({
       where: {
         doctor_id: doctor.id,
         is_booked: false,
-        start_time: MoreThan(now > startDate ? now : startDate),
-        end_time: LessThan(endDate),
+        start_time: MoreThanOrEqual(startDate),
+        end_time: Between(bookableCutoff, endDate),
       },
       order: { start_time: 'ASC' },
     });
 
-    // Filter out any slot inside a blackout
+    // Filter out expired slots (belt-and-braces for clock skew) and any slot inside a blackout
     const slots = rawSlots.filter((slot) => {
       const sStart = new Date(slot.start_time).getTime();
       const sEnd = new Date(slot.end_time).getTime();
+      if (!isSlotBookable(sEnd)) {
+        return false;
+      }
       return !blackouts.some((b) => {
         const bStart = new Date(b.start_time).getTime();
         const bEnd = new Date(b.end_time).getTime();

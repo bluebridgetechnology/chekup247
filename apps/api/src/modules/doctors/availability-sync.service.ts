@@ -8,6 +8,7 @@ import {
   PlatformSetting,
 } from '../../database/operational/entities';
 import { envConfig } from '../../config/env.config';
+import { isSlotBookable } from '../bookings/booking.constants';
 
 export interface LocumStaffAvailabilityWindow {
   doctorId: string; // LocumStaff user UUID (maps to doctor.sso_external_id)
@@ -237,8 +238,9 @@ export class AvailabilitySyncService {
         break;
       }
 
-      // Check if candidate slot is in the past
-      if (currentSlotStart.getTime() <= Date.now()) {
+      // Skip slots with too little bookable time remaining (already started
+      // with less than the minimum remaining, or fully in the past)
+      if (!isSlotBookable(currentSlotEnd)) {
         currentSlotStart = new Date(currentSlotEnd.getTime() + bufferMs);
         continue;
       }

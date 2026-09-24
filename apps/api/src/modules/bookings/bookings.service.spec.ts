@@ -293,6 +293,7 @@ describe('BookingsService (Saga & Cross-DB)', () => {
         id: 'new-slot-2',
         doctor_id: 'doc-1',
         start_time: newFutureDate,
+        end_time: new Date(newFutureDate.getTime() + 30 * 60 * 1000),
         is_booked: false,
         is_locked: false,
         doctor: { user: { full_name: 'Dr. Test' } },
@@ -312,6 +313,107 @@ describe('BookingsService (Saga & Cross-DB)', () => {
       expect(oldSlot.is_booked).toBe(false);
       expect(newSlot.is_booked).toBe(true);
       expect(res.id).toBe('booking-1');
+    });
+
+    it('should reject rescheduling to a slot with less than 15 minutes remaining', async () => {
+      const oldFutureDate = new Date(Date.now() + 48 * 60 * 60 * 1000);
+      const almostOverStart = new Date(Date.now() - 20 * 60 * 1000); // started 20 min ago
+      const almostOverEnd = new Date(Date.now() + 5 * 60 * 1000); // 5 min left
+
+      const booking = {
+        id: 'booking-1',
+        patient_id: 'patient-1',
+        doctor_id: 'doc-1',
+        slot_id: 'old-slot-1',
+        status: BookingStatus.CONFIRMED,
+        payment_status: PaymentStatus.HELD,
+        price: 1000,
+      };
+
+      const oldSlot = {
+        id: 'old-slot-1',
+        doctor_id: 'doc-1',
+        start_time: oldFutureDate,
+        is_booked: true,
+      };
+
+      const newSlot = {
+        id: 'new-slot-2',
+        doctor_id: 'doc-1',
+        start_time: almostOverStart,
+        end_time: almostOverEnd,
+        is_booked: false,
+        is_locked: false,
+        doctor: { user: { full_name: 'Dr. Test' } },
+      };
+
+      mockBookingRepository.findOne.mockResolvedValue(booking);
+      mockSlotRepository.findOne
+        .mockResolvedValueOnce(oldSlot)
+        .mockResolvedValueOnce(newSlot);
+
+      await expect(
+        service.rescheduleBooking('booking-1', 'patient-1', {
+          newSlotId: 'new-slot-2',
+          reason: 'Shift clash',
+        }),
+      ).rejects.toThrow('less than 15 minutes remaining');
+    });
+  });
+
+  describe('slot bookability (minimum remaining time)', () => {
+    it('should allow booking a started slot that still has enough time remaining', async () => {
+      const slot = {
+        id: 'slot-started',
+        doctor_id: 'doc-1',
+        start_time: new Date(Date.now() - 1 * 60 * 1000), // started 1 min ago
+        end_time: new Date(Date.now() + 29 * 60 * 1000), // 29 min left
+        is_booked: false,
+        is_locked: false,
+      };
+
+      const doctor = {
+        id: 'doc-1',
+        rate_per_hour: 850.0,
+        user: { full_name: 'Dr. Thabo Molefe' },
+      };
+
+      const qb = {
+        setLock: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(slot),
+      };
+
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(qb);
+      mockQueryRunner.manager.findOne.mockResolvedValue(doctor);
+      mockQueryRunner.manager.save.mockResolvedValue({ ...slot, is_booked: true });
+
+      const result = await service.createBookingSaga('patient-1', { slotId: 'slot-started' });
+
+      expect(result.status).toBe(BookingStatus.PENDING);
+    });
+
+    it('should reject booking a slot with less than 15 minutes remaining', async () => {
+      const slot = {
+        id: 'slot-expiring',
+        doctor_id: 'doc-1',
+        start_time: new Date(Date.now() - 25 * 60 * 1000), // started 25 min ago
+        end_time: new Date(Date.now() + 5 * 60 * 1000), // 5 min left
+        is_booked: false,
+        is_locked: false,
+      };
+
+      const qb = {
+        setLock: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue(slot),
+      };
+
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(qb);
+
+      await expect(
+        service.createBookingSaga('patient-1', { slotId: 'slot-expiring' }),
+      ).rejects.toThrow('no longer has the minimum 15 minutes remaining');
     });
   });
 

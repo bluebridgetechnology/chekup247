@@ -28,6 +28,10 @@ import { PaymentsService } from '../payments/payments.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ReminderScheduler } from '../queues/reminder.scheduler';
 import { QUEUES } from '../queues/queue.constants';
+import {
+  SLOT_BOOKING_MIN_REMAINING_MINUTES,
+  isSlotBookable,
+} from './booking.constants';
 
 export interface CreateBookingDto {
   slotId: string;
@@ -177,9 +181,12 @@ export class BookingsService {
           throw new ConflictException('This appointment slot is currently locked');
         }
 
-        // Check slot is in future
-        if (new Date(lockedSlot.start_time).getTime() <= Date.now()) {
-          throw new BadRequestException('Cannot book a slot in the past');
+        // Slot stays bookable while enough consultation time remains
+        // (e.g. a 30-min 18:00-18:30 slot is still bookable at 18:01).
+        if (!isSlotBookable(lockedSlot.end_time)) {
+          throw new BadRequestException(
+            `This slot no longer has the minimum ${SLOT_BOOKING_MIN_REMAINING_MINUTES} minutes remaining and can no longer be booked`,
+          );
         }
 
         // Retrieve doctor profile to determine consultation price
@@ -637,8 +644,10 @@ export class BookingsService {
       throw new ConflictException('Selected replacement slot is no longer available');
     }
 
-    if (new Date(newSlot.start_time).getTime() <= now) {
-      throw new BadRequestException('Cannot reschedule to a past time slot');
+    if (!isSlotBookable(newSlot.end_time, now)) {
+      throw new BadRequestException(
+        `Cannot reschedule to a slot with less than ${SLOT_BOOKING_MIN_REMAINING_MINUTES} minutes remaining`,
+      );
     }
 
     // Atomic swap on VPS DB

@@ -257,9 +257,13 @@ function CheckoutContent() {
   const totalPayable = Math.max(0, consultationPrice - creditsApplied);
   const isFullyCovered = totalPayable === 0;
 
-  // Validate that slot is strictly in the future
+  // A slot stays bookable while at least the minimum consultation time remains
+  // (must match backend SLOT_BOOKING_MIN_REMAINING_MINUTES).
   const isPastSlot = Boolean(
-    slot?.startTime && new Date(slot.startTime).getTime() <= Date.now()
+    slot &&
+      (slot.endTime
+        ? new Date(slot.endTime).getTime() - Date.now() < 15 * 60 * 1000
+        : slot.startTime && new Date(slot.startTime).getTime() <= Date.now())
   );
 
   // Format date and time (en-ZA locale)
@@ -357,7 +361,7 @@ function CheckoutContent() {
   // Core Booking Saga & Payment Trigger (supports passing token directly if freshly logged in)
   const executeBookingSaga = async (authToken?: string) => {
     if (isPastSlot) {
-      setErrorMessage('This appointment time is in the past and cannot be booked. Please choose an upcoming slot.');
+      setErrorMessage('This appointment slot no longer has enough time remaining and cannot be booked. Please choose another available slot.');
       return;
     }
 
@@ -732,10 +736,10 @@ function CheckoutContent() {
               <AlertCircle size={24} style={{ flexShrink: 0, color: '#DC2626' }} />
               <div>
                 <div style={{ fontWeight: 800, fontSize: '1rem', color: '#991b1b' }}>
-                  This Appointment Time Has Passed
+                  This Appointment Slot Is No Longer Available
                 </div>
                 <div style={{ fontSize: '0.875rem', marginTop: '3px', color: '#7f1d1d' }}>
-                  Past dates and times cannot be booked. Please choose an upcoming available slot on the doctor&apos;s schedule.
+                  Too little consultation time remains in this slot. Please choose another available slot on the doctor&apos;s schedule.
                 </div>
               </div>
             </div>
