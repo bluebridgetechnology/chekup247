@@ -197,6 +197,13 @@ export class PaystackService {
 
   /**
    * Initializes a Paystack checkout transaction.
+   *
+   * When PAYSTACK_BYPASS=true (local/staging testing only), initialization
+   * failures — including a deactivated Paystack account or missing keys —
+   * return a simulated success that redirects straight to the booking success
+   * callback, so downstream flows (e.g. video consultations) can be tested
+   * without a live Paystack account. The success page then confirms the
+   * booking via the mock verify path.
    */
   async initializeTransaction(
     options: PaystackInitializeOptions,
@@ -205,6 +212,12 @@ export class PaystackService {
     const config = await this.getActiveConfig();
 
     if (config.isMock) {
+      if (envConfig.PAYSTACK_BYPASS) {
+        this.logger.warn(
+          `[PaystackBypass] No real Paystack key — returning simulated checkout for ref=${reference}. NOT a real payment.`,
+        );
+        return this.mockInitializeResponse(reference, callbackUrl);
+      }
       throw new ServiceUnavailableException(
         'Paystack is not configured. Add a Paystack sandbox secret key before accepting payments.',
       );
@@ -231,6 +244,12 @@ export class PaystackService {
 
       if (!response.ok || !data.status) {
         this.logger.error(`Paystack API error initializing transaction: ${JSON.stringify(data)}`);
+        if (envConfig.PAYSTACK_BYPASS) {
+          this.logger.warn(
+            `[PaystackBypass] Paystack API rejected initialize (ref=${reference}): ${data?.message}. Returning simulated checkout. NOT a real payment.`,
+          );
+          return this.mockInitializeResponse(reference, callbackUrl);
+        }
         throw new ServiceUnavailableException(
           data?.message || 'Paystack could not initialize the payment. Please try again.',
         );
@@ -252,10 +271,33 @@ export class PaystackService {
       this.logger.error(
         `Network error calling Paystack initialize (ref=${reference}, email=${email}, amount=${amountInCents}): ${error.message}`,
       );
+      if (envConfig.PAYSTACK_BYPASS) {
+        this.logger.warn(
+          `[PaystackBypass] Network error reaching Paystack (ref=${reference}). Returning simulated checkout. NOT a real payment.`,
+        );
+        return this.mockInitializeResponse(reference, callbackUrl);
+      }
       throw new ServiceUnavailableException(
         'Paystack is temporarily unavailable. Please try again in a moment.',
       );
     }
+  }
+
+  /**
+   * Simulated checkout response used only when PAYSTACK_BYPASS=true.
+   * Points the client straight at the booking success callback so the normal
+   * verify flow confirms the booking without a live Paystack account.
+   */
+  private mockInitializeResponse(
+    reference: string,
+    callbackUrl?: string,
+  ): PaystackInitializeResponse {
+    return {
+      authorization_url:
+        callbackUrl || `${envConfig.PATIENT_WEB_URL}/bookings/success?reference=${reference}`,
+      access_code: `mock_${reference}`,
+      reference,
+    };
   }
 
   /**
