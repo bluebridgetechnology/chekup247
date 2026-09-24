@@ -500,7 +500,16 @@ export default function PatientConsultationPage() {
         });
 
         if (!joinRes.ok) {
-          // Fallback: try GET to at least get consultation details
+          // Surface the backend's actual reason (e.g. room provisioning failed)
+          let backendMessage = '';
+          try {
+            const errData = await joinRes.json();
+            if (errData?.message) backendMessage = errData.message;
+          } catch {
+            // Non-JSON error body — fall through to the generic message below
+          }
+
+          // Still try GET so the error screen can show the doctor/booking details
           const detailRes = await fetch(`${API_BASE}/consultations/${bookingId}`, {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
           });
@@ -515,11 +524,14 @@ export default function PatientConsultationPage() {
             if (data.started_at) {
               setStartedAt(new Date(data.started_at));
             }
-          } else if (isMounted) {
-            setLoadError('Unable to join consultation. Please check your booking.');
           }
 
-          if (isMounted) setIsLoading(false);
+          if (isMounted) {
+            setLoadError(
+              backendMessage || 'Unable to join consultation. Please check your booking.',
+            );
+            setIsLoading(false);
+          }
           return;
         }
 
@@ -579,10 +591,16 @@ export default function PatientConsultationPage() {
           });
 
           if (isMounted) setCallObject(dailyCall);
+        } else if (isMounted) {
+          setLoadError('The consultation room is not available. Please contact support.');
         }
       } catch (err: any) {
         console.warn('Consultation session initialization:', err);
-        if (isMounted) setLoadError(err.message || 'Failed to connect');
+        if (isMounted) {
+          setLoadError(
+            err?.message || 'Could not connect to the video consultation room.',
+          );
+        }
       } finally {
         if (isMounted) setIsLoading(false);
       }
