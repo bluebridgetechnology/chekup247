@@ -8,10 +8,15 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { createGlobalValidationPipe } from './common/pipes/validation.pipe';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 import { SentryService } from './config/sentry.config';
+import { DataSource } from 'typeorm';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+  const operationalDataSource = app.get<DataSource>('operationalDataSource');
+  const patientDataSource = app.get<DataSource>('patientDataSource');
+  await operationalDataSource.runMigrations();
+  await patientDataSource.runMigrations();
 
   // Configure body parser limit for file & avatar uploads
   app.use(json({ limit: '25mb' }));
