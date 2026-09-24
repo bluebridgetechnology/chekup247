@@ -37,44 +37,6 @@ interface DoctorProfileContentProps {
   reviewsData?: any;
 }
 
-const DEFAULT_REVIEWS = [
-  {
-    id: 'rev-1',
-    author: 'Lerato K.',
-    initial: 'L',
-    rating: 5,
-    date: 'February 2026',
-    comment:
-      'Dr. Molefe was incredibly patient and attentive. He listened carefully to all my symptoms and sent the prescription straight to my local Clicks pharmacy within 10 minutes. A top-tier telehealth experience!',
-  },
-  {
-    id: 'rev-2',
-    author: 'David S.',
-    initial: 'D',
-    rating: 5,
-    date: 'January 2026',
-    comment:
-      'Saved me a 3-hour wait at the clinic. Thorough examination over HD video, professional advice, and clear follow-up instructions.',
-  },
-  {
-    id: 'rev-3',
-    author: 'Mbali M.',
-    initial: 'M',
-    rating: 5,
-    date: 'January 2026',
-    comment:
-      'Very professional and thorough. Addressed all my questions regarding chronic treatment with empathy and clarity.',
-  },
-];
-
-const DEFAULT_EXPERTISE_TAGS = [
-  { label: 'Video Telehealth Consultation', icon: 'videocamera-linear' },
-  { label: 'Digital Prescription Renewal', icon: 'pill-linear' },
-  { label: 'Medical Certificates / Sick Notes', icon: 'document-text-linear' },
-  { label: 'Specialist Referral Letters', icon: 'diploma-verified-linear' },
-  { label: 'Chronic Medication Management', icon: 'heart-pulse-linear' },
-];
-
 const EXPERTISE_ICON_MAP: Record<string, string> = {
   'video telehealth consultation': 'videocamera-linear',
   'video telehealth': 'videocamera-linear',
@@ -111,14 +73,12 @@ function getExpertiseIcon(label: string): string {
 export function DoctorProfileContent({ doctor, reviewsData }: DoctorProfileContentProps) {
   const [activeTab, setActiveTab] = useState<'about' | 'services' | 'reviews'>('about');
 
-  const displayName = doctor.user?.full_name || 'Dr. Thabo Molefe';
+  const displayName = doctor.user?.full_name || 'Doctor';
   const specialty = doctor.specialty || '';
-  const hpcsaNumber = doctor.hpcsa_number || 'MP 0689432';
-  const ratingAvg = Number(reviewsData?.ratingAvg ?? doctor.rating_avg ?? 5.0);
-  const reviewsCount = Number(reviewsData?.reviewsCount ?? doctor.reviews_count ?? 58);
-  const bio =
-    doctor.bio ||
-    'Dr. Thabo Molefe is a compassionate General Practitioner with over 12 years of clinical practice across Gauteng. He holds an MBChB from the University of the Witwatersrand and specializes in acute infection management, metabolic disorders, and adolescent wellness.';
+  const hpcsaNumber = doctor.hpcsa_number || 'Not provided';
+  const ratingAvg = Number(reviewsData?.ratingAvg ?? doctor.rating_avg ?? 0);
+  const reviewsCount = Number(reviewsData?.reviewsCount ?? doctor.reviews_count ?? 0);
+  const bio = doctor.bio || 'No clinical biography submitted.';
 
   const expertiseTags: Array<{ label: string; icon: string }> =
     doctor.consultation_types && doctor.consultation_types.length > 0
@@ -126,19 +86,19 @@ export function DoctorProfileContent({ doctor, reviewsData }: DoctorProfileConte
           label: type,
           icon: getExpertiseIcon(type),
         }))
-      : DEFAULT_EXPERTISE_TAGS;
-  const photoUrl = doctor.photo_url || '/images/doctor_thabo.jpg';
+      : [];
+  const photoUrl = doctor.photo_url;
 
   // Dynamic credentials (Experience, HPCSA, Board Certification)
   const experienceText =
     typeof doctor.experience_years === 'number'
       ? `${doctor.experience_years}+ Years Experience`
-      : (doctor.experience_years || '12+ Years Experience');
-  const isHpcsaVerified = (doctor.verification_status ?? 'verified') === 'verified';
+      : (doctor.experience_years ? `${doctor.experience_years} Years Experience` : 'Experience not provided');
+  const isHpcsaVerified = doctor.verification_status === 'verified';
   const hpcsaText = isHpcsaVerified ? 'HPCSA Verified' : 'HPCSA Registered';
   const hpcsaIcon = isHpcsaVerified ? 'shield-check-linear' : 'shield-warning-linear';
-  const showBoardCertified = doctor.is_board_certified !== false;
-  const boardTitle = doctor.board_certification_title || 'Board Certified';
+  const showBoardCertified = doctor.is_board_certified === true;
+  const boardTitle = doctor.board_certification_title || 'Board certification not provided';
 
   const credentialsList: Array<{ icon: string; text: string }> = [
     { icon: 'calendar-linear', text: experienceText },
@@ -168,7 +128,7 @@ export function DoctorProfileContent({ doctor, reviewsData }: DoctorProfileConte
           }),
           comment: r.comment || 'Thorough and professional consultation.',
         }))
-      : DEFAULT_REVIEWS;
+      : [];
 
   return (
     <div>
@@ -177,17 +137,13 @@ export function DoctorProfileContent({ doctor, reviewsData }: DoctorProfileConte
         <div className="doctor-summary-top">
           {/* Portrait with "Available today" Badge */}
           <div className="doctor-portrait-container">
-            <img
-              src={photoUrl}
-              alt={displayName}
-              className="doctor-portrait-img"
-              onError={(e) => {
-                const target = e.currentTarget;
-                if (!target.src.includes('doctor_thabo.jpg')) {
-                  target.src = '/images/doctor_thabo.jpg';
-                }
-              }}
-            />
+            {photoUrl ? (
+              <img src={photoUrl} alt={displayName} className="doctor-portrait-img" />
+            ) : (
+              <div className="doctor-portrait-img doctor-portrait-initials" aria-label={`${displayName} initials`}>
+                {displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}
+              </div>
+            )}
             <div className="doctor-available-badge">
               <span className="doctor-available-dot" />
               <span>Available today</span>
@@ -209,11 +165,15 @@ export function DoctorProfileContent({ doctor, reviewsData }: DoctorProfileConte
             {specialty && <p className="doctor-specialty-title">{specialty}</p>}
 
             {/* Rating Row */}
-            <div className="doctor-rating-row">
-              <SolarIcon name="star-bold" size={16} color="var(--color-gold-base)" />
-              <span className="doctor-rating-num">{ratingAvg.toFixed(1)}</span>
-              <span className="doctor-rating-count">({reviewsCount} verified reviews)</span>
-            </div>
+            {reviewsCount > 0 ? (
+              <div className="doctor-rating-row">
+                <SolarIcon name="star-bold" size={16} color="var(--color-gold-base)" />
+                <span className="doctor-rating-num">{ratingAvg.toFixed(1)}</span>
+                <span className="doctor-rating-count">({reviewsCount} verified reviews)</span>
+              </div>
+            ) : (
+              <p className="doctor-rating-count">No reviews yet</p>
+            )}
 
             {/* Credential Items & Medical Aid Tag (4th option on next line) */}
             <div className="doctor-credentials-container">

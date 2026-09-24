@@ -38,6 +38,7 @@ export class DoctorsController {
     return this.doctorsService.getDoctorsDirectory(query);
   }
 
+
   @Public()
   @Post('sync')
   triggerSync() {
@@ -193,7 +194,7 @@ export class DoctorsController {
   // ONBOARDING & PUBLIC PROFILE / AVAILABILITY
   // ==========================================
 
-  @Public()
+  @UseGuards(JwtAuthGuard)
   @Post('onboard')
   async onboardDoctor(
     @Body() dto: OnboardDoctorDto,
@@ -234,4 +235,3 @@ export class DoctorsController {
     return this.doctorsService.getDoctorByIdOrSlug(idOrSlug);
   }
 }
-

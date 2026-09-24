@@ -4,6 +4,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   HeadBucketCommand,
+  CreateBucketCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { envConfig } from '../../config/env.config';
@@ -24,6 +25,7 @@ const ALLOWED_MIME_TYPES: AllowedMimeType[] = [
 @Injectable()
 export class StorageService {
   private readonly s3Client: S3Client;
+  private readonly publicS3Client: S3Client;
   private readonly logger = new Logger(StorageService.name);
 
   constructor() {
@@ -36,6 +38,41 @@ export class StorageService {
         secretAccessKey: envConfig.STORAGE_SECRET_KEY,
       },
     });
+    this.publicS3Client =
+      envConfig.STORAGE_PUBLIC_ENDPOINT && envConfig.STORAGE_PUBLIC_ENDPOINT !== envConfig.STORAGE_ENDPOINT
+        ? new S3Client({
+            region: envConfig.STORAGE_REGION,
+            endpoint: envConfig.STORAGE_PUBLIC_ENDPOINT,
+            forcePathStyle: envConfig.STORAGE_FORCE_PATH_STYLE,
+            credentials: {
+              accessKeyId: envConfig.STORAGE_ACCESS_KEY,
+              secretAccessKey: envConfig.STORAGE_SECRET_KEY,
+            },
+          })
+        : this.s3Client;
+  }
+
+  private async ensureBucket(bucket: string): Promise<void> {
+    try {
+      await this.s3Client.send(new HeadBucketCommand({ Bucket: bucket }));
+      return;
+    } catch (error: any) {
+      const statusCode = error?.$metadata?.httpStatusCode;
+      const errorCode = error?.Code || error?.code || error?.name;
+      if (statusCode !== 404 && errorCode !== 'NoSuchBucket' && errorCode !== 'NotFound') {
+        throw error;
+      }
+    }
+
+    try {
+      await this.s3Client.send(new CreateBucketCommand({ Bucket: bucket }));
+      this.logger.log(`Created storage bucket "${bucket}"`);
+    } catch (error: any) {
+      const errorCode = error?.Code || error?.code || error?.name;
+      if (errorCode !== 'BucketAlreadyOwnedByYou' && errorCode !== 'BucketAlreadyExists') {
+        throw error;
+      }
+    }
   }
 
   /**
@@ -47,6 +84,7 @@ export class StorageService {
     contentType: string,
     expiresInSeconds = 900, // 15 minutes
   ): Promise<{ uploadUrl: string; key: string; expiresIn: number }> {
+    await this.ensureBucket(bucket);
     if (!ALLOWED_MIME_TYPES.includes(contentType as AllowedMimeType)) {
       throw new BadRequestException(
         `Unsupported MIME type: ${contentType}. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`,
@@ -59,7 +97,7 @@ export class StorageService {
       ContentType: contentType,
     });
 
-    const uploadUrl = await getSignedUrl(this.s3Client, command, {
+    const uploadUrl = await getSignedUrl(this.publicS3Client, command, {
       expiresIn: expiresInSeconds,
     });
 
@@ -103,6 +141,7 @@ export class StorageService {
     contentType = 'application/pdf',
   ): Promise<{ key: string; location: string }> {
     try {
+      await this.ensureBucket(bucket);
       const command = new PutObjectCommand({
         Bucket: bucket,
         Key: key,
@@ -121,6 +160,37 @@ export class StorageService {
         location: `${envConfig.STORAGE_ENDPOINT}/${bucket}/${key}`,
       };
     }
+  }
+
+  async uploadDoctorDocument(
+    userId: string,
+    filename: string,
+    buffer: Buffer,
+    contentType: string,
+  ): Promise<{ key: string; location: string }> {
+    if (!ALLOWED_MIME_TYPES.includes(contentType as AllowedMimeType)) {
+      throw new BadRequestException(
+        `Unsupported MIME type: ${contentType}. Allowed: ${ALLOWED_MIME_TYPES.join(', ')}`,
+      );
+    }
+
+    const sanitizedName = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const key = `doctor-records/${userId}/other/${Date.now()}-${sanitizedName}`;
+    const command = new PutObjectCommand({
+      Bucket: envConfig.STORAGE_BUCKET_DOCUMENTS,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    });
+
+    await this.ensureBucket(envConfig.STORAGE_BUCKET_DOCUMENTS);
+    await this.s3Client.send(command);
+
+    const publicEndpoint = envConfig.STORAGE_PUBLIC_ENDPOINT || envConfig.STORAGE_ENDPOINT;
+    return {
+      key,
+      location: `${publicEndpoint}/${envConfig.STORAGE_BUCKET_DOCUMENTS}/${key}`,
+    };
   }
 
   /**

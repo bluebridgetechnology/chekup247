@@ -57,84 +57,17 @@ interface AttachedReport {
   type: string;
 }
 
-const FALLBACK_DOCTORS: Record<string, DoctorDetail> = {
-  'dr-thabo-molefe': {
-    id: 'doc-1',
-    slug: 'dr-thabo-molefe',
-    fullName: 'Dr. Thabo Molefe',
-    specialty: 'General Practitioner & Family Health',
-    hpcsaNumber: 'MP 0689432',
-    ratePerHour: 850.0,
-    photoUrl: '/images/doctor_thabo.jpg',
-    facilityName: 'Netcare Sunninghill Hospital Suites',
-    facilityAddress: 'Cnr Witkoppen & Nanyuki Rd, Sunninghill, Sandton',
-  },
-  'doc-1': {
-    id: 'doc-1',
-    slug: 'dr-thabo-molefe',
-    fullName: 'Dr. Thabo Molefe',
-    specialty: 'General Practitioner & Family Health',
-    hpcsaNumber: 'MP 0689432',
-    ratePerHour: 850.0,
-    photoUrl: '/images/doctor_thabo.jpg',
-    facilityName: 'Netcare Sunninghill Hospital Suites',
-    facilityAddress: 'Cnr Witkoppen & Nanyuki Rd, Sunninghill, Sandton',
-  },
-  'dr-sarah-van-der-merwe': {
-    id: 'doc-2',
-    slug: 'dr-sarah-van-der-merwe',
-    fullName: 'Dr. Sarah van der Merwe',
-    specialty: 'Women’s Health & Preventive Medicine',
-    hpcsaNumber: 'MP 0741890',
-    ratePerHour: 900.0,
-    photoUrl: '/images/doctor_sarah.jpg',
-    facilityName: 'Mediclinic Cape Town Medical Suites',
-    facilityAddress: '21 Hof Street, Oranjezicht, Cape Town',
-  },
-  'doc-2': {
-    id: 'doc-2',
-    slug: 'dr-sarah-van-der-merwe',
-    fullName: 'Dr. Sarah van der Merwe',
-    specialty: 'Women’s Health & Preventive Medicine',
-    hpcsaNumber: 'MP 0741890',
-    ratePerHour: 900.0,
-    photoUrl: '/images/doctor_sarah.jpg',
-    facilityName: 'Mediclinic Cape Town Medical Suites',
-    facilityAddress: '21 Hof Street, Oranjezicht, Cape Town',
-  },
-  'dr-priya-naidoo': {
-    id: 'doc-3',
-    slug: 'dr-priya-naidoo',
-    fullName: 'Dr. Priya Naidoo',
-    specialty: 'Chronic Care & Primary Diabetology',
-    hpcsaNumber: 'MP 0812304',
-    ratePerHour: 780.0,
-    photoUrl: '/images/doctor_kevin.jpg',
-    facilityName: 'Life Entabeni Hospital Consulting Rooms',
-    facilityAddress: '148 Mazisi Kunene Rd, Glenwood, Durban',
-  },
-  'doc-3': {
-    id: 'doc-3',
-    slug: 'dr-priya-naidoo',
-    fullName: 'Dr. Priya Naidoo',
-    specialty: 'Chronic Care & Primary Diabetology',
-    hpcsaNumber: 'MP 0812304',
-    ratePerHour: 780.0,
-    photoUrl: '/images/doctor_kevin.jpg',
-    facilityName: 'Life Entabeni Hospital Consulting Rooms',
-    facilityAddress: '148 Mazisi Kunene Rd, Glenwood, Durban',
-  },
-};
-
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, token, isAuthenticated, isLoading: isAuthLoading, login, register, verifyEmail } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const doctorIdParam = searchParams.get('doctor') || searchParams.get('doctorId') || 'dr-thabo-molefe';
+  const doctorIdParam = searchParams.get('doctor') || searchParams.get('doctorId') || '';
   const slotIdParam = searchParams.get('slot') || searchParams.get('slotId');
   const dateParam = searchParams.get('date');
+  const startParam = searchParams.get('start');
+  const endParam = searchParams.get('end');
   const typeParam = (searchParams.get('type') || 'video') as 'video' | 'in_clinic' | 'audio';
 
   const [doctor, setDoctor] = useState<DoctorDetail | null>(null);
@@ -165,7 +98,8 @@ function CheckoutContent() {
   const [authModalLoading, setAuthModalLoading] = useState<boolean>(false);
   const [authModalError, setAuthModalError] = useState<string | null>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+  const rawApiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const API_BASE = rawApiBase.endsWith('/api/v1') ? rawApiBase : `${rawApiBase.replace(/\/+$/, '')}/api/v1`;
 
   // Restore draft from sessionStorage on mount so patient selections are never lost
   useEffect(() => {
@@ -238,29 +172,7 @@ function CheckoutContent() {
           }
 
           if (!loadedDoc) {
-            const fallbackKey = Object.keys(FALLBACK_DOCTORS).find(
-              (k) => k.toLowerCase() === doctorIdParam.toLowerCase(),
-            );
-            if (fallbackKey) {
-              loadedDoc = FALLBACK_DOCTORS[fallbackKey];
-            } else {
-              const cleanName = doctorIdParam
-                .replace(/^dr-?/i, '')
-                .split('-')
-                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-                .join(' ');
-              loadedDoc = {
-                id: doctorIdParam,
-                fullName: `Dr. ${cleanName || 'Thabo Molefe'}`,
-                specialty: 'General Practitioner & Family Health',
-                hpcsaNumber: 'MP 0689432',
-                ratePerHour: 850.0,
-                photoUrl: '/images/doctor_thabo.jpg',
-                facilityName: 'Netcare Sunninghill Hospital Suites',
-                facilityAddress: 'Cnr Witkoppen & Nanyuki Rd, Sunninghill, Sandton',
-                slug: doctorIdParam,
-              };
-            }
+            throw new Error('Doctor profile could not be loaded. Please return to the directory and try again.');
           }
 
           if (isMounted) {
@@ -288,26 +200,21 @@ function CheckoutContent() {
           }
         }
 
-        if (!resolvedSlot && dateParam) {
-          const baseDate = new Date(`${dateParam}T10:00:00`);
+        if (!resolvedSlot && startParam) {
+          const baseDate = new Date(startParam);
+          const endDate = endParam ? new Date(endParam) : new Date(baseDate.getTime() + 45 * 60 * 1000);
+          if (Number.isNaN(baseDate.getTime()) || Number.isNaN(endDate.getTime())) {
+            throw new Error('The selected appointment time is invalid. Please return to the doctor profile and choose another slot.');
+          }
           resolvedSlot = {
-            id: slotIdParam || `slot-${dateParam}-10:00`,
+            id: slotIdParam || `slot-${baseDate.toISOString()}`,
             startTime: baseDate.toISOString(),
-            endTime: new Date(baseDate.getTime() + 45 * 60 * 1000).toISOString(),
+            endTime: endDate.toISOString(),
           };
         }
 
         if (!resolvedSlot) {
-          const now = new Date();
-          const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-          tomorrow.setHours(10, 0, 0, 0);
-          const endTomorrow = new Date(tomorrow.getTime() + 45 * 60 * 1000);
-
-          resolvedSlot = {
-            id: slotIdParam || 'slot-default-preview',
-            startTime: tomorrow.toISOString(),
-            endTime: endTomorrow.toISOString(),
-          };
+          throw new Error('No published appointment slot was selected. Please return to the doctor profile.');
         }
 
         if (isMounted) {
@@ -459,6 +366,10 @@ function CheckoutContent() {
       setShowAuthModal(true);
       return;
     }
+    if (!doctor?.id || !slot?.id) {
+      setErrorMessage('Doctor and appointment details could not be loaded. Please return to the doctor profile and choose an available slot.');
+      return;
+    }
 
     setIsProcessing(true);
     setProcessingStatus('Uploading medical reports...');
@@ -477,10 +388,11 @@ function CheckoutContent() {
           Authorization: `Bearer ${activeToken}`,
         },
         body: JSON.stringify({
-          slotId: slot?.id || slotIdParam || 'slot-default-preview',
-          doctorId: doctor?.id || doctorIdParam,
+          slotId: slot.id,
+          doctorId: doctor.id,
           notes: notes.trim(),
           reasonCategory: 'consultation',
+          consultationMode: typeParam,
           attachments: uploadedAttachments,
         }),
       });
@@ -534,9 +446,8 @@ function CheckoutContent() {
         toastSuccess('Redirecting to payment', 'Complete your payment to confirm the booking.');
         window.location.href = payData.authorization_url;
       } else {
-        toastSuccess('Booking confirmed', 'Your consultation is scheduled.');
-        router.push(
-          `/bookings/success?bookingId=${createdBookingId}&reference=${payData.reference}`,
+        throw new Error(
+          'Paystack did not provide a payment page. Your booking was not confirmed. Please try again.',
         );
       }
     } catch (err: any) {
@@ -2327,7 +2238,7 @@ function CheckoutContent() {
             <div style={{ marginTop: '18px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
               <span>Want to open the full sign in page instead? </span>
               <Link
-                href={`/login?redirect=${encodeURIComponent(`/bookings/checkout?doctor=${doctorIdParam}&slot=${slotIdParam || 'slot'}&date=${dateParam || ''}&type=${typeParam}`)}`}
+                href={`/login?redirect=${encodeURIComponent(`/bookings/checkout?doctor=${encodeURIComponent(doctorIdParam)}&slot=${encodeURIComponent(slotIdParam || 'slot')}&date=${encodeURIComponent(dateParam || '')}&start=${encodeURIComponent(startParam || '')}&end=${encodeURIComponent(endParam || '')}&type=${encodeURIComponent(typeParam)}`)}`}
                 style={{ color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 700, textDecoration: 'underline' }}
               >
                 Go to Sign In

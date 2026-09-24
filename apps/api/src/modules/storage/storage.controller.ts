@@ -6,9 +6,12 @@ import {
   Param,
   Body,
   UseGuards,
+  UseInterceptors,
+  UploadedFile,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StorageService } from './storage.service';
@@ -16,11 +19,23 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/auth.decorators';
 import { envConfig } from '../../config/env.config';
 import { PatientDocument, PatientDocumentCategory } from '../../database/patient/entities';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class GetPresignedUrlDto {
+  @IsNotEmpty()
+  @IsString()
   filename: string;
+
+  @IsNotEmpty()
+  @IsString()
   contentType: string;
+
+  @IsOptional()
+  @IsIn(['lab_report', 'prescription', 'id_document', 'other'])
   category?: 'lab_report' | 'prescription' | 'id_document' | 'other';
+
+  @IsOptional()
+  @IsIn(['patient', 'doctor'])
   scope?: 'patient' | 'doctor';
 }
 
@@ -68,12 +83,43 @@ export class StorageController {
       dto.contentType,
     );
 
-    const publicUrl = `${envConfig.STORAGE_ENDPOINT}/${envConfig.STORAGE_BUCKET_DOCUMENTS}/${key}`;
+    const publicEndpoint = envConfig.STORAGE_PUBLIC_ENDPOINT || envConfig.STORAGE_ENDPOINT;
+    const publicUrl = `${publicEndpoint}/${envConfig.STORAGE_BUCKET_DOCUMENTS}/${key}`;
 
     return {
       ...presigned,
       fileUrl: publicUrl,
       bucket: envConfig.STORAGE_BUCKET_DOCUMENTS,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('doctor-upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  async uploadDoctorDocument(
+    @CurrentUser('id') userId: string,
+    @UploadedFile() file?: { originalname: string; mimetype: string; buffer: Buffer },
+  ) {
+    if (!file) {
+      throw new BadRequestException('A document file is required');
+    }
+
+
+    const uploaded = await this.storageService.uploadDoctorDocument(
+      userId,
+      file.originalname,
+      file.buffer,
+      file.mimetype,
+    );
+
+    return {
+      fileUrl: uploaded.location,
+      key: uploaded.key,
+      filename: file.originalname,
     };
   }
 

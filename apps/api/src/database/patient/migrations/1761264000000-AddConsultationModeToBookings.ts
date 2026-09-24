@@ -1,0 +1,19 @@
+import { MigrationInterface, QueryRunner } from 'typeorm';
+
+export class AddConsultationModeToBookings1761264000000 implements MigrationInterface {
+  name = 'AddConsultationModeToBookings1761264000000';
+
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      ALTER TABLE "bookings"
+      ADD COLUMN IF NOT EXISTS "consultation_mode" varchar(20)
+    `);
+  }
+
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      ALTER TABLE "bookings"
+      DROP COLUMN IF EXISTS "consultation_mode"
+    `);
+  }
+}

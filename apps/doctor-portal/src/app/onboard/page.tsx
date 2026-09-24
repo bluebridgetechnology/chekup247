@@ -20,6 +20,18 @@ const SPECIALTIES = [
   'Dietician',
 ];
 
+const PROVINCES = [
+  'Eastern Cape',
+  'Free State',
+  'Gauteng',
+  'KwaZulu-Natal',
+  'Limpopo',
+  'Mpumalanga',
+  'North West',
+  'Northern Cape',
+  'Western Cape',
+];
+
 interface DocUpload {
   filename: string;
   label: string;
@@ -33,7 +45,10 @@ export default function DoctorOnboardPage() {
   const hpcsaRef = useRef<HTMLInputElement>(null);
 
   const [hpcsaNumber, setHpcsaNumber] = useState(profile?.hpcsaNumber ?? '');
+  const [identityType, setIdentityType] = useState<'id' | 'passport'>('id');
+  const [identityNumber, setIdentityNumber] = useState('');
   const [specialty, setSpecialty] = useState(profile?.specialty ?? SPECIALTIES[0]);
+  const [province, setProvince] = useState('');
   const [ratePerHour, setRatePerHour] = useState(String(profile?.ratePerHour ?? ''));
   const [bio, setBio] = useState('');
   const [offersInClinic, setOffersInClinic] = useState(false);
@@ -42,7 +57,7 @@ export default function DoctorOnboardPage() {
   const [termsAgreed, setTermsAgreed] = useState(false);
 
   const [docs, setDocs] = useState<DocUpload[]>([
-    { filename: '', label: 'National ID / Passport', hint: 'PDF, JPG, or PNG â€” verified against Home Affairs', fileUrl: '' },
+    { filename: '', label: 'National ID / Passport', hint: 'PDF, JPG, or PNG - verified against Home Affairs', fileUrl: '' },
     { filename: '', label: 'HPCSA Annual Registration Certificate', hint: 'Current practising certificate (PDF preferred)', fileUrl: '' },
     { filename: '', label: 'Indemnity Insurance Certificate', hint: 'Valid MPS / MDD medical malpractice cover', fileUrl: '' },
   ]);
@@ -54,32 +69,29 @@ export default function DoctorOnboardPage() {
     setUploadingKey(index);
     setError(null);
     try {
-      const presignedRes = await fetch(`http://localhost:4000/api/v1/storage/presigned-upload`, {
+      const apiBase =
+        process.env.NEXT_PUBLIC_API_URL ||
+        (typeof window !== 'undefined' && window.location.hostname.endsWith('chekup247.com')
+          ? 'https://api.chekup247.com/api/v1'
+          : 'http://localhost:4000/api/v1');
+      const formData = new FormData();
+      formData.append('file', file);
+      const uploadRes = await fetch(`${apiBase}/storage/doctor-upload`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('chekup_doctor_token') || ''}`,
         },
-        body: JSON.stringify({
-          filename: file.name,
-          contentType: file.type,
-          category: 'other',
-          scope: 'doctor',
-        }),
+        body: formData,
         credentials: 'include',
       });
-      const presigned = await presignedRes.json();
-      if (!presignedRes.ok) throw new Error(presigned.message || 'Failed to prepare upload');
-
-      const putRes = await fetch(presigned.uploadUrl, {
-        method: 'PUT',
-        headers: { 'Content-Type': file.type },
-        body: file,
-      });
-      if (!putRes.ok) throw new Error('Upload failed');
+      const uploaded = await uploadRes.json();
+      if (!uploadRes.ok) {
+        const message = Array.isArray(uploaded.message) ? uploaded.message.join(', ') : uploaded.message;
+        throw new Error(message || `Upload failed (${uploadRes.status}). Please try again.`);
+      }
 
       setDocs((prev) =>
-        prev.map((d, i) => (i === index ? { ...d, filename: file.name, fileUrl: presigned.fileUrl } : d)),
+        prev.map((d, i) => (i === index ? { ...d, filename: uploaded.filename, fileUrl: uploaded.fileUrl } : d)),
       );
       toastSuccess('Upload complete', `${file.name} staged for verification.`);
     } catch (err: any) {
@@ -95,6 +107,14 @@ export default function DoctorOnboardPage() {
 
     if (!hpcsaNumber.trim()) {
       setError('HPCSA registration number is required');
+      return;
+    }
+    if (identityType === 'id' && !/^\d{13}$/.test(identityNumber.trim())) {
+      setError('South African ID number must be exactly 13 digits');
+      return;
+    }
+    if (identityType === 'passport' && !/^[A-Za-z0-9][A-Za-z0-9 -]{5,19}$/.test(identityNumber.trim())) {
+      setError('Passport number must be 6 to 20 letters or numbers');
       return;
     }
     if (docs.some((d) => !d.fileUrl)) {
@@ -119,7 +139,10 @@ export default function DoctorOnboardPage() {
       await onboard({
         ...(doctor ? {} : {}),
         hpcsa_number: hpcsaNumber.trim().toUpperCase(),
+        document_type: identityType,
+        id_number: identityNumber.trim().toUpperCase(),
         specialty,
+        province: province || undefined,
         rate_per_hour: Number(ratePerHour),
         bio: bio.trim(),
         documents_url: docs.map((d) => d.fileUrl),
@@ -137,182 +160,212 @@ export default function DoctorOnboardPage() {
     }
   };
 
+  const uploadedCount = docs.filter((doc) => doc.fileUrl).length;
+
   return (
-    <div className="portal-page auth-split-layout" style={{ minHeight: '100vh' }}>
-      <div className="auth-form-pane" style={{ justifyContent: 'center' }}>
-        <div className="auth-form-wrapper" style={{ maxWidth: '560px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-            <div
-              style={{
-                width: '34px', height: '34px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                backgroundColor: 'var(--color-gold-pale, #F0E5D3)', border: '1px solid rgba(223, 171, 98, 0.3)',
-                color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 800, fontSize: '0.9rem',
-              }}
-            >
-              âœ“
+    <div className="doctor-onboard-page">
+      <div className="doctor-onboard-hero">
+        <div>
+          <div className="doctor-onboard-breadcrumb">
+            <span className="doctor-onboard-breadcrumb-muted">Practice Portal</span>
+            <SolarIcon name="alt-arrow-right-linear" size={14} />
+            <span>Professional onboarding</span>
+          </div>
+          <h1>Build your verified practice profile.</h1>
+          <p>
+            Share the details patients need to choose you with confidence. Your application is reviewed by our clinical team before your profile goes live.
+          </p>
+        </div>
+        <div className="doctor-onboard-hero-meta">
+          <span className="doctor-onboard-hero-icon"><SolarIcon name="shield-check-linear" size={22} /></span>
+          <div>
+            <strong>Private by design</strong>
+            <span>Your documents are only used for verification.</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="doctor-onboard-layout">
+        <aside className="doctor-onboard-aside">
+          <div className="doctor-onboard-account">
+            <div className="doctor-onboard-avatar">
+              {(doctor?.fullName || 'Doctor')
+                .split(/\s+/)
+                .filter(Boolean)
+                .slice(0, 2)
+                .map((part) => part[0])
+                .join('')
+                .toUpperCase()}
             </div>
             <div>
-              <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
-                Complete Your Professional Profile
-              </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                {doctor?.email || 'Finishing account setup'}
-              </div>
+              <strong>{doctor?.fullName || 'Doctor account'}</strong>
+              <span>{doctor?.email || 'Finish setting up your account'}</span>
             </div>
           </div>
 
+          <div className="doctor-onboard-progress">
+            <div className="doctor-onboard-progress-top">
+              <span>Application progress</span>
+              <strong>{uploadedCount === docs.length ? 'Ready to review' : 'In progress'}</strong>
+            </div>
+            <div className="doctor-onboard-progress-bar">
+              <span style={{ width: `${Math.max(12, (uploadedCount / docs.length) * 100)}%` }} />
+            </div>
+          </div>
+
+          <ol className="doctor-onboard-steps">
+            <li className="is-active">
+              <span>1</span>
+              <div><strong>Professional details</strong><small>Credentials and practice information</small></div>
+            </li>
+            <li className="is-active">
+              <span>2</span>
+              <div><strong>Identity details</strong><small>ID or passport information</small></div>
+            </li>
+            <li className={uploadedCount === docs.length ? 'is-active' : ''}>
+              <span>3</span>
+              <div><strong>Verification documents</strong><small>{uploadedCount} of {docs.length} uploaded</small></div>
+            </li>
+            <li>
+              <span>4</span>
+              <div><strong>Clinical review</strong><small>Usually completed within 2 business days</small></div>
+            </li>
+          </ol>
+
+          <div className="doctor-onboard-note">
+            <SolarIcon name="info-circle-linear" size={18} />
+            <p>You can return to this page while your application is in progress. Your profile will only appear in the directory after approval.</p>
+          </div>
+        </aside>
+
+        <section className="doctor-onboard-form-shell">
+          <div className="doctor-onboard-form-heading">
+            <div>
+              <span className="doctor-onboard-section-kicker">Step 1 of 4</span>
+              <h2>Professional details</h2>
+              <p>Tell us about your clinical practice and how patients can work with you.</p>
+            </div>
+            <span className="doctor-onboard-save-state"><SolarIcon name="lock-keyhole-linear" size={15} /> Saved securely</span>
+          </div>
+
           {error && (
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', borderRadius: '12px',
-                backgroundColor: 'var(--color-danger-bg, #fef2f2)', border: '1px solid #fecaca',
-                color: 'var(--color-danger, #ef4444)', fontSize: '0.875rem', marginBottom: '20px', fontWeight: 600,
-              }}
-            >
-              <SolarIcon name="danger-circle-linear" size={18} color="var(--color-danger, #ef4444)" />
+            <div className="doctor-onboard-error" role="alert">
+              <SolarIcon name="danger-circle-linear" size={19} />
               <span>{error}</span>
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
-            <div className="portal-input-group" style={{ marginBottom: '18px' }}>
-              <label className="portal-label">HPCSA Registration Number</label>
-              <input
-                type="text"
-                required
-                value={hpcsaNumber}
-                onChange={(e) => setHpcsaNumber(e.target.value)}
-                placeholder="e.g. MP 0123456"
-                className="portal-input"
-                style={{ textTransform: 'uppercase' }}
-              />
+            <div className="doctor-onboard-section">
+              <div className="doctor-onboard-section-title">
+                <span className="doctor-onboard-section-number">01</span>
+                <div><h3>Practice identity</h3><p>Your professional registration and location.</p></div>
+              </div>
+              <div className="doctor-onboard-field-grid">
+                <div className="portal-input-group">
+                  <label className="portal-label" htmlFor="hpcsa-number">HPCSA registration number <span>*</span></label>
+                  <input id="hpcsa-number" type="text" required value={hpcsaNumber} onChange={(e) => setHpcsaNumber(e.target.value)} placeholder="MP 0123456" className="portal-input" style={{ textTransform: 'uppercase' }} />
+                </div>
+                <div className="portal-input-group">
+                  <label className="portal-label" htmlFor="specialty">Primary specialty <span>*</span></label>
+                  <select id="specialty" value={specialty} onChange={(e) => setSpecialty(e.target.value)} className="portal-input portal-select">
+                    {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div className="portal-input-group">
+                  <label className="portal-label" htmlFor="province">Province <em>Optional</em></label>
+                  <select id="province" value={province} onChange={(e) => setProvince(e.target.value)} className="portal-input portal-select">
+                    <option value="">Select your province</option>
+                    {PROVINCES.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </div>
+                <div className="portal-input-group">
+                  <label className="portal-label" htmlFor="rate">Hourly consultation rate <span>*</span></label>
+                  <div className="doctor-onboard-input-prefix"><span>ZAR</span><input id="rate" type="number" min="0" step="50" required value={ratePerHour} onChange={(e) => setRatePerHour(e.target.value)} placeholder="850" className="portal-input" /></div>
+                </div>
+              </div>
             </div>
 
-            <div className="portal-input-group" style={{ marginBottom: '18px' }}>
-              <label className="portal-label">Primary Specialty</label>
-              <select
-                value={specialty}
-                onChange={(e) => setSpecialty(e.target.value)}
-                className="portal-input portal-select"
-              >
-                {SPECIALTIES.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
+            <div className="doctor-onboard-section">
+              <div className="doctor-onboard-section-title">
+                <span className="doctor-onboard-section-number">02</span>
+                <div><h3>Identity details</h3><p>Use the same identity document you will upload below.</p></div>
+              </div>
+              <div className="doctor-onboard-tabs" role="tablist" aria-label="Identity document type">
+                <button type="button" className={identityType === 'id' ? 'is-selected' : ''} onClick={() => setIdentityType('id')} role="tab" aria-selected={identityType === 'id'}>
+                  <SolarIcon name="card-2-linear" size={18} />
+                  <span><strong>South African ID</strong><small>13-digit ID number</small></span>
+                </button>
+                <button type="button" className={identityType === 'passport' ? 'is-selected' : ''} onClick={() => setIdentityType('passport')} role="tab" aria-selected={identityType === 'passport'}>
+                  <SolarIcon name="document-text-linear" size={18} />
+                  <span><strong>Passport</strong><small>International passport</small></span>
+                </button>
+              </div>
+              <div className="portal-input-group doctor-onboard-identity-field">
+                <label className="portal-label" htmlFor="identity-number">{identityType === 'id' ? 'South African ID number' : 'Passport number'} <span>*</span></label>
+                <input id="identity-number" type="text" required value={identityNumber} onChange={(e) => setIdentityNumber(identityType === 'id' ? e.target.value.replace(/\D/g, '').slice(0, 13) : e.target.value.toUpperCase().slice(0, 20))} inputMode={identityType === 'id' ? 'numeric' : 'text'} maxLength={identityType === 'id' ? 13 : 20} placeholder={identityType === 'id' ? '8001015009087' : 'A1234567'} className="portal-input" />
+                <span className="doctor-onboard-field-hint">{identityType === 'id' ? 'Enter all 13 digits without spaces.' : 'Use the number shown on your valid passport.'}</span>
+              </div>
             </div>
 
-            <div className="portal-input-group" style={{ marginBottom: '18px' }}>
-              <label className="portal-label">Verification Documents</label>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="doctor-onboard-section">
+              <div className="doctor-onboard-section-title">
+                <span className="doctor-onboard-section-number">03</span>
+                <div><h3>Verification documents</h3><p>Clear, current files help us review your application faster.</p></div>
+              </div>
+              <div className="doctor-onboard-docs">
                 {docs.map((doc, i) => (
-                  <div key={i} style={{ border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))', borderRadius: '14px', padding: '14px', backgroundColor: 'var(--color-cream-surface, #FDFBF7)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--color-chocolate-base, #2A170F)' }}>{doc.label}</span>
-                      {doc.fileUrl ? (
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', padding: '3px 10px', borderRadius: '999px', backgroundColor: 'rgba(41, 153, 111, 0.1)', color: '#29996F', fontSize: '0.72rem', fontWeight: 700 }}>
-                          <SolarIcon name="check-circle-linear" size={13} color="#29996F" /> Uploaded
-                        </span>
-                      ) : null}
-                    </div>
-                    <input
-                      ref={i === 1 ? hpcsaRef : undefined}
-                      type="file"
-                      accept=".pdf,.jpg,.jpeg,.png"
-                      onChange={(e) => e.target.files?.[0] && uploadFile(i, e.target.files[0])}
-                      className="portal-input"
-                      style={{ fontSize: '0.8rem', padding: '8px 12px' }}
-                    />
-                    <div style={{ fontSize: '0.74rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '6px' }}>
-                      {doc.hint}
-                    </div>
+                  <div className={`doctor-onboard-doc ${doc.fileUrl ? 'is-uploaded' : ''}`} key={doc.label}>
+                    <div className="doctor-onboard-doc-icon"><SolarIcon name={doc.fileUrl ? 'check-circle-linear' : 'document-add-linear'} size={21} /></div>
+                    <div className="doctor-onboard-doc-copy"><strong>{doc.label}</strong><span>{doc.hint}</span>{doc.fileUrl && <small>{doc.filename}</small>}</div>
+                    <label className="doctor-onboard-upload">
+                      <input ref={i === 1 ? hpcsaRef : undefined} type="file" accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => e.target.files?.[0] && uploadFile(i, e.target.files[0])} />
+                      <span>{uploadingKey === i ? 'Uploading...' : doc.fileUrl ? 'Replace' : 'Choose file'}</span>
+                    </label>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="portal-input-group" style={{ marginBottom: '18px' }}>
-              <label className="portal-label">Hourly Consultation Rate (ZAR)</label>
-              <input
-                type="number"
-                min="0"
-                step="50"
-                required
-                value={ratePerHour}
-                onChange={(e) => setRatePerHour(e.target.value)}
-                placeholder="e.g. 850"
-                className="portal-input"
-              />
-            </div>
-
-            <div className="portal-input-group" style={{ marginBottom: '18px' }}>
-              <label className="portal-label">Clinical Biography</label>
-              <textarea
-                required
-                rows={4}
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                placeholder="Describe your qualifications, sub-specialties, and clinical philosophyâ€¦"
-                className="portal-input portal-textarea"
-                style={{ resize: 'vertical' }}
-              />
-            </div>
-
-            <div
-              style={{
-                display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px', cursor: 'pointer',
-                padding: '14px', borderRadius: '14px', border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-                backgroundColor: 'var(--color-cream-surface, #FDFBF7)',
-              }}
-              onClick={() => setOffersInClinic((v) => !v)}
-            >
-              <input type="checkbox" checked={offersInClinic} readOnly style={{ accentColor: 'var(--color-gold-base, #DFAB62)', width: '18px', height: '18px', cursor: 'pointer' }} />
-              <div>
-                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--color-chocolate-base, #2A170F)' }}>Offer In-Clinic Visitn</div>
-                <div style={{ fontSize: '0.74rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>Optional â€” shown to patients who prefer physical consultations.</div>
+            <div className="doctor-onboard-section">
+              <div className="doctor-onboard-section-title">
+                <span className="doctor-onboard-section-number">04</span>
+                <div><h3>How you practise</h3><p>Help patients understand your approach and availability.</p></div>
               </div>
+              <div className="portal-input-group">
+                <label className="portal-label" htmlFor="bio">Clinical biography <span>*</span></label>
+                <textarea id="bio" required rows={5} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="Share your qualifications, areas of focus, and what patients can expect from a consultation." className="portal-input portal-textarea" style={{ resize: 'vertical' }} />
+                <span className="doctor-onboard-field-hint">At least 20 characters. This will be reviewed before publication.</span>
+              </div>
+              <button type="button" className={`doctor-onboard-toggle ${offersInClinic ? 'is-selected' : ''}`} onClick={() => setOffersInClinic((v) => !v)} aria-pressed={offersInClinic}>
+                <span className="doctor-onboard-toggle-check"><SolarIcon name={offersInClinic ? 'check-linear' : 'add-linear'} size={17} /></span>
+                <span><strong>Offer in-clinic visits</strong><small>Optional. Show patients that you also see them at a physical practice.</small></span>
+                <span className="doctor-onboard-toggle-state">{offersInClinic ? 'Selected' : 'Add'}</span>
+              </button>
+              {offersInClinic && (
+                <div className="doctor-onboard-field-grid doctor-onboard-clinic-fields">
+                  <div><label className="portal-label" htmlFor="facility-name">Practice name</label><input id="facility-name" type="text" value={facilityName} onChange={(e) => setFacilityName(e.target.value)} placeholder="e.g. Netcare Sunninghill" className="portal-input" /></div>
+                  <div><label className="portal-label" htmlFor="facility-address">Practice address</label><input id="facility-address" type="text" value={facilityAddress} onChange={(e) => setFacilityAddress(e.target.value)} placeholder="Clinic street address" className="portal-input" /></div>
+                </div>
+              )}
             </div>
 
-            {offersInClinic && (
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
-                <div>
-                  <label className="portal-label">Practice Name</label>
-                  <input type="text" value={facilityName} onChange={(e) => setFacilityName(e.target.value)} placeholder="e.g. Netcare Sunninghill" className="portal-input" />
-                </div>
-                <div>
-                  <label className="portal-label">Practice Address</label>
-                  <input type="text" value={facilityAddress} onChange={(e) => setFacilityAddress(e.target.value)} placeholder="Clinic street address" className="portal-input" />
-                </div>
-              </div>
-            )}
-
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '20px' }}>
-              <input
-                type="checkbox"
-                id="terms"
-                required
-                checked={termsAgreed}
-                onChange={(e) => setTermsAgreed(e.target.checked)}
-                style={{ marginTop: '3px', accentColor: 'var(--color-gold-base, #DFAB62)' }}
-              />
-              <label htmlFor="terms" style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', lineHeight: 1.5 }}>
-                I declare that I am registered with the HPCSA in good standing, hold valid medical
-                indemnity cover, and agree to the Chekup247 Doctor Terms &amp; Telehealth Practice Agreement.
+            <div className="doctor-onboard-submit">
+              <label className="doctor-onboard-terms">
+                <input type="checkbox" id="terms" required checked={termsAgreed} onChange={(e) => setTermsAgreed(e.target.checked)} />
+                <span>I confirm that I am registered with the HPCSA in good standing, hold valid indemnity cover, and agree to the Chekup247 Doctor Terms &amp; Telehealth Practice Agreement.</span>
               </label>
+              <button type="submit" disabled={loading} className="btn-primary doctor-onboard-submit-button">
+                {loading ? 'Submitting application...' : 'Submit application for review'}
+                {!loading && <SolarIcon name="arrow-right-linear" size={18} />}
+              </button>
+              <p>Your profile stays private until the clinical team approves your application.</p>
             </div>
-
-            <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', height: '48px' }}>
-              {loading ? 'Submittingâ€¦' : 'Submit for Verification'}
-            </button>
           </form>
-
-          <div style={{ marginTop: '22px', textAlign: 'center', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-            {doctor ? (
-              <Link href="/" style={{ color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 700 }}>Back to Dashboard</Link>
-            ) : (
-              <Link href="/login" style={{ color: 'var(--color-chocolate-base, #2A170F)', fontWeight: 700 }}>Sign In</Link>
-            )}
-          </div>
-        </div>
+        </section>
+      </div>
+      <div className="doctor-onboard-footer">
+        {doctor ? <Link href="/">Back to dashboard</Link> : <Link href="/login">Sign in instead</Link>}
       </div>
     </div>
   );

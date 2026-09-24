@@ -308,6 +308,14 @@ export class DoctorsService implements OnModuleInit {
       throw new NotFoundException(`Doctor with identifier '${idOrSlug}' was not found`);
     }
 
+    if (doctor.verification_status !== VerificationStatus.VERIFIED) {
+      throw new NotFoundException(`Doctor with identifier '${idOrSlug}' was not found`);
+    }
+
+    if (doctor.verification_status !== VerificationStatus.VERIFIED) {
+      throw new NotFoundException(`Doctor with identifier '${idOrSlug}' was not found`);
+    }
+
     // Sync avatar / photo if user updated their avatar
     if (
       doctor.user?.avatar_url &&
@@ -446,12 +454,19 @@ export class DoctorsService implements OnModuleInit {
         password_hash: passwordHash,
         full_name: dto.full_name,
         phone: dto.phone,
+        province: dto.province,
         role: UserRole.DOCTOR,
         status: UserStatus.ACTIVE,
         is_email_verified: false,
       });
       user = await this.userRepository.save(user);
     }
+
+    if (dto.province) {
+      user.province = dto.province;
+    }
+    user.id_number = dto.id_number.trim().toUpperCase();
+    user = await this.userRepository.save(user);
 
     // Check if doctor profile already exists
     let existingProfile = await this.doctorRepository.findOne({
@@ -470,7 +485,14 @@ export class DoctorsService implements OnModuleInit {
       rate_per_hour: dto.rate_per_hour,
       bio: dto.bio,
       documents_url: dto.documents_url || [],
+      consultation_types: [],
+      offers_video: false,
+      offers_audio: false,
       offers_in_clinic: dto.offers_in_clinic ?? false,
+      accepts_medical_aid: false,
+      experience_years: 0,
+      is_board_certified: false,
+      board_certification_title: null,
       facility_name: dto.facility_name,
       facility_address: dto.facility_address,
       verification_status: VerificationStatus.PENDING,
@@ -914,7 +936,9 @@ export class DoctorsService implements OnModuleInit {
    */
   async getPublicDoctorAvailability(idOrSlug: string, query: GetAvailabilityQueryDto) {
     let doctor = await this.doctorRepository.findOne({
-      where: [{ id: idOrSlug }, { slug: idOrSlug }],
+      where: /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug)
+        ? { id: idOrSlug }
+        : { slug: idOrSlug },
       relations: ['user'],
     });
 
@@ -1276,4 +1300,3 @@ export class DoctorsService implements OnModuleInit {
     };
   }
 }
-

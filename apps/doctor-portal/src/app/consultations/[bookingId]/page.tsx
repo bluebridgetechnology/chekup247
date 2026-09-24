@@ -69,6 +69,7 @@ interface ConsultationDetail {
     doctor_id: string;
     status: string;
     price: number;
+    consultation_mode?: 'video' | 'audio' | 'in_clinic';
     patient?: {
       id: string;
       fullName: string;
@@ -315,8 +316,8 @@ export default function DoctorConsultationWorkspace() {
           }
           return;
         }
+        const data = await res.json();
         if (isMounted) {
-          const data = await res.json();
           setConsultation(data);
           if (data?.started_at) {
             const startedMs = new Date(data.started_at).getTime();
@@ -338,6 +339,13 @@ export default function DoctorConsultationWorkspace() {
           if (data?.patient_notes) {
             setPatientInstructions(data.patient_notes);
           }
+        }
+
+        if (data?.booking?.consultation_mode === 'in_clinic') {
+          if (isMounted) {
+            setLoadError('This booking is an in-clinic appointment and does not use a video session.');
+          }
+          return;
         }
 
         // 2) Join the room through the API: stamps presence and returns a real
@@ -364,6 +372,9 @@ export default function DoctorConsultationWorkspace() {
           return;
         }
         const joinData: JoinResponse = await joinRes.json();
+        if (joinData?.consultation && isMounted) {
+          setConsultation(joinData.consultation);
+        }
         if (joinData?.startedAt && isMounted) {
           const startedMs = new Date(joinData.startedAt).getTime();
           const diffSec = Math.max(0, Math.floor((Date.now() - startedMs) / 1000));
@@ -376,8 +387,11 @@ export default function DoctorConsultationWorkspace() {
           return;
         }
 
+        const consultationMode =
+          joinData?.consultation?.booking?.consultation_mode ??
+          data?.booking?.consultation_mode;
         dailyCall = DailyIframe.createCallObject({
-          videoSource: true,
+          videoSource: consultationMode !== 'audio',
           audioSource: true,
           subscribeToTracksAutomatically: true,
         });

@@ -75,16 +75,13 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     if (doctor.offers_audio) {
       modes.push({ id: 'audio', label: 'Audio Call', icon: 'phone-calling-bold' });
     }
-    if (modes.length === 0) {
-      modes.push({ id: 'video', label: 'Video Call', icon: 'videocamera-record-bold' });
-    }
     return modes;
   }, [doctor.offers_video, doctor.offers_in_clinic, doctor.offers_audio]);
 
   const [consultationMode, setConsultationMode] = useState<'video' | 'in_clinic' | 'audio'>('video');
 
   useEffect(() => {
-    if (!availableModes.some((m) => m.id === consultationMode)) {
+    if (availableModes.length > 0 && !availableModes.some((m) => m.id === consultationMode)) {
       setConsultationMode(availableModes[0].id);
     }
   }, [availableModes, consultationMode]);
@@ -104,7 +101,8 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     let isMounted = true;
     async function loadSlots() {
       try {
-        const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+        const rawBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+        const apiBase = rawBase.endsWith('/api/v1') ? rawBase : `${rawBase.replace(/\/+$/, '')}/api/v1`;
         const res = await fetch(`${apiBase}/doctors/${doctor.slug || doctor.id}/availability`);
         if (res.ok) {
           const data = await res.json();
@@ -128,43 +126,14 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
 
   // Generate effective slots (live or dynamic deterministic fallback)
   const effectiveSlots = useMemo(() => {
-    const now = new Date();
-
     // If slots are provided from API, strictly filter out past slots
-    if (slots && slots.length > 0) {
+    if (slots) {
+      const now = new Date();
       return slots.filter((s) => new Date(s.startTime).getTime() > now.getTime());
     }
 
-    const mockList: AvailabilitySlotDto[] = [];
-
-    for (let day = 0; day <= 14; day++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() + day);
-      const dateStr = d.toISOString().split('T')[0];
-
-      const times = ['08:30', '10:00', '11:30', '14:00', '15:30', '16:45', '17:30', '18:15', '19:00'];
-      for (const timeStr of times) {
-        const [h, m] = timeStr.split(':').map(Number);
-        const start = new Date(d);
-        start.setHours(h, m, 0, 0);
-        const end = new Date(start.getTime() + defaultDuration * 60 * 1000);
-
-        // Strictly enforce: slot must be in the future
-        if (start.getTime() > now.getTime()) {
-          mockList.push({
-            id: `slot-${dateStr}-${timeStr}`,
-            doctorId: doctor.id,
-            startTime: start.toISOString(),
-            endTime: end.toISOString(),
-            date: dateStr,
-            durationMinutes: defaultDuration,
-            source: 'direct',
-          });
-        }
-      }
-    }
-    return mockList;
-  }, [slots, doctor.id, defaultDuration]);
+    return [];
+  }, [slots]);
 
   // Map slots by date string YYYY-MM-DD
   const daysWithSlots = useMemo(() => {
@@ -305,7 +274,17 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
       </div>
 
       {/* Consultation Mode Segmented Tabs (Video / In-Clinic / Audio) */}
-      {availableModes.length > 1 && (
+      {availableModes.length === 0 && (
+        <div className="doctor-booking-mode-context">
+          <div className="doctor-booking-mode-context-info">
+            <div className="doctor-booking-mode-context-title">Consultation options not published</div>
+            <div className="doctor-booking-mode-context-desc">
+              This doctor has not published a video, audio, or in-clinic consultation option yet.
+            </div>
+          </div>
+        </div>
+      )}
+      {availableModes.length > 0 && (
         <div className="doctor-booking-tab-bar-container">
           <div
             className="doctor-booking-tab-bar"
@@ -572,9 +551,9 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
       )}
 
       {/* Proceed to Booking CTA Button */}
-      {selectedSlot && new Date(selectedSlot.startTime).getTime() > Date.now() ? (
+      {availableModes.length > 0 && selectedSlot && new Date(selectedSlot.startTime).getTime() > Date.now() ? (
         <Link
-          href={`/bookings/checkout?doctor=${doctor.id}&slot=${selectedSlot.id}&date=${selectedDate}&type=${consultationMode}`}
+          href={`/bookings/checkout?doctor=${encodeURIComponent(doctor.id)}&slot=${encodeURIComponent(selectedSlot.id)}&date=${encodeURIComponent(selectedDate)}&start=${encodeURIComponent(selectedSlot.startTime)}&end=${encodeURIComponent(selectedSlot.endTime)}&type=${encodeURIComponent(consultationMode)}`}
           className="doctor-booking-cta"
         >
           <span>Proceed to Booking ({formatSlotTime(selectedSlot.startTime)})</span>

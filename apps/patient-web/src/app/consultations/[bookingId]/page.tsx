@@ -63,6 +63,7 @@ interface ConsultationData {
     doctor_id: string;
     status: string;
     price: number;
+    consultation_mode?: 'video' | 'audio' | 'in_clinic';
   };
   doctor?: {
     name: string;
@@ -142,7 +143,8 @@ export default function PatientConsultationPage() {
   const { user, token } = useAuth();
   const bookingId = params?.bookingId as string;
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+  const rawApiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const API_BASE = rawApiBase.endsWith('/api/v1') ? rawApiBase : `${rawApiBase.replace(/\/+$/, '')}/api/v1`;
   const WS_BASE = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace('/api/v1', '');
 
   // --------------------------------------------------------------------------
@@ -170,6 +172,7 @@ export default function PatientConsultationPage() {
   const [isAudioMuted, setIsAudioMuted] = useState<boolean>(false);
   const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
   const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
+  const [consultationMode, setConsultationMode] = useState<'video' | 'audio' | 'in_clinic'>('video');
   const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   useWakeLock(!!callObject && !isConsultationEnded);
@@ -539,6 +542,16 @@ export default function PatientConsultationPage() {
 
         const joinData: JoinResponse = await joinRes.json();
         setConsultation(joinData.consultation);
+        const bookingMode = joinData.consultation?.booking?.consultation_mode;
+        if (bookingMode === 'audio' || bookingMode === 'in_clinic' || bookingMode === 'video') {
+          setConsultationMode(bookingMode);
+          if (bookingMode !== 'video') setIsVideoMuted(true);
+        }
+
+        if (bookingMode === 'in_clinic') {
+          setLoadError('This is an in-clinic appointment. Please attend the doctor’s practice at the scheduled time.');
+          return;
+        }
 
         // Set doctor info from API response
         if (joinData.consultation.doctor) {
@@ -554,7 +567,7 @@ export default function PatientConsultationPage() {
         // Step 2: Create Daily.co call object and join with meeting token
         if (joinData.roomUrl) {
           dailyCall = DailyIframe.createCallObject({
-            videoSource: true,
+            videoSource: bookingMode === 'video',
             audioSource: true,
             subscribeToTracksAutomatically: true,
           });

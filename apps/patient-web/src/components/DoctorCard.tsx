@@ -23,12 +23,6 @@ export interface DoctorCardProps {
   offers_in_clinic?: boolean;
 }
 
-const DEFAULT_DOCTOR_IMAGES = [
-  '/images/doctor_thabo.jpg',
-  '/images/doctor_sarah.jpg',
-  '/images/doctor_kevin.jpg',
-];
-
 export function DoctorCard({
   id,
   slug,
@@ -50,18 +44,10 @@ export function DoctorCard({
   const profileUrl = `/doctors/${slug || id}`;
   const displayName = name.startsWith('Dr.') || name.startsWith('Dr ') ? name : `Dr. ${name}`;
 
-  // Fallback image selection based on id or name
-  const fallbackIndex = Math.abs(
-    (id || displayName).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-  ) % DEFAULT_DOCTOR_IMAGES.length;
-  const fallbackImg = DEFAULT_DOCTOR_IMAGES[fallbackIndex];
-
-  const [imgSrc, setImgSrc] = useState(photo_url || fallbackImg);
+  const [imgSrc, setImgSrc] = useState(photo_url || '');
 
   useEffect(() => {
-    if (photo_url) {
-      setImgSrc(photo_url);
-    }
+    setImgSrc(photo_url || '');
   }, [photo_url]);
 
   const locationText = facility_address || facility_name;
@@ -81,34 +67,36 @@ export function DoctorCard({
             flexShrink: 0,
           }}
         >
-          <img
-            src={imgSrc}
-            alt={displayName}
-            onError={() => {
-              if (imgSrc !== fallbackImg) {
-                setImgSrc(fallbackImg);
-              }
-            }}
-            style={{
-              width: '100%',
-              height: '100%',
-              maxHeight: '100%',
-              objectFit: 'cover',
-              objectPosition: 'center 20%',
-              display: 'block',
-            }}
-          />
+          {imgSrc ? (
+            <img
+              src={imgSrc}
+              alt={displayName}
+              onError={() => setImgSrc('')}
+              style={{
+                width: '100%',
+                height: '100%',
+                maxHeight: '100%',
+                objectFit: 'cover',
+                objectPosition: 'center 20%',
+                display: 'block',
+              }}
+            />
+          ) : (
+            <div className="doctor-card-initials" aria-label={`${displayName} initials`}>
+              {displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase()}
+            </div>
+          )}
 
           {/* Floating Availability Badge (Upper-Right) */}
           <div className="doctor-availability-badge">
             <span className="doctor-availability-dot" />
-            <span>{next_available_slot || 'Available today'}</span>
+            <span>{next_available_slot || 'Availability not published'}</span>
           </div>
 
           {/* Floating Rating Badge (Lower-Left) */}
           <div className="doctor-rating-badge">
             <SolarIcon name="star-bold" size={13} color="var(--color-gold-primary)" />
-            <span>{Number(rating_avg).toFixed(1)}</span>
+            <span>{rating_avg ? Number(rating_avg).toFixed(1) : 'No rating'}</span>
             <span style={{ color: 'var(--color-chocolate-muted)', fontWeight: 500 }}>
               ({reviews_count})
             </span>

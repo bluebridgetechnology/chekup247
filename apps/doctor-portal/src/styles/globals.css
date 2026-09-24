@@ -294,6 +294,248 @@ a {
   }
 }
 
+/* Doctor onboarding workspace */
+  .doctor-onboard-page {
+    min-height: 100%;
+    padding: 42px clamp(20px, 4vw, 64px) 34px;
+    background: #f7f2e9;
+  }
+
+  .doctor-onboard-hero {
+    max-width: 1180px;
+    margin: 0 auto 30px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 28px;
+  }
+
+  .doctor-onboard-breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 16px;
+    color: #9a6d36;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .doctor-onboard-breadcrumb-muted { color: #93877c; }
+
+  .doctor-onboard-hero h1 {
+    max-width: 670px;
+    margin: 0 0 10px;
+    font-size: clamp(2rem, 3.7vw, 3.25rem);
+    line-height: 1.04;
+    letter-spacing: -0.045em;
+  }
+
+  .doctor-onboard-hero p {
+    max-width: 650px;
+    margin: 0;
+    color: #6d6259;
+    font-size: 0.96rem;
+    line-height: 1.65;
+  }
+
+  .doctor-onboard-hero-meta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 245px;
+    padding: 14px 16px;
+    border: 1px solid rgba(223, 171, 98, 0.35);
+    border-radius: 14px;
+    background: #fffdf9;
+    color: #2a170f;
+    box-shadow: 0 8px 22px rgba(42, 23, 15, 0.05);
+  }
+
+  .doctor-onboard-hero-icon {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+    background: #f3e3c8;
+    color: #9a6d36;
+  }
+
+  .doctor-onboard-hero-meta strong,
+  .doctor-onboard-hero-meta span { display: block; }
+  .doctor-onboard-hero-meta strong { font-size: 0.8rem; }
+  .doctor-onboard-hero-meta span { margin-top: 3px; color: #81756b; font-size: 0.72rem; }
+
+  .doctor-onboard-layout {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 270px minmax(0, 1fr);
+    gap: 24px;
+    align-items: start;
+  }
+
+  .doctor-onboard-aside,
+  .doctor-onboard-form-shell {
+    border: 1px solid rgba(42, 23, 15, 0.09);
+    background: #fffdf9;
+    box-shadow: 0 12px 30px rgba(42, 23, 15, 0.055);
+  }
+
+  .doctor-onboard-aside {
+    position: sticky;
+    top: 20px;
+    padding: 22px;
+    border-radius: 18px;
+  }
+
+  .doctor-onboard-account {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee6da;
+  }
+
+  .doctor-onboard-avatar {
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    border-radius: 50%;
+    background: #2a170f;
+    color: #f2c978;
+    font-size: 0.8rem;
+    font-weight: 800;
+  }
+
+  .doctor-onboard-account strong,
+  .doctor-onboard-account span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .doctor-onboard-account strong { color: #2a170f; font-size: 0.78rem; }
+  .doctor-onboard-account span { max-width: 165px; margin-top: 3px; color: #8a7e73; font-size: 0.68rem; }
+
+  .doctor-onboard-progress { padding: 21px 0 14px; }
+  .doctor-onboard-progress-top { display: flex; justify-content: space-between; gap: 12px; color: #8a7e73; font-size: 0.68rem; }
+  .doctor-onboard-progress-top strong { color: #2a170f; font-size: 0.68rem; }
+  .doctor-onboard-progress-bar { height: 6px; margin-top: 10px; overflow: hidden; border-radius: 99px; background: #eee6da; }
+  .doctor-onboard-progress-bar span { display: block; height: 100%; border-radius: inherit; background: #d69e4d; }
+
+  .doctor-onboard-steps { display: grid; gap: 4px; margin: 0; padding: 5px 0 20px; list-style: none; }
+  .doctor-onboard-steps li { display: flex; gap: 11px; padding: 11px 0; color: #9a9087; }
+  .doctor-onboard-steps li > span { display: grid; place-items: center; width: 25px; height: 25px; flex: 0 0 auto; border: 1px solid #dfd5c8; border-radius: 50%; font-size: 0.7rem; font-weight: 800; }
+  .doctor-onboard-steps li.is-active { color: #2a170f; }
+  .doctor-onboard-steps li.is-active > span { border-color: #d69e4d; background: #f3e3c8; color: #8b5c2b; }
+  .doctor-onboard-steps strong,
+  .doctor-onboard-steps small { display: block; }
+  .doctor-onboard-steps strong { font-size: 0.76rem; }
+  .doctor-onboard-steps small { margin-top: 3px; color: #93877c; font-size: 0.68rem; line-height: 1.4; }
+
+  .doctor-onboard-note { display: flex; gap: 9px; padding-top: 17px; border-top: 1px solid #eee6da; color: #a36c30; }
+  .doctor-onboard-note p { margin: 0; color: #81756b; font-size: 0.68rem; line-height: 1.5; }
+
+  .doctor-onboard-form-shell { border-radius: 18px; }
+  .doctor-onboard-form-heading { display: flex; justify-content: space-between; gap: 20px; padding: 30px 34px 25px; border-bottom: 1px solid #eee6da; }
+  .doctor-onboard-section-kicker { display: block; margin-bottom: 8px; color: #a36c30; font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .doctor-onboard-form-heading h2 { margin: 0 0 6px; font-size: 1.55rem; letter-spacing: -0.035em; }
+  .doctor-onboard-form-heading p { margin: 0; color: #81756b; font-size: 0.82rem; }
+  .doctor-onboard-save-state { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; color: #6b8b76; font-size: 0.7rem; font-weight: 700; white-space: nowrap; }
+
+  .doctor-onboard-error { display: flex; gap: 10px; margin: 22px 34px 0; padding: 13px 15px; border: 1px solid #f3c4bd; border-radius: 12px; background: #fff4f2; color: #a33c31; font-size: 0.8rem; font-weight: 700; line-height: 1.4; }
+  .doctor-onboard-section { padding: 28px 34px; border-bottom: 1px solid #eee6da; }
+  .doctor-onboard-section-title { display: flex; gap: 12px; margin-bottom: 22px; }
+  .doctor-onboard-section-number { color: #b4864c; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.08em; }
+  .doctor-onboard-section-title h3 { margin: 0 0 4px; font-size: 1rem; letter-spacing: -0.02em; }
+  .doctor-onboard-section-title p { margin: 0; color: #81756b; font-size: 0.76rem; }
+  .doctor-onboard-field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 16px; }
+  .doctor-onboard-section .portal-input-group { margin: 0; }
+  .doctor-onboard-section .portal-label { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 7px; color: #49372d; font-size: 0.74rem; }
+  .doctor-onboard-section .portal-label span { color: #b35b4f; }
+  .doctor-onboard-section .portal-label em { color: #a09287; font-size: 0.68rem; font-style: normal; font-weight: 500; }
+  .doctor-onboard-section .portal-input { min-height: 44px; border-color: #e5dace; background: #fffdfa; box-shadow: none; }
+  .doctor-onboard-section .portal-input:focus { border-color: #d69e4d; box-shadow: 0 0 0 3px rgba(214, 158, 77, 0.14); }
+  .doctor-onboard-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .doctor-onboard-tabs button { display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 12px 14px; border: 1px solid #e5dace; border-radius: 12px; background: #fffdfa; color: #8a7e73; text-align: left; cursor: pointer; }
+  .doctor-onboard-tabs button:hover,
+  .doctor-onboard-tabs button.is-selected { border-color: #d69e4d; background: #fff9ef; color: #8b5c2b; }
+  .doctor-onboard-tabs button > svg { flex: 0 0 auto; }
+  .doctor-onboard-tabs strong,
+  .doctor-onboard-tabs small { display: block; }
+  .doctor-onboard-tabs strong { color: #49372d; font-size: 0.76rem; }
+  .doctor-onboard-tabs small { margin-top: 3px; color: #8a7e73; font-size: 0.68rem; }
+  .doctor-onboard-identity-field { max-width: 520px; }
+  .doctor-onboard-input-prefix { position: relative; }
+  .doctor-onboard-input-prefix span { position: absolute; top: 14px; left: 13px; z-index: 1; color: #9a9087; font-size: 0.68rem; font-weight: 800; }
+  .doctor-onboard-input-prefix input { padding-left: 48px; }
+
+  .doctor-onboard-docs { display: grid; gap: 10px; }
+  .doctor-onboard-doc { display: flex; align-items: center; gap: 12px; padding: 14px; border: 1px solid #e5dace; border-radius: 13px; background: #fffdfa; }
+  .doctor-onboard-doc.is-uploaded { border-color: #a8cfb6; background: #f7fcf8; }
+  .doctor-onboard-doc-icon { display: grid; place-items: center; width: 37px; height: 37px; flex: 0 0 auto; border-radius: 10px; background: #f3e8d8; color: #a36c30; }
+  .doctor-onboard-doc.is-uploaded .doctor-onboard-doc-icon { background: #dff1e4; color: #39845a; }
+  .doctor-onboard-doc-copy { min-width: 0; flex: 1; }
+  .doctor-onboard-doc-copy strong,
+  .doctor-onboard-doc-copy span,
+  .doctor-onboard-doc-copy small { display: block; }
+  .doctor-onboard-doc-copy strong { color: #49372d; font-size: 0.76rem; }
+  .doctor-onboard-doc-copy span { margin-top: 3px; color: #8a7e73; font-size: 0.68rem; }
+  .doctor-onboard-doc-copy small { margin-top: 4px; overflow: hidden; color: #39845a; font-size: 0.68rem; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
+  .doctor-onboard-upload { position: relative; display: inline-flex; align-items: center; min-height: 34px; padding: 0 12px; border: 1px solid #d9c7b1; border-radius: 8px; color: #795426; cursor: pointer; font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
+  .doctor-onboard-upload:hover { background: #f8eedf; border-color: #c89755; }
+  .doctor-onboard-upload input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+
+  .doctor-onboard-field-hint { display: block; margin-top: 7px; color: #968a80; font-size: 0.68rem; }
+  .doctor-onboard-toggle { display: flex; align-items: center; gap: 12px; width: 100%; margin-top: 20px; padding: 14px; border: 1px solid #e5dace; border-radius: 13px; background: #fffdfa; color: #49372d; text-align: left; cursor: pointer; }
+  .doctor-onboard-toggle:hover,
+  .doctor-onboard-toggle.is-selected { border-color: #d6a25c; background: #fff9ef; }
+  .doctor-onboard-toggle-check { display: grid; place-items: center; width: 26px; height: 26px; flex: 0 0 auto; border: 1px solid #d7c8b8; border-radius: 7px; color: #9a6d36; }
+  .doctor-onboard-toggle.is-selected .doctor-onboard-toggle-check { border-color: #d69e4d; background: #f3e3c8; }
+  .doctor-onboard-toggle strong,
+  .doctor-onboard-toggle small { display: block; }
+  .doctor-onboard-toggle strong { font-size: 0.76rem; }
+  .doctor-onboard-toggle small { margin-top: 3px; color: #8a7e73; font-size: 0.68rem; }
+  .doctor-onboard-toggle-state { margin-left: auto; color: #a36c30; font-size: 0.68rem; font-weight: 800; }
+  .doctor-onboard-clinic-fields { margin-top: 17px; }
+
+  .doctor-onboard-submit { padding: 24px 34px 30px; background: #fffcf7; border-radius: 0 0 18px 18px; }
+  .doctor-onboard-terms { display: flex; align-items: flex-start; gap: 10px; color: #81756b; font-size: 0.72rem; line-height: 1.5; }
+  .doctor-onboard-terms input { width: 16px; height: 16px; flex: 0 0 auto; margin-top: 1px; accent-color: #c88e3d; }
+  .doctor-onboard-submit-button { width: 100%; min-height: 50px; margin-top: 20px; border-radius: 10px; font-size: 0.82rem; }
+  .doctor-onboard-submit > p { margin: 11px 0 0; color: #988c82; font-size: 0.68rem; text-align: center; }
+  .doctor-onboard-footer { max-width: 1180px; margin: 19px auto 0; text-align: right; }
+  .doctor-onboard-footer a { color: #795426; font-size: 0.74rem; font-weight: 800; }
+
+  @media (max-width: 920px) {
+    .doctor-onboard-page { padding: 28px 18px; }
+    .doctor-onboard-hero { display: block; }
+    .doctor-onboard-hero-meta { margin-top: 18px; }
+    .doctor-onboard-layout { grid-template-columns: 1fr; }
+    .doctor-onboard-aside { position: static; }
+    .doctor-onboard-steps { grid-template-columns: repeat(4, 1fr); gap: 8px; padding-bottom: 2px; }
+    .doctor-onboard-steps li { align-items: flex-start; padding: 8px 0; }
+    .doctor-onboard-steps small { display: none; }
+    .doctor-onboard-note { margin-top: 12px; }
+  }
+
+  @media (max-width: 620px) {
+    .doctor-onboard-page { padding: 22px 12px 28px; }
+    .doctor-onboard-hero h1 { font-size: 2rem; }
+    .doctor-onboard-form-heading,
+    .doctor-onboard-section,
+    .doctor-onboard-submit { padding-right: 18px; padding-left: 18px; }
+    .doctor-onboard-form-heading { display: block; }
+    .doctor-onboard-save-state { margin-top: 14px; }
+    .doctor-onboard-error { margin-right: 18px; margin-left: 18px; }
+    .doctor-onboard-field-grid { grid-template-columns: 1fr; gap: 15px; }
+    .doctor-onboard-tabs { grid-template-columns: 1fr; }
+    .doctor-onboard-doc { align-items: flex-start; flex-wrap: wrap; }
+    .doctor-onboard-doc-copy { min-width: calc(100% - 50px); }
+    .doctor-onboard-upload { margin-left: 49px; }
+    .doctor-onboard-steps strong { font-size: 0.67rem; line-height: 1.25; }
+  }
+
 @media (max-width: 480px) {
   .dashboard-kpi-grid {
     grid-template-columns: 1fr;

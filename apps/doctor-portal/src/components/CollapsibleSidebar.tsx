@@ -331,11 +331,21 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
                   border: '1.5px solid rgba(223, 171, 98, 0.35)',
                 }}
               >
-                <img
-                  src={profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url || '/images/doctor_sarah_avatar.jpg'}
-                  alt={doctor?.fullName || 'Doctor'}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
+                {(profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url) ? (
+                  <img
+                    src={profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url || undefined}
+                    alt={doctor?.fullName || 'Doctor'}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  (doctor?.fullName || 'Doctor')
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0])
+                    .join('')
+                    .toUpperCase()
+                )}
               </div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div
