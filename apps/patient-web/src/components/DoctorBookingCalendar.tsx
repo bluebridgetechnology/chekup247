@@ -553,7 +553,7 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
       {/* Proceed to Booking CTA Button */}
       {availableModes.length > 0 && selectedSlot && new Date(selectedSlot.startTime).getTime() > Date.now() ? (
         <Link
-          href={`/bookings/checkout?doctor=${doctor.id}&slot=${selectedSlot.id}&date=${selectedDate}&type=${consultationMode}`}
+          href={`/bookings/checkout?doctor=${encodeURIComponent(doctor.id)}&slot=${encodeURIComponent(selectedSlot.id)}&date=${encodeURIComponent(selectedDate)}&start=${encodeURIComponent(selectedSlot.startTime)}&end=${encodeURIComponent(selectedSlot.endTime)}&type=${encodeURIComponent(consultationMode)}`}
           className="doctor-booking-cta"
         >
           <span>Proceed to Booking ({formatSlotTime(selectedSlot.startTime)})</span>

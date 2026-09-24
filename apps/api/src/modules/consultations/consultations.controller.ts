@@ -73,6 +73,7 @@ export class ConsultationsController {
    * Backward-compatible booking lookup.
    */
   @Get('booking/:bookingId')
+  @UseGuards(JwtAuthGuard)
   getByBooking(@Param('bookingId') bookingId: string) {
     return this.consultationsService.getConsultationDetails(bookingId);
   }
@@ -81,6 +82,7 @@ export class ConsultationsController {
    * Retrieves consultation room details & status (BE-602).
    */
   @Get(':bookingId')
+  @UseGuards(JwtAuthGuard)
   getConsultation(@Param('bookingId') bookingId: string) {
     return this.consultationsService.getConsultationDetails(bookingId);
   }
@@ -90,15 +92,18 @@ export class ConsultationsController {
    * Stamps started_at on first join, returns Daily meeting token.
    */
   @Post(':bookingId/join')
+  @UseGuards(JwtAuthGuard)
   joinConsultation(
     @Param('bookingId') bookingId: string,
     @Body() dto: JoinConsultationDto,
+    @CurrentUser() user: any,
   ) {
-    const role = dto.role || 'patient';
+    const role = user?.role === 'doctor' ? 'doctor' : 'patient';
     return this.consultationsService.joinConsultation(
       bookingId,
       role,
       dto.userName,
+      user?.sub || user?.id,
     );
   }
 
@@ -108,6 +113,7 @@ export class ConsultationsController {
    * and broadcasts disconnect to all participants.
    */
   @Post(':bookingId/end')
+  @UseGuards(JwtAuthGuard)
   endConsultation(
     @Param('bookingId') bookingId: string,
     @Body() dto: EndConsultationDto,
@@ -120,6 +126,7 @@ export class ConsultationsController {
    * Saves doctor private clinical consultation notes to RDS (BE-605, BE-907).
    */
   @Put(':bookingId/notes')
+  @UseGuards(JwtAuthGuard)
   async saveNotes(
     @Param('bookingId') bookingId: string,
     @Body() dto: SaveNotesDto,
@@ -148,6 +155,7 @@ export class ConsultationsController {
    * Direct room provisioning endpoint (BE-601).
    */
   @Post(':bookingId/provision')
+  @UseGuards(JwtAuthGuard)
   provisionRoom(@Param('bookingId') bookingId: string) {
     return this.consultationsService.provisionRoom(bookingId);
   }
@@ -159,6 +167,7 @@ export class ConsultationsController {
    * emits WebSocket 'extension_requested'.
    */
   @Post(':bookingId/extend')
+  @UseGuards(JwtAuthGuard)
   requestExtension(
     @Param('bookingId') bookingId: string,
     @Body() dto: RequestExtensionDto,
@@ -182,6 +191,7 @@ export class ConsultationsController {
    * extension is finalized inline.
    */
   @Post(':bookingId/extend/consent')
+  @UseGuards(JwtAuthGuard)
   consentExtension(
     @Param('bookingId') bookingId: string,
     @Body() dto: ConsentExtensionDto,
@@ -201,6 +211,7 @@ export class ConsultationsController {
    * Retrieves all extensions for a consultation.
    */
   @Get(':bookingId/extensions')
+  @UseGuards(JwtAuthGuard)
   getExtensions(@Param('bookingId') bookingId: string) {
     return this.consultationsService.getExtensions(bookingId);
   }
