@@ -179,18 +179,28 @@ export class PaymentsService {
     const reference = `chk_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
     const callbackUrl = `${envConfig.PATIENT_WEB_URL}/bookings/success?bookingId=${booking.id}&reference=${reference}`;
 
-    const paystackRes = await this.paystackService.initializeTransaction({
-      email: patientEmail,
-      amountInCents: Math.round(payableAmount * 100),
-      reference,
-      callbackUrl,
-      metadata: {
-        booking_id: booking.id,
-        patient_id: patientId,
-        credits_applied: creditsApplied,
-        total_price: totalAmount,
-      },
-    });
+    let paystackRes: Awaited<ReturnType<PaystackService['initializeTransaction']>>;
+    try {
+      paystackRes = await this.paystackService.initializeTransaction({
+        email: patientEmail,
+        amountInCents: Math.round(payableAmount * 100),
+        reference,
+        callbackUrl,
+        metadata: {
+          booking_id: booking.id,
+          patient_id: patientId,
+          credits_applied: creditsApplied,
+          total_price: totalAmount,
+        },
+      });
+    } catch (error) {
+      booking.status = BookingStatus.CANCELLED;
+      await this.bookingRepository.save(booking);
+      if (this.slotRepository) {
+        await this.slotRepository.update({ id: booking.slot_id }, { is_booked: false });
+      }
+      throw error;
+    }
 
     // Record pending payment
     const payment = this.paymentRepository.create({

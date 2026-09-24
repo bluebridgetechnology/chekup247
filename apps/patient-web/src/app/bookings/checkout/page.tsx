@@ -446,9 +446,8 @@ function CheckoutContent() {
         toastSuccess('Redirecting to payment', 'Complete your payment to confirm the booking.');
         window.location.href = payData.authorization_url;
       } else {
-        toastSuccess('Booking confirmed', 'Your consultation is scheduled.');
-        router.push(
-          `/bookings/success?bookingId=${createdBookingId}&reference=${payData.reference}`,
+        throw new Error(
+          'Paystack did not provide a payment page. Your booking was not confirmed. Please try again.',
         );
       }
     } catch (err: any) {

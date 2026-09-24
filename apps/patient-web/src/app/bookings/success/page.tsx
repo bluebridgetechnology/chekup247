@@ -451,7 +451,9 @@ function SuccessContent() {
         minute: '2-digit',
         hour12: false,
       })} SAST`
-    : '10:00 – 10:45 SAST';
+    : 'Time to be confirmed';
+  const isPaymentConfirmed =
+    booking?.status === 'confirmed' && booking.payment_status === 'held';
 
   if (isLoading) {
     return (
@@ -521,13 +523,15 @@ function SuccessContent() {
             overflow: 'hidden',
           }}
         >
-          {/* Green Check Icon with Gold Ring */}
+          {/* Payment state */}
           <div
             style={{
               width: '84px',
               height: '84px',
               borderRadius: '50%',
-              background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+              background: isPaymentConfirmed
+                ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                : 'linear-gradient(135deg, #d89b3c 0%, #b87518 100%)',
               border: '4px solid var(--color-gold-pale, #F0E5D3)',
               display: 'flex',
               alignItems: 'center',
@@ -537,7 +541,7 @@ function SuccessContent() {
               boxShadow: '0 8px 24px rgba(16, 185, 129, 0.35)',
             }}
           >
-            <CheckCircle2 size={46} />
+            {isPaymentConfirmed ? <CheckCircle2 size={46} /> : <Clock size={42} />}
           </div>
 
           <div
@@ -555,8 +559,8 @@ function SuccessContent() {
               border: '1px solid var(--color-profile-hpcsa-border, rgba(223, 171, 98, 0.35))',
             }}
           >
-            <ShieldCheck size={15} />
-            <span>PAYMENT CONFIRMED • APPOINTMENT SECURED</span>
+            {isPaymentConfirmed ? <ShieldCheck size={15} /> : <Clock size={15} />}
+            <span>{isPaymentConfirmed ? 'PAYMENT CONFIRMED • APPOINTMENT SECURED' : 'PAYMENT REQUIRED • SLOT HELD TEMPORARILY'}</span>
           </div>
 
           <h1
@@ -569,10 +573,12 @@ function SuccessContent() {
               marginBottom: '8px',
             }}
           >
-            You're All Booked!
+            {isPaymentConfirmed ? "You're All Booked!" : 'Finish payment to confirm'}
           </h1>
           <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', fontSize: '1.05rem', maxWidth: '560px', margin: '0 auto' }}>
-            Your telehealth appointment is officially confirmed. An SMS reminder and email receipt have been dispatched.
+            {isPaymentConfirmed
+              ? 'Your telehealth appointment is confirmed. Your receipt and reminders will be sent after payment.'
+              : 'Your appointment slot is reserved temporarily. Complete payment through Paystack to confirm the consultation.'}
           </p>
 
           {/* Appointment Summary Box */}
@@ -594,10 +600,10 @@ function SuccessContent() {
                 Practitioner
               </div>
               <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '4px', fontFamily: 'var(--font-heading)' }}>
-                {booking?.doctor?.fullName || 'Dr. Thabo Molefe'}
+                {booking?.doctor?.fullName || 'Practitioner'}
               </div>
               <div style={{ fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 600 }}>
-                {booking?.doctor?.specialty || 'General Practitioner'}
+                {booking?.doctor?.specialty || 'Healthcare consultation'}
               </div>
             </div>
 
@@ -618,16 +624,36 @@ function SuccessContent() {
                 Booking ID / Status
               </div>
               <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '4px', fontFamily: 'monospace' }}>
-                {booking?.id ? booking.id.substring(0, 13) + '...' : 'chk-bk-9021'}
+                {booking?.id ? booking.id.substring(0, 13) + '...' : 'Booking pending'}
               </div>
               <div style={{ fontSize: '0.825rem', color: '#16a34a', fontWeight: 700 }}>
-                Paid R{Number(booking?.price || 850).toFixed(2)} (ZAR)
+                {isPaymentConfirmed
+                  ? `Paid R${Number(booking?.price || 0).toFixed(2)} (ZAR)`
+                  : 'Payment pending'}
               </div>
             </div>
           </div>
 
           {/* Post-Payment Clinical Identity Verification Gate */}
-          {user && !user.isEmailVerified && !otpSuccessNotice ? (
+          {!isPaymentConfirmed ? (
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '12px 20px',
+                borderRadius: '12px',
+                background: 'rgba(216, 155, 60, 0.12)',
+                border: '1px solid rgba(184, 117, 24, 0.28)',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                fontWeight: 700,
+                fontSize: '0.9rem',
+              }}
+            >
+              <AlertCircle size={18} />
+              <span>Complete Paystack payment before entering the consultation room.</span>
+            </div>
+          ) : user && !user.isEmailVerified && !otpSuccessNotice ? (
             <div
               id="clinical-verification-gate"
               style={{
