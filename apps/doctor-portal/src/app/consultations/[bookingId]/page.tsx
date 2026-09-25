@@ -230,6 +230,9 @@ export default function DoctorConsultationWorkspace() {
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const localTrackRef = useRef<MediaStreamTrack | null>(null);
+  const remoteVideoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const remoteAudioTrackRef = useRef<MediaStreamTrack | null>(null);
   const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
 
   // Common ICD-10 List for Quick Lookup
@@ -406,17 +409,26 @@ export default function DoctorConsultationWorkspace() {
           if (!isMounted) return;
           if (ev.participant && !ev.participant.local) {
             setIsPatientConnected(true);
-            if (ev.track.kind === 'video' && remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
+            if (ev.track.kind === 'video') {
+              remoteVideoTrackRef.current = ev.track;
+              if (remoteVideoRef.current) {
+                remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
+              }
               setIsPatientVideoActive(true);
               setHasRemoteVideo(true);
             }
-            if (ev.track.kind === 'audio' && remoteAudioRef.current) {
-              remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
+            if (ev.track.kind === 'audio') {
+              remoteAudioTrackRef.current = ev.track;
+              if (remoteAudioRef.current) {
+                remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
+              }
             }
           } else if (ev.participant?.local) {
-            if (ev.track.kind === 'video' && localVideoRef.current) {
-              localVideoRef.current.srcObject = new MediaStream([ev.track]);
+            if (ev.track.kind === 'video') {
+              localTrackRef.current = ev.track;
+              if (localVideoRef.current) {
+                localVideoRef.current.srcObject = new MediaStream([ev.track]);
+              }
               setHasLocalVideo(true);
             }
           }
@@ -425,11 +437,19 @@ export default function DoctorConsultationWorkspace() {
         dailyCall.on('track-stopped', (ev: DailyEventObjectTrack) => {
           if (!isMounted) return;
           if (ev.participant && !ev.participant.local && ev.track.kind === 'video') {
+            if (remoteVideoTrackRef.current === ev.track) {
+              remoteVideoTrackRef.current = null;
+            }
             if (remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = null;
             }
             setIsPatientVideoActive(false);
             setHasRemoteVideo(false);
+          } else if (ev.participant?.local && ev.track.kind === 'video') {
+            if (localTrackRef.current === ev.track) {
+              localTrackRef.current = null;
+            }
+            setHasLocalVideo(false);
           }
         });
 
@@ -495,6 +515,21 @@ export default function DoctorConsultationWorkspace() {
       if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
     };
   }, [bookingId, token, API_BASE, doctor?.fullName]);
+
+  // Media elements only mount after the loading gate clears, but Daily can
+  // start tracks during join — attach anything buffered once they exist.
+  useEffect(() => {
+    if (isLoading || loadError || isConsultationEnded) return;
+    if (localTrackRef.current && localVideoRef.current && !localVideoRef.current.srcObject) {
+      localVideoRef.current.srcObject = new MediaStream([localTrackRef.current]);
+    }
+    if (remoteVideoTrackRef.current && remoteVideoRef.current && !remoteVideoRef.current.srcObject) {
+      remoteVideoRef.current.srcObject = new MediaStream([remoteVideoTrackRef.current]);
+    }
+    if (remoteAudioTrackRef.current && remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
+      remoteAudioRef.current.srcObject = new MediaStream([remoteAudioTrackRef.current]);
+    }
+  }, [isLoading, loadError, isConsultationEnded, hasLocalVideo, hasRemoteVideo]);
 
   // --------------------------------------------------------------------------
   // WebSocket Consultation Sync & Extension Events
@@ -3731,7 +3766,7 @@ export default function DoctorConsultationWorkspace() {
 
         /* Video stage: fluid height, grows with viewport instead of fixed band */
         .video-stage {
-          height: clamp(320px, 46vh, 560px);
+          height: clamp(420px, 62vh, 780px);
           flex-shrink: 0;
         }
 
@@ -3759,7 +3794,7 @@ export default function DoctorConsultationWorkspace() {
             gap: 12px !important;
           }
           .video-stage {
-            height: clamp(260px, 38vh, 420px) !important;
+            height: clamp(320px, 48vh, 560px) !important;
             border-radius: 14px !important;
           }
           .doctor-pip {

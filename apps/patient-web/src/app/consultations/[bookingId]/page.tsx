@@ -219,6 +219,9 @@ export default function PatientConsultationPage() {
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
+  const localTrackRef = useRef<MediaStreamTrack | null>(null);
+  const remoteVideoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const remoteAudioTrackRef = useRef<MediaStreamTrack | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -595,16 +598,25 @@ export default function PatientConsultationPage() {
             if (!isMounted) return;
             if (ev.participant && !ev.participant.local) {
               setIsDoctorConnected(true);
-              if (ev.track.kind === 'video' && remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
+              if (ev.track.kind === 'video') {
+                remoteVideoTrackRef.current = ev.track;
+                if (remoteVideoRef.current) {
+                  remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
+                }
                 setHasRemoteVideo(true);
               }
-              if (ev.track.kind === 'audio' && remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
+              if (ev.track.kind === 'audio') {
+                remoteAudioTrackRef.current = ev.track;
+                if (remoteAudioRef.current) {
+                  remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
+                }
               }
             } else if (ev.participant?.local) {
-              if (ev.track.kind === 'video' && localVideoRef.current) {
-                localVideoRef.current.srcObject = new MediaStream([ev.track]);
+              if (ev.track.kind === 'video') {
+                localTrackRef.current = ev.track;
+                if (localVideoRef.current) {
+                  localVideoRef.current.srcObject = new MediaStream([ev.track]);
+                }
                 setHasLocalVideo(true);
               }
             }
@@ -613,8 +625,16 @@ export default function PatientConsultationPage() {
           dailyCall.on('track-stopped', (ev: DailyEventObjectTrack) => {
             if (!isMounted) return;
             if (ev.participant && !ev.participant.local && ev.track.kind === 'video') {
+              if (remoteVideoTrackRef.current === ev.track) {
+                remoteVideoTrackRef.current = null;
+              }
               if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
               setHasRemoteVideo(false);
+            } else if (ev.participant?.local && ev.track.kind === 'video') {
+              if (localTrackRef.current === ev.track) {
+                localTrackRef.current = null;
+              }
+              setHasLocalVideo(false);
             }
           });
 
@@ -693,6 +713,21 @@ export default function PatientConsultationPage() {
       }
     };
   }, [bookingId, token, API_BASE, startRealMedia, user?.fullName]);
+
+  // Media elements only mount after the loading gate clears, but Daily can
+  // start tracks during join — attach anything buffered once they exist.
+  useEffect(() => {
+    if (isLoading || loadError || isConsultationEnded) return;
+    if (localTrackRef.current && localVideoRef.current && !localVideoRef.current.srcObject) {
+      localVideoRef.current.srcObject = new MediaStream([localTrackRef.current]);
+    }
+    if (remoteVideoTrackRef.current && remoteVideoRef.current && !remoteVideoRef.current.srcObject) {
+      remoteVideoRef.current.srcObject = new MediaStream([remoteVideoTrackRef.current]);
+    }
+    if (remoteAudioTrackRef.current && remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
+      remoteAudioRef.current.srcObject = new MediaStream([remoteAudioTrackRef.current]);
+    }
+  }, [isLoading, loadError, isConsultationEnded, hasLocalVideo, hasRemoteVideo]);
 
   // --------------------------------------------------------------------------
   // Call Controls
@@ -1245,7 +1280,7 @@ export default function PatientConsultationPage() {
             EFFECTS DRAWER
             ================================================================ */}
         {showEffectsDrawer && (
-          <div style={{ position: 'absolute', bottom: '96px', left: '50%', transform: 'translateX(-50%)', width: '460px', maxWidth: '92vw', backgroundColor: '#1E100A', border: '1.5px solid rgba(223,171,98,0.35)', borderRadius: '20px', boxShadow: '0 20px 50px rgba(0,0,0,0.75)', padding: '20px', zIndex: 40, backdropFilter: 'blur(20px)' }}>
+          <div className="effects-drawer" style={{ position: 'absolute', bottom: '96px', left: '50%', transform: 'translateX(-50%)', width: '460px', maxWidth: '92vw', backgroundColor: '#1E100A', border: '1.5px solid rgba(223,171,98,0.35)', borderRadius: '20px', boxShadow: '0 20px 50px rgba(0,0,0,0.75)', padding: '20px', zIndex: 40, backdropFilter: 'blur(20px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(223,171,98,0.2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <Sparkles size={18} color="#DFAB62" />
@@ -1326,10 +1361,10 @@ export default function PatientConsultationPage() {
             {isFullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
           </button>
           {/* End Call */}
-          <button onClick={() => setShowEndModal(true)} title="End Consultation" style={{ height: '46px', padding: '0 20px', borderRadius: '9999px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 4px 18px rgba(220,38,38,0.45)', transition: 'all 0.2s ease', marginLeft: '4px' }}
+          <button className="patient-end-call" onClick={() => setShowEndModal(true)} title="End Consultation" style={{ height: '46px', padding: '0 20px', borderRadius: '9999px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 4px 18px rgba(220,38,38,0.45)', transition: 'all 0.2s ease', marginLeft: '4px', whiteSpace: 'nowrap' }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#B91C1C')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#DC2626')}>
-            <PhoneOff size={18} /> <span>End Call</span>
+            <PhoneOff size={18} /> <span className="end-call-label">End Call</span>
           </button>
         </div>
       </div>
@@ -1481,9 +1516,21 @@ export default function PatientConsultationPage() {
         @media (max-width: 768px) {
           .patient-hud { padding: 10px 12px !important; flex-wrap: wrap !important; gap: 8px !important; }
           .patient-topic-pill { display: none !important; }
-          .patient-pip { width: 132px !important; height: 88px !important; right: 12px !important; bottom: 96px !important; }
-          .patient-controls { left: 12px !important; right: 12px !important; transform: none !important; justify-content: center !important; flex-wrap: wrap !important; gap: 8px !important; padding: 8px 10px !important; max-width: calc(100vw - 24px); }
-          .patient-controls button { width: 42px !important; height: 42px !important; flex-shrink: 0; }
+          .patient-pip { width: 132px !important; height: 88px !important; right: 12px !important; bottom: 92px !important; }
+          /* Single compact row: equal circular buttons, icon-only end call */
+          .patient-controls { left: 12px !important; right: 12px !important; transform: none !important; bottom: 16px !important; flex-wrap: nowrap !important; justify-content: center !important; gap: 8px !important; padding: 8px 10px !important; max-width: calc(100vw - 24px); }
+          .patient-controls button { width: 44px !important; height: 44px !important; flex: 0 0 44px; border-radius: 50% !important; }
+          .patient-controls .patient-end-call { padding: 0 !important; margin-left: 0 !important; justify-content: center; }
+          .patient-end-call .end-call-label { display: none; }
+          @media (max-width: 400px) {
+            .patient-controls { gap: 6px !important; padding: 8px !important; }
+            .patient-controls button { width: 40px !important; height: 40px !important; flex: 0 0 40px; }
+          }
+          @media (max-width: 340px) {
+            .patient-controls { gap: 4px !important; }
+            .patient-controls button { width: 36px !important; height: 36px !important; flex: 0 0 36px; }
+          }
+          .effects-drawer { bottom: 92px !important; width: calc(100vw - 24px) !important; max-width: calc(100vw - 24px) !important; max-height: 58vh; overflow-y: auto; padding: 16px !important; }
         }
       `}</style>
     </div>
