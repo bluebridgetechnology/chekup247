@@ -36,6 +36,11 @@ import {
   CreditCard,
   TimerReset,
   Star,
+  ArrowLeftRight,
+  Grid,
+  Move,
+  Expand,
+  Shrink,
 } from 'lucide-react';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
@@ -107,35 +112,45 @@ interface VirtualBackgroundPreset {
   previewUrl: string;
 }
 
-// ============================================================================
-// Virtual Background Presets
-// ============================================================================
 const VIRTUAL_BACKGROUND_PRESETS: VirtualBackgroundPreset[] = [
   {
     id: 'clinic-suite',
     name: 'Medical Suite',
     category: 'Clinical',
-    previewUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="g1" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%231E293B"/><stop offset="100%" stop-color="%230F172A"/></linearGradient></defs><rect width="320" height="180" fill="url(%23g1)"/><rect x="20" y="25" width="80" height="110" rx="4" fill="%2338BDF8" fill-opacity="0.15" stroke="%2338BDF8" stroke-opacity="0.2" stroke-width="2"/><rect x="220" y="40" width="80" height="50" rx="4" fill="%23334155" stroke="%2364748B" stroke-width="1.5"/><circle cx="260" cy="65" r="12" fill="%230EA5E9" fill-opacity="0.2"/><rect x="0" y="145" width="320" height="35" fill="%23182234"/><text x="160" y="168" fill="%2394A3B8" font-size="10" font-family="sans-serif" text-anchor="middle">Chekup247 Clinical Suite</text></svg>',
+    previewUrl: '/images/backgrounds/clinic-suite.png',
   },
   {
     id: 'modern-office',
     name: 'Modern Clinic Office',
     category: 'Professional',
-    previewUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%232A170F"/><stop offset="100%" stop-color="%231E100A"/></linearGradient></defs><rect width="320" height="180" fill="url(%23bg2)"/><rect x="30" y="30" width="110" height="90" rx="8" fill="%233E2114" stroke="%23DFAB62" stroke-opacity="0.3"/><circle cx="250" cy="50" r="28" fill="%23DFAB62" fill-opacity="0.15"/><rect x="0" y="145" width="320" height="35" fill="%23170B06"/><text x="160" y="168" fill="%23DFAB62" font-size="10" font-family="sans-serif" text-anchor="middle">Private Doctor Consultation</text></svg>',
+    previewUrl: '/images/backgrounds/modern-office.png',
   },
   {
     id: 'warm-interior',
     name: 'Warm Living Room',
     category: 'Home',
-    previewUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="bg3" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="%233F2E23"/><stop offset="100%" stop-color="%2322150D"/></linearGradient><radialGradient id="lamp" cx="80%" cy="30%" r="50%"><stop offset="0%" stop-color="%23FDE68A" stop-opacity="0.5"/><stop offset="100%" stop-color="%23D97706" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="url(%23bg3)"/><circle cx="260" cy="55" r="70" fill="url(%23lamp)"/><rect x="0" y="140" width="320" height="40" fill="%231B0F09"/><text x="160" y="168" fill="%23FDE68A" font-size="10" font-family="sans-serif" text-anchor="middle">Warm Cozy Interior</text></svg>',
+    previewUrl: '/images/backgrounds/warm-interior.png',
   },
   {
     id: 'studio-bokeh',
     name: 'Studio Soft Bokeh',
     category: 'Minimalist',
-    previewUrl: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180"><defs><linearGradient id="bg4" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="%231E1B4B"/><stop offset="100%" stop-color="%23312E81"/></linearGradient></defs><rect width="320" height="180" fill="url(%23bg4)"/><circle cx="60" cy="50" r="35" fill="%23818CF8" fill-opacity="0.25"/><circle cx="240" cy="70" r="45" fill="%23C084FC" fill-opacity="0.2"/><circle cx="160" cy="120" r="55" fill="%2338BDF8" fill-opacity="0.18"/><text x="160" y="168" fill="%23C7D2FE" font-size="10" font-family="sans-serif" text-anchor="middle">Soft Blur Studio</text></svg>',
+    previewUrl: '/images/backgrounds/studio-bokeh.png',
   },
 ];
+
+const PIP_DIMENSIONS: Record<'sm' | 'md' | 'lg', { width: string; height: string }> = {
+  sm: { width: '180px', height: '120px' },
+  md: { width: '270px', height: '180px' },
+  lg: { width: '380px', height: '250px' },
+};
+
+const CORNER_STYLES: Record<string, React.CSSProperties> = {
+  'bottom-right': { bottom: '92px', right: '16px' },
+  'bottom-left': { bottom: '92px', left: '16px' },
+  'top-right': { top: '78px', right: '16px' },
+  'top-left': { top: '78px', left: '16px' },
+};
 
 export default function PatientConsultationPage() {
   const params = useParams();
@@ -195,6 +210,13 @@ export default function PatientConsultationPage() {
   const [selectedBgPreset, setSelectedBgPreset] = useState<string>('clinic-suite');
   const [customBgImage, setCustomBgImage] = useState<string | null>(null);
   const [showEffectsDrawer, setShowEffectsDrawer] = useState<boolean>(false);
+  const [backgroundNotice, setBackgroundNotice] = useState<string | null>(null);
+
+  // Dynamic Video Layout & PiP Customization States
+  const [videoLayout, setVideoLayout] = useState<'pip' | 'grid'>('pip');
+  const [pipSize, setPipSize] = useState<'sm' | 'md' | 'lg'>('md');
+  const [pipCorner, setPipCorner] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'>('bottom-right');
+  const [isSwapped, setIsSwapped] = useState<boolean>(false);
 
   // Timer State (driven by server started_at and durationSeconds)
   const [startedAt, setStartedAt] = useState<Date | null>(null);
@@ -263,6 +285,28 @@ export default function PatientConsultationPage() {
   const remainingSeconds = Math.max(0, totalDurationSeconds - elapsedSeconds);
 
   // --------------------------------------------------------------------------
+  // Dynamic Video Layout & PiP Handlers
+  // --------------------------------------------------------------------------
+  const cycleCorner = () => {
+    const corners: Array<'bottom-right' | 'bottom-left' | 'top-left' | 'top-right'> = [
+      'bottom-right',
+      'bottom-left',
+      'top-left',
+      'top-right',
+    ];
+    const currentIndex = corners.indexOf(pipCorner);
+    const nextCorner = corners[(currentIndex + 1) % corners.length];
+    setPipCorner(nextCorner);
+  };
+
+  const cycleSize = () => {
+    const sizes: Array<'sm' | 'md' | 'lg'> = ['sm', 'md', 'lg'];
+    const currentIndex = sizes.indexOf(pipSize);
+    const nextSize = sizes[(currentIndex + 1) % sizes.length];
+    setPipSize(nextSize);
+  };
+
+  // --------------------------------------------------------------------------
   // Real Camera & Microphone Initialization
   // --------------------------------------------------------------------------
   const startRealMedia = useCallback(async (deviceId?: string) => {
@@ -304,7 +348,7 @@ export default function PatientConsultationPage() {
         setSelectedCameraId(videoDevices[0].deviceId);
       }
 
-      // Web Audio API: Real Microphone Volume Metering
+      // Web Audio API: Real Microphone Volume Metering (Throttled to avoid 60fps re-renders)
       try {
         if (audioContextRef.current) {
           audioContextRef.current.close().catch(() => {});
@@ -322,18 +366,27 @@ export default function PatientConsultationPage() {
           analyserRef.current = analyser;
 
           const dataArray = new Uint8Array(analyser.frequencyBinCount);
-          const checkVolume = () => {
+          let lastVolumeUpdate = 0;
+          let lastSpeaking = false;
+          const checkVolume = (now: number) => {
             if (!analyserRef.current) return;
             analyserRef.current.getByteFrequencyData(dataArray);
             let sum = 0;
             for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
             const avg = sum / dataArray.length;
             const normalized = Math.min(100, Math.round((avg / 128) * 100));
-            setMicVolumeLevel(normalized);
-            setIsPatientSpeaking(normalized > 14);
+            const isSpeaking = normalized > 14;
+
+            // Throttle state update to at most once per 120ms or when speaking state toggles
+            if (now - lastVolumeUpdate > 120 || isSpeaking !== lastSpeaking) {
+              lastVolumeUpdate = now;
+              lastSpeaking = isSpeaking;
+              setMicVolumeLevel(normalized);
+              setIsPatientSpeaking(isSpeaking);
+            }
             animFrameRef.current = requestAnimationFrame(checkVolume);
           };
-          checkVolume();
+          animFrameRef.current = requestAnimationFrame(checkVolume);
         }
       } catch (audioErr) {
         console.warn('Web Audio mic visualizer fallback:', audioErr);
@@ -348,13 +401,81 @@ export default function PatientConsultationPage() {
   }, []);
 
   // --------------------------------------------------------------------------
+  // WebRTC Media Synchronization (Daily.co Call Object)
+  // --------------------------------------------------------------------------
+  const syncDailyTracks = useCallback((call: DailyCall | null) => {
+    if (!call) return;
+    try {
+      const participants = call.participants();
+      if (!participants) return;
+
+      // 1. Patient (Local)
+      const local = participants.local;
+      if (local) {
+        const vTrack = local.tracks?.video?.persistentTrack || local.tracks?.video?.track;
+        const vState = local.tracks?.video?.state;
+        const isPlayable = Boolean(vTrack && (vState === 'playable' || local.video) && vState !== 'off' && vState !== 'blocked');
+        if (vTrack) {
+          localTrackRef.current = vTrack;
+          if (localVideoRef.current) {
+            const currentStream = localVideoRef.current.srcObject as MediaStream | null;
+            if (!currentStream || !currentStream.getTracks().includes(vTrack)) {
+              localVideoRef.current.srcObject = new MediaStream([vTrack]);
+            }
+            localVideoRef.current.play().catch(() => {});
+          }
+        }
+        setHasLocalVideo(isPlayable && Boolean(vTrack));
+      }
+
+      // 2. Doctor (Remote)
+      const remotes = Object.values(participants).filter((p) => !p.local);
+      if (remotes.length > 0) {
+        const remote = remotes[0];
+        setIsDoctorConnected(true);
+        const rvTrack = remote.tracks?.video?.persistentTrack || remote.tracks?.video?.track;
+        const raTrack = remote.tracks?.audio?.persistentTrack || remote.tracks?.audio?.track;
+        const rvState = remote.tracks?.video?.state;
+        const isRemotePlayable = Boolean(rvTrack && (rvState === 'playable' || remote.video) && rvState !== 'off' && rvState !== 'blocked');
+
+        if (rvTrack) {
+          remoteVideoTrackRef.current = rvTrack;
+          setHasRemoteVideo(isRemotePlayable);
+          if (remoteVideoRef.current) {
+            const currentStream = remoteVideoRef.current.srcObject as MediaStream | null;
+            if (!currentStream || !currentStream.getTracks().includes(rvTrack)) {
+              remoteVideoRef.current.srcObject = new MediaStream([rvTrack]);
+            }
+            remoteVideoRef.current.play().catch(() => {});
+          }
+        } else {
+          setHasRemoteVideo(false);
+        }
+
+        if (raTrack) {
+          remoteAudioTrackRef.current = raTrack;
+          if (remoteAudioRef.current) {
+            const currentStream = remoteAudioRef.current.srcObject as MediaStream | null;
+            if (!currentStream || !currentStream.getTracks().includes(raTrack)) {
+              remoteAudioRef.current.srcObject = new MediaStream([raTrack]);
+            }
+            remoteAudioRef.current.play().catch(() => {});
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Patient Daily sync tracks note:', e);
+    }
+  }, []);
+
+  // --------------------------------------------------------------------------
   // Apply Background Effect via Daily.co processor
   // --------------------------------------------------------------------------
   const applyBackgroundEffect = useCallback(
-    async (effect: BackgroundEffectType, presetId?: string, customImg?: string) => {
+    async (effect: BackgroundEffectType, presetId?: string, customImg?: string, customBuffer?: ArrayBuffer) => {
       setActiveEffect(effect);
       const chosenPreset = presetId || selectedBgPreset;
-      const chosenCustom = customImg !== undefined ? customImg : customBgImage;
+      if (presetId) setSelectedBgPreset(presetId);
 
       if (callObject) {
         try {
@@ -367,22 +488,48 @@ export default function PatientConsultationPage() {
               video: { processor: { type: 'background-blur', config: { strength: 0.8 } } },
             });
           } else if (effect === 'virtual-image') {
-            const preset = VIRTUAL_BACKGROUND_PRESETS.find((p) => p.id === chosenPreset);
-            const url = chosenCustom || preset?.previewUrl || '';
+            let source: string | ArrayBuffer = '';
+            if (customBuffer) {
+              source = customBuffer;
+            } else if (customImg && customImg.startsWith('data:')) {
+              const res = await fetch(customImg);
+              source = await res.arrayBuffer();
+            } else {
+              const preset = VIRTUAL_BACKGROUND_PRESETS.find((p) => p.id === chosenPreset);
+              const path = preset?.previewUrl || '/images/backgrounds/clinic-suite.png';
+              source = `${window.location.origin}${path}`;
+            }
+
             await callObject.updateInputSettings({
-              video: { processor: { type: 'background-image', config: { url } } },
+              video: {
+                processor: {
+                  type: 'background-image',
+                  config: { source },
+                },
+              },
             });
           } else {
             await callObject.updateInputSettings({
               video: { processor: { type: 'none' } },
             });
           }
-        } catch (err) {
-          console.warn('Daily background processor fallback:', err);
+          // Force track synchronization after input settings update
+          syncDailyTracks(callObject);
+        } catch (err: any) {
+          console.warn('Daily background processor exception:', err);
+          const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+          if (isMobile) {
+            setBackgroundNotice(
+              'Hardware video processor requires desktop WebAssembly. Local blur filter applied.',
+            );
+          } else {
+            setBackgroundNotice('Background effect could not be activated on this camera.');
+          }
+          setTimeout(() => setBackgroundNotice(null), 5000);
         }
       }
     },
-    [callObject, selectedBgPreset, customBgImage],
+    [callObject, selectedBgPreset, syncDailyTracks],
   );
 
   // --------------------------------------------------------------------------
@@ -481,74 +628,6 @@ export default function PatientConsultationPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bookingId, user?.id, user?.fullName, WS_BASE]);
-
-  // --------------------------------------------------------------------------
-  // WebRTC Media Synchronization (Daily.co Call Object)
-  // --------------------------------------------------------------------------
-  const syncDailyTracks = useCallback((call: DailyCall | null) => {
-    if (!call) return;
-    try {
-      const participants = call.participants();
-      if (!participants) return;
-
-      // 1. Patient (Local)
-      const local = participants.local;
-      if (local) {
-        const vTrack = local.tracks?.video?.persistentTrack || local.tracks?.video?.track;
-        const vState = local.tracks?.video?.state;
-        const isPlayable = Boolean(vTrack && (vState === 'playable' || local.video) && vState !== 'off' && vState !== 'blocked');
-        if (vTrack) {
-          localTrackRef.current = vTrack;
-          if (localVideoRef.current) {
-            const currentStream = localVideoRef.current.srcObject as MediaStream | null;
-            if (!currentStream || !currentStream.getTracks().includes(vTrack)) {
-              localVideoRef.current.srcObject = new MediaStream([vTrack]);
-            }
-            localVideoRef.current.play().catch(() => {});
-          }
-        }
-        setHasLocalVideo(isPlayable && Boolean(vTrack));
-      }
-
-      // 2. Doctor (Remote)
-      const remotes = Object.values(participants).filter((p) => !p.local);
-      if (remotes.length > 0) {
-        const remote = remotes[0];
-        setIsDoctorConnected(true);
-        const rvTrack = remote.tracks?.video?.persistentTrack || remote.tracks?.video?.track;
-        const raTrack = remote.tracks?.audio?.persistentTrack || remote.tracks?.audio?.track;
-        const rvState = remote.tracks?.video?.state;
-        const isRemotePlayable = Boolean(rvTrack && (rvState === 'playable' || remote.video) && rvState !== 'off' && rvState !== 'blocked');
-
-        if (rvTrack) {
-          remoteVideoTrackRef.current = rvTrack;
-          setHasRemoteVideo(isRemotePlayable);
-          if (remoteVideoRef.current) {
-            const currentStream = remoteVideoRef.current.srcObject as MediaStream | null;
-            if (!currentStream || !currentStream.getTracks().includes(rvTrack)) {
-              remoteVideoRef.current.srcObject = new MediaStream([rvTrack]);
-            }
-            remoteVideoRef.current.play().catch(() => {});
-          }
-        } else {
-          setHasRemoteVideo(false);
-        }
-
-        if (raTrack) {
-          remoteAudioTrackRef.current = raTrack;
-          if (remoteAudioRef.current) {
-            const currentStream = remoteAudioRef.current.srcObject as MediaStream | null;
-            if (!currentStream || !currentStream.getTracks().includes(raTrack)) {
-              remoteAudioRef.current.srcObject = new MediaStream([raTrack]);
-            }
-            remoteAudioRef.current.play().catch(() => {});
-          }
-        }
-      }
-    } catch (e) {
-      console.warn('Patient Daily sync tracks note:', e);
-    }
-  }, []);
 
   // --------------------------------------------------------------------------
   // Join Consultation & Daily.co WebRTC Session
@@ -657,7 +736,11 @@ export default function PatientConsultationPage() {
           }
           dailyCall = DailyIframe.createCallObject({
             videoSource: bookingMode !== 'audio',
-            audioSource: true,
+            audioSource: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            } as any,
             subscribeToTracksAutomatically: true,
           });
 
@@ -678,6 +761,11 @@ export default function PatientConsultationPage() {
             } else if (ev.participant?.local && ev.track.kind === 'video') {
               setHasLocalVideo(false);
             }
+            syncDailyTracks(dailyCall);
+          });
+
+          dailyCall.on('input-settings-updated' as any, () => {
+            if (!isMounted) return;
             syncDailyTracks(dailyCall);
           });
 
@@ -722,6 +810,23 @@ export default function PatientConsultationPage() {
             url: joinData.roomUrl,
             token: joinData.token,
           });
+
+          // WebRTC Encoding & Latency Optimization
+          try {
+            await dailyCall.updateSendSettings({
+              video: {
+                maxQuality: 'medium',
+                allowAdaptiveLayers: true,
+                encodings: {
+                  low: { maxBitrate: 180000, maxFramerate: 20, scaleResolutionDownBy: 2.0 },
+                  medium: { maxBitrate: 550000, maxFramerate: 24, scaleResolutionDownBy: 1.0 },
+                  high: { maxBitrate: 1200000, maxFramerate: 30, scaleResolutionDownBy: 1.0 },
+                },
+              },
+            });
+          } catch (sendErr) {
+            console.warn('Daily updateSendSettings note:', sendErr);
+          }
 
           // Refresh the camera list from Daily (the live source post-join)
           try {
@@ -863,11 +968,12 @@ export default function PatientConsultationPage() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = (evt) => {
-      const dataUrl = evt.target?.result as string;
-      setCustomBgImage(dataUrl);
-      applyBackgroundEffect('virtual-image', undefined, dataUrl);
+      const arrayBuffer = evt.target?.result as ArrayBuffer;
+      const previewUrl = URL.createObjectURL(file);
+      setCustomBgImage(previewUrl);
+      applyBackgroundEffect('virtual-image', undefined, previewUrl, arrayBuffer);
     };
-    reader.readAsDataURL(file);
+    reader.readAsArrayBuffer(file);
   };
 
   // --------------------------------------------------------------------------
@@ -1246,8 +1352,58 @@ export default function PatientConsultationPage() {
           </div>
         </div>
 
-        {/* RIGHT: Patient Status + Leave */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', pointerEvents: 'auto' }}>
+        {/* RIGHT: Layout Controls + Patient Status */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', pointerEvents: 'auto' }}>
+          {/* Split / PiP Toggle */}
+          <button
+            onClick={() => setVideoLayout(videoLayout === 'pip' ? 'grid' : 'pip')}
+            title={videoLayout === 'pip' ? 'Switch to Side-by-Side Split View' : 'Switch to Picture-in-Picture View'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '9999px',
+              backgroundColor: 'rgba(26, 15, 10, 0.88)',
+              backdropFilter: 'blur(12px)',
+              border: '1.5px solid rgba(223, 171, 98, 0.4)',
+              color: '#FAF6EE',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+            }}
+          >
+            {videoLayout === 'pip' ? <Grid size={14} color="#DFAB62" /> : <Layers size={14} color="#DFAB62" />}
+            <span className="layout-btn-label">{videoLayout === 'pip' ? 'Split View' : 'PiP View'}</span>
+          </button>
+
+          {/* Swap Views (only active in PiP mode) */}
+          {videoLayout === 'pip' && (
+            <button
+              onClick={() => setIsSwapped(!isSwapped)}
+              title="Swap Main & Floating Window"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '6px 12px',
+                borderRadius: '9999px',
+                backgroundColor: 'rgba(26, 15, 10, 0.88)',
+                backdropFilter: 'blur(12px)',
+                border: '1.5px solid rgba(223, 171, 98, 0.4)',
+                color: '#DFAB62',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+              }}
+            >
+              <ArrowLeftRight size={14} />
+              <span className="swap-btn-label">Swap</span>
+            </button>
+          )}
+
           {/* 5. Patient Self-Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 12px 5px 6px', borderRadius: '9999px', backgroundColor: 'rgba(30,16,10,0.75)', backdropFilter: 'blur(16px)', border: isPatientSpeaking ? '1px solid #22C55E' : '1px solid rgba(223,171,98,0.25)', transition: 'border-color 0.2s ease' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#2A170F', border: '1px solid #DFAB62', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -1266,8 +1422,7 @@ export default function PatientConsultationPage() {
               </div>
             </div>
           </div>
-
-          </div>
+        </div>
       </div>
 
       {/* ====================================================================
@@ -1284,13 +1439,75 @@ export default function PatientConsultationPage() {
           <button onClick={() => setCameraError(null)} style={{ background: 'none', border: 'none', color: '#FCA5A5', cursor: 'pointer', fontWeight: 800, fontSize: '0.85rem', padding: '0 0 0 6px' }}>✕</button>
         </div>
       )}
+      {backgroundNotice && (
+        <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', maxWidth: '92vw', padding: '10px 20px', borderRadius: '12px', backgroundColor: 'rgba(40,24,14,0.94)', backdropFilter: 'blur(16px)', border: '1px solid rgba(223,171,98,0.5)', fontSize: '0.8rem', fontWeight: 700, color: '#DFAB62', zIndex: 46, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', textAlign: 'center' }}>
+          <Sparkles size={16} color="#DFAB62" />
+          <span>{backgroundNotice}</span>
+          <button onClick={() => setBackgroundNotice(null)} style={{ background: 'none', border: 'none', color: '#DFAB62', cursor: 'pointer', fontWeight: 800, fontSize: '0.85rem', padding: '0 0 0 6px' }}>✕</button>
+        </div>
+      )}
 
       {/* ====================================================================
           MAIN VIDEO CONTAINER
           ==================================================================== */}
-      <div style={{ position: 'relative', flex: 1, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        {/* Remote Doctor Video Stage */}
-        <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#150B07' }}>
+      <div
+        style={{
+          position: 'relative',
+          flex: 1,
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
+          display: videoLayout === 'grid' ? 'grid' : 'block',
+          ...(videoLayout === 'grid'
+            ? {
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                gap: '12px',
+                padding: '12px',
+                boxSizing: 'border-box' as const,
+              }
+            : {}),
+        }}
+        className={videoLayout === 'grid' ? 'patient-video-grid' : ''}
+      >
+        {/* ------------------------------------------------------------------
+            TILE 1: DOCTOR TILE (Remote Video)
+            ------------------------------------------------------------------ */}
+        <div
+          className={videoLayout === 'pip' && isSwapped ? `patient-pip patient-pip-${pipSize} patient-pip-corner-${pipCorner}` : ''}
+          style={
+            videoLayout === 'grid'
+              ? {
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  backgroundColor: '#1E100A',
+                  border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                }
+              : isSwapped
+              ? {
+                  position: 'absolute',
+                  ...CORNER_STYLES[pipCorner],
+                  ...PIP_DIMENSIONS[pipSize],
+                  zIndex: 25,
+                  borderRadius: '18px',
+                  overflow: 'hidden',
+                  backgroundColor: '#1E100A',
+                  border: '2px solid rgba(223, 171, 98, 0.55)',
+                  boxShadow: '0 14px 40px rgba(0, 0, 0, 0.65)',
+                  transition: 'all 0.22s ease-in-out',
+                }
+              : {
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  zIndex: 10,
+                  backgroundColor: '#150B07',
+                }
+          }
+        >
           <video
             ref={remoteVideoRef}
             autoPlay
@@ -1316,16 +1533,16 @@ export default function PatientConsultationPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 backgroundColor: '#1E120B',
-                gap: '14px',
-                padding: '24px',
+                gap: '12px',
+                padding: '20px',
                 textAlign: 'center',
                 zIndex: 1,
               }}
             >
               <div
                 style={{
-                  width: '76px',
-                  height: '76px',
+                  width: '64px',
+                  height: '64px',
                   borderRadius: '50%',
                   backgroundColor: 'rgba(223, 171, 98, 0.15)',
                   border: '2px solid #DFAB62',
@@ -1333,7 +1550,7 @@ export default function PatientConsultationPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   color: '#DFAB62',
-                  fontSize: '1.8rem',
+                  fontSize: '1.5rem',
                   fontWeight: 700,
                 }}
               >
@@ -1342,28 +1559,210 @@ export default function PatientConsultationPage() {
                   : 'DR'}
               </div>
               <div>
-                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#FAF6EE' }}>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FAF6EE' }}>
                   {doctorName.startsWith('Dr') ? doctorName : `Dr. ${doctorName}`}
                 </div>
-                <div style={{ fontSize: '0.85rem', color: '#DFAB62', marginTop: '4px', fontWeight: 600 }}>
+                <div style={{ fontSize: '0.8rem', color: '#DFAB62', marginTop: '2px', fontWeight: 600 }}>
                   {doctorSpecialty}
                 </div>
-                <div style={{ fontSize: '0.8rem', color: isDoctorConnected ? '#4ADE80' : '#D5C7B8', marginTop: '8px' }}>
+                <div style={{ fontSize: '0.75rem', color: isDoctorConnected ? '#4ADE80' : '#D5C7B8', marginTop: '6px' }}>
                   {isDoctorConnected
-                    ? 'Doctor is in room • Camera is currently off'
+                    ? 'Doctor is in room • Camera off'
                     : 'Connecting to your doctor…'}
                 </div>
               </div>
             </div>
           )}
+
+          {/* Mini Action Toolbar when Doctor is in PiP */}
+          {videoLayout === 'pip' && isSwapped && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '6px',
+                right: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                zIndex: 30,
+              }}
+            >
+              <button
+                onClick={() => setIsSwapped(false)}
+                title="Swap into Main View"
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                  border: '1px solid rgba(223, 171, 98, 0.4)',
+                  color: '#DFAB62',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <ArrowLeftRight size={12} />
+              </button>
+              <button
+                onClick={cycleSize}
+                title={`Frame Size: ${pipSize.toUpperCase()} (Click to toggle)`}
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                  border: '1px solid rgba(223, 171, 98, 0.4)',
+                  color: '#FAF6EE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '0.62rem',
+                  fontWeight: 800,
+                }}
+              >
+                {pipSize === 'sm' ? 'S' : pipSize === 'md' ? 'M' : 'L'}
+              </button>
+              <button
+                onClick={cycleCorner}
+                title="Move to next corner"
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                  border: '1px solid rgba(223, 171, 98, 0.4)',
+                  color: '#FAF6EE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Move size={12} />
+              </button>
+              <button
+                onClick={() => setVideoLayout('grid')}
+                title="Switch to Split View"
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                  border: '1px solid rgba(223, 171, 98, 0.4)',
+                  color: '#DFAB62',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Grid size={12} />
+              </button>
+            </div>
+          )}
+
+          {/* Doctor bottom badge */}
+          <div
+            style={{
+              position: 'absolute',
+              bottom: '8px',
+              left: '8px',
+              right: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '4px 10px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(20, 12, 8, 0.82)',
+              backdropFilter: 'blur(8px)',
+              zIndex: 10,
+            }}
+          >
+            <div>
+              <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
+                {doctorName}
+              </div>
+              <div style={{ fontSize: '0.62rem', color: '#DFAB62', fontWeight: 600 }}>
+                {doctorSpecialty}
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span
+                style={{
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: isDoctorConnected ? '#22C55E' : '#F59E0B',
+                  boxShadow: isDoctorConnected ? '0 0 6px #22C55E' : 'none',
+                }}
+              />
+            </div>
+          </div>
         </div>
 
-        {/* Patient Self-View PiP */}
-        <div className="patient-pip" style={{ position: 'absolute', bottom: '96px', right: '28px', width: '260px', height: '168px', borderRadius: '18px', overflow: 'hidden', backgroundColor: '#1E100A', border: isPatientSpeaking ? '2px solid #22C55E' : '2px solid rgba(223,171,98,0.45)', boxShadow: '0 14px 40px rgba(0,0,0,0.65)', zIndex: 25, transition: 'all 0.25s cubic-bezier(0.16,1,0.3,1)' }}>
+        {/* ------------------------------------------------------------------
+            TILE 2: PATIENT TILE (Self-View)
+            ------------------------------------------------------------------ */}
+        <div
+          className={videoLayout === 'pip' && !isSwapped ? `patient-pip patient-pip-${pipSize} patient-pip-corner-${pipCorner}` : ''}
+          style={
+            videoLayout === 'grid'
+              ? {
+                  position: 'relative',
+                  width: '100%',
+                  height: '100%',
+                  borderRadius: '16px',
+                  overflow: 'hidden',
+                  backgroundColor: '#1E100A',
+                  border: isPatientSpeaking ? '2px solid #22C55E' : '1.5px solid rgba(223, 171, 98, 0.35)',
+                }
+              : isSwapped
+              ? {
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                  zIndex: 10,
+                  backgroundColor: '#150B07',
+                }
+              : {
+                  position: 'absolute',
+                  ...CORNER_STYLES[pipCorner],
+                  ...PIP_DIMENSIONS[pipSize],
+                  zIndex: 25,
+                  borderRadius: '18px',
+                  overflow: 'hidden',
+                  backgroundColor: '#1E100A',
+                  border: isPatientSpeaking ? '2px solid #22C55E' : '2px solid rgba(223, 171, 98, 0.45)',
+                  boxShadow: '0 14px 40px rgba(0,0,0,0.65)',
+                  transition: 'all 0.22s ease-in-out',
+                }
+          }
+        >
           {activeEffect === 'virtual-image' && activeBgSource && !isVideoMuted && (
             <img src={activeBgSource} alt="Virtual BG" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
           )}
-          <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'relative', width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: !isVideoMuted && hasLocalVideo ? 'block' : 'none', zIndex: 2, filter: activeEffect === 'blur-light' ? 'blur(6px)' : activeEffect === 'blur-heavy' ? 'blur(16px)' : 'none', transition: 'filter 0.3s ease', opacity: activeEffect === 'virtual-image' ? 0.92 : 1 }} />
+          <video
+            ref={localVideoRef}
+            autoPlay
+            playsInline
+            muted
+            style={{
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transform: 'scaleX(-1)',
+              display: !isVideoMuted && hasLocalVideo ? 'block' : 'none',
+              zIndex: 2,
+              filter: activeEffect === 'blur-light' ? 'blur(6px)' : activeEffect === 'blur-heavy' ? 'blur(16px)' : 'none',
+              transition: 'filter 0.3s ease',
+              opacity: activeEffect === 'virtual-image' ? 0.92 : 1,
+            }}
+          />
 
           {isVideoMuted && (
             <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#2A170F', gap: '8px', zIndex: 3, position: 'relative' }}>
@@ -1380,6 +1779,96 @@ export default function PatientConsultationPage() {
               <span style={{ fontSize: '0.72rem', color: '#FAF6EE', fontWeight: 600 }}>Camera not detected</span>
               <button onClick={() => startRealMedia()} style={{ marginTop: '8px', padding: '4px 10px', borderRadius: '9999px', backgroundColor: '#DFAB62', border: 'none', color: '#2A170F', fontSize: '0.675rem', fontWeight: 700, cursor: 'pointer' }}>
                 Grant Access
+              </button>
+            </div>
+          )}
+
+          {/* Mini Action Toolbar when Patient is in PiP */}
+          {videoLayout === 'pip' && !isSwapped && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '6px',
+                right: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                zIndex: 30,
+              }}
+            >
+              <button
+                onClick={() => setIsSwapped(true)}
+                title="Swap into Main View"
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                  border: '1px solid rgba(223, 171, 98, 0.4)',
+                  color: '#DFAB62',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <ArrowLeftRight size={12} />
+              </button>
+              <button
+                onClick={cycleSize}
+                title={`Frame Size: ${pipSize.toUpperCase()} (Click to toggle)`}
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                  border: '1px solid rgba(223, 171, 98, 0.4)',
+                  color: '#FAF6EE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: '0.62rem',
+                  fontWeight: 800,
+                }}
+              >
+                {pipSize === 'sm' ? 'S' : pipSize === 'md' ? 'M' : 'L'}
+              </button>
+              <button
+                onClick={cycleCorner}
+                title="Move to next corner"
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                  border: '1px solid rgba(223, 171, 98, 0.4)',
+                  color: '#FAF6EE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Move size={12} />
+              </button>
+              <button
+                onClick={() => setVideoLayout('grid')}
+                title="Switch to Split View"
+                style={{
+                  width: '26px',
+                  height: '26px',
+                  borderRadius: '6px',
+                  backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                  border: '1px solid rgba(223, 171, 98, 0.4)',
+                  color: '#DFAB62',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <Grid size={12} />
               </button>
             </div>
           )}
@@ -1645,7 +2134,21 @@ export default function PatientConsultationPage() {
         @media (max-width: 768px) {
           .patient-hud { padding: 10px 12px !important; flex-wrap: wrap !important; gap: 8px !important; }
           .patient-topic-pill { display: none !important; }
-          .patient-pip { width: 132px !important; height: 88px !important; right: 12px !important; bottom: 92px !important; }
+          .layout-btn-label, .swap-btn-label { display: none !important; }
+
+          /* Dynamic responsive PiP size classes on mobile */
+          .patient-pip-sm { width: 125px !important; height: 175px !important; }
+          .patient-pip-md { width: 165px !important; height: 230px !important; }
+          .patient-pip-lg { width: 215px !important; height: 300px !important; }
+
+          .patient-pip-corner-bottom-right { bottom: 84px !important; right: 12px !important; left: auto !important; top: auto !important; }
+          .patient-pip-corner-bottom-left { bottom: 84px !important; left: 12px !important; right: auto !important; top: auto !important; }
+          .patient-pip-corner-top-right { top: 72px !important; right: 12px !important; left: auto !important; bottom: auto !important; }
+          .patient-pip-corner-top-left { top: 72px !important; left: 12px !important; right: auto !important; bottom: auto !important; }
+
+          /* Mobile Grid: stack vertically */
+          .patient-video-grid { grid-template-columns: 1fr !important; grid-template-rows: 1fr 1fr !important; }
+
           /* Single compact row: equal circular buttons, icon-only end call */
           .patient-controls { left: 12px !important; right: 12px !important; transform: none !important; bottom: 16px !important; flex-wrap: nowrap !important; justify-content: center !important; gap: 8px !important; padding: 8px 10px !important; max-width: calc(100vw - 24px); }
           .patient-controls button { width: 44px !important; height: 44px !important; flex: 0 0 44px; border-radius: 50% !important; }
