@@ -42,12 +42,6 @@ export default function DoctorLoginPage() {
     }
   };
 
-  const handleQuickFill = () => {
-    setEmail('doctor@chekup247.com');
-    setPassword('DoctorChekup2026!');
-    setError(null);
-  };
-
   return (
     <div className="auth-split-layout">
       {/* LEFT COLUMN: Clean Brand & Trust Panel */}
@@ -442,30 +436,6 @@ export default function DoctorLoginPage() {
                 />
                 <span>Remember this device</span>
               </label>
-
-              {/* Quick Fill Test Doctor */}
-              <button
-                type="button"
-                onClick={handleQuickFill}
-                style={{
-                  background: 'var(--color-cream-surface, #FDFBF7)',
-                  border: '1px dashed var(--color-gold-border, rgba(223, 171, 98, 0.45))',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  color: 'var(--color-gold-bronze, #B88647)',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'all 0.15s ease',
-                }}
-                title="Fill seeded test doctor credentials"
-              >
-                <SolarIcon name="user-check-linear" size={13} color="var(--color-gold-bronze, #B88647)" />
-                <span>Demo (Dr. Molefe)</span>
-              </button>
             </div>
 
             {/* Submit Button */}

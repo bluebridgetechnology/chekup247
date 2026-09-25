@@ -168,8 +168,6 @@ export class StorageController {
   @UseGuards(JwtAuthGuard)
   @Get('documents/mine')
   async getMyDocuments(@CurrentUser('id') userId: string) {
-    await this.seedDemoDocumentsIfEmpty(userId);
-
     const docs = await this.documentRepository.find({
       where: { patient_id: userId },
       order: { created_at: 'DESC' },
@@ -202,8 +200,6 @@ export class StorageController {
   @UseGuards(JwtAuthGuard)
   @Get('documents/patient/:patientId')
   async getPatientDocuments(@Param('patientId') patientId: string) {
-    await this.seedDemoDocumentsIfEmpty(patientId);
-
     const docs = await this.documentRepository.find({
       where: { patient_id: patientId },
       order: { created_at: 'DESC' },
@@ -227,63 +223,6 @@ export class StorageController {
         };
       }),
     );
-  }
-
-  private async seedDemoDocumentsIfEmpty(userId: string) {
-    try {
-      const count = await this.documentRepository.count({ where: { patient_id: userId } });
-      if (count > 0) return;
-
-      const demoDocs = [
-        {
-          patient_id: userId,
-          title: 'PathCare Full Blood Count (FBC) & CRP Panel',
-          original_filename: 'PathCare_FBC_CRP_Report_2026.pdf',
-          category: PatientDocumentCategory.LAB_REPORT,
-          file_size: 245760,
-          mime_type: 'application/pdf',
-          s3_key: `patient-records/${userId}/lab_report/PathCare_FBC_CRP_Report_2026.pdf`,
-          notes: 'Full blood count, differential white cell count, and C-reactive protein panel.',
-        },
-        {
-          patient_id: userId,
-          title: 'Right Knee Diagnostic MRI Radiology Scan Report',
-          original_filename: 'Right_Knee_MRI_Diagnostic.pdf',
-          category: PatientDocumentCategory.IMAGING,
-          file_size: 1428500,
-          mime_type: 'application/pdf',
-          s3_key: `patient-records/${userId}/imaging/Right_Knee_MRI_Diagnostic.pdf`,
-          notes: 'High-resolution coronal and sagittal MRI views with radiologist findings.',
-        },
-        {
-          patient_id: userId,
-          title: 'Mediclinic Cape Town Day-Ward Discharge Summary',
-          original_filename: 'Mediclinic_Discharge_Summary.pdf',
-          category: PatientDocumentCategory.DISCHARGE_SUMMARY,
-          file_size: 512000,
-          mime_type: 'application/pdf',
-          s3_key: `patient-records/${userId}/discharge_summary/Mediclinic_Discharge_Summary.pdf`,
-          notes: 'Day-ward observation chart and clinical discharge recommendations.',
-        },
-        {
-          patient_id: userId,
-          title: 'Lancet Laboratories Fasting Lipogram & HbA1c Panel',
-          original_filename: 'Lancet_Lipid_HbA1c_Panel.pdf',
-          category: PatientDocumentCategory.LAB_REPORT,
-          file_size: 184320,
-          mime_type: 'application/pdf',
-          s3_key: `patient-records/${userId}/lab_report/Lancet_Lipid_HbA1c_Panel.pdf`,
-          notes: 'Fasting lipid profile, cholesterol breakdown, and HbA1c glycemic control check.',
-        },
-      ];
-
-      for (const d of demoDocs) {
-        const item = this.documentRepository.create(d);
-        await this.documentRepository.save(item);
-      }
-    } catch {
-      // ignore
-    }
   }
 
   /**

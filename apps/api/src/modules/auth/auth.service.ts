@@ -99,11 +99,7 @@ export class AuthService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    try {
-      await this.ensureTestPatientAccount();
-    } catch (err: any) {
-      this.logger.warn(`Test patient seed check deferred: ${err.message}`);
-    }
+    // Mock patient seeding disabled to maintain clean system state
   }
 
   /**

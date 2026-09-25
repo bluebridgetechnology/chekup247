@@ -185,9 +185,8 @@ const CORNER_STYLES: Record<string, React.CSSProperties> = {
 
 export default function DoctorConsultationWorkspace() {
   const params = useParams();
-  const router = useRouter();
   const { doctor, token } = useDoctorAuth();
-  const bookingId = (params?.bookingId as string) || 'demo-booking-1';
+  const bookingId = (params?.bookingId as string) || '';
 
   const API_BASE =
     process.env.NEXT_PUBLIC_API_URL ||
