@@ -279,8 +279,32 @@ export class ConsultationsService {
       );
     }
 
+    // Enrich consultation with doctor profile details (name, specialty, avatarUrl)
+    let doctorInfo: { name: string; specialty: string; avatarUrl?: string | null } | undefined;
+    const docId = consultation.booking?.doctor_id;
+    if (docId) {
+      try {
+        const doc = await this.doctorProfileRepository.findOne({
+          where: [{ user_id: docId }, { id: docId }],
+          relations: ['user'],
+        });
+        if (doc) {
+          doctorInfo = {
+            name: doc.user?.full_name || `Dr. ${doc.hpcsa_number}`,
+            specialty: doc.specialty,
+            avatarUrl: doc.user?.avatar_url || null,
+          };
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not load doctor profile for joinConsultation: ${err.message}`);
+      }
+    }
+
     return {
-      consultation,
+      consultation: {
+        ...consultation,
+        ...(doctorInfo ? { doctor: doctorInfo } : {}),
+      } as any,
       roomUrl: consultation.room_url,
       token: tokenResult.token,
       startedAt: consultation.started_at,
@@ -465,14 +489,17 @@ export class ConsultationsService {
     // Get doctor profile if available
     let doctorName = 'Doctor';
     let specialty = 'General Practitioner';
+    let avatarUrl: string | null = null;
     if (consultation.booking?.doctor_id) {
+      const docId = consultation.booking.doctor_id;
       const doc = await this.doctorProfileRepository.findOne({
-        where: { id: consultation.booking.doctor_id },
+        where: [{ id: docId }, { user_id: docId }],
         relations: ['user'],
       });
       if (doc) {
         doctorName = doc.user?.full_name || `Dr. ${doc.hpcsa_number}`;
         specialty = doc.specialty;
+        avatarUrl = doc.user?.avatar_url || null;
       }
     }
 
@@ -511,6 +538,7 @@ export class ConsultationsService {
       doctor: {
         name: doctorName,
         specialty,
+        avatarUrl,
       },
       patient: patientUser,
       patientMedicalProfile,

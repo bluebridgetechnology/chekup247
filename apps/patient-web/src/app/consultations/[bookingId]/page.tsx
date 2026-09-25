@@ -74,6 +74,7 @@ interface ConsultationData {
     name: string;
     specialty: string;
     photoUrl?: string;
+    avatarUrl?: string | null;
   };
 }
 
@@ -170,6 +171,8 @@ export default function PatientConsultationPage() {
   const [consultation, setConsultation] = useState<ConsultationData | null>(null);
   const [doctorName, setDoctorName] = useState<string>('Doctor');
   const [doctorSpecialty, setDoctorSpecialty] = useState<string>('General Practitioner');
+  const [doctorAvatarUrl, setDoctorAvatarUrl] = useState<string | null>(null);
+  const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
   const [isConsultationEnded, setIsConsultationEnded] = useState<boolean>(false);
   // Post-call review prompt
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
@@ -328,8 +331,8 @@ export default function PatientConsultationPage() {
 
       const constraints: MediaStreamConstraints = {
         video: deviceId
-          ? { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } }
-          : { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+          ? { deviceId: { exact: deviceId }, width: { ideal: 1920, min: 640 }, height: { ideal: 1080, min: 480 } }
+          : { facingMode: 'user', width: { ideal: 1920, min: 640 }, height: { ideal: 1080, min: 480 } },
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -744,6 +747,9 @@ export default function PatientConsultationPage() {
             if (data.doctor) {
               setDoctorName(data.doctor.name || 'Doctor');
               setDoctorSpecialty(data.doctor.specialty || 'General Practitioner');
+              if (data.doctor.avatarUrl || data.doctor.photoUrl) {
+                setDoctorAvatarUrl(data.doctor.avatarUrl || data.doctor.photoUrl || null);
+              }
             }
             if (data.started_at) {
               setStartedAt(new Date(data.started_at));
@@ -778,6 +784,9 @@ export default function PatientConsultationPage() {
         if (joinData.consultation.doctor) {
           setDoctorName(joinData.consultation.doctor.name || 'Doctor');
           setDoctorSpecialty(joinData.consultation.doctor.specialty || 'General Practitioner');
+          if (joinData.consultation.doctor.avatarUrl || joinData.consultation.doctor.photoUrl) {
+            setDoctorAvatarUrl(joinData.consultation.doctor.avatarUrl || joinData.consultation.doctor.photoUrl || null);
+          }
         }
 
         // Set server-authoritative started_at timestamp
@@ -874,16 +883,16 @@ export default function PatientConsultationPage() {
             token: joinData.token,
           });
 
-          // WebRTC Encoding & Latency Optimization
+          // WebRTC Encoding & Latency Optimization (HD Telehealth Profile)
           try {
             await dailyCall.updateSendSettings({
               video: {
-                maxQuality: 'medium',
+                maxQuality: 'high',
                 allowAdaptiveLayers: true,
                 encodings: {
-                  low: { maxBitrate: 180000, maxFramerate: 20, scaleResolutionDownBy: 2.0 },
-                  medium: { maxBitrate: 550000, maxFramerate: 24, scaleResolutionDownBy: 1.0 },
-                  high: { maxBitrate: 1200000, maxFramerate: 30, scaleResolutionDownBy: 1.0 },
+                  low: { maxBitrate: 350000, maxFramerate: 20, scaleResolutionDownBy: 2.0 },
+                  medium: { maxBitrate: 1200000, maxFramerate: 25, scaleResolutionDownBy: 1.0 },
+                  high: { maxBitrate: 3000000, maxFramerate: 30, scaleResolutionDownBy: 1.0 },
                 },
               },
             });
@@ -1479,8 +1488,35 @@ export default function PatientConsultationPage() {
 
           {/* 1. Consulting Doctor */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '5px 14px 5px 6px', borderRadius: '9999px', backgroundColor: 'rgba(30,16,10,0.75)', backdropFilter: 'blur(16px)', border: '1px solid rgba(223,171,98,0.3)', boxShadow: '0 4px 18px rgba(0,0,0,0.3)' }}>
-            <img src="/images/doctor_sarah_profile.jpg" alt={doctorName} style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #DFAB62' }}
-              onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/images/doctor_sarah_avatar.jpg'; }} />
+            {doctorAvatarUrl ? (
+              <img
+                src={doctorAvatarUrl}
+                alt={doctorName}
+                style={{ width: '32px', height: '32px', borderRadius: '50%', objectFit: 'cover', border: '1.5px solid #DFAB62' }}
+                onError={() => setDoctorAvatarUrl(null)}
+              />
+            ) : (
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(223, 171, 98, 0.2)',
+                  border: '1.5px solid #DFAB62',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#DFAB62',
+                  fontWeight: 800,
+                  fontSize: '0.75rem',
+                  flexShrink: 0,
+                }}
+              >
+                {doctorName
+                  ? doctorName.replace(/^Dr\.?\s*/i, '').split(' ').map((p) => p[0]).join('').substring(0, 2).toUpperCase() || 'DR'
+                  : 'DR'}
+              </div>
+            )}
             <div style={{ lineHeight: 1.2 }}>
               <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#FFFFFF' }}>{doctorName}</div>
               <div style={{ fontSize: '0.7rem', color: '#DFAB62', fontWeight: 600 }}>{doctorSpecialty}</div>
@@ -1575,6 +1611,30 @@ export default function PatientConsultationPage() {
               <span className="swap-btn-label">Swap</span>
             </button>
           )}
+
+          {/* Fit / Fill Toggle */}
+          <button
+            onClick={() => setVideoFitMode(videoFitMode === 'contain' ? 'cover' : 'contain')}
+            title={videoFitMode === 'contain' ? 'Fit to Screen (Full Camera View) — Click to Fill' : 'Crop to Fill — Click to Fit'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '9999px',
+              backgroundColor: videoFitMode === 'contain' ? 'rgba(223, 171, 98, 0.25)' : 'rgba(26, 15, 10, 0.88)',
+              backdropFilter: 'blur(12px)',
+              border: videoFitMode === 'contain' ? '1.5px solid #DFAB62' : '1.5px solid rgba(223, 171, 98, 0.4)',
+              color: videoFitMode === 'contain' ? '#DFAB62' : '#FAF6EE',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+            }}
+          >
+            {videoFitMode === 'contain' ? <Shrink size={14} /> : <Expand size={14} />}
+            <span className="layout-btn-label">{videoFitMode === 'contain' ? 'Fit' : 'Fill'}</span>
+          </button>
 
           {/* Full Video View Toggle */}
           <button
@@ -1715,7 +1775,7 @@ export default function PatientConsultationPage() {
               inset: 0,
               width: '100%',
               height: '100%',
-              objectFit: 'cover',
+              objectFit: videoLayout === 'pip' && isSwapped ? 'cover' : videoFitMode,
               display: isDoctorConnected && hasRemoteVideo ? 'block' : 'none',
               zIndex: 2,
             }}
@@ -1952,7 +2012,7 @@ export default function PatientConsultationPage() {
               position: 'relative',
               width: '100%',
               height: '100%',
-              objectFit: 'cover',
+              objectFit: videoLayout === 'pip' && !isSwapped ? 'cover' : videoFitMode,
               transform: 'scaleX(-1)',
               display: !isVideoMuted && hasLocalVideo ? 'block' : 'none',
               zIndex: 2,

@@ -27,6 +27,7 @@ import {
   User,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
+import { ChekupCrossLogo } from '../../../components/common/ChekupCrossLogo';
 
 interface AttachedDoc {
   name: string;
@@ -131,47 +132,30 @@ function BotanicalBranch({
 }
 
 /**
- * Clean shield mark with cross for top bar TeleHealth branding
+ * Original Chekup247 Platform Brand Logo
  */
-function TelehealthLogo() {
+function PlatformLogo() {
   return (
-    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-      <svg
-        width="22"
-        height="24"
-        viewBox="0 0 22 24"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-        aria-hidden="true"
-      >
-        <path
-          d="M11 1.5L2.5 5V11.5C2.5 16.8 6.1 21.7 11 22.8C15.9 21.7 19.5 16.8 19.5 11.5V5L11 1.5Z"
-          stroke="#B88647"
-          strokeWidth="1.8"
-          strokeLinejoin="round"
-          fill="rgba(223, 171, 98, 0.08)"
-        />
-        <path
-          d="M11 7.5V15.5M7 11.5H15"
-          stroke="#B88647"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-        />
-      </svg>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+      <ChekupCrossLogo size={26} />
       <span
         style={{
-          fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-          fontWeight: 800,
-          fontSize: '1.2rem',
-          color: 'var(--color-chocolate-base, #2A170F)',
+          fontSize: '1.28rem',
+          fontWeight: 700,
           letterSpacing: '-0.02em',
+          lineHeight: 1,
+          display: 'inline-flex',
+          alignItems: 'baseline',
+          fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
         }}
       >
-        TeleHealth
+        <span style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Chekup</span>
+        <span style={{ color: 'var(--color-gold-base, #DFAB62)' }}>247</span>
       </span>
     </div>
   );
 }
+
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -746,8 +730,9 @@ function SuccessContent() {
               display: 'inline-flex',
               alignItems: 'center',
             }}
+            aria-label="Chekup247 Home"
           >
-            <TelehealthLogo />
+            <PlatformLogo />
           </Link>
           <div
             style={{

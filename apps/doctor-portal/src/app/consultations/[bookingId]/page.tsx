@@ -299,14 +299,43 @@ export default function DoctorConsultationWorkspace() {
     followup: true,
   });
 
-  // Video Refs
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const localTrackRef = useRef<MediaStreamTrack | null>(null);
   const remoteVideoTrackRef = useRef<MediaStreamTrack | null>(null);
   const remoteAudioTrackRef = useRef<MediaStreamTrack | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
   const workspaceContainerRef = useRef<HTMLDivElement | null>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+
+  const startRealMedia = useCallback(async () => {
+    try {
+      if (!navigator?.mediaDevices?.getUserMedia) {
+        setHasCameraPermission(false);
+        return null;
+      }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+      }
+      const constraints: MediaStreamConstraints = {
+        video: { width: { ideal: 1920, min: 640 }, height: { ideal: 1080, min: 480 } },
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      localStreamRef.current = stream;
+      setHasCameraPermission(true);
+      return stream;
+    } catch (err) {
+      console.warn('Doctor camera/mic pre-flight check:', err);
+      setHasCameraPermission(false);
+      return null;
+    }
+  }, []);
 
   // Common ICD-10 List for Quick Lookup
   const COMMON_ICD10 = [
@@ -390,6 +419,7 @@ export default function DoctorConsultationWorkspace() {
         if (vTrack) {
           localTrackRef.current = vTrack;
           if (localVideoRef.current) {
+            localVideoRef.current.muted = true;
             const currentStream = localVideoRef.current.srcObject as MediaStream | null;
             if (!currentStream || !currentStream.getTracks().includes(vTrack)) {
               localVideoRef.current.srcObject = new MediaStream([vTrack]);
@@ -617,6 +647,17 @@ export default function DoctorConsultationWorkspace() {
         const consultationMode =
           joinData?.consultation?.booking?.consultation_mode ??
           data?.booking?.consultation_mode;
+
+        // Preflight probe hardware camera & mic on desktop to ensure device is active
+        try {
+          const preflightStream = await startRealMedia();
+          if (preflightStream) {
+            preflightStream.getVideoTracks().forEach((t) => {
+              try { t.stop(); } catch { /* noop */ }
+            });
+          }
+        } catch { /* proceed with Daily fallback */ }
+
         dailyCall = DailyIframe.createCallObject({
           videoSource: consultationMode !== 'audio',
           audioSource: {
@@ -694,16 +735,16 @@ export default function DoctorConsultationWorkspace() {
 
         await dailyCall.join({ url: joinData.roomUrl, token: joinData.token });
 
-        // WebRTC Encoding & Latency Optimization
+        // WebRTC Encoding & Latency Optimization (HD Telehealth Profile)
         try {
           await dailyCall.updateSendSettings({
             video: {
-              maxQuality: 'medium',
+              maxQuality: 'high',
               allowAdaptiveLayers: true,
               encodings: {
-                low: { maxBitrate: 180000, maxFramerate: 20, scaleResolutionDownBy: 2.0 },
-                medium: { maxBitrate: 550000, maxFramerate: 24, scaleResolutionDownBy: 1.0 },
-                high: { maxBitrate: 1200000, maxFramerate: 30, scaleResolutionDownBy: 1.0 },
+                low: { maxBitrate: 350000, maxFramerate: 20, scaleResolutionDownBy: 2.0 },
+                medium: { maxBitrate: 1200000, maxFramerate: 25, scaleResolutionDownBy: 1.0 },
+                high: { maxBitrate: 3000000, maxFramerate: 30, scaleResolutionDownBy: 1.0 },
               },
             },
           });
@@ -735,6 +776,9 @@ export default function DoctorConsultationWorkspace() {
         dailyCall.leave().catch(() => {});
         dailyCall.destroy().catch(() => {});
       }
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+      }
       if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
     };
   }, [bookingId, token, API_BASE, doctor?.fullName, syncDailyTracks]);
@@ -743,21 +787,25 @@ export default function DoctorConsultationWorkspace() {
   // start tracks during join — attach anything buffered once they exist.
   useEffect(() => {
     if (isLoading || loadError || isConsultationEnded) return;
+    if (localVideoRef.current) {
+      localVideoRef.current.muted = true;
+    }
     if (callObject) {
       syncDailyTracks(callObject);
-    } else {
-      if (localTrackRef.current && localVideoRef.current && !localVideoRef.current.srcObject) {
-        localVideoRef.current.srcObject = new MediaStream([localTrackRef.current]);
-        localVideoRef.current.play().catch(() => {});
-      }
-      if (remoteVideoTrackRef.current && remoteVideoRef.current && !remoteVideoRef.current.srcObject) {
-        remoteVideoRef.current.srcObject = new MediaStream([remoteVideoTrackRef.current]);
-        remoteVideoRef.current.play().catch(() => {});
-      }
-      if (remoteAudioTrackRef.current && remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
-        remoteAudioRef.current.srcObject = new MediaStream([remoteAudioTrackRef.current]);
-        remoteAudioRef.current.play().catch(() => {});
-      }
+    }
+    // Reliable fallback: attach buffered tracks if video elements don't have active streams
+    if (localTrackRef.current && localVideoRef.current && !localVideoRef.current.srcObject) {
+      localVideoRef.current.muted = true;
+      localVideoRef.current.srcObject = new MediaStream([localTrackRef.current]);
+      localVideoRef.current.play().catch(() => {});
+    }
+    if (remoteVideoTrackRef.current && remoteVideoRef.current && !remoteVideoRef.current.srcObject) {
+      remoteVideoRef.current.srcObject = new MediaStream([remoteVideoTrackRef.current]);
+      remoteVideoRef.current.play().catch(() => {});
+    }
+    if (remoteAudioTrackRef.current && remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
+      remoteAudioRef.current.srcObject = new MediaStream([remoteAudioTrackRef.current]);
+      remoteAudioRef.current.play().catch(() => {});
     }
   }, [isLoading, loadError, isConsultationEnded, videoLayout, isSwapped, pipSize, pipCorner, callObject, syncDailyTracks]);
 
@@ -1971,10 +2019,11 @@ export default function DoctorConsultationWorkspace() {
                   playsInline
                   muted
                   style={{
-                    position: 'relative',
+                    position: 'absolute',
+                    inset: 0,
                     width: '100%',
                     height: '100%',
-                    objectFit: 'cover',
+                    objectFit: 'contain',
                     transform: 'scaleX(-1)',
                     display: !isVideoMuted ? 'block' : 'none',
                     backgroundColor: '#150B07',
@@ -2211,11 +2260,14 @@ export default function DoctorConsultationWorkspace() {
                   autoPlay
                   playsInline
                   style={{
+                    position: 'absolute',
+                    inset: 0,
                     width: '100%',
                     height: '100%',
-                    objectFit: 'cover',
+                    objectFit: 'contain',
                     display: isPatientConnected && hasRemoteVideo ? 'block' : 'none',
                     backgroundColor: '#150B07',
+                    zIndex: 2,
                   }}
                 />
 

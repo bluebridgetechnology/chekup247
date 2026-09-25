@@ -16,15 +16,26 @@ echo "===================================================================="
 echo " ChekUp247 — Cleaning Mock Patients & Clinical Data"
 echo "===================================================================="
 
+# Auto-load environment variables if .env.production or .env exists
+if [ -f .env.production ]; then
+  set -a
+  source .env.production
+  set +a
+elif [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+
 # Container names (from docker-compose.prod.yml & docker-compose.yml)
 PATIENT_CONTAINER="${PATIENT_CONTAINER:-chekup-patient-postgres}"
 OPERATIONAL_CONTAINER="${OPERATIONAL_CONTAINER:-chekup-operational-postgres}"
-DB_USER="${POSTGRES_USER:-chekup_user}"
-PATIENT_DB="${PATIENT_DB:-chekup_patient}"
-OPERATIONAL_DB="${OPERATIONAL_DB:-chekup_operational}"
+DB_USER="${POSTGRES_USER:-${OPERATIONAL_DB_USER:-chekup_prod_user}}"
+PATIENT_DB="${PATIENT_DB:-${PATIENT_DB_NAME:-chekup_patient}}"
+OPERATIONAL_DB="${OPERATIONAL_DB:-${OPERATIONAL_DB_NAME:-chekup_operational}}"
 
 echo "Target Patient DB: ${PATIENT_CONTAINER} / ${PATIENT_DB}"
-echo "Target Operational DB: ${OPERATIONAL_CONTAINER} / ${OPERATIONAL_DB}"
+echo "Target Operational DB: ${OPERATIONAL_CONTAINER} / ${OPERATIONAL_DB} (User: ${DB_USER})"
 echo ""
 
 # Helper to execute query inside docker container
