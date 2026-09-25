@@ -52,6 +52,9 @@ import {
   Expand,
   Shrink,
   Layers,
+  Sliders,
+  Camera,
+  Image as ImageIcon,
 } from 'lucide-react';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
@@ -131,6 +134,42 @@ interface DiagnosisItem {
   isPrimary: boolean;
 }
 
+export type BackgroundEffectType = 'none' | 'blur-light' | 'blur-heavy' | 'virtual-image';
+
+interface VirtualBackgroundPreset {
+  id: string;
+  name: string;
+  category: string;
+  previewUrl: string;
+}
+
+const VIRTUAL_BACKGROUND_PRESETS: VirtualBackgroundPreset[] = [
+  {
+    id: 'clinic-suite',
+    name: 'Medical Suite',
+    category: 'Clinical',
+    previewUrl: '/images/backgrounds/clinic-suite.png',
+  },
+  {
+    id: 'modern-office',
+    name: 'Modern Clinic Office',
+    category: 'Professional',
+    previewUrl: '/images/backgrounds/modern-office.png',
+  },
+  {
+    id: 'warm-interior',
+    name: 'Warm Living Room',
+    category: 'Home',
+    previewUrl: '/images/backgrounds/warm-interior.png',
+  },
+  {
+    id: 'studio-bokeh',
+    name: 'Studio Soft Bokeh',
+    category: 'Minimalist',
+    previewUrl: '/images/backgrounds/studio-bokeh.png',
+  },
+];
+
 const PIP_DIMENSIONS: Record<'sm' | 'md' | 'lg', { width: string; height: string }> = {
   sm: { width: '180px', height: '120px' },
   md: { width: '270px', height: '180px' },
@@ -172,6 +211,8 @@ export default function DoctorConsultationWorkspace() {
   const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
   const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isVideoFullView, setIsVideoFullView] = useState<boolean>(false);
+  const videoStageRef = useRef<HTMLDivElement | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
   const [isPatientConnected, setIsPatientConnected] = useState<boolean>(false);
   const [isPatientVideoActive, setIsPatientVideoActive] = useState<boolean>(false);
@@ -189,6 +230,14 @@ export default function DoctorConsultationWorkspace() {
   const [pipSize, setPipSize] = useState<'sm' | 'md' | 'lg'>('md');
   const [pipCorner, setPipCorner] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'>('bottom-right');
   const [isSwapped, setIsSwapped] = useState<boolean>(false);
+
+  // Background Effects State
+  const [activeEffect, setActiveEffect] = useState<BackgroundEffectType>('none');
+  const [selectedBgPreset, setSelectedBgPreset] = useState<string>('clinic-suite');
+  const [customBgImage, setCustomBgImage] = useState<string | null>(null);
+  const [showEffectsDrawer, setShowEffectsDrawer] = useState<boolean>(false);
+  const [backgroundNotice, setBackgroundNotice] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Timer State (starts from 0 or calculated from consultation.started_at)
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -394,6 +443,81 @@ export default function DoctorConsultationWorkspace() {
   }, []);
 
   // --------------------------------------------------------------------------
+  // Apply Background Effect via Daily.co processor
+  // --------------------------------------------------------------------------
+  const applyBackgroundEffect = useCallback(
+    async (effect: BackgroundEffectType, presetId?: string, customImg?: string, customBuffer?: ArrayBuffer) => {
+      setActiveEffect(effect);
+      const chosenPreset = presetId || selectedBgPreset;
+      if (presetId) setSelectedBgPreset(presetId);
+
+      if (callObject) {
+        try {
+          if (effect === 'blur-light') {
+            await callObject.updateInputSettings({
+              video: { processor: { type: 'background-blur', config: { strength: 0.4 } } },
+            });
+          } else if (effect === 'blur-heavy') {
+            await callObject.updateInputSettings({
+              video: { processor: { type: 'background-blur', config: { strength: 0.8 } } },
+            });
+          } else if (effect === 'virtual-image') {
+            let source: string | ArrayBuffer = '';
+            if (customBuffer) {
+              source = customBuffer;
+            } else if (customImg && customImg.startsWith('data:')) {
+              const res = await fetch(customImg);
+              source = await res.arrayBuffer();
+            } else {
+              const preset = VIRTUAL_BACKGROUND_PRESETS.find((p) => p.id === chosenPreset);
+              const path = preset?.previewUrl || '/images/backgrounds/clinic-suite.png';
+              source = `${window.location.origin}${path}`;
+            }
+
+            await callObject.updateInputSettings({
+              video: {
+                processor: {
+                  type: 'background-image',
+                  config: { source },
+                },
+              },
+            });
+          } else {
+            await callObject.updateInputSettings({
+              video: { processor: { type: 'none' } },
+            });
+          }
+          // Force track synchronization after input settings update
+          syncDailyTracks(callObject);
+        } catch (err: any) {
+          console.warn('Daily background processor exception:', err);
+          setBackgroundNotice('Background effect could not be activated on this camera. Hardware processor unavailable.');
+          setTimeout(() => setBackgroundNotice(null), 5000);
+        }
+      }
+    },
+    [callObject, selectedBgPreset, syncDailyTracks],
+  );
+
+  const handleUploadCustomBg = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const fileReader = new FileReader();
+    fileReader.onload = async () => {
+      const buffer = fileReader.result as ArrayBuffer;
+      const urlReader = new FileReader();
+      urlReader.onload = () => {
+        const dataUrl = urlReader.result as string;
+        setCustomBgImage(dataUrl);
+        applyBackgroundEffect('virtual-image', undefined, dataUrl, buffer);
+      };
+      urlReader.readAsDataURL(file);
+    };
+    fileReader.readAsArrayBuffer(file);
+  };
+
+  // --------------------------------------------------------------------------
   // Initial Load & Daily.co WebRTC Initialization
   // --------------------------------------------------------------------------
   useEffect(() => {
@@ -496,7 +620,11 @@ export default function DoctorConsultationWorkspace() {
           data?.booking?.consultation_mode;
         dailyCall = DailyIframe.createCallObject({
           videoSource: consultationMode !== 'audio',
-          audioSource: true,
+          audioSource: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          } as any,
           subscribeToTracksAutomatically: true,
         });
 
@@ -547,6 +675,11 @@ export default function DoctorConsultationWorkspace() {
           }
         });
 
+        dailyCall.on('input-settings-updated', () => {
+          if (!isMounted) return;
+          syncDailyTracks(dailyCall);
+        });
+
         // Surface camera acquisition failures (e.g. camera held by another
         // app/tab) instead of failing silently with a black tile.
         dailyCall.on('camera-error' as any, (ev: any) => {
@@ -561,6 +694,24 @@ export default function DoctorConsultationWorkspace() {
         });
 
         await dailyCall.join({ url: joinData.roomUrl, token: joinData.token });
+
+        // WebRTC Encoding & Latency Optimization
+        try {
+          await dailyCall.updateSendSettings({
+            video: {
+              maxQuality: 'medium',
+              allowAdaptiveLayers: true,
+              encodings: {
+                low: { maxBitrate: 180000, maxFramerate: 20, scaleResolutionDownBy: 2.0 },
+                medium: { maxBitrate: 550000, maxFramerate: 24, scaleResolutionDownBy: 1.0 },
+                high: { maxBitrate: 1200000, maxFramerate: 30, scaleResolutionDownBy: 1.0 },
+              },
+            },
+          });
+        } catch (sendErr) {
+          console.warn('Daily updateSendSettings note:', sendErr);
+        }
+
         if (isMounted) {
           setCallObject(dailyCall);
           syncDailyTracks(dailyCall);
@@ -745,15 +896,53 @@ export default function DoctorConsultationWorkspace() {
   };
 
   const toggleFullscreen = () => {
-    if (!workspaceContainerRef.current) return;
-    if (!document.fullscreenElement) {
-      workspaceContainerRef.current.requestFullscreen?.().catch(() => {});
+    const stage = videoStageRef.current;
+    const isCurrentlyFull = isVideoFullView || !!document.fullscreenElement;
+
+    if (!isCurrentlyFull) {
+      setIsVideoFullView(true);
       setIsFullscreen(true);
+      if (stage && stage.requestFullscreen) {
+        stage.requestFullscreen().catch(() => {});
+      }
     } else {
-      document.exitFullscreen?.().catch(() => {});
+      setIsVideoFullView(false);
       setIsFullscreen(false);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
     }
   };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFs = !!document.fullscreenElement;
+      setIsFullscreen(isFs);
+      if (!isFs) {
+        setIsVideoFullView(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isVideoFullView) {
+        setIsVideoFullView(false);
+        setIsFullscreen(false);
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVideoFullView]);
 
   const cycleCorner = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1391,20 +1580,38 @@ export default function DoctorConsultationWorkspace() {
               VIDEO HUD CONTAINER
               ================================================================ */}
           <div
-            className="video-stage"
-            style={{
-              position: 'relative',
-              width: '100%',
-              flexShrink: 0,
-              borderRadius: '18px',
-              overflow: 'hidden',
-              backgroundColor: '#150B07',
-              border: '1px solid rgba(223, 171, 98, 0.25)',
-              boxShadow: '0 12px 36px rgba(30, 16, 10, 0.22)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            ref={videoStageRef}
+            className={`video-stage ${isVideoFullView ? 'video-stage-fullview' : ''}`}
+            onDoubleClick={toggleFullscreen}
+            style={
+              isVideoFullView
+                ? {
+                    position: 'fixed',
+                    inset: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    zIndex: 99999,
+                    borderRadius: 0,
+                    backgroundColor: '#150B07',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }
+                : {
+                    position: 'relative',
+                    width: '100%',
+                    flexShrink: 0,
+                    borderRadius: '18px',
+                    overflow: 'hidden',
+                    backgroundColor: '#150B07',
+                    border: '1px solid rgba(223, 171, 98, 0.25)',
+                    boxShadow: '0 12px 36px rgba(30, 16, 10, 0.22)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }
+            }
           >
             {/* Connection error overlay */}
             {callError ? (
@@ -1578,6 +1785,30 @@ export default function DoctorConsultationWorkspace() {
                     <span>Swap Views</span>
                   </button>
                 )}
+
+                {/* Full Video View / Exit Full View */}
+                <button
+                  onClick={toggleFullscreen}
+                  title={isVideoFullView ? 'Exit Full Video View (Esc)' : 'Expand Video to Full View'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '9999px',
+                    backgroundColor: isVideoFullView ? 'rgba(223, 171, 98, 0.25)' : 'rgba(26, 15, 10, 0.88)',
+                    backdropFilter: 'blur(12px)',
+                    border: isVideoFullView ? '1.5px solid #DFAB62' : '1.5px solid rgba(223, 171, 98, 0.4)',
+                    color: isVideoFullView ? '#DFAB62' : '#FAF6EE',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+                  }}
+                >
+                  {isVideoFullView ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  <span>{isVideoFullView ? 'Exit Full View' : 'Full Video View'}</span>
+                </button>
               </div>
             </div>
 
@@ -1616,6 +1847,47 @@ export default function DoctorConsultationWorkspace() {
 
             {/* Hidden Remote Audio Element (Always mounted and active) */}
             <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handleUploadCustomBg}
+            />
+
+            {/* Background Notice Banner (Fallback / Processor Status) */}
+            {backgroundNotice && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 35,
+                  maxWidth: '92%',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(30, 16, 10, 0.94)',
+                  border: '1px solid rgba(223, 171, 98, 0.45)',
+                  color: '#FAF6EE',
+                  fontSize: '0.78rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+                }}
+              >
+                <Sparkles size={14} color="#DFAB62" />
+                <span>{backgroundNotice}</span>
+                <button
+                  onClick={() => setBackgroundNotice(null)}
+                  style={{ background: 'none', border: 'none', color: '#DFAB62', cursor: 'pointer', fontWeight: 800, padding: '0 0 0 6px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
 
             {/* Video Stage Content: Container for Doctor and Patient Tiles */}
             <div
@@ -1673,6 +1945,26 @@ export default function DoctorConsultationWorkspace() {
                       }
                 }
               >
+                {/* Virtual Background Render */}
+                {activeEffect === 'virtual-image' && !isVideoMuted && (
+                  <img
+                    src={
+                      customBgImage ||
+                      VIRTUAL_BACKGROUND_PRESETS.find((p) => p.id === selectedBgPreset)?.previewUrl ||
+                      '/images/backgrounds/clinic-suite.png'
+                    }
+                    alt="Virtual BG"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      zIndex: 1,
+                    }}
+                  />
+                )}
+
                 {/* Doctor Video Feed */}
                 <video
                   ref={localVideoRef}
@@ -1680,12 +1972,22 @@ export default function DoctorConsultationWorkspace() {
                   playsInline
                   muted
                   style={{
+                    position: 'relative',
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
                     transform: 'scaleX(-1)',
                     display: !isVideoMuted ? 'block' : 'none',
                     backgroundColor: '#150B07',
+                    zIndex: 2,
+                    filter:
+                      activeEffect === 'blur-light'
+                        ? 'blur(6px)'
+                        : activeEffect === 'blur-heavy'
+                        ? 'blur(16px)'
+                        : 'none',
+                    transition: 'filter 0.3s ease',
+                    opacity: activeEffect === 'virtual-image' ? 0.92 : 1,
                   }}
                 />
 
@@ -1834,8 +2136,28 @@ export default function DoctorConsultationWorkspace() {
                     <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
                       {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'You (Doctor)'}
                     </div>
-                    <div style={{ fontSize: '0.62rem', color: '#DFAB62', fontWeight: 500 }}>
-                      Doctor • Practitioner
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
+                      <div style={{ fontSize: '0.62rem', color: '#DFAB62', fontWeight: 500 }}>
+                        Doctor • Practitioner
+                      </div>
+                      {activeEffect !== 'none' && (
+                        <span
+                          style={{
+                            fontSize: '0.58rem',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            backgroundColor: 'rgba(223, 171, 98, 0.25)',
+                            color: '#DFAB62',
+                            fontWeight: 700,
+                          }}
+                        >
+                          {activeEffect === 'blur-light'
+                            ? 'Soft Blur'
+                            : activeEffect === 'blur-heavy'
+                            ? 'Strong Blur'
+                            : 'Virtual BG'}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -2190,6 +2512,65 @@ export default function DoctorConsultationWorkspace() {
                 <Share2 size={18} />
               </button>
 
+              {/* Video Effects Toggle */}
+              <button
+                className="call-ctrl-btn"
+                onClick={() => setShowEffectsDrawer(!showEffectsDrawer)}
+                title="Video Background & Privacy"
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  border: activeEffect !== 'none' || showEffectsDrawer ? '1.5px solid #DFAB62' : '1px solid rgba(223, 171, 98, 0.25)',
+                  backgroundColor: activeEffect !== 'none' || showEffectsDrawer ? 'rgba(223, 171, 98, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                  color: activeEffect !== 'none' || showEffectsDrawer ? '#DFAB62' : '#FAF6EE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                  position: 'relative',
+                }}
+              >
+                <Sparkles size={18} />
+                {activeEffect !== 'none' && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: '3px',
+                      right: '3px',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: '#DFAB62',
+                      boxShadow: '0 0 6px #DFAB62',
+                    }}
+                  />
+                )}
+              </button>
+
+              {/* Full Video View Toggle */}
+              <button
+                className="call-ctrl-btn"
+                onClick={toggleFullscreen}
+                title={isVideoFullView ? 'Exit Full Video View (Esc)' : 'Expand Video to Full View'}
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  border: isVideoFullView ? '1.5px solid #DFAB62' : '1px solid rgba(223, 171, 98, 0.25)',
+                  backgroundColor: isVideoFullView ? 'rgba(223, 171, 98, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                  color: isVideoFullView ? '#DFAB62' : '#FAF6EE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                }}
+              >
+                {isVideoFullView ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
+
               {/* Offer Time Extension Button in Floating Bar */}
               <button
                 className="call-extend-btn"
@@ -2283,8 +2664,8 @@ export default function DoctorConsultationWorkspace() {
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.15)')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
-                      {isFullscreen ? <Minimize2 size={14} color="#DFAB62" /> : <Maximize2 size={14} color="#DFAB62" />}
-                      <span>{isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}</span>
+                      {isVideoFullView ? <Minimize2 size={14} color="#DFAB62" /> : <Maximize2 size={14} color="#DFAB62" />}
+                      <span>{isVideoFullView ? 'Exit Full Video View' : 'Full Video View'}</span>
                     </button>
                   </div>
                 )}
@@ -2315,6 +2696,192 @@ export default function DoctorConsultationWorkspace() {
                 <PhoneOff size={20} />
               </button>
             </div>
+
+            {/* ================================================================
+                EFFECTS DRAWER (Video Background & Privacy)
+                ================================================================ */}
+            {showEffectsDrawer && (
+              <div
+                className="effects-drawer"
+                style={{
+                  position: 'absolute',
+                  bottom: '76px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: '460px',
+                  maxWidth: '92%',
+                  backgroundColor: '#1E100A',
+                  border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                  borderRadius: '20px',
+                  boxShadow: '0 20px 50px rgba(0,0,0,0.75)',
+                  padding: '20px',
+                  zIndex: 40,
+                  backdropFilter: 'blur(20px)',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '16px',
+                    paddingBottom: '12px',
+                    borderBottom: '1px solid rgba(223, 171, 98, 0.2)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Sparkles size={18} color="#DFAB62" />
+                    <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: '#FFFFFF' }}>
+                      Video Background & Privacy
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setShowEffectsDrawer(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#D5C7B8',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      display: 'flex',
+                    }}
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      color: '#DFAB62',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
+                      marginBottom: '10px',
+                    }}
+                  >
+                    Background Blur
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    {[
+                      { key: 'none' as BackgroundEffectType, label: 'No Blur', icon: Camera },
+                      { key: 'blur-light' as BackgroundEffectType, label: 'Slight Blur', icon: Sliders },
+                      { key: 'blur-heavy' as BackgroundEffectType, label: 'Strong Blur', icon: Layers },
+                    ].map(({ key, label, icon: Icon }) => (
+                      <button
+                        key={key}
+                        onClick={() => applyBackgroundEffect(key)}
+                        style={{
+                          padding: '10px 8px',
+                          borderRadius: '12px',
+                          border: activeEffect === key ? '2px solid #DFAB62' : '1px solid rgba(223, 171, 98, 0.2)',
+                          backgroundColor: activeEffect === key ? 'rgba(223, 171, 98, 0.15)' : 'rgba(255, 255, 255, 0.04)',
+                          color: '#FAF6EE',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Icon size={16} color={activeEffect === key ? '#DFAB62' : '#D5C7B8'} />
+                        <span>{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      marginBottom: '10px',
+                    }}
+                  >
+                    <label
+                      style={{
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        color: '#DFAB62',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                      }}
+                    >
+                      Virtual Backgrounds
+                    </label>
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#DFAB62',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: 0,
+                      }}
+                    >
+                      <ImageIcon size={13} /> <span>Upload</span>
+                    </button>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                    {VIRTUAL_BACKGROUND_PRESETS.map((preset) => {
+                      const sel = activeEffect === 'virtual-image' && selectedBgPreset === preset.id;
+                      return (
+                        <div
+                          key={preset.id}
+                          onClick={() => {
+                            setSelectedBgPreset(preset.id);
+                            applyBackgroundEffect('virtual-image', preset.id);
+                          }}
+                          style={{
+                            borderRadius: '12px',
+                            overflow: 'hidden',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            border: sel ? '2px solid #DFAB62' : '1px solid rgba(223, 171, 98, 0.2)',
+                            boxShadow: sel ? '0 0 14px rgba(223, 171, 98, 0.35)' : 'none',
+                            transition: 'all 0.18s ease',
+                          }}
+                        >
+                          <img
+                            src={preset.previewUrl}
+                            alt={preset.name}
+                            style={{ width: '100%', height: '76px', objectFit: 'cover', display: 'block' }}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              padding: '4px 8px',
+                              backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                              backdropFilter: 'blur(4px)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: '#FFFFFF' }}>{preset.name}</span>
+                            {sel && <Check size={12} color="#DFAB62" />}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* ================================================================
@@ -4243,6 +4810,23 @@ export default function DoctorConsultationWorkspace() {
         .video-stage {
           height: clamp(420px, 62vh, 780px);
           flex-shrink: 0;
+          transition: all 0.25s ease-in-out;
+        }
+
+        /* True Video Fullscreen / Full View: fills 100% of viewport edge-to-edge */
+        .video-stage.video-stage-fullview,
+        .video-stage:fullscreen,
+        .video-stage:-webkit-full-screen {
+          position: fixed !important;
+          inset: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          max-height: 100vh !important;
+          z-index: 99999 !important;
+          border-radius: 0 !important;
+          border: none !important;
+          margin: 0 !important;
+          box-shadow: none !important;
         }
 
         @media (max-width: 1024px) {

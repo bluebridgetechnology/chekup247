@@ -468,6 +468,46 @@ export class PrescriptionsService {
   }
 
   /**
+   * Retrieves prescription for a specific booking if one has been issued (PA-703, BE-706).
+   */
+  async getPrescriptionByBookingId(bookingId: string) {
+    if (!bookingId) return null;
+
+    if (bookingId === 'b-demo-101' || bookingId === 'demo-booking-1') {
+      try {
+        return await this.getPrescriptionById('rx-demo-101');
+      } catch {
+        return null;
+      }
+    }
+
+    const consultation = await this.consultationRepository.findOne({
+      where: [{ booking_id: bookingId }, { id: bookingId }],
+    });
+
+    let prescription: Prescription | null = null;
+    if (consultation) {
+      prescription = await this.prescriptionRepository.findOne({
+        where: { consultation_id: consultation.id },
+        relations: ['consultation'],
+      });
+    }
+
+    if (!prescription) {
+      prescription = await this.prescriptionRepository.findOne({
+        where: [{ consultation_id: bookingId }],
+        relations: ['consultation'],
+      });
+    }
+
+    if (!prescription) {
+      return null;
+    }
+
+    return this.getPrescriptionById(prescription.id);
+  }
+
+  /**
    * Retrieves all prescriptions issued by a doctor (or all prescriptions if doctorId omitted)
    */
   async getDoctorPrescriptions(doctorId?: string): Promise<any[]> {
@@ -654,10 +694,20 @@ export class PrescriptionsService {
       };
     }
 
-    const prescription = await this.prescriptionRepository.findOne({
+    let prescription = await this.prescriptionRepository.findOne({
       where: { id },
       relations: ['consultation'],
     });
+
+    if (!prescription) {
+      const byBooking = await this.getPrescriptionByBookingId(id);
+      if (byBooking?.id) {
+        prescription = await this.prescriptionRepository.findOne({
+          where: { id: byBooking.id },
+          relations: ['consultation'],
+        });
+      }
+    }
 
     if (!prescription) {
       throw new NotFoundException(`Prescription ${id} not found`);

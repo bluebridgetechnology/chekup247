@@ -78,6 +78,16 @@ export default function DoctorAppointmentsPage() {
   // Counts & Summaries
   const todayStr = useMemo(() => new Date().toDateString(), []);
 
+  // Check if an appointment has ended / is in the past
+  const isAptPast = useCallback((apt: DoctorAppointment): boolean => {
+    if (apt.status === 'completed' || apt.status === 'cancelled') return true;
+    const startIso = apt.slot?.startTime;
+    const endIso = apt.slot?.endTime;
+    if (!startIso) return false;
+    const endMs = endIso ? new Date(endIso).getTime() : new Date(startIso).getTime() + 45 * 60 * 1000;
+    return endMs < Date.now();
+  }, []);
+
   const counts = useMemo(() => {
     let today = 0;
     let upcoming = 0;
@@ -89,9 +99,9 @@ export default function DoctorAppointmentsPage() {
       const startIso = apt.slot?.startTime;
       const aptDate = startIso ? new Date(startIso).toDateString() : '';
       const isToday = aptDate === todayStr;
-      const isPast = startIso ? new Date(startIso).getTime() < Date.now() : false;
+      const past = isAptPast(apt);
 
-      if (apt.status === 'completed') {
+      if (apt.status === 'completed' || past) {
         completed += 1;
       } else if (apt.status === 'cancelled') {
         // Excluded from active queue counts
@@ -102,10 +112,8 @@ export default function DoctorAppointmentsPage() {
           const net = Number(apt.price) - Number(apt.commission_amount || apt.price * 0.15);
           todayPayout += net;
         }
-      } else if (!isPast) {
-        upcoming += 1;
       } else {
-        completed += 1;
+        upcoming += 1;
       }
     });
 
@@ -115,9 +123,9 @@ export default function DoctorAppointmentsPage() {
       completed,
       todayConfirmed,
       todayPayout,
-      totalActive: appointments.filter((a) => a.status === 'confirmed').length,
+      totalActive: appointments.filter((a) => a.status === 'confirmed' && !isAptPast(a)).length,
     };
-  }, [appointments, todayStr]);
+  }, [appointments, todayStr, isAptPast]);
 
   // Filter Appointments
   const filteredList = useMemo(() => {
@@ -125,15 +133,16 @@ export default function DoctorAppointmentsPage() {
       const startIso = apt.slot?.startTime;
       const aptDate = startIso ? new Date(startIso).toDateString() : '';
       const isToday = aptDate === todayStr;
-      const isPast = startIso ? new Date(startIso).getTime() < Date.now() : false;
+      const past = isAptPast(apt);
 
       // Tab filtering
       if (filterTab === 'today') {
-        if (!isToday || apt.status === 'completed' || apt.status === 'cancelled') return false;
+        if (!isToday || past || apt.status === 'completed' || apt.status === 'cancelled') return false;
       } else if (filterTab === 'upcoming') {
-        if (isToday || isPast || apt.status === 'completed' || apt.status === 'cancelled') return false;
+        if (isToday || past || apt.status === 'completed' || apt.status === 'cancelled') return false;
       } else if (filterTab === 'completed') {
-        if (apt.status !== 'completed' && (!isPast || apt.status === 'cancelled')) return false;
+        if (!past && apt.status !== 'completed') return false;
+        if (apt.status === 'cancelled') return false;
       }
 
       // Search filtering
@@ -147,7 +156,7 @@ export default function DoctorAppointmentsPage() {
 
       return true;
     });
-  }, [appointments, filterTab, searchQuery, todayStr]);
+  }, [appointments, filterTab, searchQuery, todayStr, isAptPast]);
 
   // Up Next / Imminent Appointment for Today
   const imminentAppointment = useMemo(() => {
@@ -155,7 +164,7 @@ export default function DoctorAppointmentsPage() {
       const startIso = apt.slot?.startTime;
       if (!startIso) return false;
       const d = new Date(startIso);
-      return d.toDateString() === todayStr && apt.status === 'confirmed';
+      return d.toDateString() === todayStr && apt.status === 'confirmed' && !isAptPast(apt);
     });
 
     if (todayConfirmed.length === 0) return null;
@@ -168,7 +177,7 @@ export default function DoctorAppointmentsPage() {
     });
 
     return todayConfirmed[0];
-  }, [appointments, todayStr]);
+  }, [appointments, todayStr, isAptPast]);
 
   return (
     <div className="appointments-page" style={{ maxWidth: '1240px', margin: '0 auto', paddingBottom: '48px', width: '100%', boxSizing: 'border-box' }}>
@@ -704,15 +713,17 @@ export default function DoctorAppointmentsPage() {
                         {/* Status */}
                         <td style={{ textAlign: 'center' }}>
                           <span
-                            className={appointment.status === 'confirmed' ? 'badge-gold' : 'badge-gold'}
+                            className="badge-gold"
                             style={{
                               textTransform: 'capitalize',
-                              ...(appointment.status === 'confirmed'
+                              ...(appointment.status === 'confirmed' && !isAptPast(appointment)
                                 ? { backgroundColor: 'rgba(5, 150, 105, 0.1)', color: '#047857', borderColor: 'rgba(5, 150, 105, 0.25)' }
+                                : isAptPast(appointment) && appointment.status !== 'completed' && appointment.status !== 'cancelled'
+                                ? { backgroundColor: 'rgba(107, 94, 85, 0.1)', color: '#6B5E55', borderColor: 'rgba(107, 94, 85, 0.25)' }
                                 : {}),
                             }}
                           >
-                            {appointment.status}
+                            {isAptPast(appointment) && appointment.status === 'confirmed' ? 'Concluded' : appointment.status}
                           </span>
                         </td>
 
@@ -729,7 +740,7 @@ export default function DoctorAppointmentsPage() {
                         {/* Actions */}
                         <td style={{ textAlign: 'right', paddingRight: '16px' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                            {appointment.status !== 'completed' && appointment.status !== 'cancelled' ? (
+                            {!isAptPast(appointment) ? (
                               <Link
                                 href={`/consultations/${appointment.id}`}
                                 className="btn-primary"
@@ -810,12 +821,14 @@ export default function DoctorAppointmentsPage() {
                       style={{
                         flexShrink: 0,
                         textTransform: 'capitalize',
-                        ...(appointment.status === 'confirmed'
+                        ...(appointment.status === 'confirmed' && !isAptPast(appointment)
                           ? { backgroundColor: 'rgba(5, 150, 105, 0.1)', color: '#047857', borderColor: 'rgba(5, 150, 105, 0.25)' }
+                          : isAptPast(appointment) && appointment.status !== 'completed' && appointment.status !== 'cancelled'
+                          ? { backgroundColor: 'rgba(107, 94, 85, 0.1)', color: '#6B5E55', borderColor: 'rgba(107, 94, 85, 0.25)' }
                           : {}),
                       }}
                     >
-                      {appointment.status}
+                      {isAptPast(appointment) && appointment.status === 'confirmed' ? 'Concluded' : appointment.status}
                     </span>
                   </div>
 
@@ -828,7 +841,7 @@ export default function DoctorAppointmentsPage() {
                   </div>
 
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                    {appointment.status !== 'completed' && appointment.status !== 'cancelled' ? (
+                    {!isAptPast(appointment) ? (
                       <Link
                         href={`/consultations/${appointment.id}`}
                         className="btn-primary"
@@ -1063,14 +1076,25 @@ export default function DoctorAppointmentsPage() {
                 Close
               </button>
 
-              <Link
-                href={`/consultations/${selectedAppointment.id}`}
-                className="btn-primary"
-                style={{ padding: '9px 20px', fontSize: '0.85rem' }}
-              >
-                <SolarIcon name="videocamera-record-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
-                <span>Launch Video Room</span>
-              </Link>
+              {!isAptPast(selectedAppointment) ? (
+                <Link
+                  href={`/consultations/${selectedAppointment.id}`}
+                  className="btn-primary"
+                  style={{ padding: '9px 20px', fontSize: '0.85rem' }}
+                >
+                  <SolarIcon name="videocamera-record-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                  <span>Launch Video Room</span>
+                </Link>
+              ) : (
+                <Link
+                  href={`/consultations/${selectedAppointment.id}`}
+                  className="btn-secondary"
+                  style={{ padding: '9px 20px', fontSize: '0.85rem' }}
+                >
+                  <SolarIcon name="document-text-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                  <span>View Consultation Record</span>
+                </Link>
+              )}
             </div>
           </div>
         </div>
