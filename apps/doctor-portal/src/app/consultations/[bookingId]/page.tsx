@@ -211,6 +211,8 @@ export default function DoctorConsultationWorkspace() {
   const [isSpeakerMuted, setIsSpeakerMuted] = useState<boolean>(false);
   const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isVideoFullView, setIsVideoFullView] = useState<boolean>(false);
+  const videoStageRef = useRef<HTMLDivElement | null>(null);
   const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
   const [isPatientConnected, setIsPatientConnected] = useState<boolean>(false);
   const [isPatientVideoActive, setIsPatientVideoActive] = useState<boolean>(false);
@@ -894,15 +896,53 @@ export default function DoctorConsultationWorkspace() {
   };
 
   const toggleFullscreen = () => {
-    if (!workspaceContainerRef.current) return;
-    if (!document.fullscreenElement) {
-      workspaceContainerRef.current.requestFullscreen?.().catch(() => {});
+    const stage = videoStageRef.current;
+    const isCurrentlyFull = isVideoFullView || !!document.fullscreenElement;
+
+    if (!isCurrentlyFull) {
+      setIsVideoFullView(true);
       setIsFullscreen(true);
+      if (stage && stage.requestFullscreen) {
+        stage.requestFullscreen().catch(() => {});
+      }
     } else {
-      document.exitFullscreen?.().catch(() => {});
+      setIsVideoFullView(false);
       setIsFullscreen(false);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
     }
   };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFs = !!document.fullscreenElement;
+      setIsFullscreen(isFs);
+      if (!isFs) {
+        setIsVideoFullView(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isVideoFullView) {
+        setIsVideoFullView(false);
+        setIsFullscreen(false);
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVideoFullView]);
 
   const cycleCorner = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -1540,20 +1580,38 @@ export default function DoctorConsultationWorkspace() {
               VIDEO HUD CONTAINER
               ================================================================ */}
           <div
-            className="video-stage"
-            style={{
-              position: 'relative',
-              width: '100%',
-              flexShrink: 0,
-              borderRadius: '18px',
-              overflow: 'hidden',
-              backgroundColor: '#150B07',
-              border: '1px solid rgba(223, 171, 98, 0.25)',
-              boxShadow: '0 12px 36px rgba(30, 16, 10, 0.22)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
+            ref={videoStageRef}
+            className={`video-stage ${isVideoFullView ? 'video-stage-fullview' : ''}`}
+            onDoubleClick={toggleFullscreen}
+            style={
+              isVideoFullView
+                ? {
+                    position: 'fixed',
+                    inset: 0,
+                    width: '100vw',
+                    height: '100vh',
+                    zIndex: 99999,
+                    borderRadius: 0,
+                    backgroundColor: '#150B07',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                  }
+                : {
+                    position: 'relative',
+                    width: '100%',
+                    flexShrink: 0,
+                    borderRadius: '18px',
+                    overflow: 'hidden',
+                    backgroundColor: '#150B07',
+                    border: '1px solid rgba(223, 171, 98, 0.25)',
+                    boxShadow: '0 12px 36px rgba(30, 16, 10, 0.22)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }
+            }
           >
             {/* Connection error overlay */}
             {callError ? (
@@ -1727,6 +1785,30 @@ export default function DoctorConsultationWorkspace() {
                     <span>Swap Views</span>
                   </button>
                 )}
+
+                {/* Full Video View / Exit Full View */}
+                <button
+                  onClick={toggleFullscreen}
+                  title={isVideoFullView ? 'Exit Full Video View (Esc)' : 'Expand Video to Full View'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '9999px',
+                    backgroundColor: isVideoFullView ? 'rgba(223, 171, 98, 0.25)' : 'rgba(26, 15, 10, 0.88)',
+                    backdropFilter: 'blur(12px)',
+                    border: isVideoFullView ? '1.5px solid #DFAB62' : '1.5px solid rgba(223, 171, 98, 0.4)',
+                    color: isVideoFullView ? '#DFAB62' : '#FAF6EE',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+                  }}
+                >
+                  {isVideoFullView ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                  <span>{isVideoFullView ? 'Exit Full View' : 'Full Video View'}</span>
+                </button>
               </div>
             </div>
 
@@ -2467,6 +2549,28 @@ export default function DoctorConsultationWorkspace() {
                 )}
               </button>
 
+              {/* Full Video View Toggle */}
+              <button
+                className="call-ctrl-btn"
+                onClick={toggleFullscreen}
+                title={isVideoFullView ? 'Exit Full Video View (Esc)' : 'Expand Video to Full View'}
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '50%',
+                  border: isVideoFullView ? '1.5px solid #DFAB62' : '1px solid rgba(223, 171, 98, 0.25)',
+                  backgroundColor: isVideoFullView ? 'rgba(223, 171, 98, 0.25)' : 'rgba(255, 255, 255, 0.08)',
+                  color: isVideoFullView ? '#DFAB62' : '#FAF6EE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.18s ease',
+                }}
+              >
+                {isVideoFullView ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+              </button>
+
               {/* Offer Time Extension Button in Floating Bar */}
               <button
                 className="call-extend-btn"
@@ -2560,8 +2664,8 @@ export default function DoctorConsultationWorkspace() {
                       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.15)')}
                       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
                     >
-                      {isFullscreen ? <Minimize2 size={14} color="#DFAB62" /> : <Maximize2 size={14} color="#DFAB62" />}
-                      <span>{isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}</span>
+                      {isVideoFullView ? <Minimize2 size={14} color="#DFAB62" /> : <Maximize2 size={14} color="#DFAB62" />}
+                      <span>{isVideoFullView ? 'Exit Full Video View' : 'Full Video View'}</span>
                     </button>
                   </div>
                 )}
@@ -4706,6 +4810,23 @@ export default function DoctorConsultationWorkspace() {
         .video-stage {
           height: clamp(420px, 62vh, 780px);
           flex-shrink: 0;
+          transition: all 0.25s ease-in-out;
+        }
+
+        /* True Video Fullscreen / Full View: fills 100% of viewport edge-to-edge */
+        .video-stage.video-stage-fullview,
+        .video-stage:fullscreen,
+        .video-stage:-webkit-full-screen {
+          position: fixed !important;
+          inset: 0 !important;
+          width: 100vw !important;
+          height: 100vh !important;
+          max-height: 100vh !important;
+          z-index: 99999 !important;
+          border-radius: 0 !important;
+          border: none !important;
+          margin: 0 !important;
+          box-shadow: none !important;
         }
 
         @media (max-width: 1024px) {

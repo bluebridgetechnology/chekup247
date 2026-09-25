@@ -178,6 +178,10 @@ export default function PatientConsultationPage() {
   const [showEndModal, setShowEndModal] = useState<boolean>(false);
   const [downloadNotice, setDownloadNotice] = useState<string | null>(null);
   const [isEndingCall, setIsEndingCall] = useState<boolean>(false);
+  // Real prescription state
+  const [prescription, setPrescription] = useState<any>(null);
+  const [isCheckingPrescription, setIsCheckingPrescription] = useState<boolean>(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
 
   // --------------------------------------------------------------------------
   // WebRTC & Daily.co State
@@ -190,6 +194,8 @@ export default function PatientConsultationPage() {
   const [consultationMode, setConsultationMode] = useState<'video' | 'audio' | 'in_clinic'>('video');
   const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const [isVideoFullView, setIsVideoFullView] = useState<boolean>(false);
+  const videoStageRef = useRef<HTMLDivElement | null>(null);
   // True once a Daily track is actually attached to the <video> element.
   // (Reading ref.current.srcObject during render is unreliable — it doesn't
   // trigger re-renders — so track attachment is mirrored in state.)
@@ -533,6 +539,62 @@ export default function PatientConsultationPage() {
   );
 
   // --------------------------------------------------------------------------
+  // Prescription Data Fetching & Sync
+  // --------------------------------------------------------------------------
+  const fetchPrescription = useCallback(async () => {
+    if (!bookingId) return null;
+    try {
+      setIsCheckingPrescription(true);
+      const res = await fetch(`${API_BASE}/prescriptions/booking/${bookingId}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.prescription) {
+          setPrescription(data.prescription);
+          return data.prescription;
+        }
+      }
+    } catch (err) {
+      console.warn('Error checking prescription for booking:', err);
+    } finally {
+      setIsCheckingPrescription(false);
+    }
+    return null;
+  }, [bookingId, API_BASE, token]);
+
+  // When consultation completes, check for prescription and poll briefly
+  useEffect(() => {
+    if (!isConsultationEnded) return;
+
+    fetchPrescription();
+
+    let pollCount = 0;
+    const maxPolls = 12; // 12 * 4s = 48s polling window
+    const interval = setInterval(() => {
+      pollCount += 1;
+      if (pollCount > maxPolls) {
+        clearInterval(interval);
+        return;
+      }
+      setPrescription((prev: any) => {
+        if (prev) {
+          clearInterval(interval);
+          return prev;
+        }
+        fetchPrescription().then((p) => {
+          if (p) clearInterval(interval);
+        });
+        return prev;
+      });
+    }, 4000);
+
+    return () => clearInterval(interval);
+  }, [isConsultationEnded, fetchPrescription]);
+
+  // --------------------------------------------------------------------------
   // WebSocket Connection for Real-Time Events
   // --------------------------------------------------------------------------
   useEffect(() => {
@@ -620,6 +682,7 @@ export default function PatientConsultationPage() {
     socket.on('prescription_issued', (data: { prescriptionId: string; doctorName: string }) => {
       setExtensionNotice(`Prescription issued by ${data.doctorName}`);
       setTimeout(() => setExtensionNotice(null), 6000);
+      fetchPrescription();
     });
 
     return () => {
@@ -627,7 +690,7 @@ export default function PatientConsultationPage() {
       socketRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookingId, user?.id, user?.fullName, WS_BASE]);
+  }, [bookingId, user?.id, user?.fullName, WS_BASE, fetchPrescription]);
 
   // --------------------------------------------------------------------------
   // Join Consultation & Daily.co WebRTC Session
@@ -938,15 +1001,53 @@ export default function PatientConsultationPage() {
   };
 
   const toggleFullscreen = () => {
-    if (!workspaceRef.current) return;
-    if (!document.fullscreenElement) {
-      workspaceRef.current.requestFullscreen?.().catch(() => {});
+    const stage = videoStageRef.current || workspaceRef.current;
+    const isCurrentlyFull = isVideoFullView || !!document.fullscreenElement;
+
+    if (!isCurrentlyFull) {
+      setIsVideoFullView(true);
       setIsFullscreen(true);
+      if (stage && stage.requestFullscreen) {
+        stage.requestFullscreen().catch(() => {});
+      }
     } else {
-      document.exitFullscreen?.().catch(() => {});
+      setIsVideoFullView(false);
       setIsFullscreen(false);
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
     }
   };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFs = !!document.fullscreenElement;
+      setIsFullscreen(isFs);
+      if (!isFs) {
+        setIsVideoFullView(false);
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isVideoFullView) {
+        setIsVideoFullView(false);
+        setIsFullscreen(false);
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isVideoFullView]);
 
   const handleSwitchCamera = async () => {
     if (availableCameras.length <= 1) return;
@@ -1118,9 +1219,44 @@ export default function PatientConsultationPage() {
     }
   };
 
-  const handleDownloadPrescription = () => {
-    setDownloadNotice('Official e-prescription & clinical summary downloaded.');
-    setTimeout(() => setDownloadNotice(null), 4500);
+  const handleDownloadPrescription = async () => {
+    if (!prescription?.id && !bookingId) return;
+    setIsDownloadingPdf(true);
+    try {
+      const rxTarget = prescription?.id || bookingId;
+      const downloadUrl = `${API_BASE}/prescriptions/${rxTarget}/download`;
+      const res = await fetch(downloadUrl, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to download official prescription PDF');
+      }
+
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const rxFilenameId = prescription?.id
+        ? prescription.id.substring(0, 8).toUpperCase()
+        : (bookingId ? bookingId.substring(0, 8).toUpperCase() : 'RX');
+      a.download = `ChekUp247_Prescription_${rxFilenameId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      setDownloadNotice('Official e-prescription PDF downloaded successfully.');
+      setTimeout(() => setDownloadNotice(null), 5000);
+    } catch (err) {
+      console.error('Error downloading prescription PDF:', err);
+      setDownloadNotice('Unable to download prescription PDF. Please try again or visit My Prescriptions.');
+      setTimeout(() => setDownloadNotice(null), 5000);
+    } finally {
+      setIsDownloadingPdf(false);
+    }
   };
 
   // --------------------------------------------------------------------------
@@ -1188,7 +1324,11 @@ export default function PatientConsultationPage() {
             Consultation Completed
           </h2>
           <p style={{ color: '#6B5E55', fontSize: '0.925rem', margin: '0 0 24px', lineHeight: 1.5 }}>
-            Thank you for consulting with <strong>{doctorName}</strong>. Your care plan and prescription are ready.
+            {prescription ? (
+              <>Thank you for consulting with <strong>{doctorName}</strong>. Your care plan and e-prescription are ready.</>
+            ) : (
+              <>Thank you for consulting with <strong>{doctorName}</strong>. Your consultation session has ended.</>
+            )}
           </p>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', backgroundColor: '#FAF6EE', borderRadius: '16px', padding: '16px', marginBottom: '28px', textAlign: 'left', border: '1px solid rgba(223,171,98,0.2)' }}>
@@ -1245,10 +1385,42 @@ export default function PatientConsultationPage() {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <button onClick={handleDownloadPrescription} style={{ width: '100%', padding: '14px 24px', borderRadius: '9999px', backgroundColor: '#E2B467', color: '#2A170F', fontWeight: 800, fontSize: '0.925rem', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '9px', boxShadow: '0 6px 20px rgba(226,180,103,0.35)' }}>
-              <Download size={18} />
-              <span>Download e-Prescription & Care Plan</span>
-            </button>
+            {prescription && (
+              <button
+                type="button"
+                onClick={handleDownloadPrescription}
+                disabled={isDownloadingPdf}
+                style={{
+                  width: '100%',
+                  padding: '14px 24px',
+                  borderRadius: '9999px',
+                  backgroundColor: '#E2B467',
+                  color: '#2A170F',
+                  fontWeight: 800,
+                  fontSize: '0.925rem',
+                  border: 'none',
+                  cursor: isDownloadingPdf ? 'wait' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '9px',
+                  boxShadow: '0 6px 20px rgba(226,180,103,0.35)',
+                  opacity: isDownloadingPdf ? 0.75 : 1,
+                }}
+              >
+                {isDownloadingPdf ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" />
+                    <span>Preparing Official PDF...</span>
+                  </>
+                ) : (
+                  <>
+                    <Download size={18} />
+                    <span>Download e-Prescription & Care Plan</span>
+                  </>
+                )}
+              </button>
+            )}
             <Link href="/appointments" style={{ width: '100%', padding: '13px 24px', borderRadius: '9999px', backgroundColor: '#2A170F', color: '#FAF6EE', fontWeight: 700, fontSize: '0.9rem', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', boxSizing: 'border-box' }}>
               <span>Return to My Appointments</span>
               <ArrowRight size={16} />
@@ -1404,6 +1576,30 @@ export default function PatientConsultationPage() {
             </button>
           )}
 
+          {/* Full Video View Toggle */}
+          <button
+            onClick={toggleFullscreen}
+            title={isVideoFullView ? 'Exit Full Video View (Esc)' : 'Expand Video to Full View'}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 12px',
+              borderRadius: '9999px',
+              backgroundColor: isVideoFullView ? 'rgba(223, 171, 98, 0.25)' : 'rgba(26, 15, 10, 0.88)',
+              backdropFilter: 'blur(12px)',
+              border: isVideoFullView ? '1.5px solid #DFAB62' : '1.5px solid rgba(223, 171, 98, 0.4)',
+              color: isVideoFullView ? '#DFAB62' : '#FAF6EE',
+              fontSize: '0.75rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
+            }}
+          >
+            {isVideoFullView ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+            <span className="layout-btn-label">{isVideoFullView ? 'Exit Full' : 'Full View'}</span>
+          </button>
+
           {/* 5. Patient Self-Status */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '5px 12px 5px 6px', borderRadius: '9999px', backgroundColor: 'rgba(30,16,10,0.75)', backdropFilter: 'blur(16px)', border: isPatientSpeaking ? '1px solid #22C55E' : '1px solid rgba(223,171,98,0.25)', transition: 'border-color 0.2s ease' }}>
             <div style={{ width: '28px', height: '28px', borderRadius: '50%', backgroundColor: '#2A170F', border: '1px solid #DFAB62', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
@@ -1451,6 +1647,8 @@ export default function PatientConsultationPage() {
           MAIN VIDEO CONTAINER
           ==================================================================== */}
       <div
+        ref={videoStageRef}
+        onDoubleClick={toggleFullscreen}
         style={{
           position: 'relative',
           flex: 1,
@@ -1975,8 +2173,24 @@ export default function PatientConsultationPage() {
             <Share2 size={20} />
           </button>
           {/* Fullscreen */}
-          <button onClick={toggleFullscreen} title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'} style={{ width: '46px', height: '46px', borderRadius: '50%', border: '1px solid rgba(223,171,98,0.3)', backgroundColor: 'rgba(255,255,255,0.08)', color: '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease' }}>
-            {isFullscreen ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
+          <button
+            onClick={toggleFullscreen}
+            title={isVideoFullView ? 'Exit Full Video View (Esc)' : 'Full Video View'}
+            style={{
+              width: '46px',
+              height: '46px',
+              borderRadius: '50%',
+              border: isVideoFullView ? '1.5px solid #DFAB62' : '1px solid rgba(223,171,98,0.3)',
+              backgroundColor: isVideoFullView ? 'rgba(223,171,98,0.25)' : 'rgba(255,255,255,0.08)',
+              color: isVideoFullView ? '#DFAB62' : '#FAF6EE',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.18s ease',
+            }}
+          >
+            {isVideoFullView ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
           </button>
           {/* End Call */}
           <button className="patient-end-call" onClick={() => setShowEndModal(true)} title="End Consultation" style={{ height: '46px', padding: '0 20px', borderRadius: '9999px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 4px 18px rgba(220,38,38,0.45)', transition: 'all 0.2s ease', marginLeft: '4px', whiteSpace: 'nowrap' }}

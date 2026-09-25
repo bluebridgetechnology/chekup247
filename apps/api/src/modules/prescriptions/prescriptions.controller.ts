@@ -140,6 +140,48 @@ export class PrescriptionsController {
   }
 
   /**
+   * Retrieves prescription for a specific booking or consultation (BE-706, PA-703).
+   */
+  @Public()
+  @Get('booking/:bookingId')
+  async getPrescriptionByBooking(
+    @Param('bookingId') bookingId: string,
+    @Req() req: Request,
+  ) {
+    const result = await this.prescriptionsService.getPrescriptionByBookingId(bookingId);
+    return { prescription: result };
+  }
+
+  /**
+   * Direct PDF download for a specific booking (PA-703, BE-907).
+   */
+  @Public()
+  @Get('booking/:bookingId/download')
+  async downloadPrescriptionPdfByBooking(
+    @Param('bookingId') bookingId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const prescription = await this.prescriptionsService.getPrescriptionByBookingId(bookingId);
+    if (!prescription) {
+      throw new BadRequestException(`No prescription issued for booking ${bookingId}`);
+    }
+    const { buffer, filename } = await this.prescriptionsService.getPrescriptionPdfBuffer(prescription.id);
+
+    await this.auditService.logHealthRecordAccess({
+      action: 'DOWNLOAD_PRESCRIPTION_PDF_BY_BOOKING',
+      ipAddress: req.ip || (req.headers['x-forwarded-for'] as string),
+      userAgent: req.headers['user-agent'],
+      metadata: { bookingId, prescriptionId: prescription.id, filename },
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', buffer.length);
+    return res.end(buffer);
+  }
+
+  /**
    * Retrieves single prescription details (BE-907).
    */
   @Get(':id')
