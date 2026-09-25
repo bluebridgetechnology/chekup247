@@ -483,6 +483,74 @@ export default function PatientConsultationPage() {
   }, [bookingId, user?.id, user?.fullName, WS_BASE]);
 
   // --------------------------------------------------------------------------
+  // WebRTC Media Synchronization (Daily.co Call Object)
+  // --------------------------------------------------------------------------
+  const syncDailyTracks = useCallback((call: DailyCall | null) => {
+    if (!call) return;
+    try {
+      const participants = call.participants();
+      if (!participants) return;
+
+      // 1. Patient (Local)
+      const local = participants.local;
+      if (local) {
+        const vTrack = local.tracks?.video?.persistentTrack || local.tracks?.video?.track;
+        const vState = local.tracks?.video?.state;
+        const isPlayable = Boolean(vTrack && (vState === 'playable' || local.video) && vState !== 'off' && vState !== 'blocked');
+        if (vTrack) {
+          localTrackRef.current = vTrack;
+          if (localVideoRef.current) {
+            const currentStream = localVideoRef.current.srcObject as MediaStream | null;
+            if (!currentStream || !currentStream.getTracks().includes(vTrack)) {
+              localVideoRef.current.srcObject = new MediaStream([vTrack]);
+            }
+            localVideoRef.current.play().catch(() => {});
+          }
+        }
+        setHasLocalVideo(isPlayable && Boolean(vTrack));
+      }
+
+      // 2. Doctor (Remote)
+      const remotes = Object.values(participants).filter((p) => !p.local);
+      if (remotes.length > 0) {
+        const remote = remotes[0];
+        setIsDoctorConnected(true);
+        const rvTrack = remote.tracks?.video?.persistentTrack || remote.tracks?.video?.track;
+        const raTrack = remote.tracks?.audio?.persistentTrack || remote.tracks?.audio?.track;
+        const rvState = remote.tracks?.video?.state;
+        const isRemotePlayable = Boolean(rvTrack && (rvState === 'playable' || remote.video) && rvState !== 'off' && rvState !== 'blocked');
+
+        if (rvTrack) {
+          remoteVideoTrackRef.current = rvTrack;
+          setHasRemoteVideo(isRemotePlayable);
+          if (remoteVideoRef.current) {
+            const currentStream = remoteVideoRef.current.srcObject as MediaStream | null;
+            if (!currentStream || !currentStream.getTracks().includes(rvTrack)) {
+              remoteVideoRef.current.srcObject = new MediaStream([rvTrack]);
+            }
+            remoteVideoRef.current.play().catch(() => {});
+          }
+        } else {
+          setHasRemoteVideo(false);
+        }
+
+        if (raTrack) {
+          remoteAudioTrackRef.current = raTrack;
+          if (remoteAudioRef.current) {
+            const currentStream = remoteAudioRef.current.srcObject as MediaStream | null;
+            if (!currentStream || !currentStream.getTracks().includes(raTrack)) {
+              remoteAudioRef.current.srcObject = new MediaStream([raTrack]);
+            }
+            remoteAudioRef.current.play().catch(() => {});
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Patient Daily sync tracks note:', e);
+    }
+  }, []);
+
+  // --------------------------------------------------------------------------
   // Join Consultation & Daily.co WebRTC Session
   // --------------------------------------------------------------------------
   useEffect(() => {
@@ -588,54 +656,40 @@ export default function PatientConsultationPage() {
             setHasLocalVideo(false);
           }
           dailyCall = DailyIframe.createCallObject({
-            videoSource: bookingMode === 'video',
+            videoSource: bookingMode !== 'audio',
             audioSource: true,
             subscribeToTracksAutomatically: true,
           });
 
-          // Handle remote participant tracks (doctor video/audio)
-          dailyCall.on('track-started', (ev: DailyEventObjectTrack) => {
+          dailyCall.on('joined-meeting', () => {
             if (!isMounted) return;
-            if (ev.participant && !ev.participant.local) {
-              setIsDoctorConnected(true);
-              if (ev.track.kind === 'video') {
-                remoteVideoTrackRef.current = ev.track;
-                if (remoteVideoRef.current) {
-                  remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
-                }
-                setHasRemoteVideo(true);
-              }
-              if (ev.track.kind === 'audio') {
-                remoteAudioTrackRef.current = ev.track;
-                if (remoteAudioRef.current) {
-                  remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
-                }
-              }
-            } else if (ev.participant?.local) {
-              if (ev.track.kind === 'video') {
-                localTrackRef.current = ev.track;
-                if (localVideoRef.current) {
-                  localVideoRef.current.srcObject = new MediaStream([ev.track]);
-                }
-                setHasLocalVideo(true);
-              }
-            }
+            syncDailyTracks(dailyCall);
+          });
+
+          dailyCall.on('track-started', () => {
+            if (!isMounted) return;
+            syncDailyTracks(dailyCall);
           });
 
           dailyCall.on('track-stopped', (ev: DailyEventObjectTrack) => {
             if (!isMounted) return;
             if (ev.participant && !ev.participant.local && ev.track.kind === 'video') {
-              if (remoteVideoTrackRef.current === ev.track) {
-                remoteVideoTrackRef.current = null;
-              }
-              if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
               setHasRemoteVideo(false);
             } else if (ev.participant?.local && ev.track.kind === 'video') {
-              if (localTrackRef.current === ev.track) {
-                localTrackRef.current = null;
-              }
               setHasLocalVideo(false);
             }
+            syncDailyTracks(dailyCall);
+          });
+
+          dailyCall.on('participant-joined', () => {
+            if (!isMounted) return;
+            setIsDoctorConnected(true);
+            syncDailyTracks(dailyCall);
+          });
+
+          dailyCall.on('participant-updated', () => {
+            if (!isMounted) return;
+            syncDailyTracks(dailyCall);
           });
 
           dailyCall.on('participant-left', (ev) => {
@@ -643,6 +697,10 @@ export default function PatientConsultationPage() {
             if (ev.participant && !ev.participant.local) {
               setIsDoctorConnected(false);
               setHasRemoteVideo(false);
+              remoteVideoTrackRef.current = null;
+              remoteAudioTrackRef.current = null;
+              if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+              if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
             }
           });
 
@@ -676,7 +734,10 @@ export default function PatientConsultationPage() {
             }
           } catch { /* device list stays as-is */ }
 
-          if (isMounted) setCallObject(dailyCall);
+          if (isMounted) {
+            setCallObject(dailyCall);
+            syncDailyTracks(dailyCall);
+          }
         } else if (isMounted) {
           setLoadError('The consultation room is not available. Please contact support.');
         }
@@ -712,22 +773,29 @@ export default function PatientConsultationPage() {
         cancelAnimationFrame(animFrameRef.current);
       }
     };
-  }, [bookingId, token, API_BASE, startRealMedia, user?.fullName]);
+  }, [bookingId, token, API_BASE, startRealMedia, user?.fullName, syncDailyTracks]);
 
   // Media elements only mount after the loading gate clears, but Daily can
   // start tracks during join — attach anything buffered once they exist.
   useEffect(() => {
     if (isLoading || loadError || isConsultationEnded) return;
-    if (localTrackRef.current && localVideoRef.current && !localVideoRef.current.srcObject) {
-      localVideoRef.current.srcObject = new MediaStream([localTrackRef.current]);
+    if (callObject) {
+      syncDailyTracks(callObject);
+    } else {
+      if (localTrackRef.current && localVideoRef.current && !localVideoRef.current.srcObject) {
+        localVideoRef.current.srcObject = new MediaStream([localTrackRef.current]);
+        localVideoRef.current.play().catch(() => {});
+      }
+      if (remoteVideoTrackRef.current && remoteVideoRef.current && !remoteVideoRef.current.srcObject) {
+        remoteVideoRef.current.srcObject = new MediaStream([remoteVideoTrackRef.current]);
+        remoteVideoRef.current.play().catch(() => {});
+      }
+      if (remoteAudioTrackRef.current && remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
+        remoteAudioRef.current.srcObject = new MediaStream([remoteAudioTrackRef.current]);
+        remoteAudioRef.current.play().catch(() => {});
+      }
     }
-    if (remoteVideoTrackRef.current && remoteVideoRef.current && !remoteVideoRef.current.srcObject) {
-      remoteVideoRef.current.srcObject = new MediaStream([remoteVideoTrackRef.current]);
-    }
-    if (remoteAudioTrackRef.current && remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
-      remoteAudioRef.current.srcObject = new MediaStream([remoteAudioTrackRef.current]);
-    }
-  }, [isLoading, loadError, isConsultationEnded, hasLocalVideo, hasRemoteVideo]);
+  }, [isLoading, loadError, isConsultationEnded, callObject, syncDailyTracks]);
 
   // --------------------------------------------------------------------------
   // Call Controls
@@ -1221,12 +1289,73 @@ export default function PatientConsultationPage() {
           MAIN VIDEO CONTAINER
           ==================================================================== */}
       <div style={{ position: 'relative', flex: 1, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        {/* Remote Doctor Video */}
+        {/* Remote Doctor Video Stage */}
         <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#150B07' }}>
-          <img src="/images/doctor_consultation_video.jpg" alt={doctorName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          <video ref={remoteVideoRef} autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: isDoctorConnected && hasRemoteVideo ? 'block' : 'none' }} />
+          <video
+            ref={remoteVideoRef}
+            autoPlay
+            playsInline
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              display: isDoctorConnected && hasRemoteVideo ? 'block' : 'none',
+              zIndex: 2,
+            }}
+          />
 
-
+          {(!isDoctorConnected || !hasRemoteVideo) && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: '#1E120B',
+                gap: '14px',
+                padding: '24px',
+                textAlign: 'center',
+                zIndex: 1,
+              }}
+            >
+              <div
+                style={{
+                  width: '76px',
+                  height: '76px',
+                  borderRadius: '50%',
+                  backgroundColor: 'rgba(223, 171, 98, 0.15)',
+                  border: '2px solid #DFAB62',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#DFAB62',
+                  fontSize: '1.8rem',
+                  fontWeight: 700,
+                }}
+              >
+                {doctorName
+                  ? doctorName.split(' ').map((p) => p[0]).join('').substring(0, 2).toUpperCase()
+                  : 'DR'}
+              </div>
+              <div>
+                <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#FAF6EE' }}>
+                  {doctorName.startsWith('Dr') ? doctorName : `Dr. ${doctorName}`}
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#DFAB62', marginTop: '4px', fontWeight: 600 }}>
+                  {doctorSpecialty}
+                </div>
+                <div style={{ fontSize: '0.8rem', color: isDoctorConnected ? '#4ADE80' : '#D5C7B8', marginTop: '8px' }}>
+                  {isDoctorConnected
+                    ? 'Doctor is in room • Camera is currently off'
+                    : 'Connecting to your doctor…'}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Patient Self-View PiP */}
