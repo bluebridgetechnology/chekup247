@@ -1067,10 +1067,30 @@ export default function DoctorConsultationWorkspace() {
   const handleConfirmEndConsultation = async () => {
     try {
       setShowEndModal(false);
+
+      // 1. Broadcast end message directly to patient over Daily WebRTC data channel
       if (callObject) {
-        await callObject.leave().catch(() => {});
-        await callObject.destroy().catch(() => {});
+        try {
+          callObject.sendAppMessage({ type: 'consultation_ended', bookingId }, '*');
+        } catch (err) {
+          console.warn('Daily sendAppMessage notice:', err);
+        }
       }
+
+      // 2. Broadcast via WebSocket if connected
+      if (socketRef.current) {
+        try {
+          socketRef.current.emit('end_session', {
+            bookingId,
+            doctorId: doctor?.id,
+            role: 'doctor',
+          });
+        } catch (err) {
+          console.warn('WebSocket end_session notice:', err);
+        }
+      }
+
+      // 3. Inform backend to mark booking COMPLETED, delete room, and broadcast
       if (bookingId && token) {
         await fetch(`${API_BASE}/consultations/${bookingId}/end`, {
           method: 'POST',
@@ -1078,9 +1098,25 @@ export default function DoctorConsultationWorkspace() {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ doctorNotes: assessment + '\n' + plan }),
-        }).catch(() => {});
+          body: JSON.stringify({
+            doctorId: doctor?.id,
+            doctorNotes: (assessment || '') + '\n' + (plan || ''),
+          }),
+        }).catch((err) => {
+          console.warn('API end consultation error:', err);
+        });
       }
+
+      // 4. Instantly shut down local hardware media and leave Daily call
+      if (callObject) {
+        try {
+          callObject.setLocalAudio(false);
+          callObject.setLocalVideo(false);
+        } catch {}
+        await callObject.leave().catch(() => {});
+        await callObject.destroy().catch(() => {});
+      }
+
       setIsConsultationEnded(true);
       toastSuccess('Consultation ended', 'You can now issue a prescription or clinical note.');
     } catch (e) {

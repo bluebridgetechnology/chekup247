@@ -87,6 +87,28 @@ export class ConsultationGateway implements OnGatewayConnection, OnGatewayDiscon
     };
   }
 
+  @SubscribeMessage('end_session')
+  handleEndSession(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { bookingId: string; role?: string; doctorId?: string },
+  ) {
+    const { bookingId, role, doctorId } = payload;
+    const roomName = `consultation_${bookingId}`;
+    this.logger.log(`[WS] Direct end_session received for ${roomName} by ${role || client.id}`);
+
+    if (this.server) {
+      this.server.to(roomName).emit('consultation_ended', {
+        bookingId,
+        endedAt: new Date().toISOString(),
+        endedBy: doctorId || role || 'doctor',
+        eligibleForPrescription: true,
+        message: 'The consultation has concluded.',
+      });
+    }
+
+    return { success: true };
+  }
+
   @SubscribeMessage('ping_timer')
   handlePingTimer(
     @ConnectedSocket() client: Socket,

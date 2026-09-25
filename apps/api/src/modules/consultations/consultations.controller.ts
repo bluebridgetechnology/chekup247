@@ -37,6 +37,10 @@ export class EndConsultationDto {
   @IsOptional()
   @IsString()
   doctorId?: string;
+
+  @IsOptional()
+  @IsString()
+  doctorNotes?: string;
 }
 
 export class RequestExtensionDto {
@@ -145,9 +149,10 @@ export class ConsultationsController {
   endConsultation(
     @Param('bookingId') bookingId: string,
     @Body() dto: EndConsultationDto,
+    @Req() req: any,
   ) {
-    const doctorId = dto.doctorId || 'system-doctor';
-    return this.consultationsService.endConsultation(bookingId, doctorId);
+    const doctorId = dto.doctorId || req?.user?.id || 'system-doctor';
+    return this.consultationsService.endConsultation(bookingId, doctorId, dto.doctorNotes);
   }
 
   /**

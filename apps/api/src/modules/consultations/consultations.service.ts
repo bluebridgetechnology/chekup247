@@ -322,6 +322,7 @@ export class ConsultationsService {
   async endConsultation(
     bookingId: string,
     doctorId: string,
+    doctorNotes?: string,
   ): Promise<{
     success: boolean;
     ended_at: Date;
@@ -347,21 +348,33 @@ export class ConsultationsService {
 
     const endedAt = new Date();
     consultation.ended_at = endedAt;
+    if (doctorNotes) {
+      consultation.doctor_notes = doctorNotes;
+    }
     await this.consultationRepository.save(consultation);
 
     booking.status = BookingStatus.COMPLETED;
     await this.bookingRepository.save(booking);
 
+    // Clean up / delete Daily.co room to eject any connected participants immediately
+    if (consultation.video_room_id) {
+      this.dailyService.deleteRoom(consultation.video_room_id).catch((err: any) => {
+        this.logger.warn(`Daily.co room deletion for ${consultation.video_room_id}: ${err.message}`);
+      });
+    }
+
+    const effectiveDoctorId = (doctorId && doctorId !== 'system-doctor') ? doctorId : booking.doctor_id;
+
     // Broadcast consultation ended via WebSocket
-    this.consultationGateway.broadcastConsultationEnded(bookingId, endedAt, doctorId);
+    this.consultationGateway.broadcastConsultationEnded(bookingId, endedAt, effectiveDoctorId);
 
     this.logger.log(
-      `Consultation for booking ${bookingId} concluded by doctor ${doctorId}. Status set to COMPLETED.`,
+      `Consultation for booking ${bookingId} concluded by doctor ${effectiveDoctorId}. Status set to COMPLETED.`,
     );
 
-    if (this.notificationsService) {
+    if (this.notificationsService && effectiveDoctorId) {
       this.userRepository
-        .findOne({ where: { id: doctorId } })
+        .findOne({ where: { id: effectiveDoctorId } })
         .then((docUser) => {
           const doctorName = docUser?.full_name || 'Practitioner';
 
