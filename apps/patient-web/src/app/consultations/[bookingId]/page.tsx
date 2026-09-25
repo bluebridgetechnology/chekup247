@@ -175,6 +175,12 @@ export default function PatientConsultationPage() {
   const [consultationMode, setConsultationMode] = useState<'video' | 'audio' | 'in_clinic'>('video');
   const [isSharingScreen, setIsSharingScreen] = useState<boolean>(false);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  // True once a Daily track is actually attached to the <video> element.
+  // (Reading ref.current.srcObject during render is unreliable — it doesn't
+  // trigger re-renders — so track attachment is mirrored in state.)
+  const [hasRemoteVideo, setHasRemoteVideo] = useState<boolean>(false);
+  const [hasLocalVideo, setHasLocalVideo] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   useWakeLock(!!callObject && !isConsultationEnded);
 
   // Real Hardware Stream & Audio Metering
@@ -281,9 +287,11 @@ export default function PatientConsultationPage() {
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       localStreamRef.current = stream;
       setHasCameraPermission(true);
+      setCameraError(null);
 
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
+        setHasLocalVideo(true);
       }
 
       const devices = await navigator.mediaDevices.enumerateDevices();
@@ -566,6 +574,16 @@ export default function PatientConsultationPage() {
 
         // Step 2: Create Daily.co call object and join with meeting token
         if (joinData.roomUrl) {
+          // Release the raw camera before Daily acquires it: holding two
+          // concurrent camera sessions blacks out video (especially mobile).
+          // The mic track is kept for the live volume meter.
+          if (localStreamRef.current) {
+            localStreamRef.current.getVideoTracks().forEach((t) => {
+              try { t.stop(); } catch { /* noop */ }
+            });
+            if (localVideoRef.current) localVideoRef.current.srcObject = null;
+            setHasLocalVideo(false);
+          }
           dailyCall = DailyIframe.createCallObject({
             videoSource: bookingMode === 'video',
             audioSource: true,
@@ -579,6 +597,7 @@ export default function PatientConsultationPage() {
               setIsDoctorConnected(true);
               if (ev.track.kind === 'video' && remoteVideoRef.current) {
                 remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
+                setHasRemoteVideo(true);
               }
               if (ev.track.kind === 'audio' && remoteAudioRef.current) {
                 remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
@@ -586,7 +605,16 @@ export default function PatientConsultationPage() {
             } else if (ev.participant?.local) {
               if (ev.track.kind === 'video' && localVideoRef.current) {
                 localVideoRef.current.srcObject = new MediaStream([ev.track]);
+                setHasLocalVideo(true);
               }
+            }
+          });
+
+          dailyCall.on('track-stopped', (ev: DailyEventObjectTrack) => {
+            if (!isMounted) return;
+            if (ev.participant && !ev.participant.local && ev.track.kind === 'video') {
+              if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+              setHasRemoteVideo(false);
             }
           });
 
@@ -594,7 +622,21 @@ export default function PatientConsultationPage() {
             if (!isMounted) return;
             if (ev.participant && !ev.participant.local) {
               setIsDoctorConnected(false);
+              setHasRemoteVideo(false);
             }
+          });
+
+          // Surface camera acquisition failures (e.g. camera held by another
+          // app/tab) instead of failing silently with a black tile.
+          dailyCall.on('camera-error' as any, (ev: any) => {
+            if (!isMounted) return;
+            console.warn('Daily camera-error:', ev?.errorMsg || ev);
+            setCameraError(
+              'Camera unavailable — it may be in use by another app or browser tab. Audio continues.',
+            );
+          });
+          dailyCall.on('error' as any, (ev: any) => {
+            console.warn('Daily error:', ev?.errorMsg || ev);
           });
 
           // Join with the secure meeting token from the backend
@@ -602,6 +644,17 @@ export default function PatientConsultationPage() {
             url: joinData.roomUrl,
             token: joinData.token,
           });
+
+          // Refresh the camera list from Daily (the live source post-join)
+          try {
+            const enumResult = await dailyCall.enumerateDevices();
+            const devList = Array.isArray(enumResult) ? enumResult : enumResult.devices;
+            const cams = devList.filter((d) => d.kind === 'videoinput');
+            if (cams.length > 0) {
+              setAvailableCameras(cams as MediaDeviceInfo[]);
+              if (!selectedCameraId) setSelectedCameraId(cams[0].deviceId);
+            }
+          } catch { /* device list stays as-is */ }
 
           if (isMounted) setCallObject(dailyCall);
         } else if (isMounted) {
@@ -623,6 +676,8 @@ export default function PatientConsultationPage() {
 
     return () => {
       isMounted = false;
+      setHasRemoteVideo(false);
+      setHasLocalVideo(false);
       if (dailyCall) {
         dailyCall.leave().catch(() => {});
         dailyCall.destroy().catch(() => {});
@@ -690,6 +745,13 @@ export default function PatientConsultationPage() {
     const idx = availableCameras.findIndex((c) => c.deviceId === selectedCameraId);
     const next = availableCameras[(idx + 1) % availableCameras.length];
     setSelectedCameraId(next.deviceId);
+    // Post-join, Daily owns the camera — switch its input, not the released raw stream
+    if (callObject) {
+      try {
+        await callObject.setInputDevicesAsync({ videoDeviceId: next.deviceId });
+        return;
+      } catch { /* fall through to raw restart */ }
+    }
     await startRealMedia(next.deviceId);
   };
 
@@ -1019,7 +1081,7 @@ export default function PatientConsultationPage() {
   // Main Patient Video-First Consultation Experience
   // --------------------------------------------------------------------------
   return (
-    <div ref={workspaceRef} style={{ position: 'relative', width: '100vw', height: '100vh', backgroundColor: '#120A06', overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', color: '#FAF6EE', userSelect: 'none' }}>
+    <div ref={workspaceRef} className="patient-workspace" style={{ position: 'relative', width: '100vw', height: '100vh', backgroundColor: '#120A06', overflow: 'hidden', display: 'flex', flexDirection: 'column', fontFamily: 'var(--font-sans)', color: '#FAF6EE', userSelect: 'none' }}>
       <audio ref={remoteAudioRef} autoPlay playsInline />
       <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleUploadCustomBg} />
 
@@ -1027,7 +1089,7 @@ export default function PatientConsultationPage() {
           TOP HUD: 5 KEY METADATA ITEMS
           1. Doctor  2. Live Status  3. Timer  4. Topic/Booking  5. Patient
           ==================================================================== */}
-      <div style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 30, background: 'linear-gradient(180deg, rgba(18,10,6,0.88) 0%, rgba(18,10,6,0.35) 60%, transparent 100%)', pointerEvents: 'none' }}>
+      <div className="patient-hud" style={{ position: 'absolute', top: 0, left: 0, right: 0, padding: '16px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', zIndex: 30, background: 'linear-gradient(180deg, rgba(18,10,6,0.88) 0%, rgba(18,10,6,0.35) 60%, transparent 100%)', pointerEvents: 'none' }}>
         {/* LEFT: Doctor + Topic */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', pointerEvents: 'auto' }}>
           <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', textDecoration: 'none', marginRight: '6px' }} title="Chekup247">
@@ -1046,7 +1108,7 @@ export default function PatientConsultationPage() {
           </div>
 
           {/* 4. Topic / Booking */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '9999px', backgroundColor: 'rgba(30,16,10,0.65)', backdropFilter: 'blur(12px)', border: '1px solid rgba(223,171,98,0.2)', fontSize: '0.78rem', color: '#D5C7B8', fontWeight: 600 }}>
+          <div className="patient-topic-pill" style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 14px', borderRadius: '9999px', backgroundColor: 'rgba(30,16,10,0.65)', backdropFilter: 'blur(12px)', border: '1px solid rgba(223,171,98,0.2)', fontSize: '0.78rem', color: '#D5C7B8', fontWeight: 600 }}>
             <Stethoscope size={14} color="#DFAB62" />
             <span>{consultation?.booking?.status === 'confirmed' ? 'General Medicine' : 'Consultation'}</span>
             <span style={{ color: 'rgba(223,171,98,0.4)' }}>•</span>
@@ -1113,6 +1175,12 @@ export default function PatientConsultationPage() {
           <TimerReset size={16} /> <span>{extensionNotice}</span>
         </div>
       )}
+      {cameraError && (
+        <div style={{ position: 'absolute', top: '80px', left: '50%', transform: 'translateX(-50%)', maxWidth: '92vw', padding: '10px 20px', borderRadius: '12px', backgroundColor: 'rgba(60,16,12,0.92)', backdropFilter: 'blur(16px)', border: '1px solid rgba(239,68,68,0.5)', fontSize: '0.8rem', fontWeight: 700, color: '#FCA5A5', zIndex: 46, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 8px 30px rgba(0,0,0,0.5)', textAlign: 'center' }}>
+          <span>{cameraError}</span>
+          <button onClick={() => setCameraError(null)} style={{ background: 'none', border: 'none', color: '#FCA5A5', cursor: 'pointer', fontWeight: 800, fontSize: '0.85rem', padding: '0 0 0 6px' }}>✕</button>
+        </div>
+      )}
 
       {/* ====================================================================
           MAIN VIDEO CONTAINER
@@ -1121,17 +1189,17 @@ export default function PatientConsultationPage() {
         {/* Remote Doctor Video */}
         <div style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#150B07' }}>
           <img src="/images/doctor_consultation_video.jpg" alt={doctorName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-          <video ref={remoteVideoRef} autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: isDoctorConnected && remoteVideoRef.current?.srcObject ? 'block' : 'none' }} />
+          <video ref={remoteVideoRef} autoPlay playsInline style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', display: isDoctorConnected && hasRemoteVideo ? 'block' : 'none' }} />
 
 
         </div>
 
         {/* Patient Self-View PiP */}
-        <div style={{ position: 'absolute', bottom: '96px', right: '28px', width: '260px', height: '168px', borderRadius: '18px', overflow: 'hidden', backgroundColor: '#1E100A', border: isPatientSpeaking ? '2px solid #22C55E' : '2px solid rgba(223,171,98,0.45)', boxShadow: '0 14px 40px rgba(0,0,0,0.65)', zIndex: 25, transition: 'all 0.25s cubic-bezier(0.16,1,0.3,1)' }}>
+        <div className="patient-pip" style={{ position: 'absolute', bottom: '96px', right: '28px', width: '260px', height: '168px', borderRadius: '18px', overflow: 'hidden', backgroundColor: '#1E100A', border: isPatientSpeaking ? '2px solid #22C55E' : '2px solid rgba(223,171,98,0.45)', boxShadow: '0 14px 40px rgba(0,0,0,0.65)', zIndex: 25, transition: 'all 0.25s cubic-bezier(0.16,1,0.3,1)' }}>
           {activeEffect === 'virtual-image' && activeBgSource && !isVideoMuted && (
             <img src={activeBgSource} alt="Virtual BG" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
           )}
-          <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'relative', width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: isVideoMuted ? 'none' : 'block', zIndex: 2, filter: activeEffect === 'blur-light' ? 'blur(6px)' : activeEffect === 'blur-heavy' ? 'blur(16px)' : 'none', transition: 'filter 0.3s ease', opacity: activeEffect === 'virtual-image' ? 0.92 : 1 }} />
+          <video ref={localVideoRef} autoPlay playsInline muted style={{ position: 'relative', width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)', display: !isVideoMuted && hasLocalVideo ? 'block' : 'none', zIndex: 2, filter: activeEffect === 'blur-light' ? 'blur(6px)' : activeEffect === 'blur-heavy' ? 'blur(16px)' : 'none', transition: 'filter 0.3s ease', opacity: activeEffect === 'virtual-image' ? 0.92 : 1 }} />
 
           {isVideoMuted && (
             <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#2A170F', gap: '8px', zIndex: 3, position: 'relative' }}>
@@ -1231,7 +1299,7 @@ export default function PatientConsultationPage() {
         {/* ================================================================
             FLOATING CALL CONTROL BAR
             ================================================================ */}
-        <div style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px', borderRadius: '9999px', backgroundColor: 'rgba(26,15,10,0.88)', backdropFilter: 'blur(20px)', border: '1.5px solid rgba(223,171,98,0.35)', boxShadow: '0 12px 40px rgba(0,0,0,0.6)', zIndex: 30 }}>
+        <div className="patient-controls" style={{ position: 'absolute', bottom: '24px', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 20px', borderRadius: '9999px', backgroundColor: 'rgba(26,15,10,0.88)', backdropFilter: 'blur(20px)', border: '1.5px solid rgba(223,171,98,0.35)', boxShadow: '0 12px 40px rgba(0,0,0,0.6)', zIndex: 30 }}>
           {/* Mic */}
           <button onClick={toggleMic} title={isAudioMuted ? 'Unmute' : 'Mute'} style={{ width: '46px', height: '46px', borderRadius: '50%', border: isAudioMuted ? '1.5px solid #EF4444' : isPatientSpeaking ? '2px solid #22C55E' : '1px solid rgba(223,171,98,0.3)', backgroundColor: isAudioMuted ? 'rgba(239,68,68,0.2)' : isPatientSpeaking ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.08)', color: isAudioMuted ? '#EF4444' : isPatientSpeaking ? '#4ADE80' : '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease', boxShadow: isPatientSpeaking ? '0 0 14px rgba(34,197,94,0.4)' : 'none' }}>
             {isAudioMuted ? <MicOff size={20} /> : <Mic size={20} />}
@@ -1407,6 +1475,17 @@ export default function PatientConsultationPage() {
           </div>
         </div>
       )}
+      {/* Responsive: keep HUD, PiP and controls usable on small screens */}
+      <style>{`
+        .patient-workspace { height: 100vh; height: 100dvh; }
+        @media (max-width: 768px) {
+          .patient-hud { padding: 10px 12px !important; flex-wrap: wrap !important; gap: 8px !important; }
+          .patient-topic-pill { display: none !important; }
+          .patient-pip { width: 132px !important; height: 88px !important; right: 12px !important; bottom: 96px !important; }
+          .patient-controls { left: 12px !important; right: 12px !important; transform: none !important; justify-content: center !important; flex-wrap: wrap !important; gap: 8px !important; padding: 8px 10px !important; max-width: calc(100vw - 24px); }
+          .patient-controls button { width: 42px !important; height: 42px !important; flex-shrink: 0; }
+        }
+      `}</style>
     </div>
   );
 }
