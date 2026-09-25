@@ -1260,6 +1260,7 @@ export default function DoctorConsultationWorkspace() {
             style={{
               position: 'relative',
               width: '100%',
+              flexShrink: 0,
               borderRadius: '18px',
               overflow: 'hidden',
               backgroundColor: '#150B07',
@@ -3731,6 +3732,7 @@ export default function DoctorConsultationWorkspace() {
         /* Video stage: fluid height, grows with viewport instead of fixed band */
         .video-stage {
           height: clamp(320px, 46vh, 560px);
+          flex-shrink: 0;
         }
 
         @media (max-width: 1024px) {
