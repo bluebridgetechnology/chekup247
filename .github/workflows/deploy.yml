@@ -149,6 +149,35 @@ jobs:
             echo "🔄 Reloading Caddy to pick up config changes..."
             docker restart chekup-caddy
 
+            echo "⏳ Waiting for API to report healthy..."
+            API_CONTAINER=chekup-api
+            HEALTH_TIMEOUT=90
+            elapsed=0
+            while true; do
+              state=$(docker inspect -f '{{.State.Status}}' "$API_CONTAINER" 2>/dev/null || echo "missing")
+              health=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$API_CONTAINER" 2>/dev/null || echo "missing")
+
+              if [ "$health" = "healthy" ]; then
+                echo "✅ API is healthy."
+                break
+              fi
+
+              if [ "$state" = "restarting" ] || [ "$state" = "exited" ] || [ "$state" = "dead" ] || [ "$state" = "missing" ]; then
+                echo "❌ Deployment FAILED: API container is '$state' (health: '$health'). Last 80 log lines:"
+                docker logs --tail 80 "$API_CONTAINER" 2>&1 || true
+                exit 1
+              fi
+
+              if [ "$elapsed" -ge "$HEALTH_TIMEOUT" ]; then
+                echo "❌ Deployment FAILED: API did not become healthy within ${HEALTH_TIMEOUT}s (state: '$state', health: '$health'). Last 80 log lines:"
+                docker logs --tail 80 "$API_CONTAINER" 2>&1 || true
+                exit 1
+              fi
+
+              sleep 3
+              elapsed=$((elapsed + 3))
+            done
+
             echo "🧹 Cleaning up dangling images..."
             docker image prune -f
 
