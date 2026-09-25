@@ -8,6 +8,7 @@ import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { createGlobalValidationPipe } from './common/pipes/validation.pipe';
 import { RateLimitGuard } from './common/guards/rate-limit.guard';
 import { SentryService } from './config/sentry.config';
+import { buildCorsOrigins } from './config/cors.config';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -59,21 +60,28 @@ async function bootstrap() {
     next();
   });
 
-  // Enable CORS for frontend applications (domain-locked)
+  // Enable CORS for frontend applications (domain-locked).
+  // Origins are normalized (trailing slashes stripped) and https origins
+  // automatically cover both apex and www variants — a trailing slash or a
+  // www/non-www mismatch previously caused "blocked by CORS policy" errors
+  // that only appeared after deploy, when env values differed from local.
+  const corsOrigins = buildCorsOrigins([
+    envConfig.PATIENT_WEB_URL,
+    envConfig.DOCTOR_PORTAL_URL,
+    envConfig.ADMIN_PANEL_URL,
+    ...envConfig.CORS_EXTRA_ORIGINS.split(','),
+    'http://localhost:3000',
+    'http://localhost:3001',
+    'http://localhost:3002',
+    'http://127.0.0.1:3000',
+    'http://127.0.0.1:3001',
+    'http://127.0.0.1:3002',
+  ]);
   app.enableCors({
-    origin: [
-      envConfig.PATIENT_WEB_URL,
-      envConfig.DOCTOR_PORTAL_URL,
-      envConfig.ADMIN_PANEL_URL,
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      'http://127.0.0.1:3000',
-      'http://127.0.0.1:3001',
-      'http://127.0.0.1:3002',
-    ],
+    origin: corsOrigins,
     credentials: true,
   });
+  logger.log(`CORS allowed origins: ${corsOrigins.join(', ')}`);
 
   // Global Filters, Interceptors, Pipes, and Rate Limiting (SEC-1001)
   app.useGlobalFilters(new GlobalHttpExceptionFilter());

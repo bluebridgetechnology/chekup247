@@ -69,6 +69,9 @@ const envSchema = z.object({
   PATIENT_WEB_URL: z.string().default('http://localhost:3000'),
   DOCTOR_PORTAL_URL: z.string().default('http://localhost:3001'),
   ADMIN_PANEL_URL: z.string().default('http://localhost:3002'),
+  // Extra CORS origins (comma-separated, no trailing slash), e.g. staging or
+  // preview deployments. The three *_URL values above are always allowed.
+  CORS_EXTRA_ORIGINS: z.string().default(''),
 
   // LocumStaff Partner Directory + OIDC SSO Integration.
   // These four values are registered on the LocumStaff side under
