@@ -260,6 +260,8 @@ export default function PatientConsultationPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const workspaceRef = useRef<HTMLDivElement | null>(null);
   const socketRef = useRef<Socket | null>(null);
+  const callObjectRef = useRef<DailyCall | null>(null);
+  const handleEndCallRef = useRef<() => void>(() => {});
 
   // --------------------------------------------------------------------------
   // Timer Effect: Compute elapsed from server started_at in real time
@@ -677,8 +679,9 @@ export default function PatientConsultationPage() {
     });
 
     // Doctor ends consultation
-    socket.on('consultation_ended', () => {
-      cleanupAndEnd();
+    socket.on('consultation_ended', (data?: any) => {
+      console.log('[WS] consultation_ended received on patient side:', data);
+      handleEndCallRef.current();
     });
 
     // Prescription issued notification
@@ -815,6 +818,7 @@ export default function PatientConsultationPage() {
             } as any,
             subscribeToTracksAutomatically: true,
           });
+          callObjectRef.current = dailyCall;
 
           dailyCall.on('joined-meeting', () => {
             if (!isMounted) return;
@@ -852,7 +856,22 @@ export default function PatientConsultationPage() {
             syncDailyTracks(dailyCall);
           });
 
-          dailyCall.on('participant-left', (ev) => {
+          // Doctor ends session via Daily data channel message
+          dailyCall.on('app-message', (ev: any) => {
+            if (ev?.data?.type === 'consultation_ended') {
+              console.log('[Daily] consultation_ended app-message received from doctor');
+              handleEndCallRef.current();
+            }
+          });
+
+          // Room deleted by backend or participant ejected
+          dailyCall.on('left-meeting', () => {
+            if (!isMounted) return;
+            console.log('[Daily] left-meeting event fired (room deleted or session concluded)');
+            handleEndCallRef.current();
+          });
+
+          dailyCall.on('participant-left', async (ev) => {
             if (!isMounted) return;
             if (ev.participant && !ev.participant.local) {
               setIsDoctorConnected(false);
@@ -861,6 +880,23 @@ export default function PatientConsultationPage() {
               remoteAudioTrackRef.current = null;
               if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
               if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
+
+              // Doctor has left the call. Check if consultation was concluded.
+              try {
+                const res = await fetch(`${API_BASE}/consultations/${bookingId}`, {
+                  headers: token ? { Authorization: `Bearer ${token}` } : {},
+                });
+                if (res.ok) {
+                  const detail = await res.json();
+                  if (
+                    detail?.ended_at ||
+                    detail?.booking?.status === 'COMPLETED' ||
+                    detail?.status === 'completed'
+                  ) {
+                    handleEndCallRef.current();
+                  }
+                }
+              } catch {}
             }
           });
 
@@ -912,6 +948,7 @@ export default function PatientConsultationPage() {
           } catch { /* device list stays as-is */ }
 
           if (isMounted) {
+            callObjectRef.current = dailyCall;
             setCallObject(dailyCall);
             syncDailyTracks(dailyCall);
           }
@@ -937,14 +974,31 @@ export default function PatientConsultationPage() {
       setHasRemoteVideo(false);
       setHasLocalVideo(false);
       if (dailyCall) {
+        try {
+          dailyCall.setLocalAudio(false);
+          dailyCall.setLocalVideo(false);
+        } catch {}
         dailyCall.leave().catch(() => {});
         dailyCall.destroy().catch(() => {});
       }
+      if (callObjectRef.current && callObjectRef.current !== dailyCall) {
+        try {
+          callObjectRef.current.setLocalAudio(false);
+          callObjectRef.current.setLocalVideo(false);
+        } catch {}
+        callObjectRef.current.leave().catch(() => {});
+        callObjectRef.current.destroy().catch(() => {});
+      }
+      callObjectRef.current = null;
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current.getTracks().forEach((t) => {
+          try { t.stop(); } catch {}
+        });
+        localStreamRef.current = null;
       }
       if (audioContextRef.current) {
         audioContextRef.current.close().catch(() => {});
+        audioContextRef.current = null;
       }
       if (animFrameRef.current) {
         cancelAnimationFrame(animFrameRef.current);
@@ -1193,40 +1247,120 @@ export default function PatientConsultationPage() {
   // --------------------------------------------------------------------------
   // End / Leave Consultation
   // --------------------------------------------------------------------------
-  const cleanupAndEnd = useCallback(async () => {
+  const terminateMedia = useCallback(() => {
     try {
-      if (callObject) {
-        await callObject.leave().catch(() => {});
-        await callObject.destroy().catch(() => {});
-      }
+      // 1. Immediately shut off hardware video & mic tracks so camera light turns off
       if (localStreamRef.current) {
-        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {}
+        });
+        localStreamRef.current = null;
       }
-    } catch { /* ignore */ }
-    setPendingExtension(null);
-    setIsConsultationEnded(true);
+
+      // 2. Clear video element sources to free DOM rendering buffers
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null;
+      }
+      if (remoteVideoRef.current) {
+        remoteVideoRef.current.srcObject = null;
+      }
+
+      // 3. Stop Daily local tracks and tear down Daily instance
+      const activeCall = callObjectRef.current || callObject;
+      if (activeCall) {
+        try {
+          activeCall.setLocalAudio(false);
+          activeCall.setLocalVideo(false);
+        } catch {}
+        activeCall
+          .leave()
+          .catch(() => {})
+          .finally(() => {
+            try {
+              activeCall.destroy().catch(() => {});
+            } catch {}
+          });
+        callObjectRef.current = null;
+      }
+
+      // 4. Close audio analysis context if active
+      if (audioContextRef.current) {
+        try {
+          audioContextRef.current.close().catch(() => {});
+        } catch {}
+        audioContextRef.current = null;
+      }
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+    } catch (e) {
+      console.error('Error during media termination:', e);
+    }
   }, [callObject]);
 
-  const handleConfirmLeaveConsultation = async () => {
+  const handleEndCall = useCallback(() => {
+    terminateMedia();
+    setHasLocalVideo(false);
+    setHasRemoteVideo(false);
+    setIsDoctorConnected(false);
+    setPendingExtension(null);
     setShowEndModal(false);
-    setIsEndingCall(true);
+    setIsEndingCall(false);
+    setIsConsultationEnded(true);
+  }, [terminateMedia]);
 
+  // Keep ref up to date so socket and Daily listeners always trigger the latest handler
+  useEffect(() => {
+    handleEndCallRef.current = handleEndCall;
+  }, [handleEndCall]);
+
+  const cleanupAndEnd = handleEndCall;
+
+  const handleConfirmLeaveConsultation = useCallback(async () => {
+    // 1. Immediately kill media and switch screen to Completed (instant feedback)
+    handleEndCall();
+
+    // 2. Fire backend notification in parallel with keepalive
     try {
-      // Notify the backend that the patient is leaving
-      await fetch(`${API_BASE}/consultations/${bookingId}/end`, {
+      fetch(`${API_BASE}/consultations/${bookingId}/end`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({}),
+        keepalive: true,
       }).catch(() => {});
+    } catch {}
+  }, [handleEndCall, API_BASE, bookingId, token]);
 
-      await cleanupAndEnd();
-    } catch {
-      setIsConsultationEnded(true);
-    }
-  };
+  // Active Consultation Status Polling (Safety fallback if WS or WebRTC connection dropped)
+  useEffect(() => {
+    if (!bookingId || isConsultationEnded) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/consultations/${bookingId}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (res.ok) {
+          const detail = await res.json();
+          if (
+            detail?.ended_at ||
+            detail?.booking?.status === 'COMPLETED' ||
+            detail?.status === 'completed'
+          ) {
+            handleEndCallRef.current();
+          }
+        }
+      } catch {}
+    }, 3500);
+
+    return () => clearInterval(interval);
+  }, [bookingId, isConsultationEnded, token, API_BASE]);
 
   const handleDownloadPrescription = async () => {
     if (!prescription?.id && !bookingId) return;
@@ -2253,9 +2387,22 @@ export default function PatientConsultationPage() {
             {isVideoFullView ? <Minimize2 size={19} /> : <Maximize2 size={19} />}
           </button>
           {/* End Call */}
-          <button className="patient-end-call" onClick={() => setShowEndModal(true)} title="End Consultation" style={{ height: '46px', padding: '0 20px', borderRadius: '9999px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 4px 18px rgba(220,38,38,0.45)', transition: 'all 0.2s ease', marginLeft: '4px', whiteSpace: 'nowrap' }}
+          <button
+            type="button"
+            className="patient-end-call"
+            onClick={() => {
+              // If doctor already left or disconnected, end immediately without redundant modal
+              if (!isDoctorConnected) {
+                handleConfirmLeaveConsultation();
+              } else {
+                setShowEndModal(true);
+              }
+            }}
+            title="End Consultation"
+            style={{ height: '46px', padding: '0 20px', borderRadius: '9999px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 4px 18px rgba(220,38,38,0.45)', transition: 'all 0.2s ease', marginLeft: '4px', whiteSpace: 'nowrap' }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#B91C1C')}
-            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#DC2626')}>
+            onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#DC2626')}
+          >
             <PhoneOff size={18} /> <span className="end-call-label">End Call</span>
           </button>
         </div>
@@ -2391,12 +2538,21 @@ export default function PatientConsultationPage() {
               Are you sure you want to leave your consultation with {doctorName}?
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
-              <button onClick={() => setShowEndModal(false)} style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(223,171,98,0.25)', color: '#FAF6EE', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}>
+              <button
+                type="button"
+                onClick={() => setShowEndModal(false)}
+                style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(223,171,98,0.25)', color: '#FAF6EE', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}
+              >
                 Resume Call
               </button>
-              <button onClick={handleConfirmLeaveConsultation} disabled={isEndingCall} style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: '#DC2626', border: 'none', color: '#FFFFFF', fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: isEndingCall ? 0.7 : 1 }}>
+              <button
+                type="button"
+                onClick={handleConfirmLeaveConsultation}
+                disabled={isEndingCall}
+                style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: '#DC2626', border: 'none', color: '#FFFFFF', fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: isEndingCall ? 0.7 : 1 }}
+              >
                 {isEndingCall ? <Loader2 size={16} className="animate-spin" /> : null}
-                <span>{isEndingCall ? 'Leaving...' : 'Leave Room'}</span>
+                <span>{isEndingCall ? 'Ending...' : 'Leave Room'}</span>
               </button>
             </div>
           </div>
