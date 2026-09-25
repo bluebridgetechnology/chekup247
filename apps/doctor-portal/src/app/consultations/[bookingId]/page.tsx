@@ -46,6 +46,12 @@ import {
   AlertCircle,
   Sparkles,
   TimerReset,
+  ArrowLeftRight,
+  Grid,
+  Move,
+  Expand,
+  Shrink,
+  Layers,
 } from 'lucide-react';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
@@ -125,6 +131,19 @@ interface DiagnosisItem {
   isPrimary: boolean;
 }
 
+const PIP_DIMENSIONS: Record<'sm' | 'md' | 'lg', { width: string; height: string }> = {
+  sm: { width: '180px', height: '120px' },
+  md: { width: '270px', height: '180px' },
+  lg: { width: '380px', height: '250px' },
+};
+
+const CORNER_STYLES: Record<string, React.CSSProperties> = {
+  'bottom-right': { bottom: '78px', right: '16px' },
+  'bottom-left': { bottom: '78px', left: '16px' },
+  'top-right': { top: '56px', right: '16px' },
+  'top-left': { top: '56px', left: '16px' },
+};
+
 export default function DoctorConsultationWorkspace() {
   const params = useParams();
   const router = useRouter();
@@ -164,6 +183,12 @@ export default function DoctorConsultationWorkspace() {
   const [hasRemoteVideo, setHasRemoteVideo] = useState<boolean>(false);
   const [hasLocalVideo, setHasLocalVideo] = useState<boolean>(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
+
+  // Dynamic Video Layout & PiP Customization States
+  const [videoLayout, setVideoLayout] = useState<'pip' | 'grid'>('pip');
+  const [pipSize, setPipSize] = useState<'sm' | 'md' | 'lg'>('md');
+  const [pipCorner, setPipCorner] = useState<'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'>('bottom-right');
+  const [isSwapped, setIsSwapped] = useState<boolean>(false);
 
   // Timer State (starts from 0 or calculated from consultation.started_at)
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -299,6 +324,76 @@ export default function DoctorConsultationWorkspace() {
   }, [bookingId, token, API_BASE, chiefComplaint, hpi, assessment, plan, patientInstructions]);
 
   // --------------------------------------------------------------------------
+  // WebRTC Media Synchronization (Daily.co Call Object)
+  // --------------------------------------------------------------------------
+  const syncDailyTracks = useCallback((call: DailyCall | null) => {
+    if (!call) return;
+    try {
+      const participants = call.participants();
+      if (!participants) return;
+
+      // 1. Doctor (Local participant)
+      const local = participants.local;
+      if (local) {
+        const vTrack = local.tracks?.video?.persistentTrack || local.tracks?.video?.track;
+        const vState = local.tracks?.video?.state;
+        const isPlayable = Boolean(vTrack && (vState === 'playable' || local.video) && vState !== 'off' && vState !== 'blocked');
+
+        if (vTrack) {
+          localTrackRef.current = vTrack;
+          if (localVideoRef.current) {
+            const currentStream = localVideoRef.current.srcObject as MediaStream | null;
+            if (!currentStream || !currentStream.getTracks().includes(vTrack)) {
+              localVideoRef.current.srcObject = new MediaStream([vTrack]);
+            }
+            localVideoRef.current.play().catch(() => {});
+          }
+        }
+        setHasLocalVideo(isPlayable && Boolean(vTrack));
+      }
+
+      // 2. Patient (Remote participant)
+      const remotes = Object.values(participants).filter((p) => !p.local);
+      if (remotes.length > 0) {
+        const remote = remotes[0];
+        setIsPatientConnected(true);
+        const rvTrack = remote.tracks?.video?.persistentTrack || remote.tracks?.video?.track;
+        const raTrack = remote.tracks?.audio?.persistentTrack || remote.tracks?.audio?.track;
+        const rvState = remote.tracks?.video?.state;
+        const isRemotePlayable = Boolean(rvTrack && (rvState === 'playable' || remote.video) && rvState !== 'off' && rvState !== 'blocked');
+
+        setIsPatientVideoActive(isRemotePlayable);
+        if (rvTrack) {
+          remoteVideoTrackRef.current = rvTrack;
+          setHasRemoteVideo(isRemotePlayable);
+          if (remoteVideoRef.current) {
+            const currentStream = remoteVideoRef.current.srcObject as MediaStream | null;
+            if (!currentStream || !currentStream.getTracks().includes(rvTrack)) {
+              remoteVideoRef.current.srcObject = new MediaStream([rvTrack]);
+            }
+            remoteVideoRef.current.play().catch(() => {});
+          }
+        } else {
+          setHasRemoteVideo(false);
+        }
+
+        if (raTrack) {
+          remoteAudioTrackRef.current = raTrack;
+          if (remoteAudioRef.current) {
+            const currentStream = remoteAudioRef.current.srcObject as MediaStream | null;
+            if (!currentStream || !currentStream.getTracks().includes(raTrack)) {
+              remoteAudioRef.current.srcObject = new MediaStream([raTrack]);
+            }
+            remoteAudioRef.current.play().catch(() => {});
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Daily sync tracks note:', e);
+    }
+  }, []);
+
+  // --------------------------------------------------------------------------
   // Initial Load & Daily.co WebRTC Initialization
   // --------------------------------------------------------------------------
   useEffect(() => {
@@ -405,52 +500,25 @@ export default function DoctorConsultationWorkspace() {
           subscribeToTracksAutomatically: true,
         });
 
-        dailyCall.on('track-started', (ev: DailyEventObjectTrack) => {
+        dailyCall.on('joined-meeting', () => {
           if (!isMounted) return;
-          if (ev.participant && !ev.participant.local) {
-            setIsPatientConnected(true);
-            if (ev.track.kind === 'video') {
-              remoteVideoTrackRef.current = ev.track;
-              if (remoteVideoRef.current) {
-                remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
-              }
-              setIsPatientVideoActive(true);
-              setHasRemoteVideo(true);
-            }
-            if (ev.track.kind === 'audio') {
-              remoteAudioTrackRef.current = ev.track;
-              if (remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
-              }
-            }
-          } else if (ev.participant?.local) {
-            if (ev.track.kind === 'video') {
-              localTrackRef.current = ev.track;
-              if (localVideoRef.current) {
-                localVideoRef.current.srcObject = new MediaStream([ev.track]);
-              }
-              setHasLocalVideo(true);
-            }
-          }
+          syncDailyTracks(dailyCall);
+        });
+
+        dailyCall.on('track-started', () => {
+          if (!isMounted) return;
+          syncDailyTracks(dailyCall);
         });
 
         dailyCall.on('track-stopped', (ev: DailyEventObjectTrack) => {
           if (!isMounted) return;
-          if (ev.participant && !ev.participant.local && ev.track.kind === 'video') {
-            if (remoteVideoTrackRef.current === ev.track) {
-              remoteVideoTrackRef.current = null;
-            }
-            if (remoteVideoRef.current) {
-              remoteVideoRef.current.srcObject = null;
-            }
+          if (ev.participant?.local && ev.track.kind === 'video') {
+            setHasLocalVideo(false);
+          } else if (ev.participant && !ev.participant.local && ev.track.kind === 'video') {
             setIsPatientVideoActive(false);
             setHasRemoteVideo(false);
-          } else if (ev.participant?.local && ev.track.kind === 'video') {
-            if (localTrackRef.current === ev.track) {
-              localTrackRef.current = null;
-            }
-            setHasLocalVideo(false);
           }
+          syncDailyTracks(dailyCall);
         });
 
         dailyCall.on('participant-joined', (ev) => {
@@ -458,14 +526,12 @@ export default function DoctorConsultationWorkspace() {
           if (ev.participant && !ev.participant.local) {
             setIsPatientConnected(true);
           }
+          syncDailyTracks(dailyCall);
         });
 
-        dailyCall.on('participant-updated', (ev) => {
+        dailyCall.on('participant-updated', () => {
           if (!isMounted) return;
-          if (ev.participant && !ev.participant.local) {
-            const hasVideo = Boolean(ev.participant.video && ev.participant.tracks?.video?.state === 'playable');
-            setIsPatientVideoActive(hasVideo);
-          }
+          syncDailyTracks(dailyCall);
         });
 
         dailyCall.on('participant-left', (ev) => {
@@ -474,6 +540,10 @@ export default function DoctorConsultationWorkspace() {
             setIsPatientConnected(false);
             setIsPatientVideoActive(false);
             setHasRemoteVideo(false);
+            remoteVideoTrackRef.current = null;
+            remoteAudioTrackRef.current = null;
+            if (remoteVideoRef.current) remoteVideoRef.current.srcObject = null;
+            if (remoteAudioRef.current) remoteAudioRef.current.srcObject = null;
           }
         });
 
@@ -491,7 +561,10 @@ export default function DoctorConsultationWorkspace() {
         });
 
         await dailyCall.join({ url: joinData.roomUrl, token: joinData.token });
-        if (isMounted) setCallObject(dailyCall);
+        if (isMounted) {
+          setCallObject(dailyCall);
+          syncDailyTracks(dailyCall);
+        }
       } catch (err: any) {
         console.warn('Consultation initialization failed:', err);
         if (isMounted) {
@@ -514,22 +587,29 @@ export default function DoctorConsultationWorkspace() {
       }
       if (autosaveTimeoutRef.current) clearTimeout(autosaveTimeoutRef.current);
     };
-  }, [bookingId, token, API_BASE, doctor?.fullName]);
+  }, [bookingId, token, API_BASE, doctor?.fullName, syncDailyTracks]);
 
   // Media elements only mount after the loading gate clears, but Daily can
   // start tracks during join — attach anything buffered once they exist.
   useEffect(() => {
     if (isLoading || loadError || isConsultationEnded) return;
-    if (localTrackRef.current && localVideoRef.current && !localVideoRef.current.srcObject) {
-      localVideoRef.current.srcObject = new MediaStream([localTrackRef.current]);
+    if (callObject) {
+      syncDailyTracks(callObject);
+    } else {
+      if (localTrackRef.current && localVideoRef.current && !localVideoRef.current.srcObject) {
+        localVideoRef.current.srcObject = new MediaStream([localTrackRef.current]);
+        localVideoRef.current.play().catch(() => {});
+      }
+      if (remoteVideoTrackRef.current && remoteVideoRef.current && !remoteVideoRef.current.srcObject) {
+        remoteVideoRef.current.srcObject = new MediaStream([remoteVideoTrackRef.current]);
+        remoteVideoRef.current.play().catch(() => {});
+      }
+      if (remoteAudioTrackRef.current && remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
+        remoteAudioRef.current.srcObject = new MediaStream([remoteAudioTrackRef.current]);
+        remoteAudioRef.current.play().catch(() => {});
+      }
     }
-    if (remoteVideoTrackRef.current && remoteVideoRef.current && !remoteVideoRef.current.srcObject) {
-      remoteVideoRef.current.srcObject = new MediaStream([remoteVideoTrackRef.current]);
-    }
-    if (remoteAudioTrackRef.current && remoteAudioRef.current && !remoteAudioRef.current.srcObject) {
-      remoteAudioRef.current.srcObject = new MediaStream([remoteAudioTrackRef.current]);
-    }
-  }, [isLoading, loadError, isConsultationEnded, hasLocalVideo, hasRemoteVideo]);
+  }, [isLoading, loadError, isConsultationEnded, videoLayout, isSwapped, pipSize, pipCorner, callObject, syncDailyTracks]);
 
   // --------------------------------------------------------------------------
   // WebSocket Consultation Sync & Extension Events
@@ -633,6 +713,7 @@ export default function DoctorConsultationWorkspace() {
     setIsVideoMuted(next);
     if (callObject) {
       callObject.setLocalVideo(!next);
+      setTimeout(() => syncDailyTracks(callObject), 100);
     }
   };
 
@@ -672,6 +753,25 @@ export default function DoctorConsultationWorkspace() {
       document.exitFullscreen?.().catch(() => {});
       setIsFullscreen(false);
     }
+  };
+
+  const cycleCorner = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPipCorner((curr) => {
+      if (curr === 'bottom-right') return 'bottom-left';
+      if (curr === 'bottom-left') return 'top-left';
+      if (curr === 'top-left') return 'top-right';
+      return 'bottom-right';
+    });
+  };
+
+  const cyclePipSize = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPipSize((curr) => {
+      if (curr === 'sm') return 'md';
+      if (curr === 'md') return 'lg';
+      return 'sm';
+    });
   };
 
   // --------------------------------------------------------------------------
@@ -1306,142 +1406,179 @@ export default function DoctorConsultationWorkspace() {
               justifyContent: 'center',
             }}
           >
-            {/* Remote Video Fallback Frame: reflects real connection state */}
+            {/* Connection error overlay */}
+            {callError ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 40,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '14px',
+                  padding: '0 24px',
+                  backgroundColor: '#1E120B',
+                  textAlign: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    width: '74px',
+                    height: '74px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(239, 68, 68, 0.12)',
+                    border: '2px solid rgba(239, 68, 68, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <AlertCircle size={32} color="#F87171" />
+                </div>
+                <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FAF6EE' }}>
+                  Couldn&apos;t connect to the video room
+                </div>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#D5C7B8', maxWidth: '440px', lineHeight: 1.5 }}>
+                  {callError}
+                </p>
+                <button
+                  onClick={() => window.location.reload()}
+                  style={{
+                    marginTop: '4px',
+                    padding: '9px 20px',
+                    borderRadius: '9999px',
+                    backgroundColor: '#DFAB62',
+                    border: 'none',
+                    color: '#2A170F',
+                    fontWeight: 700,
+                    fontSize: '0.825rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Retry Connection
+                </button>
+              </div>
+            ) : !callObject ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 40,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '14px',
+                  backgroundColor: '#1E120B',
+                }}
+              >
+                <Loader2 size={32} className="animate-spin" style={{ color: '#DFAB62' }} />
+                <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#F0E5D3' }}>
+                  Connecting to the secure consultation room…
+                </div>
+              </div>
+            ) : null}
+
+            {/* Top Bar inside Video Stage */}
             <div
               style={{
                 position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                display: isPatientConnected && hasRemoteVideo ? 'none' : 'flex',
-                flexDirection: 'column',
+                top: '12px',
+                left: '14px',
+                right: '14px',
+                display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: '16px',
-                backgroundColor: '#1E120B',
+                justifyContent: 'space-between',
+                zIndex: 35,
+                pointerEvents: 'none',
               }}
             >
-              {callError ? (
-                <div
+              {/* Left: Consultation Status Badge */}
+              <div
+                style={{
+                  pointerEvents: 'auto',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '6px 12px',
+                  borderRadius: '9999px',
+                  backgroundColor: 'rgba(20, 12, 8, 0.85)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(223, 171, 98, 0.3)',
+                }}
+              >
+                <span
+                  style={{
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: isPatientConnected ? '#22C55E' : '#EAB308',
+                    boxShadow: isPatientConnected ? '0 0 8px #22C55E' : 'none',
+                  }}
+                />
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#FAF6EE' }}>
+                  {isPatientConnected ? 'Live Video Room' : 'Waiting for Patient'}
+                </span>
+                <span style={{ fontSize: '0.72rem', color: '#DFAB62' }}>•</span>
+                <span style={{ fontSize: '0.72rem', color: '#DFAB62', fontWeight: 600 }}>
+                  {formatElapsed(elapsedSeconds)}
+                </span>
+              </div>
+
+              {/* Right: Layout Switcher & Swap Controls */}
+              <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {/* Side-by-Side vs PiP Toggle */}
+                <button
+                  onClick={() => setVideoLayout(videoLayout === 'pip' ? 'grid' : 'pip')}
+                  title={videoLayout === 'pip' ? 'Switch to Side-by-Side Split View' : 'Switch to Picture-in-Picture View'}
                   style={{
                     display: 'flex',
-                    flexDirection: 'column',
                     alignItems: 'center',
-                    gap: '14px',
-                    padding: '0 24px',
-                    textAlign: 'center',
+                    gap: '6px',
+                    padding: '6px 12px',
+                    borderRadius: '9999px',
+                    backgroundColor: 'rgba(26, 15, 10, 0.88)',
+                    backdropFilter: 'blur(12px)',
+                    border: '1.5px solid rgba(223, 171, 98, 0.4)',
+                    color: '#FAF6EE',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
                   }}
                 >
-                  <div
-                    style={{
-                      width: '74px',
-                      height: '74px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                      border: '2px solid rgba(239, 68, 68, 0.4)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <AlertCircle size={32} color="#F87171" />
-                  </div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#FAF6EE' }}>
-                    Couldn&apos;t connect to the video room
-                  </div>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: '#D5C7B8', maxWidth: '440px', lineHeight: 1.5 }}>
-                    {callError}
-                  </p>
+                  {videoLayout === 'pip' ? <Grid size={14} color="#DFAB62" /> : <Layers size={14} color="#DFAB62" />}
+                  <span>{videoLayout === 'pip' ? 'Side-by-Side View' : 'PiP View'}</span>
+                </button>
+
+                {/* Swap Views (only active in PiP mode) */}
+                {videoLayout === 'pip' && (
                   <button
-                    onClick={() => window.location.reload()}
+                    onClick={() => setIsSwapped(!isSwapped)}
+                    title="Swap Main & Floating Window"
                     style={{
-                      marginTop: '4px',
-                      padding: '9px 20px',
-                      borderRadius: '9999px',
-                      backgroundColor: '#DFAB62',
-                      border: 'none',
-                      color: '#2A170F',
-                      fontWeight: 700,
-                      fontSize: '0.825rem',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Retry Connection
-                  </button>
-                </div>
-              ) : !callObject ? (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
-                  <Loader2 size={32} className="animate-spin" style={{ color: '#DFAB62' }} />
-                  <div style={{ fontSize: '0.95rem', fontWeight: 600, color: '#F0E5D3' }}>
-                    Connecting to the secure consultation room…
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div
-                    style={{
-                      width: '92px',
-                      height: '92px',
-                      borderRadius: '50%',
-                      backgroundColor: 'rgba(223, 171, 98, 0.15)',
-                      border: '2px solid var(--color-gold-base, #DFAB62)',
-                      color: '#DFAB62',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '2.2rem',
-                      fontWeight: 600,
-                      fontFamily: 'var(--font-heading)',
+                      gap: '6px',
+                      padding: '6px 12px',
+                      borderRadius: '9999px',
+                      backgroundColor: 'rgba(26, 15, 10, 0.88)',
+                      backdropFilter: 'blur(12px)',
+                      border: '1.5px solid rgba(223, 171, 98, 0.4)',
+                      color: '#DFAB62',
+                      fontSize: '0.75rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.5)',
                     }}
                   >
-                    {consultation?.booking?.patient?.fullName
-                      ? consultation.booking.patient.fullName
-                          .split(' ')
-                          .map((p) => p[0])
-                          .join('')
-                          .substring(0, 2)
-                          .toUpperCase()
-                      : 'PT'}
-                  </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#FAF6EE' }}>
-                      {consultation?.booking?.patient?.fullName || 'Patient'}
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}>
-                      {isPatientConnected ? (
-                        !isPatientVideoActive ? (
-                          <div
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              padding: '4px 12px',
-                              borderRadius: '9999px',
-                              backgroundColor: 'rgba(223, 171, 98, 0.18)',
-                              border: '1px solid rgba(223, 171, 98, 0.35)',
-                              color: '#DFAB62',
-                              fontSize: '0.8rem',
-                              fontWeight: 700,
-                            }}
-                          >
-                            <VideoOff size={13} color="#DFAB62" />
-                            <span>Connected • camera off</span>
-                          </div>
-                        ) : (
-                          <div style={{ fontSize: '0.825rem', color: '#4ADE80', fontWeight: 600 }}>
-                            Connected • Live in Consultation
-                          </div>
-                        )
-                      ) : (
-                        <div style={{ fontSize: '0.825rem', color: '#DFAB62' }}>
-                          Waiting for patient to connect to room...
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
+                    <ArrowLeftRight size={14} />
+                    <span>Swap Views</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Camera Error Banner */}
@@ -1449,14 +1586,14 @@ export default function DoctorConsultationWorkspace() {
               <div
                 style={{
                   position: 'absolute',
-                  top: '12px',
+                  top: '54px',
                   left: '50%',
                   transform: 'translateX(-50%)',
-                  zIndex: 30,
+                  zIndex: 35,
                   maxWidth: '92%',
                   padding: '8px 16px',
                   borderRadius: '12px',
-                  backgroundColor: 'rgba(60, 16, 12, 0.92)',
+                  backgroundColor: 'rgba(60, 16, 12, 0.94)',
                   border: '1px solid rgba(239, 68, 68, 0.5)',
                   color: '#FCA5A5',
                   fontSize: '0.78rem',
@@ -1477,131 +1614,469 @@ export default function DoctorConsultationWorkspace() {
               </div>
             )}
 
-            {/* Remote Video Stream if Connected via Daily.co */}
-            <video
-              ref={remoteVideoRef}
-              autoPlay
-              playsInline
+            {/* Hidden Remote Audio Element (Always mounted and active) */}
+            <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
+
+            {/* Video Stage Content: Container for Doctor and Patient Tiles */}
+            <div
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
+                position: 'relative',
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
-                display: isPatientConnected && hasRemoteVideo ? 'block' : 'none',
-              }}
-            />
-
-            {/* Camera Off Placeholder */}
-            {isVideoMuted && (
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '12px',
-                  color: '#FAF6EE',
-                }}
-              >
-                <div
-                  style={{
-                    width: '74px',
-                    height: '74px',
-                    borderRadius: '50%',
-                    backgroundColor: 'rgba(223, 171, 98, 0.15)',
-                    border: '1.5px solid #DFAB62',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <VideoOff size={32} color="#DFAB62" />
-                </div>
-                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: '#F0E5D3' }}>
-                  Camera is turned off
-                </div>
-              </div>
-            )}
-
-            {/* --------------------------------------------------------------
-                TOP-LEFT: Connection Status Badges
-                -------------------------------------------------------------- */}
-            {/* --------------------------------------------------------------
-                BOTTOM-RIGHT: Floating Patient Self-View (PiP)
-                -------------------------------------------------------------- */}
-            <div
-              className="doctor-pip"
-              style={{
-                position: 'absolute',
-                bottom: '16px',
-                right: '16px',
-                width: '136px',
-                height: '92px',
-                borderRadius: '12px',
-                overflow: 'hidden',
-                backgroundColor: '#2A170F',
-                border: '1.5px solid rgba(223, 171, 98, 0.45)',
-                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.55)',
-                zIndex: 20,
+                ...(videoLayout === 'grid'
+                  ? {
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gap: '12px',
+                      padding: '12px',
+                      boxSizing: 'border-box' as const,
+                    }
+                  : {}),
               }}
             >
-              {/* Doctor Local Self-View PiP */}
-              <video
-                ref={localVideoRef}
-                autoPlay
-                playsInline
-                muted
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                  transform: 'scaleX(-1)',
-                  display: !isVideoMuted && hasLocalVideo ? 'block' : 'none',
-                }}
-              />
-
-              {isVideoMuted && (
-                <div
+              {/* ------------------------------------------------------------
+                  TILE 1: DOCTOR TILE (Self-View)
+                  ------------------------------------------------------------ */}
+              <div
+                className={videoLayout === 'pip' && !isSwapped ? 'doctor-pip' : ''}
+                style={
+                  videoLayout === 'grid'
+                    ? {
+                        position: 'relative',
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '14px',
+                        overflow: 'hidden',
+                        backgroundColor: '#1E120B',
+                        border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                      }
+                    : isSwapped
+                    ? {
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        zIndex: 10,
+                        backgroundColor: '#150B07',
+                      }
+                    : {
+                        position: 'absolute',
+                        ...CORNER_STYLES[pipCorner],
+                        ...PIP_DIMENSIONS[pipSize],
+                        zIndex: 25,
+                        borderRadius: '14px',
+                        overflow: 'hidden',
+                        backgroundColor: '#20120B',
+                        border: '2px solid rgba(223, 171, 98, 0.55)',
+                        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65)',
+                        transition: 'all 0.22s ease-in-out',
+                      }
+                }
+              >
+                {/* Doctor Video Feed */}
+                <video
+                  ref={localVideoRef}
+                  autoPlay
+                  playsInline
+                  muted
                   style={{
                     width: '100%',
                     height: '100%',
+                    objectFit: 'cover',
+                    transform: 'scaleX(-1)',
+                    display: !isVideoMuted ? 'block' : 'none',
+                    backgroundColor: '#150B07',
+                  }}
+                />
+
+                {/* Doctor Camera Off Placeholder */}
+                {isVideoMuted && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: '#1E120B',
+                      gap: '8px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '52px',
+                        height: '52px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(223, 171, 98, 0.15)',
+                        border: '1.5px solid #DFAB62',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <User size={28} color="#DFAB62" />
+                    </div>
+                    <span style={{ fontSize: '0.78rem', color: '#DFAB62', fontWeight: 600 }}>
+                      Your Camera is Off
+                    </span>
+                  </div>
+                )}
+
+                {/* Mini Action Toolbar when Doctor is in PiP */}
+                {videoLayout === 'pip' && !isSwapped && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '6px',
+                      right: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      zIndex: 30,
+                    }}
+                  >
+                    <button
+                      onClick={() => setIsSwapped(true)}
+                      title="Swap into Main View"
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                        border: '1px solid rgba(223, 171, 98, 0.4)',
+                        color: '#DFAB62',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <ArrowLeftRight size={13} />
+                    </button>
+                    <button
+                      onClick={cyclePipSize}
+                      title={`Cycle Size (Current: ${pipSize.toUpperCase()})`}
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                        border: '1px solid rgba(223, 171, 98, 0.4)',
+                        color: '#FAF6EE',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '0.62rem',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {pipSize === 'sm' ? 'S' : pipSize === 'md' ? 'M' : 'L'}
+                    </button>
+                    <button
+                      onClick={cycleCorner}
+                      title="Move to next corner"
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                        border: '1px solid rgba(223, 171, 98, 0.4)',
+                        color: '#FAF6EE',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Move size={12} />
+                    </button>
+                    <button
+                      onClick={() => setVideoLayout('grid')}
+                      title="Switch to Side-by-Side"
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                        border: '1px solid rgba(223, 171, 98, 0.4)',
+                        color: '#DFAB62',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Grid size={12} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Doctor Bottom Badge */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '6px',
+                    left: '6px',
+                    right: '6px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center',
-                    backgroundColor: '#1F130E',
+                    justifyContent: 'space-between',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                    backdropFilter: 'blur(4px)',
+                    zIndex: 20,
                   }}
                 >
-                  <User size={26} color="#DFAB62" />
+                  <div>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
+                      {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'You (Doctor)'}
+                    </div>
+                    <div style={{ fontSize: '0.62rem', color: '#DFAB62', fontWeight: 500 }}>
+                      Doctor • Practitioner
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {isAudioMuted ? <MicOff size={12} color="#EF4444" /> : <Mic size={12} color="#4ADE80" />}
+                    {!isVideoMuted && <Video size={12} color="#4ADE80" />}
+                  </div>
                 </div>
-              )}
+              </div>
 
-              {/* Doctor Badge Overlay */}
+              {/* ------------------------------------------------------------
+                  TILE 2: PATIENT TILE (Remote Participant)
+                  ------------------------------------------------------------ */}
               <div
-                style={{
-                  position: 'absolute',
-                  bottom: '6px',
-                  left: '6px',
-                  right: '6px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  backgroundColor: 'rgba(20, 12, 8, 0.78)',
-                  backdropFilter: 'blur(4px)',
-                }}
+                className={videoLayout === 'pip' && isSwapped ? 'doctor-pip' : ''}
+                style={
+                  videoLayout === 'grid'
+                    ? {
+                        position: 'relative',
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '14px',
+                        overflow: 'hidden',
+                        backgroundColor: '#1E120B',
+                        border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                      }
+                    : !isSwapped
+                    ? {
+                        position: 'absolute',
+                        inset: 0,
+                        width: '100%',
+                        height: '100%',
+                        zIndex: 10,
+                        backgroundColor: '#150B07',
+                      }
+                    : {
+                        position: 'absolute',
+                        ...CORNER_STYLES[pipCorner],
+                        ...PIP_DIMENSIONS[pipSize],
+                        zIndex: 25,
+                        borderRadius: '14px',
+                        overflow: 'hidden',
+                        backgroundColor: '#20120B',
+                        border: '2px solid rgba(223, 171, 98, 0.55)',
+                        boxShadow: '0 12px 32px rgba(0, 0, 0, 0.65)',
+                        transition: 'all 0.22s ease-in-out',
+                      }
+                }
               >
-                <div>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
-                    {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'You (Doctor)'}
+                {/* Patient Video Stream */}
+                <video
+                  ref={remoteVideoRef}
+                  autoPlay
+                  playsInline
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: isPatientConnected && hasRemoteVideo ? 'block' : 'none',
+                    backgroundColor: '#150B07',
+                  }}
+                />
+
+                {/* Patient Placeholder Frame (When not connected or video inactive) */}
+                {(!isPatientConnected || !hasRemoteVideo) && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '12px',
+                      backgroundColor: '#1E120B',
+                      padding: '16px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        backgroundColor: 'rgba(223, 171, 98, 0.15)',
+                        border: '2px solid #DFAB62',
+                        color: '#DFAB62',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.6rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {consultation?.booking?.patient?.fullName
+                        ? consultation.booking.patient.fullName
+                            .split(' ')
+                            .map((p) => p[0])
+                            .join('')
+                            .substring(0, 2)
+                            .toUpperCase()
+                        : 'PT'}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '1rem', fontWeight: 800, color: '#FAF6EE' }}>
+                        {consultation?.booking?.patient?.fullName || 'Patient'}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: isPatientConnected ? '#DFAB62' : '#A8998A', marginTop: '4px' }}>
+                        {isPatientConnected
+                          ? 'Connected • Patient camera is off'
+                          : 'Waiting for patient to connect to room...'}
+                      </div>
+                    </div>
                   </div>
-                  <div style={{ fontSize: '0.62rem', color: '#DFAB62', fontWeight: 500 }}>
-                    Practitioner
+                )}
+
+                {/* Mini Action Toolbar when Patient is in PiP (when swapped) */}
+                {videoLayout === 'pip' && isSwapped && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '6px',
+                      right: '6px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      zIndex: 30,
+                    }}
+                  >
+                    <button
+                      onClick={() => setIsSwapped(false)}
+                      title="Swap back to Patient Main"
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                        border: '1px solid rgba(223, 171, 98, 0.4)',
+                        color: '#DFAB62',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <ArrowLeftRight size={13} />
+                    </button>
+                    <button
+                      onClick={cyclePipSize}
+                      title={`Cycle Size (Current: ${pipSize.toUpperCase()})`}
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                        border: '1px solid rgba(223, 171, 98, 0.4)',
+                        color: '#FAF6EE',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '0.62rem',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {pipSize === 'sm' ? 'S' : pipSize === 'md' ? 'M' : 'L'}
+                    </button>
+                    <button
+                      onClick={cycleCorner}
+                      title="Move to next corner"
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                        border: '1px solid rgba(223, 171, 98, 0.4)',
+                        color: '#FAF6EE',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Move size={12} />
+                    </button>
+                    <button
+                      onClick={() => setVideoLayout('grid')}
+                      title="Switch to Side-by-Side"
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '6px',
+                        backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                        border: '1px solid rgba(223, 171, 98, 0.4)',
+                        color: '#DFAB62',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <Grid size={12} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Patient Bottom Badge */}
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '6px',
+                    left: '6px',
+                    right: '6px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '3px 8px',
+                    borderRadius: '6px',
+                    backgroundColor: 'rgba(20, 12, 8, 0.82)',
+                    backdropFilter: 'blur(4px)',
+                    zIndex: 20,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
+                      {consultation?.booking?.patient?.fullName || 'Patient'}
+                    </div>
+                    <div style={{ fontSize: '0.62rem', color: '#DFAB62', fontWeight: 500 }}>
+                      Patient • Remote
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span
+                      style={{
+                        width: '8px',
+                        height: '8px',
+                        borderRadius: '50%',
+                        backgroundColor: isPatientConnected ? '#22C55E' : '#F59E0B',
+                      }}
+                    />
                   </div>
                 </div>
-                <Video size={12} color="#4ADE80" />
               </div>
             </div>
 
@@ -3798,10 +4273,8 @@ export default function DoctorConsultationWorkspace() {
             border-radius: 14px !important;
           }
           .doctor-pip {
-            width: 112px !important;
-            height: 76px !important;
-            right: 12px !important;
-            bottom: 78px !important;
+            max-width: 48vw !important;
+            max-height: 32vh !important;
           }
           /* Dock the call controls as a reachable bottom bar on touch screens */
           .call-control-bar {
