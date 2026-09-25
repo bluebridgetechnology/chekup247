@@ -105,6 +105,16 @@ const envSchema = z.object({
     .string()
     .default('false')
     .transform((v) => v === 'true'),
+  // Explicit acknowledgment required to run PAYSTACK_BYPASS on a production
+  // (NODE_ENV=production) deployment. The E2E/test VPS runs the production
+  // image while the Paystack account is deactivated, so it must be able to
+  // enable the bypass deliberately. Requiring this second flag means the
+  // bypass can never be enabled in production by accident — an ordinary prod
+  // box sets neither flag, and flipping only PAYSTACK_BYPASS fails at boot.
+  ALLOW_SIMULATED_PAYMENTS_IN_PROD: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
 
   // Daily.co Video Consultations
   DAILY_API_KEY: z.string().optional().default(''),
@@ -174,9 +184,11 @@ if (envConfig.NODE_ENV === 'production') {
         'so this is the only way to provision the first administrator account.',
     );
   }
-  if (envConfig.PAYSTACK_BYPASS) {
+  if (envConfig.PAYSTACK_BYPASS && !envConfig.ALLOW_SIMULATED_PAYMENTS_IN_PROD) {
     productionFatalErrors.push(
-      'PAYSTACK_BYPASS is enabled — simulated payments would run in production. Set PAYSTACK_BYPASS=false and configure live Paystack keys.',
+      'PAYSTACK_BYPASS is enabled without acknowledgment — simulated payments would run in production. ' +
+        'For an E2E/test deployment set ALLOW_SIMULATED_PAYMENTS_IN_PROD=true alongside it; ' +
+        'otherwise set PAYSTACK_BYPASS=false and configure live Paystack keys.',
     );
   }
 
@@ -186,5 +198,14 @@ if (envConfig.NODE_ENV === 'production') {
       console.error(`  - ${msg}`);
     }
     process.exit(1);
+  }
+
+  if (envConfig.PAYSTACK_BYPASS) {
+    console.warn(
+      '⚠️  WARNING: PAYSTACK_BYPASS is ACTIVE on a production deployment. ' +
+        'All checkouts return SIMULATED success — no real money is collected. ' +
+        'This is intended only for the E2E/test VPS while the Paystack account is deactivated. ' +
+        'Set PAYSTACK_BYPASS=false once live payments resume.',
+    );
   }
 }
