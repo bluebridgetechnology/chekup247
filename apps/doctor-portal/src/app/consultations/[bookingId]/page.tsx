@@ -158,6 +158,12 @@ export default function DoctorConsultationWorkspace() {
   const [isPatientVideoActive, setIsPatientVideoActive] = useState<boolean>(false);
   const [callError, setCallError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // True once a Daily track is actually attached to the <video> element.
+  // (Reading ref.current.srcObject during render is unreliable — it doesn't
+  // trigger re-renders — so track attachment is mirrored in state.)
+  const [hasRemoteVideo, setHasRemoteVideo] = useState<boolean>(false);
+  const [hasLocalVideo, setHasLocalVideo] = useState<boolean>(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   // Timer State (starts from 0 or calculated from consultation.started_at)
   const [elapsedSeconds, setElapsedSeconds] = useState<number>(0);
@@ -403,6 +409,7 @@ export default function DoctorConsultationWorkspace() {
             if (ev.track.kind === 'video' && remoteVideoRef.current) {
               remoteVideoRef.current.srcObject = new MediaStream([ev.track]);
               setIsPatientVideoActive(true);
+              setHasRemoteVideo(true);
             }
             if (ev.track.kind === 'audio' && remoteAudioRef.current) {
               remoteAudioRef.current.srcObject = new MediaStream([ev.track]);
@@ -410,6 +417,7 @@ export default function DoctorConsultationWorkspace() {
           } else if (ev.participant?.local) {
             if (ev.track.kind === 'video' && localVideoRef.current) {
               localVideoRef.current.srcObject = new MediaStream([ev.track]);
+              setHasLocalVideo(true);
             }
           }
         });
@@ -421,6 +429,7 @@ export default function DoctorConsultationWorkspace() {
               remoteVideoRef.current.srcObject = null;
             }
             setIsPatientVideoActive(false);
+            setHasRemoteVideo(false);
           }
         });
 
@@ -444,7 +453,21 @@ export default function DoctorConsultationWorkspace() {
           if (ev.participant && !ev.participant.local) {
             setIsPatientConnected(false);
             setIsPatientVideoActive(false);
+            setHasRemoteVideo(false);
           }
+        });
+
+        // Surface camera acquisition failures (e.g. camera held by another
+        // app/tab) instead of failing silently with a black tile.
+        dailyCall.on('camera-error' as any, (ev: any) => {
+          if (!isMounted) return;
+          console.warn('Daily camera-error:', ev?.errorMsg || ev);
+          setCameraError(
+            'Camera unavailable — it may be in use by another app or browser tab. Audio continues.',
+          );
+        });
+        dailyCall.on('error' as any, (ev: any) => {
+          console.warn('Daily error:', ev?.errorMsg || ev);
         });
 
         await dailyCall.join({ url: joinData.roomUrl, token: joinData.token });
@@ -463,6 +486,8 @@ export default function DoctorConsultationWorkspace() {
 
     return () => {
       isMounted = false;
+      setHasRemoteVideo(false);
+      setHasLocalVideo(false);
       if (dailyCall) {
         dailyCall.leave().catch(() => {});
         dailyCall.destroy().catch(() => {});
@@ -1253,7 +1278,7 @@ export default function DoctorConsultationWorkspace() {
                 left: 0,
                 width: '100%',
                 height: '100%',
-                display: isPatientConnected && isPatientVideoActive && remoteVideoRef.current?.srcObject ? 'none' : 'flex',
+                display: isPatientConnected && hasRemoteVideo ? 'none' : 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1383,6 +1408,39 @@ export default function DoctorConsultationWorkspace() {
               )}
             </div>
 
+            {/* Camera Error Banner */}
+            {cameraError && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  zIndex: 30,
+                  maxWidth: '92%',
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  backgroundColor: 'rgba(60, 16, 12, 0.92)',
+                  border: '1px solid rgba(239, 68, 68, 0.5)',
+                  color: '#FCA5A5',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  textAlign: 'center',
+                }}
+              >
+                <span>{cameraError}</span>
+                <button
+                  onClick={() => setCameraError(null)}
+                  style={{ background: 'none', border: 'none', color: '#FCA5A5', cursor: 'pointer', fontWeight: 800, padding: '0 0 0 6px' }}
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
             {/* Remote Video Stream if Connected via Daily.co */}
             <video
               ref={remoteVideoRef}
@@ -1395,7 +1453,7 @@ export default function DoctorConsultationWorkspace() {
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
-                display: isPatientConnected && isPatientVideoActive && remoteVideoRef.current?.srcObject ? 'block' : 'none',
+                display: isPatientConnected && hasRemoteVideo ? 'block' : 'none',
               }}
             />
 
@@ -1464,7 +1522,7 @@ export default function DoctorConsultationWorkspace() {
                   height: '100%',
                   objectFit: 'cover',
                   transform: 'scaleX(-1)',
-                  display: isVideoMuted ? 'none' : 'block',
+                  display: !isVideoMuted && hasLocalVideo ? 'block' : 'none',
                 }}
               />
 
@@ -2366,7 +2424,7 @@ export default function DoctorConsultationWorkspace() {
                         outline: 'none',
                       }}
                     />
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                    <div className="resp-grid-fixed" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                       <input
                         type="text"
                         placeholder="Dosage (500 mg)"
@@ -2600,7 +2658,7 @@ export default function DoctorConsultationWorkspace() {
                       <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#2A170F', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
                         Follow-up Review Type
                       </label>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
+                      <div className="resp-grid-fixed" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '6px' }}>
                         {[
                           { id: 'routine', label: 'Routine review' },
                           { id: 'specialist', label: 'Specialist referral' },
@@ -3450,7 +3508,7 @@ export default function DoctorConsultationWorkspace() {
                 <label className="portal-label" style={{ marginBottom: '8px' }}>
                   Select Additional Duration
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                <div className="resp-grid-fixed" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
                   {([10, 20, 30] as const).map((mins) => {
                     const isSelected = extensionDuration === mins;
                     return (
@@ -3486,7 +3544,7 @@ export default function DoctorConsultationWorkspace() {
                 <label className="portal-label" style={{ marginBottom: '8px' }}>
                   Pricing & Settlement Rate
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <div className="resp-grid-fixed" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                   <button
                     type="button"
                     onClick={() => setExtensionIsFree(false)}
@@ -3730,6 +3788,10 @@ export default function DoctorConsultationWorkspace() {
           }
           .clinical-panel-drawer {
             width: 100% !important;
+          }
+          /* Collapse fixed multi-column clinical grids to one column */
+          .resp-grid-fixed {
+            grid-template-columns: 1fr !important;
           }
         }
         @media (max-width: 560px) {
