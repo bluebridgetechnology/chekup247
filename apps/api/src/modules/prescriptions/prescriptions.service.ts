@@ -473,14 +473,6 @@ export class PrescriptionsService {
   async getPrescriptionByBookingId(bookingId: string) {
     if (!bookingId) return null;
 
-    if (bookingId === 'b-demo-101' || bookingId === 'demo-booking-1') {
-      try {
-        return await this.getPrescriptionById('rx-demo-101');
-      } catch {
-        return null;
-      }
-    }
-
     const consultation = await this.consultationRepository.findOne({
       where: [{ booking_id: bookingId }, { id: bookingId }],
     });
@@ -605,95 +597,6 @@ export class PrescriptionsService {
    * Generates or fetches the raw signed PDF buffer for download (PA-703).
    */
   async getPrescriptionPdfBuffer(id: string): Promise<{ buffer: Buffer; filename: string }> {
-    // 1. Support demo prescriptions in development/testing
-    if (id === 'rx-demo-101' || id === 'rx-demo-102') {
-      const isDemo1 = id === 'rx-demo-101';
-      const demoPrescription: any = {
-        id,
-        doctor_id: isDemo1 ? 'doc-1' : 'doc-2',
-        patient_id: 'pat-1',
-        icd10_code: isDemo1 ? 'J06.9' : 'F41.1',
-        icd10_description: isDemo1
-          ? 'Acute upper respiratory infection, unspecified'
-          : 'Generalized anxiety disorder',
-        schedule_flag: isDemo1 ? 'S4' : 'S5',
-        issued_at: new Date(Date.now() - (isDemo1 ? 86400000 * 2 : 86400000 * 14)),
-        medications: isDemo1
-          ? [
-              {
-                name: 'Amoxicillin 500mg capsules',
-                nappi_code: '703412001',
-                dosage: '500mg',
-                frequency: 'Three times daily (8-hourly)',
-                duration: '5 days',
-                schedule_flag: 'S4',
-                instructions: 'Take with food and finish the entire course.',
-              },
-              {
-                name: 'Paracetamol 500mg tablets',
-                nappi_code: '824102001',
-                dosage: '1000mg',
-                frequency: 'Every 6 hours as needed for pain/fever',
-                duration: '5 days',
-                schedule_flag: 'S1',
-                instructions: 'Do not exceed 4000mg in 24 hours.',
-              },
-            ]
-          : [
-              {
-                name: 'Lorazepam 1mg tablets',
-                nappi_code: '741299002',
-                dosage: '1mg',
-                frequency: 'Once daily at bedtime as needed',
-                duration: '7 days',
-                schedule_flag: 'S5',
-                instructions: 'Avoid alcohol. Do not drive or operate machinery.',
-              },
-              {
-                name: 'Escitalopram 10mg tablets',
-                nappi_code: '710041001',
-                dosage: '10mg',
-                frequency: 'Once daily in the morning',
-                duration: '30 days',
-                schedule_flag: 'S4',
-                instructions: 'Take consistently every morning.',
-              },
-            ],
-        supervision_declaration: isDemo1
-          ? null
-          : 'I confirm this Schedule 5/6 substance was prescribed following a real-time consultation in accordance with South African HPCSA telemedicine ethical guidelines.',
-      };
-
-      const docInfo = isDemo1
-        ? {
-            name: 'Dr. Thabo Mokoena',
-            hpcsa_number: 'MP 0712345',
-            specialty: 'Family Medicine & General Practitioner',
-            practice_number: 'PR 0148291',
-          }
-        : {
-            name: 'Dr. Zanele Khumalo',
-            hpcsa_number: 'MP 0689912',
-            specialty: 'Psychiatry & Behavioral Health',
-            practice_number: 'PR 0831102',
-          };
-
-      const buffer = await this.prescriptionPdfService.generatePrescriptionPdf(
-        demoPrescription,
-        docInfo,
-        {
-          name: 'Lerato Khumalo',
-          email: 'lerato.khumalo@chekup247.com',
-          phone: '+27 82 123 4567',
-        },
-      );
-
-      return {
-        buffer,
-        filename: `ChekUp247_Prescription_${id.toUpperCase()}.pdf`,
-      };
-    }
-
     let prescription = await this.prescriptionRepository.findOne({
       where: { id },
       relations: ['consultation'],
@@ -765,90 +668,6 @@ export class PrescriptionsService {
    * Public verification details for anyone scanning the QR code (BE-907, PA-703).
    */
   async getPublicPrescriptionById(id: string) {
-    // 1. Support demo prescriptions
-    if (id === 'rx-demo-101' || id === 'rx-demo-102') {
-      const isDemo1 = id === 'rx-demo-101';
-      return {
-        id,
-        status: 'VERIFIED & ACTIVE',
-        verified: true,
-        issued_at: new Date(Date.now() - (isDemo1 ? 86400000 * 2 : 86400000 * 14)).toISOString(),
-        pdf_hash: isDemo1
-          ? 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
-          : 'a98b4112e4fbc829443219aa018247ce981290312019488bcfae190348719223',
-        doctor: isDemo1
-          ? {
-              fullName: 'Dr. Thabo Mokoena',
-              hpcsa_number: 'MP 0712345',
-              practice_number: 'PR 0148291',
-              specialty: 'Family Medicine & General Practitioner',
-              verified_hpcsa: true,
-            }
-          : {
-              fullName: 'Dr. Zanele Khumalo',
-              hpcsa_number: 'MP 0689912',
-              practice_number: 'PR 0831102',
-              specialty: 'Psychiatry & Behavioral Health',
-              verified_hpcsa: true,
-            },
-        patient: {
-          fullName: 'Lerato Khumalo',
-          patient_id: 'pat-1',
-        },
-        icd10_code: isDemo1 ? 'J06.9' : 'F41.1',
-        icd10_description: isDemo1
-          ? 'Acute upper respiratory infection, unspecified'
-          : 'Generalized anxiety disorder',
-        max_schedule: isDemo1 ? 4 : 5,
-        supervision_declared: !isDemo1,
-        items: isDemo1
-          ? [
-              {
-                medication_name: 'Amoxicillin 500mg capsules',
-                nappi_code: '703412001',
-                dosage: '500mg',
-                frequency: 'Three times daily (8-hourly)',
-                duration: '5 days',
-                schedule: 4,
-                repeats: 0,
-                instructions: 'Take with food and finish the entire course.',
-              },
-              {
-                medication_name: 'Paracetamol 500mg tablets',
-                nappi_code: '824102001',
-                dosage: '1000mg',
-                frequency: 'Every 6 hours as needed for pain/fever',
-                duration: '5 days',
-                schedule: 1,
-                repeats: 0,
-                instructions: 'Do not exceed 4000mg in 24 hours.',
-              },
-            ]
-          : [
-              {
-                medication_name: 'Lorazepam 1mg tablets',
-                nappi_code: '741299002',
-                dosage: '1mg',
-                frequency: 'Once daily at bedtime as needed',
-                duration: '7 days',
-                schedule: 5,
-                repeats: 0,
-                instructions: 'Avoid alcohol. Do not drive or operate machinery while taking this medication.',
-              },
-              {
-                medication_name: 'Escitalopram 10mg tablets',
-                nappi_code: '710041001',
-                dosage: '10mg',
-                frequency: 'Once daily in the morning',
-                duration: '30 days',
-                schedule: 4,
-                repeats: 2,
-                instructions: 'Take consistently every morning with or without food.',
-              },
-            ],
-      };
-    }
-
     const prescription = await this.prescriptionRepository.findOne({
       where: { id },
       relations: ['consultation'],

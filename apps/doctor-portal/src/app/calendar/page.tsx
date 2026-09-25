@@ -98,60 +98,6 @@ export default function DoctorCalendarPage() {
     }
   }, [token, currentDate]);
 
-  const generateDefaultMockSlots = () => {
-    const mockList: CalendarSlotItem[] = [];
-    const now = new Date();
-
-    for (let dayOffset = 0; dayOffset <= 6; dayOffset++) {
-      const d = new Date(now);
-      d.setDate(now.getDate() + dayOffset);
-
-      const times = [
-        { start: '08:30', end: '09:00', isBooked: false, source: 'direct', isLocked: false },
-        { start: '09:05', end: '09:35', isBooked: dayOffset === 1, source: 'direct', isLocked: false },
-        { start: '10:00', end: '10:30', isBooked: false, source: 'locumstaff', isLocked: true },
-        { start: '10:35', end: '11:05', isBooked: false, source: 'locumstaff', isLocked: true },
-        {
-          start: '11:10',
-          end: '11:40',
-          isBooked: false,
-          source: 'direct',
-          isLocked: false,
-          bookingStatus: dayOffset === 2 ? ('cancelled' as const) : undefined,
-          patientName: dayOffset === 2 ? 'Sipho Ndlovu' : undefined,
-          cancellationReason: dayOffset === 2 ? 'Patient cancelled within 24h (Late fee applied)' : undefined,
-          cancellationFeeEarned: dayOffset === 2 ? 150 : undefined,
-        },
-        { start: '14:00', end: '14:30', isBooked: dayOffset === 3, source: 'direct', isLocked: false },
-        { start: '14:35', end: '15:05', isBooked: false, source: 'direct', isLocked: false },
-      ];
-
-      for (const t of times) {
-        const [sh, sm] = t.start.split(':').map(Number);
-        const [eh, em] = t.end.split(':').map(Number);
-        const s = new Date(d);
-        s.setHours(sh, sm, 0, 0);
-        const e = new Date(d);
-        e.setHours(eh, em, 0, 0);
-
-        mockList.push({
-          id: `slot-${dayOffset}-${t.start}`,
-          startTime: s.toISOString(),
-          endTime: e.toISOString(),
-          isBooked: t.isBooked,
-          isRecurring: true,
-          source: t.source as any,
-          isLocked: t.isLocked,
-          bookingStatus: (t as any).bookingStatus,
-          patientName: (t as any).patientName,
-          cancellationReason: (t as any).cancellationReason,
-          cancellationFeeEarned: (t as any).cancellationFeeEarned,
-        });
-      }
-    }
-    setSlots(mockList);
-  };
-
   useEffect(() => {
     loadSchedule();
   }, [loadSchedule]);

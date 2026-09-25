@@ -116,74 +116,13 @@ function DisputeResolutionWorkspaceInner() {
         }
       }
     } catch (err: any) {
-      console.warn('Fallback disputes dataset applied:', err.message);
-      const fallbackDisputes: DisputeItem[] = [
-        {
-          bookingId: 'bk-908',
-          reference: 'CHK-2026-908',
-          patientId: 'pat-104',
-          patientMasked: 'D. B**** (Free State)',
-          doctorId: 'doc-003',
-          doctorName: 'Dr. Pieter Coetzee',
-          doctorSpecialty: 'Pediatrician',
-          status: 'cancelled',
-          amount: 700,
-          cancellationReason: 'Doctor connection timed out on mobile network due to load shedding stage 4.',
-          cancelledBy: 'patient',
-          scheduledStartTime: '2026-09-16T10:00:00Z',
-          durationMinutes: 20,
-          callLogs: {
-            roomName: 'consultation-bk-908',
-            durationSeconds: 42,
-            participantEvents: [
-              { user: 'pat-104', role: 'patient', joinedAt: '10:00:15', leftAt: '10:01:02', reason: 'peer_disconnected' },
-              { user: 'doc-003', role: 'doctor', joinedAt: '10:00:20', leftAt: '10:00:45', reason: 'network_packet_loss' },
-            ],
-          },
-          hasRefund: false,
-          hasCredit: false,
-          createdAt: '2026-09-16T08:15:00Z',
-        },
-        {
-          bookingId: 'bk-907',
-          reference: 'CHK-2026-907',
-          patientId: 'pat-105',
-          patientMasked: 'J. K**** (Mpumalanga)',
-          doctorId: 'doc-001',
-          doctorName: 'Dr. Sarah Van Der Merwe',
-          doctorSpecialty: 'General Practitioner',
-          status: 'no_show',
-          amount: 650,
-          cancellationReason: 'Patient failed to join video consultation within the 10-minute grace window.',
-          cancelledBy: 'doctor',
-          scheduledStartTime: '2026-09-15T16:00:00Z',
-          durationMinutes: 15,
-          callLogs: {
-            roomName: 'consultation-bk-907',
-            durationSeconds: 610,
-            participantEvents: [
-              { user: 'doc-001', role: 'doctor', joinedAt: '16:00:00', leftAt: '16:10:10', reason: 'grace_period_expired' },
-            ],
-          },
-          hasRefund: false,
-          hasCredit: false,
-          createdAt: '2026-09-15T14:20:00Z',
-        },
-      ];
+      console.warn('Could not load disputes:', err.message);
       setData({
-        disputes: fallbackDisputes,
-        total: fallbackDisputes.length,
+        disputes: [],
+        total: 0,
         page: 1,
         limit: 15,
       });
-
-      if (initialBookingId) {
-        const found = fallbackDisputes.find((d) => d.bookingId === initialBookingId);
-        if (found) {
-          setSelectedDispute(found);
-          setCreditAmount(found.amount);
-        }
-      }
     } finally {
       setIsLoading(false);
     }

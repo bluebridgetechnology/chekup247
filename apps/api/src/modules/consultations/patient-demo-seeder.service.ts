@@ -42,17 +42,7 @@ export class PatientDemoSeederService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    try {
-      const testPatient = await this.userRepo.findOne({
-        where: { email: 'patient@chekup247.com' },
-      });
-      if (testPatient) {
-        await this.seedPatientDemoData(testPatient.id);
-        this.logger.log(`Demo patient seed checked on startup: ${testPatient.email}`);
-      }
-    } catch (err: any) {
-      this.logger.warn(`Startup demo patient seed deferred: ${err.message}`);
-    }
+    // Demo patient seeder disabled to keep system clean
   }
 
   /**

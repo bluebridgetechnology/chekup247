@@ -77,40 +77,12 @@ export function RescheduleModal({
             setSelectedDateKey(firstDate);
           }
         } else {
-          generateMockSlots();
+          setSlots([]);
         }
       } catch (e) {
-        generateMockSlots();
+        setSlots([]);
       } finally {
         setIsLoadingSlots(false);
-      }
-    }
-
-    function generateMockSlots() {
-      const mockList: AvailableSlot[] = [];
-      const now = new Date();
-      for (let dayOffset = 1; dayOffset <= 4; dayOffset++) {
-        const d = new Date(now);
-        d.setDate(now.getDate() + dayOffset);
-        ['09:00', '10:30', '14:00', '15:30'].forEach((timeStr, idx) => {
-          const [hh, mm] = timeStr.split(':').map(Number);
-          const start = new Date(d);
-          start.setHours(hh, mm, 0, 0);
-          const end = new Date(start);
-          end.setMinutes(start.getMinutes() + 30);
-          mockList.push({
-            id: `slot-reschedule-mock-${dayOffset}-${idx}`,
-            doctor_id: doctorId,
-            start_time: start.toISOString(),
-            end_time: end.toISOString(),
-            is_booked: false,
-            is_locked: false,
-          });
-        });
-      }
-      setSlots(mockList);
-      if (mockList.length > 0) {
-        setSelectedDateKey(new Date(mockList[0].start_time).toDateString());
       }
     }
 
