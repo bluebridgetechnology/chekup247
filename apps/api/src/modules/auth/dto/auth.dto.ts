@@ -158,3 +158,18 @@ export class ResendOtpDto {
   @IsEmail({}, { message: 'Invalid email address' })
   email: string;
 }
+
+export class ExpressPatientDto {
+  @IsNotEmpty({ message: 'Full name is required' })
+  @IsString()
+  full_name: string;
+
+  @IsNotEmpty({ message: 'Email address is required' })
+  @IsEmail({}, { message: 'Invalid email address' })
+  email: string;
+
+  @IsNotEmpty({ message: 'Phone number is required' })
+  @IsString()
+  phone: string;
+}
+

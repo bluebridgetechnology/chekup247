@@ -8,6 +8,7 @@ export const QUEUES = {
   NO_SHOW: 'no-show',
   BOOKING_DLQ: 'booking-dlq',
   RECONCILIATION: 'reconciliation',
+  NAPPI_IMPORT: 'nappi-import',
 } as const;
 
 export type QueueName = typeof QUEUES[keyof typeof QUEUES];

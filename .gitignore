@@ -41,3 +41,7 @@ minio-data/
 # Temporary design reference crops
 /images/
 
+# Large raw data files
+nappi/*.txt
+nappi/*.csv
+nappi/test_out/

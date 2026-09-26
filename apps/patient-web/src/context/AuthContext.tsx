@@ -42,6 +42,7 @@ interface AuthContextType {
   verifyEmail: (token: string) => Promise<any>;
   verifyOtp: (email: string, otp: string) => Promise<any>;
   resendOtp: (email: string) => Promise<any>;
+  expressPatient: (data: { full_name: string; email: string; phone: string }) => Promise<any>;
 
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -148,6 +149,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const data = await res.json();
     if (!res.ok) {
       throw new Error(data.message || 'Registration failed.');
+    }
+
+    if (data.accessToken) {
+      localStorage.setItem('chekup_token', data.accessToken);
+      setToken(data.accessToken);
+      setUser(data.user);
+    }
+    return data;
+  };
+
+  const expressPatient = async (dto: { full_name: string; email: string; phone: string }) => {
+    const res = await fetch(`${API_BASE}/auth/express-patient`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dto),
+      credentials: 'include',
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data.message || 'Express booking account initialization failed.');
     }
 
     if (data.accessToken) {
@@ -288,6 +310,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyEmail,
         verifyOtp,
         resendOtp,
+        expressPatient,
         logout,
         refreshUser,
         updateProfile,

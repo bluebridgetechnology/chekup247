@@ -33,7 +33,9 @@ import {
   ForgotPasswordDto,
   ResetPasswordDto,
   GoogleAuthDto,
+  ExpressPatientDto,
 } from './dto/auth.dto';
+import * as crypto from 'crypto';
 import { BrevoEmailProvider } from '../notifications/providers/brevo.provider';
 import { SmsProvider } from '../notifications/providers/sms.provider';
 
@@ -227,6 +229,86 @@ export class AuthService implements OnModuleInit {
         dateOfBirth: savedUser.date_of_birth,
       },
       ...(isTest ? { verificationToken: otp, otp } : {}),
+    };
+  }
+
+  /**
+   * Smart Booking Express Patient Provisioning.
+   * Frictionless booking flow: provisions patient if not existing,
+   * or links existing patient record without blocking on password prompts,
+   * issuing an authenticated JWT session for the booking saga and Paystack.
+   */
+  async expressPatient(dto: ExpressPatientDto): Promise<AuthSessionResponse & { isNew: boolean }> {
+    const normalizedEmail = dto.email.toLowerCase().trim();
+    let user = await this.userRepository.findOne({
+      where: { email: normalizedEmail },
+    });
+
+    let isNew = false;
+    if (!user) {
+      isNew = true;
+      const randomPassword = crypto.randomBytes(24).toString('hex');
+      const passwordHash = await this.tokenService.hashPassword(randomPassword);
+
+      user = this.userRepository.create({
+        email: normalizedEmail,
+        password_hash: passwordHash,
+        full_name: dto.full_name.trim(),
+        phone: dto.phone.trim(),
+        role: UserRole.PATIENT,
+        status: UserStatus.ACTIVE,
+        is_email_verified: false,
+      });
+
+      user = await this.userRepository.save(user);
+
+      // Create default notification preferences
+      const prefs = this.notificationPreferenceRepository.create({
+        user_id: user.id,
+        channels: ['email', 'whatsapp'],
+        reminders_enabled: true,
+      });
+      await this.notificationPreferenceRepository.save(prefs);
+
+      this.logger.log(`Express patient auto-provisioned: ${user.email}`);
+    } else {
+      // If user exists, update phone or full_name if empty
+      let shouldUpdate = false;
+      if (!user.phone && dto.phone) {
+        user.phone = dto.phone.trim();
+        shouldUpdate = true;
+      }
+      if ((!user.full_name || user.full_name === 'Patient') && dto.full_name) {
+        user.full_name = dto.full_name.trim();
+        shouldUpdate = true;
+      }
+      if (shouldUpdate) {
+        user = await this.userRepository.save(user);
+      }
+      this.logger.log(`Express booking linked for existing patient: ${user.email}`);
+    }
+
+    const accessToken = this.tokenService.generateAccessToken({
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      fullName: user.full_name,
+    });
+
+    return {
+      accessToken,
+      isNew,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        role: user.role,
+        status: user.status,
+        phone: user.phone,
+        isEmailVerified: user.is_email_verified,
+        avatarUrl: user.avatar_url,
+        dateOfBirth: user.date_of_birth,
+      },
     };
   }
 

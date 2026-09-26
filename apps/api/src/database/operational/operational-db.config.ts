@@ -12,6 +12,8 @@ import {
   Icd10Code,
   DoctorBlackout,
   Testimonial,
+  NappiProduct,
+  NappiPrice,
 } from './entities';
 import { InitOperationalSchema1700000000000 } from './migrations/1700000000000-InitOperationalSchema';
 import { AddEmailVerificationAndTokens1700000002000 } from './migrations/1700000002000-AddEmailVerificationAndTokens';
@@ -23,6 +25,7 @@ import { AddPayoutHoldAndApproval1700000007000 } from './migrations/170000000800
 import { AddAdminSubRole1700000009000 } from './migrations/1700000010000-AddAdminSubRole';
 import { AddUserTotp1700000013000 } from './migrations/1700000014000-AddUserTotp';
 import { AddDoctorNameTitleColumns1700000014000 } from './migrations/1700000015000-AddDoctorNameTitleColumns';
+import { CreateNappiTables1700000016000 } from './migrations/1700000016000-CreateNappiTables';
 
 export const operationalEntities = [
   User,
@@ -36,6 +39,8 @@ export const operationalEntities = [
   Icd10Code,
   DoctorBlackout,
   Testimonial,
+  NappiProduct,
+  NappiPrice,
 ];
 
 
@@ -60,6 +65,7 @@ export const getOperationalDbConfig = (): TypeOrmModuleOptions => ({
     AddAdminSubRole1700000009000,
     AddUserTotp1700000013000,
     AddDoctorNameTitleColumns1700000014000,
+    CreateNappiTables1700000016000,
   ],
   migrationsRun: false,
   synchronize: envConfig.NODE_ENV !== 'production' || envConfig.DB_SYNCHRONIZE,

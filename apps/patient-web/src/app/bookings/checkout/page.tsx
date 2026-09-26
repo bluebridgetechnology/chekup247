@@ -60,7 +60,7 @@ interface AttachedReport {
 function CheckoutContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, token, isAuthenticated, isLoading: isAuthLoading, login, register, verifyEmail } = useAuth();
+  const { user, token, isAuthenticated, isLoading: isAuthLoading, login, register, expressPatient, verifyEmail } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const doctorIdParam = searchParams.get('doctor') || searchParams.get('doctorId') || '';
@@ -83,6 +83,12 @@ function CheckoutContent() {
   const [notesError, setNotesError] = useState<boolean>(false);
   const [attachedReports, setAttachedReports] = useState<AttachedReport[]>([]);
 
+  // Express Patient Details (for seamless smart booking without prior sign-up)
+  const [patientName, setPatientName] = useState<string>('');
+  const [patientEmail, setPatientEmail] = useState<string>('');
+  const [patientPhone, setPatientPhone] = useState<string>('');
+  const [patientDetailsError, setPatientDetailsError] = useState<string | null>(null);
+
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [processingStatus, setProcessingStatus] = useState<string>('Reserving appointment slot...');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -90,7 +96,7 @@ function CheckoutContent() {
 
   // Quick In-Page Authentication & Registration Modal State
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
-  const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+  const [authModalTab, setAuthModalTab] = useState<'express' | 'login' | 'register'>('express');
   const [authEmail, setAuthEmail] = useState<string>('');
   const [authPassword, setAuthPassword] = useState<string>('');
   const [authName, setAuthName] = useState<string>('');
@@ -111,6 +117,18 @@ function CheckoutContent() {
           if (parsed.notes && !notes) {
             setNotes(parsed.notes);
           }
+          if (parsed.patientName) {
+            setPatientName(parsed.patientName);
+            setAuthName(parsed.patientName);
+          }
+          if (parsed.patientEmail) {
+            setPatientEmail(parsed.patientEmail);
+            setAuthEmail(parsed.patientEmail);
+          }
+          if (parsed.patientPhone) {
+            setPatientPhone(parsed.patientPhone);
+            setAuthPhone(parsed.patientPhone);
+          }
         }
       }
     } catch (e) {
@@ -118,7 +136,25 @@ function CheckoutContent() {
     }
   }, [doctorIdParam]);
 
-  // Persist notes into sessionStorage on every change
+  // Sync profile details if patient is authenticated
+  useEffect(() => {
+    if (user) {
+      if (user.fullName) {
+        setPatientName(user.fullName);
+        setAuthName(user.fullName);
+      }
+      if (user.email) {
+        setPatientEmail(user.email);
+        setAuthEmail(user.email);
+      }
+      if (user.phone) {
+        setPatientPhone(user.phone);
+        setAuthPhone(user.phone);
+      }
+    }
+  }, [user]);
+
+  // Persist draft into sessionStorage on every change
   const handleNotesChange = (val: string) => {
     setNotes(val);
     if (notesError) setNotesError(false);
@@ -131,6 +167,30 @@ function CheckoutContent() {
           date: dateParam,
           type: typeParam,
           notes: val,
+          patientName,
+          patientEmail,
+          patientPhone,
+          savedAt: Date.now(),
+        }),
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  const updatePatientDraft = (name: string, email: string, phone: string) => {
+    try {
+      sessionStorage.setItem(
+        'chekup_checkout_draft',
+        JSON.stringify({
+          doctorId: doctorIdParam,
+          slotId: slotIdParam,
+          date: dateParam,
+          type: typeParam,
+          notes,
+          patientName: name,
+          patientEmail: email,
+          patientPhone: phone,
           savedAt: Date.now(),
         }),
       );
@@ -472,16 +532,38 @@ function CheckoutContent() {
       return;
     }
 
-    // 1. ALWAYS VALIDATE REQUIRED CLINICAL FIELDS FIRST!
+    // 1. If not authenticated, validate contact fields (Full Name, Email, Phone)
+    if (!isAuthenticated && !token) {
+      if (!patientName.trim()) {
+        setCurrentStep(1);
+        setPatientDetailsError('Please enter your full name so the doctor knows who they are consulting with.');
+        window.scrollTo({ top: 200, behavior: 'smooth' });
+        return;
+      }
+      if (!patientEmail.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(patientEmail.trim())) {
+        setCurrentStep(1);
+        setPatientDetailsError('Please enter a valid email address to receive your consultation room link and receipt.');
+        window.scrollTo({ top: 200, behavior: 'smooth' });
+        return;
+      }
+      if (!patientPhone.trim() || patientPhone.trim().length < 8) {
+        setCurrentStep(1);
+        setPatientDetailsError('Please enter a valid mobile number for appointment SMS notifications.');
+        window.scrollTo({ top: 200, behavior: 'smooth' });
+        return;
+      }
+    }
+
+    // 2. ALWAYS VALIDATE REQUIRED CLINICAL FIELDS FIRST!
     if (!notes.trim()) {
       setCurrentStep(1);
       setNotesError(true);
       setErrorMessage('Please provide your primary reason for consultation before proceeding. This information is required for the doctor.');
-      window.scrollTo({ top: 180, behavior: 'smooth' });
+      window.scrollTo({ top: 240, behavior: 'smooth' });
       return;
     }
 
-    // 2. Persist draft to sessionStorage
+    // 3. Persist draft to sessionStorage
     try {
       sessionStorage.setItem(
         'chekup_checkout_draft',
@@ -491,19 +573,36 @@ function CheckoutContent() {
           date: dateParam,
           type: typeParam,
           notes: notes.trim(),
+          patientName: patientName.trim(),
+          patientEmail: patientEmail.trim(),
+          patientPhone: patientPhone.trim(),
           savedAt: Date.now(),
         }),
       );
     } catch {}
 
-    // 3. Check Authentication. If not logged in, show in-page Auth Modal
-    if (!isAuthenticated || !token) {
-      setShowAuthModal(true);
-      return;
+    // 4. If not logged in, auto-provision via express patient (Frictionless / Smart Booking)
+    let activeToken = token;
+    if (!activeToken) {
+      setIsProcessing(true);
+      setProcessingStatus('Setting up fast express booking session...');
+      try {
+        const expressRes = await expressPatient({
+          full_name: patientName.trim(),
+          email: patientEmail.trim(),
+          phone: patientPhone.trim(),
+        });
+        activeToken = expressRes.accessToken || localStorage.getItem('chekup_token');
+      } catch (err: any) {
+        setIsProcessing(false);
+        setErrorMessage(err.message || 'Could not initialize express booking session. Please try signing in.');
+        setShowAuthModal(true);
+        return;
+      }
     }
 
-    // 4. Authenticated -> execute booking
-    await executeBookingSaga();
+    // 5. Authenticated -> execute booking
+    await executeBookingSaga(activeToken || undefined);
   };
 
   // In-Page Auth Modal Submit Handler
@@ -521,7 +620,7 @@ function CheckoutContent() {
         }
         const logRes = await login(authEmail.trim(), authPassword);
         activeToken = logRes.accessToken || localStorage.getItem('chekup_token');
-      } else {
+      } else if (authModalTab === 'register') {
         if (!authName.trim() || !authEmail.trim() || !authPassword) {
           throw new Error('Please enter your full name, email address, and password.');
         }
@@ -540,6 +639,17 @@ function CheckoutContent() {
           const logRes = await login(authEmail.trim(), authPassword);
           activeToken = logRes.accessToken || localStorage.getItem('chekup_token');
         }
+      } else {
+        // Express checkout from modal
+        if (!authName.trim() || !authEmail.trim() || !authPhone.trim()) {
+          throw new Error('Please enter your full name, email address, and phone number.');
+        }
+        const expRes = await expressPatient({
+          full_name: authName.trim(),
+          email: authEmail.trim(),
+          phone: authPhone.trim(),
+        });
+        activeToken = expRes.accessToken || localStorage.getItem('chekup_token');
       }
 
       setShowAuthModal(false);
@@ -1188,9 +1298,285 @@ function CheckoutContent() {
                 </div>
               </div>
 
-              {/* STEP 1 BODY: Primary Reason for Consultation (PARAGRAPH FIELD, NO PILLS, REQUIRED) */}
+              {/* STEP 1 BODY: Primary Reason for Consultation & Express Patient Intake */}
               {currentStep === 1 && (
                 <div>
+                  {/* SMART BOOKING / PATIENT INFORMATION CARD */}
+                  {!isAuthenticated ? (
+                    <div
+                      style={{
+                        marginBottom: '26px',
+                        padding: '22px',
+                        borderRadius: '16px',
+                        background: 'var(--color-cream-base, #FAF6EE)',
+                        border: patientDetailsError
+                          ? '1.5px solid #dc2626'
+                          : '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          marginBottom: '10px',
+                          flexWrap: 'wrap',
+                          gap: '10px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <User size={18} style={{ color: 'var(--color-gold-bronze, #B88647)' }} />
+                          <h3
+                            style={{
+                              fontSize: '1.1rem',
+                              fontFamily: 'var(--font-heading)',
+                              fontWeight: 800,
+                              color: 'var(--color-chocolate-base, #2A170F)',
+                            }}
+                          >
+                            Patient Details
+                          </h3>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span
+                            style={{
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              color: '#15803d',
+                              background: '#dcfce7',
+                              border: '1px solid #bbf7d0',
+                              padding: '3px 9px',
+                              borderRadius: '6px',
+                            }}
+                          >
+                            ⚡ Express Booking • No Sign-up Required
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAuthModalTab('login');
+                              setShowAuthModal(true);
+                            }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: 'var(--color-gold-bronze, #B88647)',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                              textDecoration: 'underline',
+                              padding: 0,
+                            }}
+                          >
+                            Already have an account? Sign In
+                          </button>
+                        </div>
+                      </div>
+
+                      <p style={{ fontSize: '0.84rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginBottom: '16px', lineHeight: 1.45 }}>
+                        Provide your details below to receive the private video consultation link and receipt via Email & SMS. No password required.
+                      </p>
+
+                      {patientDetailsError && (
+                        <div
+                          style={{
+                            marginBottom: '14px',
+                            padding: '10px 14px',
+                            borderRadius: '10px',
+                            background: '#fef2f2',
+                            border: '1px solid #fecaca',
+                            color: '#991b1b',
+                            fontSize: '0.825rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                        >
+                          <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                          <span>{patientDetailsError}</span>
+                        </div>
+                      )}
+
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                          gap: '14px',
+                        }}
+                      >
+                        {/* Full Name */}
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              color: 'var(--color-chocolate-base, #2A170F)',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            Full Name <span style={{ color: '#dc2626' }}>*</span>
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="text"
+                              value={patientName}
+                              onChange={(e) => {
+                                setPatientName(e.target.value);
+                                setAuthName(e.target.value);
+                                if (patientDetailsError) setPatientDetailsError(null);
+                                updatePatientDraft(e.target.value, patientEmail, patientPhone);
+                              }}
+                              placeholder="e.g. Sipho Dlamini"
+                              style={{
+                                width: '100%',
+                                padding: '11px 14px 11px 36px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(42, 23, 15, 0.18)',
+                                background: '#ffffff',
+                                fontSize: '0.9rem',
+                                color: 'var(--color-chocolate-base, #2A170F)',
+                                outline: 'none',
+                              }}
+                            />
+                            <User
+                              size={16}
+                              style={{
+                                position: 'absolute',
+                                left: '12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'var(--color-cream-text-muted, #6B5E55)',
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Email Address */}
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              color: 'var(--color-chocolate-base, #2A170F)',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            Email Address <span style={{ color: '#dc2626' }}>*</span>
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="email"
+                              value={patientEmail}
+                              onChange={(e) => {
+                                setPatientEmail(e.target.value);
+                                setAuthEmail(e.target.value);
+                                if (patientDetailsError) setPatientDetailsError(null);
+                                updatePatientDraft(patientName, e.target.value, patientPhone);
+                              }}
+                              placeholder="e.g. sipho@example.co.za"
+                              style={{
+                                width: '100%',
+                                padding: '11px 14px 11px 36px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(42, 23, 15, 0.18)',
+                                background: '#ffffff',
+                                fontSize: '0.9rem',
+                                color: 'var(--color-chocolate-base, #2A170F)',
+                                outline: 'none',
+                              }}
+                            />
+                            <Mail
+                              size={16}
+                              style={{
+                                position: 'absolute',
+                                left: '12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'var(--color-cream-text-muted, #6B5E55)',
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Mobile Phone Number */}
+                        <div>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '0.8rem',
+                              fontWeight: 700,
+                              color: 'var(--color-chocolate-base, #2A170F)',
+                              marginBottom: '6px',
+                            }}
+                          >
+                            Phone / Mobile Number <span style={{ color: '#dc2626' }}>*</span>
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <input
+                              type="tel"
+                              value={patientPhone}
+                              onChange={(e) => {
+                                setPatientPhone(e.target.value);
+                                setAuthPhone(e.target.value);
+                                if (patientDetailsError) setPatientDetailsError(null);
+                                updatePatientDraft(patientName, patientEmail, e.target.value);
+                              }}
+                              placeholder="e.g. 082 123 4567"
+                              style={{
+                                width: '100%',
+                                padding: '11px 14px 11px 36px',
+                                borderRadius: '10px',
+                                border: '1px solid rgba(42, 23, 15, 0.18)',
+                                background: '#ffffff',
+                                fontSize: '0.9rem',
+                                color: 'var(--color-chocolate-base, #2A170F)',
+                                outline: 'none',
+                              }}
+                            />
+                            <Phone
+                              size={16}
+                              style={{
+                                position: 'absolute',
+                                left: '12px',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'var(--color-cream-text-muted, #6B5E55)',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        marginBottom: '22px',
+                        padding: '12px 18px',
+                        borderRadius: '12px',
+                        background: 'rgba(223, 171, 98, 0.12)',
+                        border: '1px solid rgba(223, 171, 98, 0.3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        flexWrap: 'wrap',
+                        gap: '10px',
+                        fontSize: '0.85rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <CheckCircle2 size={16} style={{ color: '#16a34a' }} />
+                        <span style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>
+                          Booking as <strong>{user?.fullName}</strong> ({user?.email})
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-gold-bronze, #B88647)' }}>
+                        ✓ Logged In
+                      </span>
+                    </div>
+                  )}
+
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <Stethoscope size={18} style={{ color: 'var(--color-gold-bronze, #B88647)' }} />
@@ -1971,8 +2357,31 @@ function CheckoutContent() {
                 borderRadius: '12px',
                 marginBottom: '20px',
                 border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+                gap: '4px',
               }}
             >
+              <button
+                type="button"
+                onClick={() => {
+                  setAuthModalTab('express');
+                  setAuthModalError(null);
+                }}
+                style={{
+                  flex: 1,
+                  padding: '9px 6px',
+                  borderRadius: '9px',
+                  border: 'none',
+                  fontSize: '0.82rem',
+                  fontWeight: 800,
+                  cursor: 'pointer',
+                  background: authModalTab === 'express' ? 'var(--color-chocolate-base, #2A170F)' : 'transparent',
+                  color: authModalTab === 'express' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
+                  transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                ⚡ Express
+              </button>
               <button
                 type="button"
                 onClick={() => {
@@ -1981,15 +2390,16 @@ function CheckoutContent() {
                 }}
                 style={{
                   flex: 1,
-                  padding: '10px',
+                  padding: '9px 6px',
                   borderRadius: '9px',
                   border: 'none',
-                  fontSize: '0.88rem',
+                  fontSize: '0.82rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                   background: authModalTab === 'login' ? 'var(--color-chocolate-base, #2A170F)' : 'transparent',
                   color: authModalTab === 'login' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
                   transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
                 }}
               >
                 Sign In
@@ -2002,18 +2412,19 @@ function CheckoutContent() {
                 }}
                 style={{
                   flex: 1,
-                  padding: '10px',
+                  padding: '9px 6px',
                   borderRadius: '9px',
                   border: 'none',
-                  fontSize: '0.88rem',
+                  fontSize: '0.82rem',
                   fontWeight: 800,
                   cursor: 'pointer',
                   background: authModalTab === 'register' ? 'var(--color-chocolate-base, #2A170F)' : 'transparent',
                   color: authModalTab === 'register' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
                   transition: 'all 0.2s ease',
+                  whiteSpace: 'nowrap',
                 }}
               >
-                New Patient (Register)
+                Register
               </button>
             </div>
 
@@ -2036,6 +2447,119 @@ function CheckoutContent() {
                 <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{authModalError}</span>
               </div>
+            )}
+
+            {/* Tab: Express Form */}
+            {authModalTab === 'express' && (
+              <form onSubmit={handleAuthModalSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', marginBottom: '6px' }}>
+                    Full Legal Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={authName}
+                    onChange={(e) => {
+                      setAuthName(e.target.value);
+                      setPatientName(e.target.value);
+                    }}
+                    placeholder="e.g. Sipho Dlamini"
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(42, 23, 15, 0.2)',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', marginBottom: '6px' }}>
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    value={authEmail}
+                    onChange={(e) => {
+                      setAuthEmail(e.target.value);
+                      setPatientEmail(e.target.value);
+                    }}
+                    placeholder="sipho@example.co.za"
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(42, 23, 15, 0.2)',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', marginBottom: '6px' }}>
+                    Phone / Mobile Number
+                  </label>
+                  <input
+                    type="tel"
+                    required
+                    value={authPhone}
+                    onChange={(e) => {
+                      setAuthPhone(e.target.value);
+                      setPatientPhone(e.target.value);
+                    }}
+                    placeholder="082 123 4567"
+                    style={{
+                      width: '100%',
+                      padding: '12px 14px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(42, 23, 15, 0.2)',
+                      fontSize: '0.9rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+
+                <div style={{ fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', lineHeight: 1.4 }}>
+                  No password required. We'll send your consultation video link directly to your email and SMS.
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={authModalLoading}
+                  style={{
+                    marginTop: '4px',
+                    width: '100%',
+                    padding: '13px',
+                    borderRadius: '11px',
+                    background: 'var(--color-gold-primary, #E2B467)',
+                    color: 'var(--color-chocolate-base, #2A170F)',
+                    border: 'none',
+                    fontSize: '0.95rem',
+                    fontWeight: 800,
+                    fontFamily: 'var(--font-heading)',
+                    cursor: authModalLoading ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 12px var(--color-gold-cta-shadow, rgba(226, 180, 103, 0.35))',
+                  }}
+                >
+                  {authModalLoading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Setting Up Express Booking...</span>
+                    </>
+                  ) : (
+                    <span>⚡ Continue to Pay R{totalPayable.toFixed(2)}</span>
+                  )}
+                </button>
+              </form>
             )}
 
             {/* Tab: Login Form */}
