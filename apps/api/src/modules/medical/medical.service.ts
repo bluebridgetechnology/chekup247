@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like, ILike } from 'typeorm';
-import { Icd10Code } from '../../database/operational/entities';
+import { In, Repository } from 'typeorm';
+import { Icd10Code, NappiProduct, NappiPrice } from '../../database/operational/entities';
 import { envConfig } from '../../config/env.config';
 
 interface WhoTokenResponse {
@@ -19,6 +19,10 @@ export class MedicalService implements OnModuleInit {
   constructor(
     @InjectRepository(Icd10Code, 'operational')
     private readonly icd10Repository: Repository<Icd10Code>,
+    @InjectRepository(NappiProduct, 'operational')
+    private readonly nappiProductRepository: Repository<NappiProduct>,
+    @InjectRepository(NappiPrice, 'operational')
+    private readonly nappiPriceRepository: Repository<NappiPrice>,
   ) {}
 
   async onModuleInit() {
@@ -333,10 +337,239 @@ export class MedicalService implements OnModuleInit {
   }
 
   /**
-   * Search MediKredit NAPPI & South African primary care medication catalog (BE-705).
-   * Supports Schedules S0 through S6 with NAPPI codes, strengths, and dosage forms.
+   * Search MediKredit NAPPI South African medicines catalog (BE-705).
+   * Queries nappi_products in Postgres using pg_trgm trigram similarity and exact code lookups.
+   * Surfaces replacement products for superseded codes and respects price licensing guards.
    */
-  async searchMedications(query: string, limit = 20) {
+  async searchMedications(
+    query: string,
+    optionsOrLimit: number | {
+      limit?: number;
+      includeInactive?: boolean;
+      includeNonMeds?: boolean;
+      schedule?: string;
+    } = 20,
+  ): Promise<any[]> {
+    const options =
+      typeof optionsOrLimit === 'number'
+        ? { limit: optionsOrLimit }
+        : optionsOrLimit || {};
+
+    const limit = Math.min(Math.max(Number(options.limit) || 20, 1), 100);
+    const includeInactive = Boolean(options.includeInactive);
+    const includeNonMeds = Boolean(options.includeNonMeds);
+    const scheduleFilter = options.schedule
+      ? options.schedule.replace(/^S/i, '').trim()
+      : null;
+
+    // Check if Postgres nappi_products table has data
+    let totalCount = 0;
+    try {
+      totalCount = await this.nappiProductRepository.count();
+    } catch (err: any) {
+      this.logger.debug(`nappi_products check note: ${err.message}`);
+    }
+
+    if (totalCount === 0) {
+      return this.searchInMemoryCatalog(query, limit);
+    }
+
+    const clean = (query || '').trim();
+
+    const qb = this.nappiProductRepository
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.replacement', 'r');
+
+    if (!includeNonMeds) {
+      qb.andWhere('p.is_medicine = true');
+    }
+
+    if (!includeInactive) {
+      qb.andWhere('p.is_active = true');
+    }
+
+    if (scheduleFilter) {
+      qb.andWhere('(p.schedule = :sched OR p.schedule = :schedWithS)', {
+        sched: scheduleFilter,
+        schedWithS: `S${scheduleFilter}`,
+      });
+    }
+
+    if (!clean) {
+      // Empty query: return active medicines ordered by product_name
+      const products = await qb
+        .orderBy('p.product_name', 'ASC')
+        .limit(limit)
+        .getMany();
+
+      if (envConfig.SHOW_NAPPI_PRICES && products.length > 0) {
+        const nappiCodes = products.map((p) => p.nappi_code);
+        const prices = await this.nappiPriceRepository.find({
+          where: { nappi_code: In(nappiCodes) },
+          order: { effective_date: 'DESC' },
+        });
+        const priceMap = new Map<string, NappiPrice[]>();
+        for (const pr of prices) {
+          const list = priceMap.get(pr.nappi_code) || [];
+          list.push(pr);
+          priceMap.set(pr.nappi_code, list);
+        }
+        for (const p of products) {
+          p.prices = priceMap.get(p.nappi_code) || [];
+        }
+      }
+
+      return products.map((p) => this.mapNappiProductToResult(p));
+    }
+
+    // Check if query is digits (exact NAPPI code or prefix)
+    const isDigits = /^\d+$/.test(clean);
+    if (isDigits) {
+      qb.andWhere(
+        '(p.nappi_code = :cleanCode OR p.nappi_code LIKE :codePrefix OR p.product_name ILIKE :contains)',
+        {
+          cleanCode: clean,
+          codePrefix: `${clean}%`,
+          contains: `%${clean}%`,
+        },
+      ).orderBy(
+        `CASE 
+          WHEN p.nappi_code = :cleanCode THEN 1
+          WHEN p.nappi_code LIKE :codePrefix THEN 2
+          ELSE 3
+        END`,
+        'ASC',
+      );
+    } else {
+      // Trigram fuzzy match + ILIKE prefix / substring
+      qb.andWhere(
+        '(p.product_name % :clean OR p.product_name ILIKE :prefix OR p.product_name ILIKE :contains)',
+        {
+          clean,
+          prefix: `${clean}%`,
+          contains: `%${clean}%`,
+        },
+      ).orderBy(
+        `CASE
+          WHEN p.product_name ILIKE :clean THEN 1
+          WHEN p.product_name ILIKE :prefix THEN 2
+          WHEN p.product_name % :clean THEN 3
+          ELSE 4
+        END`,
+        'ASC',
+      ).addOrderBy(`similarity(p.product_name, :clean)`, 'DESC');
+    }
+
+    qb.addOrderBy('p.product_name', 'ASC').limit(limit);
+
+    const products = await qb.getMany();
+
+    if (envConfig.SHOW_NAPPI_PRICES && products.length > 0) {
+      const nappiCodes = products.map((p) => p.nappi_code);
+      const prices = await this.nappiPriceRepository.find({
+        where: { nappi_code: In(nappiCodes) },
+        order: { effective_date: 'DESC' },
+      });
+      const priceMap = new Map<string, NappiPrice[]>();
+      for (const pr of prices) {
+        const list = priceMap.get(pr.nappi_code) || [];
+        list.push(pr);
+        priceMap.set(pr.nappi_code, list);
+      }
+      for (const p of products) {
+        p.prices = priceMap.get(p.nappi_code) || [];
+      }
+    }
+
+    if (products.length === 0 && clean.length > 2) {
+      // Dynamic free-text fallback if no results match
+      return [
+        {
+          name: clean,
+          product_name: clean,
+          generic_name: clean,
+          nappi_code: 'CUSTOM-FREE-TEXT',
+          schedule: 'S4',
+          schedule_raw: '4',
+          dosage_form: 'Tablet / Capsule',
+          strength: 'As directed',
+          strength_val: null,
+          strength_unit: null,
+          pack_size: '1',
+          pack_uom: 'EA',
+          generic_ind: 'N',
+          manufacturer: 'Prescribing Clinician Specified',
+          manuf_desc: 'Prescribing Clinician Specified',
+          route: 'Oral',
+          is_medicine: true,
+          is_active: true,
+          is_controlled: false,
+          new_nappi_code: null,
+          replacement: null,
+        },
+      ];
+    }
+
+    return products.map((p) => this.mapNappiProductToResult(p));
+  }
+
+  private mapNappiProductToResult(p: NappiProduct) {
+    const sched = p.schedule?.trim();
+    const formattedSchedule = sched
+      ? sched.toUpperCase().startsWith('S')
+        ? sched.toUpperCase()
+        : `S${sched}`
+      : null;
+
+    const isControlled =
+      formattedSchedule === 'S5' ||
+      formattedSchedule === 'S6' ||
+      sched === '5' ||
+      sched === '6';
+
+    const strengthCombined = p.strength
+      ? `${p.strength} ${p.strength_unit || ''}`.trim()
+      : (p.strength_unit || '');
+
+    return {
+      nappi_code: p.nappi_code,
+      name: p.product_name,
+      product_name: p.product_name,
+      generic_name: p.atc_mims_desc || p.who_atc_desc || null,
+      strength: strengthCombined,
+      strength_val: p.strength,
+      strength_unit: p.strength_unit,
+      dosage_form: p.dosage_form,
+      pack_size: p.pack_size,
+      pack_uom: p.pack_uom,
+      schedule: formattedSchedule,
+      schedule_raw: p.schedule,
+      generic_ind: p.generic_ind,
+      manufacturer: p.manuf_desc,
+      manuf_desc: p.manuf_desc,
+      route: p.route,
+      is_medicine: p.is_medicine,
+      is_active: p.is_active,
+      is_controlled: isControlled,
+      new_nappi_code: p.new_nappi_code || null,
+      replacement: p.replacement
+        ? {
+            nappi_code: p.replacement.nappi_code,
+            product_name: p.replacement.product_name,
+            strength: p.replacement.strength,
+            strength_unit: p.replacement.strength_unit,
+            dosage_form: p.replacement.dosage_form,
+            pack_size: p.replacement.pack_size,
+            pack_uom: p.replacement.pack_uom,
+            schedule: p.replacement.schedule,
+            is_active: p.replacement.is_active,
+          }
+        : null,
+      ...(envConfig.SHOW_NAPPI_PRICES && p.prices ? { prices: p.prices } : {}),
+    };
+  }
+
+  private searchInMemoryCatalog(query: string, limit: number) {
     const catalog = this.getSouthAfricanMedicationCatalog();
 
     if (!query || query.trim().length === 0) {
@@ -353,18 +586,30 @@ export class MedicalService implements OnModuleInit {
         m.category.toLowerCase().includes(clean),
     );
 
-    // If query didn't match pre-indexed items, provide dynamic free-text fallback entry
     if (filtered.length === 0 && clean.length > 2) {
       return [
         {
           name: query.trim(),
+          product_name: query.trim(),
           generic_name: query.trim(),
           nappi_code: 'CUSTOM-FREE-TEXT',
           schedule: 'S4',
+          schedule_raw: '4',
           dosage_form: 'Tablet / Capsule',
           strength: 'As directed',
-          category: 'Custom Clinical Medication',
+          strength_val: null,
+          strength_unit: null,
+          pack_size: '1',
+          pack_uom: 'EA',
+          generic_ind: 'N',
+          manufacturer: 'Prescribing Clinician Specified',
+          manuf_desc: 'Prescribing Clinician Specified',
+          route: 'Oral',
+          is_medicine: true,
+          is_active: true,
           is_controlled: false,
+          new_nappi_code: null,
+          replacement: null,
         },
       ];
     }

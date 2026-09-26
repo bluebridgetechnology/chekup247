@@ -135,12 +135,12 @@ export function HeroSection() {
             prescriptions, follow-ups and more — all from the comfort of your home or on the go.
           </p>
 
-          {/* CTA Row: Book a Consultation & How It Works */}
+          {/* CTA Row: Book a Consultation & Join as a Doctor */}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '22px',
+              gap: '16px',
               flexWrap: 'wrap',
               marginBottom: '46px',
             }}
@@ -155,6 +155,7 @@ export function HeroSection() {
                 gap: '8px',
                 backgroundColor: 'var(--color-gold-primary)',
                 color: 'var(--color-chocolate-base)',
+                border: '1.5px solid var(--color-gold-primary)',
                 fontWeight: 600,
                 fontSize: '0.925rem',
                 padding: '13px 26px',
@@ -170,40 +171,29 @@ export function HeroSection() {
               <SolarIcon name="arrow-right-linear" size={18} />
             </Link>
 
-            {/* Secondary CTA: Circular Play Button & How It Works */}
+            {/* Secondary CTA: Join as a Doctor (Line Button) */}
             <Link
-              href="/how-it-works"
+              href="/for-doctors"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '12px',
-                color: 'var(--color-white)',
+                gap: '8px',
+                backgroundColor: 'transparent',
+                color: 'var(--color-gold-primary)',
+                border: '1.5px solid var(--color-gold-primary)',
+                fontWeight: 600,
+                fontSize: '0.925rem',
+                padding: '13px 26px',
+                borderRadius: '12px',
                 textDecoration: 'none',
-                fontSize: '0.9rem',
-                fontWeight: 500,
+                lineHeight: 1,
+                boxSizing: 'border-box',
                 whiteSpace: 'nowrap',
               }}
-              className="hero-btn-secondary"
+              className="hero-btn-outline"
             >
-              <div
-                style={{
-                  width: '38px',
-                  height: '38px',
-                  borderRadius: '50%',
-                  border: '1.5px solid var(--color-white-35)',
-                  backgroundColor: 'var(--color-white-08)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                  transition: 'all 0.2s ease',
-                }}
-                className="play-btn-circle"
-                aria-hidden="true"
-              >
-                <SolarIcon name="play-bold" size={14} color="var(--color-white)" style={{ marginLeft: '2px' }} />
-              </div>
-              <span>How It Works</span>
+              <span>Join as a Doctor</span>
+              <SolarIcon name="arrow-right-linear" size={18} />
             </Link>
           </div>
 
@@ -240,47 +230,6 @@ export function HeroSection() {
               </div>
               <span>Follow-ups</span>
             </div>
-          </div>
-        </div>
-
-        {/* 
-          FLOATING HEALTH BADGE ("Your health, our priority")
-        */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: '120px',
-            right: '34%',
-            zIndex: 3,
-            backgroundColor: 'var(--color-chocolate-floating-bg)',
-            backdropFilter: 'blur(10px)',
-            border: '1.5px solid var(--color-gold-base)',
-            borderRadius: '9999px',
-            padding: '8px 20px 8px 10px',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '12px',
-            boxShadow: '0 16px 36px var(--color-badge-shadow)',
-          }}
-          className="floating-health-badge"
-        >
-          <div
-            style={{
-              width: '32px',
-              height: '32px',
-              borderRadius: '50%',
-              backgroundColor: 'var(--color-white)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <SolarIcon name="heart-pulse-bold-duotone" size={18} color="var(--color-chocolate-deep)" />
-          </div>
-          <div style={{ lineHeight: 1.25 }}>
-            <div style={{ color: 'var(--color-white)', fontSize: '0.825rem', fontWeight: 600 }}>Your health,</div>
-            <div style={{ color: 'var(--color-white-72)', fontSize: '0.75rem', fontWeight: 500 }}>our priority</div>
           </div>
         </div>
       </div>

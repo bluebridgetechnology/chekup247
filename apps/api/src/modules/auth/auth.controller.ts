@@ -25,6 +25,7 @@ import {
   ResetPasswordDto,
   LocumStaffCallbackDto,
   GoogleAuthDto,
+  ExpressPatientDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AdminLoginRateLimitGuard } from '../../common/guards/admin-login-rate-limit.guard';
@@ -85,6 +86,33 @@ export class AuthController {
     // Strip OTP and verification token so they are never exposed to browser HTTP clients
     const { verificationToken, otp, ...sanitized } = result as any;
     return sanitized;
+  }
+
+  /**
+   * Smart Booking Express Patient Endpoint.
+   * Auto-provisions patient or retrieves existing record with minimal friction,
+   * setting the session cookie and returning JWT session.
+   */
+  @Public()
+  @Post('express-patient')
+  @HttpCode(HttpStatus.OK)
+  async expressPatient(
+    @Body() dto: ExpressPatientDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.expressPatient(dto);
+
+    if (result.accessToken) {
+      res.cookie('chekup_session', result.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
+      });
+    }
+
+    return result;
   }
 
   @Public()

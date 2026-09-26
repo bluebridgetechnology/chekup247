@@ -447,22 +447,21 @@ details summary::-webkit-details-marker {
 
 .hero-btn-primary:hover {
   background-color: var(--color-gold-hover) !important;
+  border-color: var(--color-gold-hover) !important;
   transform: translateY(-2px);
   box-shadow: 0 8px 20px var(--color-gold-cta-shadow-hover) !important;
 }
 
-.hero-btn-secondary {
-  transition: all 0.2s ease;
+.hero-btn-outline {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.hero-btn-secondary:hover {
-  color: var(--color-gold-base) !important;
-}
-
-.hero-btn-secondary:hover .play-btn-circle {
-  border-color: var(--color-gold-base) !important;
-  background-color: var(--color-gold-glow) !important;
-  transform: scale(1.06);
+.hero-btn-outline:hover {
+  background-color: rgba(223, 171, 98, 0.12) !important;
+  border-color: var(--color-gold-hover) !important;
+  color: var(--color-gold-hover) !important;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
 }
 
 .hero-feature-item {
@@ -498,9 +497,23 @@ details summary::-webkit-details-marker {
   background: var(--color-chocolate-accent);
 }
 
-@media (max-width: 1200px) {
-  .floating-health-badge {
-    right: 25% !important;
+
+/* Quick Booking Widget Floating Button & Modal Styles */
+.quick-booking-trigger-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 14px 36px rgba(42, 23, 15, 0.16), 0 4px 14px rgba(223, 171, 98, 0.3) !important;
+  border-color: var(--color-gold-hover, #F0C688) !important;
+  background-color: #FFFDF9 !important;
+}
+
+@keyframes quickBookPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -527,11 +540,6 @@ details summary::-webkit-details-marker {
   }
   .hero-cta-row {
     margin-bottom: 36px !important;
-  }
-  .floating-health-badge {
-    position: static !important;
-    margin-top: 32px !important;
-    display: inline-flex !important;
   }
 }
 

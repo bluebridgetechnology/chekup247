@@ -4,6 +4,7 @@ import React from 'react';
 import { usePathname } from 'next/navigation';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
+import { QuickBookingWidget } from './QuickBookingWidget';
 
 interface LayoutShellProps {
   children: React.ReactNode;
@@ -36,6 +37,7 @@ export function LayoutShell({ children }: LayoutShellProps) {
         {children}
       </main>
       <Footer />
+      <QuickBookingWidget />
     </>
   );
 }

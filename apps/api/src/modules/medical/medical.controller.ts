@@ -34,8 +34,16 @@ export class MedicalController {
   searchMedications(
     @Query('q') q = '',
     @Query('limit') limit = 20,
+    @Query('include_inactive') includeInactive?: string,
+    @Query('include_non_meds') includeNonMeds?: string,
+    @Query('schedule') schedule?: string,
   ) {
-    return this.medicalService.searchMedications(q, Number(limit) || 20);
+    return this.medicalService.searchMedications(q, {
+      limit: Number(limit) || 20,
+      includeInactive: includeInactive === 'true',
+      includeNonMeds: includeNonMeds === 'true',
+      schedule,
+    });
   }
 
   /**

@@ -13,6 +13,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { MedicalModule } from './modules/medical/medical.module';
+import { NappiModule } from './modules/nappi/nappi.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { TestimonialsModule } from './modules/testimonials/testimonials.module';
 
@@ -33,6 +34,7 @@ import { TestimonialsModule } from './modules/testimonials/testimonials.module';
     NotificationsModule,
     AdminModule,
     MedicalModule,
+    NappiModule,
     TestimonialsModule,
   ],
 })

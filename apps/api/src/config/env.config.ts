@@ -92,6 +92,12 @@ const envSchema = z.object({
     .string()
     .default('QOPLz7qUuTRW5DdzD8Cf1cMm2NI/0if9ZUR8/KKibTA='),
 
+  // NAPPI medicine catalog
+  SHOW_NAPPI_PRICES: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+
   // Paystack Payments Integration
   PAYSTACK_SECRET_KEY: z.string().default('sk_test_mock_paystack_secret_key'),
   PAYSTACK_PUBLIC_KEY: z.string().default('pk_test_mock_paystack_public_key'),
