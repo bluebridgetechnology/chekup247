@@ -7,6 +7,14 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 31536000,
   },
+  async rewrites() {
+    return [
+      {
+        source: '/oidc/callback',
+        destination: '/callback',
+      },
+    ];
+  },
 };
 
 module.exports = nextConfig;
