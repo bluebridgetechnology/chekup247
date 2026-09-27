@@ -415,8 +415,15 @@ details summary::-webkit-details-marker {
   transform: translateY(-1px);
 }
 
+.nav-mobile-signin-btn {
+  display: none;
+}
+
 @media (max-width: 900px) {
   .desktop-nav {
+    display: none !important;
+  }
+  .desktop-login-group {
     display: none !important;
   }
   .mobile-toggle {
@@ -426,20 +433,25 @@ details summary::-webkit-details-marker {
     padding: 0 16px !important;
     height: 64px !important;
   }
-  .nav-login-group {
-    gap: 8px !important;
-  }
-  .nav-link-login {
+  .nav-mobile-signin-btn {
     display: inline-flex !important;
-    padding: 6px 10px !important;
-    font-size: 0.78rem !important;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 12px !important;
+    font-size: 0.825rem !important;
+    font-weight: 600 !important;
+    color: var(--color-gold-base, #DFAB62) !important;
+    background-color: rgba(223, 171, 98, 0.08) !important;
+    border: 1px solid rgba(223, 171, 98, 0.3) !important;
     border-radius: 8px !important;
+    text-decoration: none !important;
+    white-space: nowrap !important;
+    transition: all 0.2s ease;
   }
-  .nav-doctor-login-btn {
-    display: inline-flex !important;
-    padding: 6px 11px !important;
-    font-size: 0.78rem !important;
-    border-radius: 8px !important;
+  .nav-mobile-signin-btn:hover,
+  .nav-mobile-signin-btn:active {
+    background-color: rgba(223, 171, 98, 0.16) !important;
+    border-color: var(--color-gold-base, #DFAB62) !important;
   }
   .nav-mobile-signout-btn {
     display: inline-flex !important;
@@ -450,14 +462,6 @@ details summary::-webkit-details-marker {
 }
 
 @media (max-width: 440px) {
-  .nav-link-login {
-    padding: 6px 8px !important;
-    font-size: 0.74rem !important;
-  }
-  .nav-doctor-login-btn {
-    padding: 6px 8px !important;
-    font-size: 0.74rem !important;
-  }
   .nav-signout-label {
     display: none !important;
   }

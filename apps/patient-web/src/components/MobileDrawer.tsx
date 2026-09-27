@@ -181,6 +181,84 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           </div>
         )}
 
+        {/* If User is NOT Logged In: Dedicated Top Sign In Card (Full Width & Uncluttered) */}
+        {!isAuthenticated && (
+          <div
+            style={{
+              padding: '16px',
+              borderRadius: '16px',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(223, 171, 98, 0.22)',
+              marginBottom: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
+            className="drawer-auth-card"
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+              <span style={{ color: 'var(--color-gold-base, #DFAB62)', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                Account Sign In
+              </span>
+              <span style={{ color: 'rgba(255, 255, 255, 0.5)', fontSize: '0.72rem' }}>
+                Select Portal
+              </span>
+            </div>
+
+            {/* Patient Sign In Button */}
+            <Link
+              href="/login"
+              onClick={onClose}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '11px 16px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
+                color: '#ffffff',
+                fontWeight: 600,
+                fontSize: '0.875rem',
+                textDecoration: 'none',
+                width: '100%',
+                boxSizing: 'border-box',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <SolarIcon name="user-linear" size={16} color="var(--color-gold-base, #DFAB62)" />
+              <span>Patient Sign In</span>
+            </Link>
+
+            {/* Doctor Sign In Button */}
+            <a
+              href={getDoctorLoginUrl()}
+              onClick={onClose}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '11px 16px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--color-gold-base, #DFAB62)',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                textDecoration: 'none',
+                width: '100%',
+                boxSizing: 'border-box',
+                boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <SolarIcon name="stethoscope-bold" size={16} color="var(--color-chocolate-base, #2A170F)" />
+              <span>Doctor Sign In</span>
+            </a>
+          </div>
+        )}
+
         {/* Navigation Links */}
         <nav
           style={{
@@ -351,50 +429,29 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             </>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <Link
-                href="/login"
-                onClick={onClose}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-                  color: '#ffffff',
-                  fontWeight: 600,
-                  fontSize: '0.9rem',
-                  padding: '11px 20px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(255, 255, 255, 0.2)',
-                  textDecoration: 'none',
-                  width: '100%',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <SolarIcon name="user-linear" size={16} color="var(--color-gold-base)" />
-                <span>Patient Sign In</span>
-              </Link>
               <a
-                href={getDoctorLoginUrl()}
+                href={getDoctorRegisterUrl()}
                 onClick={onClose}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  backgroundColor: 'var(--color-gold-base)',
-                  color: 'var(--color-chocolate-base)',
+                  backgroundColor: 'rgba(223, 171, 98, 0.12)',
+                  border: '1.5px solid var(--color-gold-base, #DFAB62)',
+                  color: 'var(--color-gold-base, #DFAB62)',
                   fontWeight: 700,
-                  fontSize: '0.9rem',
+                  fontSize: '0.875rem',
                   padding: '11px 20px',
                   borderRadius: '12px',
                   textDecoration: 'none',
                   width: '100%',
                   boxSizing: 'border-box',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <SolarIcon name="stethoscope-bold" size={16} color="var(--color-chocolate-base)" />
-                <span>Doctor Sign In</span>
+                <span>Join Chekup247 as a Doctor</span>
+                <SolarIcon name="arrow-right-linear" size={16} color="var(--color-gold-base, #DFAB62)" />
               </a>
             </div>
           )}
