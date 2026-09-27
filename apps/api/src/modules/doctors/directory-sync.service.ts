@@ -92,12 +92,30 @@ export class DirectorySyncService {
       }
     }
 
-    const eligibleRecords = records.filter(
-      (r) =>
-        (r.role || '').toUpperCase() === 'LOCUM' &&
-        (r.status || '').toUpperCase() === 'VERIFIED' &&
-        (r.profession || '').toUpperCase().includes('GENERAL_PRACTITIONER'),
-    );
+    if (records.length > 0) {
+      this.logger.log(`LocumStaff directory returned ${records.length} records. Sample keys: [${Object.keys(records[0]).join(', ')}]`);
+    }
+
+    const eligibleRecords = records.filter((r: any) => {
+      const rawStatus = String(r.status || r.verification_status || r.verificationStatus || '').trim().toUpperCase();
+      const isVerified =
+        ['VERIFIED', 'ACTIVE', 'APPROVED', 'PASSED', 'VALIDATED', 'TRUE'].includes(rawStatus) ||
+        r.verified === true ||
+        r.is_verified === true;
+
+      const role = String(r.role || r.user_role || '').trim().toUpperCase();
+      const roleMatch = !role || ['LOCUM', 'DOCTOR', 'GP', 'PROVIDER', 'PRACTITIONER'].includes(role);
+
+      const profession = String(r.profession || r.specialty || '').trim().toUpperCase();
+      const profMatch =
+        !profession ||
+        profession.includes('GENERAL_PRACTITIONER') ||
+        profession.includes('GENERAL PRACTITIONER') ||
+        profession.includes('GP') ||
+        profession.includes('DOCTOR');
+
+      return isVerified && roleMatch && profMatch;
+    });
 
     this.logger.log(
       `LocumStaff directory returned ${records.length} records; ${eligibleRecords.length} match GP verified criteria.`,
