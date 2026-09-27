@@ -1,15 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChekupCrossLogo } from '../../components/common/ChekupCrossLogo';
 import { SolarIcon } from '../../components/common/SolarIcon';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 
-export default function DoctorLoginPage() {
+function DoctorLoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useDoctorAuth();
 
   const [email, setEmail] = useState('');
@@ -17,7 +18,28 @@ export default function DoctorLoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const urlError = searchParams?.get('error');
+
+  useEffect(() => {
+    if (urlError) {
+      const decoded = decodeURIComponent(urlError);
+      setError(decoded);
+      toastError('SSO Authentication Notice', decoded);
+    }
+  }, [urlError]);
+
+  const handleLocumStaffLogin = () => {
+    setSsoLoading(true);
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL ||
+      (typeof window !== 'undefined' && window.location.hostname === '127.0.0.1'
+        ? 'http://127.0.0.1:4000/api/v1'
+        : 'http://localhost:4000/api/v1');
+    window.location.href = `${apiBase}/auth/sso/locumstaff`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,7 +275,8 @@ export default function DoctorLoginPage() {
           {/* LocumStaff SSO Button */}
           <button
             type="button"
-            onClick={() => {/* LocumStaff SSO — coming soon */}}
+            onClick={handleLocumStaffLogin}
+            disabled={ssoLoading || loading}
             style={{
               width: '100%',
               height: '48px',
@@ -267,20 +290,34 @@ export default function DoctorLoginPage() {
               color: 'var(--color-chocolate-base, #2A170F)',
               fontSize: '0.9rem',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: ssoLoading || loading ? 'wait' : 'pointer',
               transition: 'background-color 0.18s ease, border-color 0.18s ease',
+              opacity: ssoLoading ? 0.8 : 1,
             }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.25)';
-              e.currentTarget.style.borderColor = 'var(--color-gold-base, #DFAB62)';
+              if (!ssoLoading) {
+                e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.25)';
+                e.currentTarget.style.borderColor = 'var(--color-gold-base, #DFAB62)';
+              }
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F0E5D3)';
-              e.currentTarget.style.borderColor = 'var(--color-gold-border, rgba(223, 171, 98, 0.4))';
+              if (!ssoLoading) {
+                e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F0E5D3)';
+                e.currentTarget.style.borderColor = 'var(--color-gold-border, rgba(223, 171, 98, 0.4))';
+              }
             }}
           >
-            <SolarIcon name="shield-check-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
-            Sign in with LocumStaff account
+            {ssoLoading ? (
+              <>
+                <SolarIcon name="refresh-linear" size={18} className="animate-spin" color="var(--color-gold-bronze, #B88647)" />
+                <span>Connecting to LocumStaff SSO...</span>
+              </>
+            ) : (
+              <>
+                <SolarIcon name="shield-check-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
+                <span>Sign in with LocumStaff account</span>
+              </>
+            )}
           </button>
 
           {/* Clean Divider */}
@@ -481,5 +518,19 @@ export default function DoctorLoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DoctorLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#2A170F', color: '#DFAB62' }}>
+          <p>Loading Doctor Practice Portal...</p>
+        </div>
+      }
+    >
+      <DoctorLoginContent />
+    </Suspense>
   );
 }

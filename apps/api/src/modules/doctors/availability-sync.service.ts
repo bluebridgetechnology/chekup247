@@ -64,8 +64,10 @@ export class AvailabilitySyncService {
     try {
       windows = await this.fetchFromLocumStaff(options);
     } catch (err: any) {
+      const cause = (err as any)?.cause?.message || (err as any)?.cause?.code || '';
+      const detailedError = cause ? `${err.message} (${cause})` : err.message;
       this.logger.warn(
-        `Failed to fetch live LocumStaff availability (${err.message}). Falling back to mock partner availability windows.`,
+        `Failed to fetch live LocumStaff availability (${detailedError}). Falling back to mock partner availability windows.`,
       );
       windows = await this.getMockAvailabilityWindows();
     }
@@ -139,7 +141,11 @@ export class AvailabilitySyncService {
     if (options?.doctorId) queryParams.set('doctorId', options.doctorId);
 
     const qs = queryParams.toString();
-    const url = `${apiUrl}/v1/partner-directory/availability${qs ? `?${qs}` : ''}`;
+    const base = apiUrl.trim().replace(/\/+$/, '');
+    const endpoint = base.endsWith('/v1')
+      ? `${base}/partner-directory/availability`
+      : `${base}/v1/partner-directory/availability`;
+    const url = `${endpoint}${qs ? `?${qs}` : ''}`;
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
@@ -148,6 +154,7 @@ export class AvailabilitySyncService {
       const response = await fetch(url, {
         headers: {
           'X-API-Key': apiKey,
+          Authorization: `Bearer ${apiKey}`,
           Accept: 'application/json',
         },
         signal: controller.signal,

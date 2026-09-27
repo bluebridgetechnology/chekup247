@@ -64,18 +64,21 @@ export class DirectorySyncService {
     try {
       records = await this.fetchFromLocumStaff();
     } catch (err: any) {
+      const cause = (err as any)?.cause?.message || (err as any)?.cause?.code || '';
+      const detailedError = cause ? `${err.message} (${cause})` : err.message;
+
       // Fail CLOSED: a real handshake must not fabricate a partner directory
       // when LocumStaff is unreachable. Syncing nothing this cycle is correct —
       // existing profiles are left untouched and the job retries next tick.
       // The ONLY exception is an explicit local-dev opt-in.
       if (this.isMockEnabled()) {
         this.logger.warn(
-          `LocumStaff API unreachable (${err.message}). LOCUMSTAFF_DIRECTORY_MOCK=true — using mock dataset for local dev.`,
+          `LocumStaff API unreachable (${detailedError}). LOCUMSTAFF_DIRECTORY_MOCK=true — using mock dataset for local dev.`,
         );
         records = this.getMockPartnerDirectory();
       } else {
         this.logger.error(
-          `LocumStaff directory fetch failed (${err.message}). Failing closed — syncing 0 records this cycle. ` +
+          `LocumStaff directory fetch failed (${detailedError}). Failing closed — syncing 0 records this cycle. ` +
             `Set LOCUMSTAFF_DIRECTORY_API_KEY + a live LOCUMSTAFF_API_URL, or LOCUMSTAFF_DIRECTORY_MOCK=true for local dev.`,
         );
         return {
@@ -170,10 +173,16 @@ export class DirectorySyncService {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
 
+    const base = apiUrl.trim().replace(/\/+$/, '');
+    const url = base.endsWith('/v1')
+      ? `${base}/partner-directory/doctors`
+      : `${base}/v1/partner-directory/doctors`;
+
     try {
-      const response = await fetch(`${apiUrl}/v1/partner-directory/doctors`, {
+      const response = await fetch(url, {
         headers: {
           'X-API-Key': apiKey,
+          Authorization: `Bearer ${apiKey}`,
           Accept: 'application/json',
         },
         signal: controller.signal,

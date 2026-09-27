@@ -261,15 +261,50 @@ export class AuthController {
   }
 
   @Public()
+  @Get('sso/locumstaff')
+  async locumStaffAuthorize(@Res() res: Response) {
+    const doctorPortalUrl = process.env.DOCTOR_PORTAL_URL || 'http://localhost:3001';
+    try {
+      const { url, state, codeVerifier } = this.locumStaffSsoService.getAuthorizationUrl();
+
+      res.cookie('chekup_oidc_verifier', codeVerifier, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 10 * 60 * 1000,
+        path: '/',
+      });
+
+      res.cookie('chekup_oidc_state', state, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 10 * 60 * 1000,
+        path: '/',
+      });
+
+      return res.redirect(url);
+    } catch (err: any) {
+      return res.redirect(
+        `${doctorPortalUrl}/login?error=${encodeURIComponent(
+          err.message || 'Failed to initialize LocumStaff SSO authorization.',
+        )}`,
+      );
+    }
+  }
+
+  @Public()
   @Post('sso/locumstaff/callback')
   @HttpCode(HttpStatus.OK)
   async locumStaffCallbackPost(
     @Body() dto: LocumStaffCallbackDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
+    const cookieVerifier = (req as any).cookies?.['chekup_oidc_verifier'];
     const result = await this.locumStaffSsoService.handleCallback({
       code: dto.code,
-      codeVerifier: dto.code_verifier,
+      codeVerifier: dto.code_verifier || cookieVerifier,
       state: dto.state,
     });
 
@@ -290,12 +325,14 @@ export class AuthController {
     @Query('code') code: string,
     @Query('state') state: string,
     @Query('code_verifier') codeVerifier: string,
+    @Req() req: Request,
     @Res() res: Response,
   ) {
     try {
+      const cookieVerifier = (req as any).cookies?.['chekup_oidc_verifier'];
       const result = await this.locumStaffSsoService.handleCallback({
         code,
-        codeVerifier,
+        codeVerifier: codeVerifier || cookieVerifier,
         state,
       });
 
