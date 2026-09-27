@@ -49,6 +49,8 @@ function SsoCallbackContent() {
     return () => clearInterval(interval);
   }, [status]);
 
+  const executedRef = useRef(false);
+
   useEffect(() => {
     if (!code) {
       setStatus('error');
@@ -62,6 +64,11 @@ function SsoCallbackContent() {
       setErrorTimestamp(new Date().toISOString());
       return;
     }
+
+    // Single-use authorization code guard: prevent duplicate exchanges caused
+    // by React StrictMode, context re-renders, or hook re-evaluations.
+    if (executedRef.current) return;
+    executedRef.current = true;
 
     let isMounted = true;
 

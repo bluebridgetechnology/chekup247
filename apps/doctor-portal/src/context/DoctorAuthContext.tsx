@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 
@@ -296,24 +296,27 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
     return data;
   };
 
-  const handleSsoCallback = async (code: string, codeVerifier?: string, state?: string) => {
-    const res = await fetch(`${API_BASE}/auth/sso/locumstaff/callback`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ code, code_verifier: codeVerifier, state }),
-      credentials: 'include',
-    });
+  const handleSsoCallback = useCallback(
+    async (code: string, codeVerifier?: string, state?: string) => {
+      const res = await fetch(`${API_BASE}/auth/sso/locumstaff/callback`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, code_verifier: codeVerifier, state }),
+        credentials: 'include',
+      });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || 'LocumStaff SSO token exchange failed');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'LocumStaff SSO token exchange failed');
 
-    if (data.accessToken) {
-      localStorage.setItem('chekup_doctor_token', data.accessToken);
-      setToken(data.accessToken);
-      await refreshDoctor();
-    }
-    return data;
-  };
+      if (data.accessToken) {
+        localStorage.setItem('chekup_doctor_token', data.accessToken);
+        setToken(data.accessToken);
+        await refreshDoctor();
+      }
+      return data;
+    },
+    [refreshDoctor],
+  );
 
   const logout = async () => {
     try {
