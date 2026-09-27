@@ -174,6 +174,7 @@ export default function PatientConsultationPage() {
   const [doctorAvatarUrl, setDoctorAvatarUrl] = useState<string | null>(null);
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
   const [isConsultationEnded, setIsConsultationEnded] = useState<boolean>(false);
+  const [finalDurationSeconds, setFinalDurationSeconds] = useState<number | null>(null);
   // Post-call review prompt
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
   const [reviewInitialRating, setReviewInitialRating] = useState<number>(5);
@@ -267,9 +268,10 @@ export default function PatientConsultationPage() {
   // Timer Effect: Compute elapsed from server started_at in real time
   // --------------------------------------------------------------------------
   useEffect(() => {
-    if (!startedAt) return;
+    if (!startedAt || isConsultationEnded) return;
 
     const timer = setInterval(() => {
+      if (isConsultationEnded) return;
       const now = Date.now();
       const elapsed = Math.max(0, Math.floor((now - startedAt.getTime()) / 1000));
       setElapsedSeconds(elapsed);
@@ -285,7 +287,7 @@ export default function PatientConsultationPage() {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [startedAt, totalDurationSeconds]);
+  }, [startedAt, totalDurationSeconds, isConsultationEnded]);
 
   const formatElapsed = (totalSec: number) => {
     const m = Math.floor(totalSec / 60);
@@ -883,6 +885,17 @@ export default function PatientConsultationPage() {
 
               // Doctor has left the call. Check if consultation was concluded.
               try {
+                const statusRes = await fetch(`${API_BASE}/consultations/${bookingId}/status`);
+                if (statusRes.ok) {
+                  const statusData = await statusRes.json();
+                  if (statusData?.isCompleted || statusData?.ended_at || statusData?.status === 'COMPLETED') {
+                    handleEndCallRef.current();
+                    return;
+                  }
+                }
+              } catch {}
+
+              try {
                 const res = await fetch(`${API_BASE}/consultations/${bookingId}`, {
                   headers: token ? { Authorization: `Bearer ${token}` } : {},
                 });
@@ -1302,6 +1315,9 @@ export default function PatientConsultationPage() {
   }, [callObject]);
 
   const handleEndCall = useCallback(() => {
+    const now = Date.now();
+    const finalSec = startedAt ? Math.max(0, Math.floor((now - startedAt.getTime()) / 1000)) : elapsedSeconds;
+    setFinalDurationSeconds((prev) => (prev !== null ? prev : finalSec));
     terminateMedia();
     setHasLocalVideo(false);
     setHasRemoteVideo(false);
@@ -1310,7 +1326,7 @@ export default function PatientConsultationPage() {
     setShowEndModal(false);
     setIsEndingCall(false);
     setIsConsultationEnded(true);
-  }, [terminateMedia]);
+  }, [terminateMedia, startedAt, elapsedSeconds]);
 
   // Keep ref up to date so socket and Daily listeners always trigger the latest handler
   useEffect(() => {
@@ -1342,6 +1358,23 @@ export default function PatientConsultationPage() {
     if (!bookingId || isConsultationEnded) return;
 
     const interval = setInterval(async () => {
+      // 1. Check lightweight unauthenticated status endpoint first
+      try {
+        const statusRes = await fetch(`${API_BASE}/consultations/${bookingId}/status`);
+        if (statusRes.ok) {
+          const statusData = await statusRes.json();
+          if (
+            statusData?.isCompleted ||
+            statusData?.ended_at ||
+            statusData?.status === 'COMPLETED'
+          ) {
+            handleEndCallRef.current();
+            return;
+          }
+        }
+      } catch {}
+
+      // 2. Also check authenticated details endpoint
       try {
         const res = await fetch(`${API_BASE}/consultations/${bookingId}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -1357,7 +1390,7 @@ export default function PatientConsultationPage() {
           }
         }
       } catch {}
-    }, 3500);
+    }, 3000);
 
     return () => clearInterval(interval);
   }, [bookingId, isConsultationEnded, token, API_BASE]);
@@ -1477,7 +1510,7 @@ export default function PatientConsultationPage() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', backgroundColor: '#FAF6EE', borderRadius: '16px', padding: '16px', marginBottom: '28px', textAlign: 'left', border: '1px solid rgba(223,171,98,0.2)' }}>
             <div>
               <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>Duration</span>
-              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2A170F', marginTop: '2px' }}>{formatElapsed(elapsedSeconds)}</div>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2A170F', marginTop: '2px' }}>{formatElapsed(finalDurationSeconds ?? elapsedSeconds)}</div>
             </div>
             <div>
               <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>Reference</span>

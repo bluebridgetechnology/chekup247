@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
 import { ChekupCrossLogo } from './Navbar';
 import { useAuth } from '../context/AuthContext';
+import { getDoctorLoginUrl, getDoctorRegisterUrl } from '../lib/urls';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -154,13 +155,68 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               Patient Sign In
             </Link>
           )}
-          <a
-            href={process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || 'http://localhost:3001'}
-            onClick={onClose}
-            style={{ color: 'var(--color-gold-base)', fontSize: '0.9rem', fontWeight: 600, textDecoration: 'none' }}
+
+          {/* Doctor Portal Quick Access Card */}
+          <div
+            style={{
+              marginTop: '10px',
+              padding: '14px',
+              borderRadius: '12px',
+              backgroundColor: 'rgba(223, 171, 98, 0.08)',
+              border: '1px solid rgba(223, 171, 98, 0.25)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+            }}
           >
-            Doctor Portal &rarr;
-          </a>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <SolarIcon name="user-linear" size={15} color="var(--color-gold-base)" />
+              <span style={{ color: 'var(--color-gold-base)', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Doctor Portal
+              </span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+              <a
+                href={getDoctorLoginUrl()}
+                onClick={onClose}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'var(--color-gold-base)',
+                  color: 'var(--color-chocolate-base)',
+                  fontWeight: 700,
+                  fontSize: '0.825rem',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                }}
+              >
+                Doctor Sign In
+              </a>
+              <a
+                href={getDoctorRegisterUrl()}
+                onClick={onClose}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '9px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'transparent',
+                  border: '1.5px solid var(--color-gold-base)',
+                  color: 'var(--color-gold-base)',
+                  fontWeight: 600,
+                  fontSize: '0.825rem',
+                  textDecoration: 'none',
+                  textAlign: 'center',
+                }}
+              >
+                Register
+              </a>
+            </div>
+          </div>
         </nav>
 
         <div style={{ marginTop: 'auto', paddingTop: '24px', display: 'flex', flexDirection: 'column', gap: '10px' }}>

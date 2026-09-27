@@ -7,6 +7,7 @@ import { SolarIcon } from './SolarIcon';
 import { MobileDrawer } from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
+import { getDoctorLoginUrl } from '../lib/urls';
 
 /**
  * Precision Chekup247 Brand Medical Cross Mark
@@ -385,21 +386,47 @@ export function Navbar() {
                 </div>
               </div>
             ) : (
-              <Link
-                href="/login"
-                style={{
-                  fontSize: '0.875rem',
-                  fontWeight: 500,
-                  color: 'var(--color-white-85)',
-                  textDecoration: 'none',
-                  transition: 'color 0.2s ease',
-                  letterSpacing: '-0.01em',
-                  whiteSpace: 'nowrap',
-                }}
-                className="nav-link-login"
-              >
-                Patient Log In
-              </Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }} className="nav-login-group">
+                <a
+                  href={getDoctorLoginUrl()}
+                  style={{
+                    fontSize: '0.825rem',
+                    fontWeight: 600,
+                    color: 'var(--color-gold-base)',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 12px',
+                    borderRadius: '8px',
+                    border: '1px solid rgba(223, 171, 98, 0.3)',
+                    backgroundColor: 'rgba(223, 171, 98, 0.08)',
+                    whiteSpace: 'nowrap',
+                  }}
+                  className="nav-doctor-login-btn"
+                  title="Doctor and Healthcare Provider Login"
+                >
+                  <SolarIcon name="user-linear" size={14} color="var(--color-gold-base)" />
+                  <span>Doctor Log In</span>
+                </a>
+
+                <Link
+                  href="/login"
+                  style={{
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    color: 'var(--color-white-85)',
+                    textDecoration: 'none',
+                    transition: 'color 0.2s ease',
+                    letterSpacing: '-0.01em',
+                    whiteSpace: 'nowrap',
+                  }}
+                  className="nav-link-login"
+                >
+                  Patient Log In
+                </Link>
+              </div>
             )}
 
             {/* Primary Navigation CTA — hidden once signed in */}

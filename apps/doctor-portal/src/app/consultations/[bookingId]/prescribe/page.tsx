@@ -47,6 +47,29 @@ const FREQUENCY_OPTIONS = [
 
 const DURATION_PRESETS = ['3 days', '5 days', '7 days', '10 days', '14 days', '30 days (1 month)'];
 
+export interface RecommendedLabTest {
+  id: string;
+  name: string;
+  indication?: string;
+  urgent?: boolean;
+  fasting?: boolean;
+}
+
+const COMMON_SA_LAB_TESTS = [
+  'Full Blood Count (FBC) + Diff',
+  'C-Reactive Protein (CRP)',
+  'Urea, Electrolytes & Creatinine (U&E)',
+  'Liver Function Tests (LFT)',
+  'HbA1c (Glycated Haemoglobin)',
+  'Fasting Lipogram / Lipid Profile',
+  'Urine Dipstick & MC&S',
+  'Thyroid Stimulating Hormone (TSH)',
+  'COVID-19 & Flu Rapid Antigen/PCR',
+  'Malaria Rapid Antigen Test',
+  'Serum Ferritin & Iron Studies',
+  'Erythrocyte Sedimentation Rate (ESR)',
+];
+
 const cleanDoctorName = (name?: string) => {
   if (!name) return 'Dr. Practitioner';
   return name.startsWith('Dr.') || name.startsWith('Dr ') ? name : `Dr. ${name}`;
@@ -157,6 +180,58 @@ export default function EPrescriptionBuilderPage() {
     directAssessment: false,
     contraindicationsChecked: false,
   });
+
+  // Recommended Laboratory & Pathology Tests State
+  const [recommendedLabTests, setRecommendedLabTests] = useState<RecommendedLabTest[]>([]);
+  const [customLabTestName, setCustomLabTestName] = useState<string>('');
+  const [customLabIndication, setCustomLabIndication] = useState<string>('');
+  const [customLabUrgent, setCustomLabUrgent] = useState<boolean>(false);
+  const [customLabFasting, setCustomLabFasting] = useState<boolean>(false);
+  const [isAddingCustomLab, setIsAddingCustomLab] = useState<boolean>(false);
+
+  const toggleQuickLabTest = (testName: string) => {
+    setRecommendedLabTests((prev) => {
+      const exists = prev.some((t) => t.name.toLowerCase() === testName.toLowerCase());
+      if (exists) {
+        return prev.filter((t) => t.name.toLowerCase() !== testName.toLowerCase());
+      }
+      return [
+        ...prev,
+        {
+          id: `lab-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          name: testName,
+          indication: selectedIcd10 ? `Investigate / monitor ${selectedIcd10.description}` : 'Clinical diagnostic investigation',
+          urgent: false,
+          fasting: testName.toLowerCase().includes('lipogram') || testName.toLowerCase().includes('lipid') || testName.toLowerCase().includes('fasting'),
+        },
+      ];
+    });
+  };
+
+  const handleAddCustomLabTest = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const trimmed = customLabTestName.trim();
+    if (!trimmed) return;
+    setRecommendedLabTests((prev) => [
+      ...prev,
+      {
+        id: `lab-${Date.now()}`,
+        name: trimmed,
+        indication: customLabIndication.trim() || undefined,
+        urgent: customLabUrgent,
+        fasting: customLabFasting,
+      },
+    ]);
+    setCustomLabTestName('');
+    setCustomLabIndication('');
+    setCustomLabUrgent(false);
+    setCustomLabFasting(false);
+    setIsAddingCustomLab(false);
+  };
+
+  const removeLabTest = (id: string) => {
+    setRecommendedLabTests((prev) => prev.filter((t) => t.id !== id));
+  };
 
   // Check if any medication is S5 or S6
   const hasSchedule5or6 = medications.some(
@@ -431,13 +506,30 @@ export default function EPrescriptionBuilderPage() {
 
       const icdCode = selectedIcd10 ? selectedIcd10.code : icd10Query.split('—')[0].trim();
 
+      const notesParts: string[] = [];
+      if (symptoms.length > 0) {
+        notesParts.push(`Symptoms: ${symptoms.join(', ')}`);
+      }
+      if (recommendedLabTests.length > 0) {
+        const labSummary = recommendedLabTests
+          .map((t) => `${t.name}${t.indication ? ` (${t.indication})` : ''}${t.urgent ? ' [URGENT]' : ''}${t.fasting ? ' [FASTING]' : ''}`)
+          .join('; ');
+        notesParts.push(`Recommended Lab Tests: ${labSummary}`);
+      }
+
       const payload = {
         bookingId: bookingId || consultation?.booking_id,
         consultationId: consultation?.id,
         doctorId: doctor?.id,
         icd10Code: icdCode,
         symptoms: symptoms,
-        clinicalNotes: symptoms.length > 0 ? `Symptoms: ${symptoms.join(', ')}` : undefined,
+        clinicalNotes: notesParts.length > 0 ? notesParts.join('\n') : undefined,
+        recommendedLabTests: recommendedLabTests.map((t) => ({
+          name: t.name,
+          indication: t.indication || undefined,
+          urgent: t.urgent || false,
+          fasting: t.fasting || false,
+        })),
         medications: validMeds.map((m) => ({
           name: m.name,
           dosage: m.dosage || 'As directed',
@@ -1426,6 +1518,262 @@ export default function EPrescriptionBuilderPage() {
               </div>
             )}
 
+            {/* Step 3: Recommended Laboratory & Pathology Investigations */}
+            <div className="portal-card">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <SolarIcon name="test-tube-linear" size={20} color="var(--color-gold-base, #DFAB62)" />
+                    <h3
+                      style={{
+                        fontFamily: 'var(--font-heading)',
+                        fontSize: '1.15rem',
+                        fontWeight: 'var(--font-heading-weight, 400)',
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                        margin: 0,
+                      }}
+                    >
+                      Recommended Laboratory &amp; Pathology Tests
+                    </h3>
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        fontSize: '0.75rem',
+                        fontWeight: 800,
+                        background: 'var(--color-gold-pale, #F0E5D3)',
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                      }}
+                    >
+                      {recommendedLabTests.length} selected
+                    </span>
+                  </div>
+                  <p style={{ margin: '3px 0 0 0', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    Optional: Recommend blood, urine, or microbiology investigations for the patient to complete at Ampath, Lancet, or PathCare.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsAddingCustomLab((prev) => !prev)}
+                  className="btn-secondary"
+                  style={{ padding: '7px 14px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <SolarIcon name="add-circle-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
+                  <span>{isAddingCustomLab ? 'Close Custom Test' : '+ Custom Lab Test'}</span>
+                </button>
+              </div>
+
+              {/* Quick Common SA Pathology Test Chips */}
+              <div style={{ marginBottom: '14px' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase', marginBottom: '6px' }}>
+                  Quick Common SA Pathology Panels:
+                </div>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                  {COMMON_SA_LAB_TESTS.map((testName) => {
+                    const isSelected = recommendedLabTests.some((t) => t.name.toLowerCase() === testName.toLowerCase());
+                    return (
+                      <button
+                        key={testName}
+                        type="button"
+                        onClick={() => toggleQuickLabTest(testName)}
+                        style={{
+                          padding: '5px 10px',
+                          borderRadius: '8px',
+                          border: isSelected
+                            ? '1.5px solid var(--color-chocolate-base, #2A170F)'
+                            : '1px solid rgba(223, 171, 98, 0.3)',
+                          background: isSelected ? 'var(--color-chocolate-base, #2A170F)' : '#FFFFFF',
+                          color: isSelected ? '#FFFFFF' : 'var(--color-chocolate-base, #2A170F)',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <span>{isSelected ? '✓ ' + testName : '+ ' + testName}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Custom Lab Test Add Box */}
+              {isAddingCustomLab && (
+                <div
+                  style={{
+                    backgroundColor: '#FAF6EE',
+                    border: '1.5px solid var(--color-gold-base, #DFAB62)',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    marginBottom: '14px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                  }}
+                >
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#2A170F' }}>
+                    Specify Custom Pathology / Diagnostic Investigation
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <input
+                      type="text"
+                      value={customLabTestName}
+                      onChange={(e) => setCustomLabTestName(e.target.value)}
+                      placeholder="Investigation Name (e.g. Serum Ferritin, Troponin I, Vitamin D)..."
+                      className="portal-input"
+                      style={{ fontSize: '0.825rem' }}
+                    />
+                    <input
+                      type="text"
+                      value={customLabIndication}
+                      onChange={(e) => setCustomLabIndication(e.target.value)}
+                      placeholder="Clinical Indication / Reason (e.g. Exclude microcytic anaemia)..."
+                      className="portal-input"
+                      style={{ fontSize: '0.825rem' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '14px' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={customLabFasting}
+                          onChange={(e) => setCustomLabFasting(e.target.checked)}
+                        />
+                        <span>Fasting Required</span>
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={customLabUrgent}
+                          onChange={(e) => setCustomLabUrgent(e.target.checked)}
+                        />
+                        <span style={{ color: customLabUrgent ? '#DC2626' : 'inherit', fontWeight: customLabUrgent ? 700 : 400 }}>
+                          Urgent / STAT Priority
+                        </span>
+                      </label>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingCustomLab(false)}
+                        className="btn-secondary"
+                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleAddCustomLabTest()}
+                        disabled={!customLabTestName.trim()}
+                        className="btn-primary"
+                        style={{ padding: '6px 16px', fontSize: '0.78rem' }}
+                      >
+                        Add Investigation
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Active Recommended Lab Tests List */}
+              {recommendedLabTests.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {recommendedLabTests.map((t, idx) => (
+                    <div
+                      key={t.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        background: '#FFFFFF',
+                        border: '1px solid rgba(223, 171, 98, 0.3)',
+                        boxShadow: '0 2px 4px rgba(42, 23, 15, 0.02)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            borderRadius: '50%',
+                            background: 'var(--color-gold-pale, #F0E5D3)',
+                            color: 'var(--color-chocolate-base, #2A170F)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.75rem',
+                            fontWeight: 800,
+                          }}
+                        >
+                          {idx + 1}
+                        </span>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
+                            {t.name}
+                          </div>
+                          {t.indication && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '2px' }}>
+                              Indication: {t.indication}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {t.fasting && (
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' }}>
+                            FASTING
+                          </span>
+                        )}
+                        {t.urgent && (
+                          <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' }}>
+                            URGENT
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => removeLabTest(t.id)}
+                          title="Remove test"
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#DC2626',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <SolarIcon name="trash-bin-trash-linear" size={16} color="#DC2626" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    padding: '16px',
+                    borderRadius: '10px',
+                    border: '1.5px dashed rgba(223, 171, 98, 0.35)',
+                    textAlign: 'center',
+                    color: 'var(--color-cream-text-muted, #6B5E55)',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  No lab tests recommended yet. Click any pathology test chip above or specify a custom test if required for this patient.
+                </div>
+              )}
+            </div>
+
             {/* Proceed to Preview CTA */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
               <button
@@ -1676,6 +2024,72 @@ export default function EPrescriptionBuilderPage() {
                   </table>
                 </div>
               </div>
+
+              {/* Recommended Laboratory & Pathology Request Box in Preview */}
+              {recommendedLabTests.length > 0 && (
+                <div
+                  style={{
+                    background: 'var(--color-cream-surface, #FDFBF7)',
+                    border: '1.5px solid var(--color-gold-base, #DFAB62)',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    marginBottom: '26px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <SolarIcon name="test-tube-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
+                      <span style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--color-gold-dark, #C9944A)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Official Laboratory &amp; Pathology Request
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 600 }}>
+                      Diagnostic Pathology Directive • HPCSA Compliant
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {recommendedLabTests.map((t, idx) => (
+                      <div
+                        key={t.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          background: 'var(--color-cream-base, #FAF6EE)',
+                          border: '1px solid rgba(223, 171, 98, 0.25)',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        <div>
+                          <div style={{ fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                            {idx + 1}. {t.name}
+                          </div>
+                          {t.indication && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '2px' }}>
+                              Clinical Indication: {t.indication}
+                            </div>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          {t.fasting && (
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' }}>
+                              FASTING REQUIRED
+                            </span>
+                          )}
+                          {t.urgent && (
+                            <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' }}>
+                              URGENT
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Schedule 5 & 6 Telehealth Supervision Declaration (If Applicable) */}
               {hasSchedule5or6 && (
@@ -2252,22 +2666,219 @@ export default function EPrescriptionBuilderPage() {
                   />
                 </div>
 
-                {/* 5. Frequency */}
+                {/* 5. Frequency of Administration */}
                 <div>
-                  <label className="portal-label" style={{ fontWeight: 800 }}>
-                    Frequency of Administration *
-                  </label>
-                  <select
-                    value={activeMedication.frequency}
-                    onChange={(e) => updateMedicationRow(activeMedication.id, 'frequency', e.target.value)}
-                    className="portal-select"
-                  >
-                    {FREQUENCY_OPTIONS.map((opt) => (
-                      <option key={opt.val} value={opt.val}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label className="portal-label" style={{ fontWeight: 800, margin: 0 }}>
+                      Frequency of Administration *
+                    </label>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                      Selected: <strong>{activeMedication.frequency || 'Once daily'}</strong>
+                    </span>
+                  </div>
+
+                  {/* Mode Tabs: Hourly vs Daily */}
+                  <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateMedicationRow(activeMedication.id, 'frequency', 'Once daily');
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '7px 12px',
+                        borderRadius: '8px',
+                        border: !activeMedication.frequency?.toLowerCase().includes('hour')
+                          ? '1.5px solid var(--color-chocolate-base, #2A170F)'
+                          : '1px solid rgba(223, 171, 98, 0.3)',
+                        background: !activeMedication.frequency?.toLowerCase().includes('hour')
+                          ? 'var(--color-chocolate-base, #2A170F)'
+                          : '#FFFFFF',
+                        color: !activeMedication.frequency?.toLowerCase().includes('hour')
+                          ? '#FFFFFF'
+                          : 'var(--color-chocolate-base, #2A170F)',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>☀️ Daily Frequency</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateMedicationRow(activeMedication.id, 'frequency', '8-hourly (TDS)');
+                      }}
+                      style={{
+                        flex: 1,
+                        padding: '7px 12px',
+                        borderRadius: '8px',
+                        border: activeMedication.frequency?.toLowerCase().includes('hour')
+                          ? '1.5px solid var(--color-chocolate-base, #2A170F)'
+                          : '1px solid rgba(223, 171, 98, 0.3)',
+                        background: activeMedication.frequency?.toLowerCase().includes('hour')
+                          ? 'var(--color-chocolate-base, #2A170F)'
+                          : '#FFFFFF',
+                        color: activeMedication.frequency?.toLowerCase().includes('hour')
+                          ? '#FFFFFF'
+                          : 'var(--color-chocolate-base, #2A170F)',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span>⏱️ Hourly Frequency</span>
+                    </button>
+                  </div>
+
+                  {/* Sub-options for DAILY */}
+                  {!activeMedication.frequency?.toLowerCase().includes('hour') ? (
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 600, marginBottom: '6px' }}>
+                        Times per day (Daily):
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+                        {[
+                          { num: '1', label: 'Once daily' },
+                          { num: '2', label: 'Twice daily (BD)' },
+                          { num: '3', label: '3x daily (TDS)' },
+                          { num: '4', label: '4x daily (QDS)' },
+                          { num: '5', label: '5x daily' },
+                          { num: '6', label: '6x daily' },
+                        ].map((d) => {
+                          const isSelected = activeMedication.frequency === d.label;
+                          return (
+                            <button
+                              key={d.num}
+                              type="button"
+                              onClick={() => updateMedicationRow(activeMedication.id, 'frequency', d.label)}
+                              title={d.label}
+                              style={{
+                                padding: '8px 2px',
+                                borderRadius: '6px',
+                                border: isSelected
+                                  ? '1.5px solid var(--color-gold-base, #DFAB62)'
+                                  : '1px solid rgba(223, 171, 98, 0.3)',
+                                background: isSelected ? 'var(--color-gold-pale, #F0E5D3)' : '#FFFFFF',
+                                color: 'var(--color-chocolate-base, #2A170F)',
+                                fontWeight: isSelected ? 800 : 600,
+                                fontSize: '0.85rem',
+                                cursor: 'pointer',
+                                textAlign: 'center',
+                              }}
+                            >
+                              {d.num}
+                            </button>
+                          );
+                        })}
+
+                        {/* Other button */}
+                        {(() => {
+                          const isPreset = ['Once daily', 'Twice daily (BD)', '3x daily (TDS)', '4x daily (QDS)', '5x daily', '6x daily'].includes(activeMedication.frequency);
+                          const isOther = !isPreset && !activeMedication.frequency?.toLowerCase().includes('hour');
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isPreset) updateMedicationRow(activeMedication.id, 'frequency', 'As needed (PRN)');
+                              }}
+                              style={{
+                                padding: '8px 4px',
+                                borderRadius: '6px',
+                                border: isOther
+                                  ? '1.5px solid var(--color-gold-base, #DFAB62)'
+                                  : '1px solid rgba(223, 171, 98, 0.3)',
+                                background: isOther ? 'var(--color-gold-pale, #F0E5D3)' : '#FFFFFF',
+                                color: 'var(--color-chocolate-base, #2A170F)',
+                                fontWeight: isOther ? 800 : 600,
+                                fontSize: '0.75rem',
+                                cursor: 'pointer',
+                                textAlign: 'center',
+                              }}
+                            >
+                              Other
+                            </button>
+                          );
+                        })()}
+                      </div>
+
+                      {/* If Other or custom frequency is selected, show custom text box */}
+                      {(!['Once daily', 'Twice daily (BD)', '3x daily (TDS)', '4x daily (QDS)', '5x daily', '6x daily'].includes(activeMedication.frequency)) && (
+                        <div style={{ marginTop: '8px' }}>
+                          <input
+                            type="text"
+                            value={activeMedication.frequency}
+                            onChange={(e) => updateMedicationRow(activeMedication.id, 'frequency', e.target.value)}
+                            placeholder="Specify custom daily frequency (e.g. As needed PRN, At night Nocte, Every alternate day)..."
+                            className="portal-input"
+                            style={{ fontSize: '0.8rem', padding: '7px 10px' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    /* Hourly Sub-options */
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 600, marginBottom: '6px' }}>
+                        Hourly intervals:
+                      </div>
+                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                        {[
+                          '4-hourly',
+                          '6-hourly (QDS)',
+                          '8-hourly (TDS)',
+                          '12-hourly (BD)',
+                          '24-hourly',
+                        ].map((h) => {
+                          const isSelected = activeMedication.frequency === h;
+                          return (
+                            <button
+                              key={h}
+                              type="button"
+                              onClick={() => updateMedicationRow(activeMedication.id, 'frequency', h)}
+                              style={{
+                                padding: '6px 10px',
+                                borderRadius: '6px',
+                                border: isSelected
+                                  ? '1.5px solid var(--color-gold-base, #DFAB62)'
+                                  : '1px solid rgba(223, 171, 98, 0.3)',
+                                background: isSelected ? 'var(--color-gold-pale, #F0E5D3)' : '#FFFFFF',
+                                color: 'var(--color-chocolate-base, #2A170F)',
+                                fontWeight: isSelected ? 800 : 600,
+                                fontSize: '0.78rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {h}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Custom Hourly Input */}
+                      <div style={{ marginTop: '8px' }}>
+                        <input
+                          type="text"
+                          value={activeMedication.frequency}
+                          onChange={(e) => updateMedicationRow(activeMedication.id, 'frequency', e.target.value)}
+                          placeholder="Or type custom interval (e.g. Every 2 hours, 4 to 6-hourly)..."
+                          className="portal-input"
+                          style={{ fontSize: '0.8rem', padding: '7px 10px' }}
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* 6. Duration & Presets */}
