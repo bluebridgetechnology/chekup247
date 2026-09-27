@@ -54,4 +54,22 @@ describe('LocumStaffSsoService', () => {
       expect(() => service.getAuthorizationUrl()).toThrow();
     });
   });
+
+  describe('convertJwkToPem', () => {
+    it('should convert standard RSA JWK with n and e to PEM', () => {
+      const crypto = require('crypto');
+      const { publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+      const jwk = publicKey.export({ format: 'jwk' });
+
+      const pem = (service as any).convertJwkToPem(jwk);
+      expect(pem).toBeDefined();
+      expect(pem).toContain('-----BEGIN PUBLIC KEY-----');
+    });
+
+    it('should return raw PEM string directly if provided', () => {
+      const rawPem = '-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA\n-----END PUBLIC KEY-----';
+      const result = (service as any).convertJwkToPem(rawPem);
+      expect(result).toBe(rawPem);
+    });
+  });
 });
