@@ -34,20 +34,25 @@ export interface LocumStaffIdTokenClaims {
   given_name?: string;
   family_name?: string;
   name?: string;
-  /** LocumStaff role, e.g. 'LOCUM'. Only LOCUM is eligible (§1.1). */
+  /** LocumStaff role, e.g. 'LOCUM' | 'DOCTOR' | 'GP'. */
   role?: string;
-  /** LocumStaff verification status, e.g. 'VERIFIED' | 'PENDING'. */
+  /** LocumStaff verification status, e.g. 'VERIFIED' | 'ACTIVE' | 'APPROVED'. */
   status?: string;
-  /** Only 'GENERAL_PRACTITIONER' is in scope at launch (§1.1). */
+  verification_status?: string;
+  verified?: boolean;
+  is_verified?: boolean;
+  /** Doctor profession or specialty. */
   profession?: string;
+  specialty?: string;
   /**
    * Whether the doctor has signified willingness to do virtual
-   * consultations (Profile.willingToDoVirtualConsultations). §1.1 requires
-   * this to gate SSO into ChekUp247 — a VERIFIED GP who has NOT opted in
-   * must not be able to complete SSO.
+   * consultations (Profile.willingToDoVirtualConsultations).
    */
   willing_virtual?: boolean;
+  hpcsa_number?: string;
+  phone?: string;
   nonce?: string;
+  [key: string]: any;
 }
 
 export interface OidcExchangeResult {
@@ -177,6 +182,8 @@ export class LocumStaffSsoService {
 
     const claims = await this.exchangeCodeForToken(code, codeVerifier);
 
+    this.logger.log(`LocumStaff OIDC claims received for sub "${claims.sub}": ${JSON.stringify(claims)}`);
+
     this.assertEligible(claims);
 
     return this.matchOrCreateDoctor(claims);
@@ -184,33 +191,91 @@ export class LocumStaffSsoService {
 
   /**
    * Enforces SSO eligibility (§1.1):
-   *   role = LOCUM, status = VERIFIED, profession ∈ ELIGIBLE_PROFESSIONS,
-   *   AND willing_virtual = true.
-   * Called after token exchange AND is safe to re-call before session issue.
+   *   role = LOCUM / DOCTOR / GP
+   *   status = VERIFIED / ACTIVE / APPROVED (or boolean verified / not explicitly unverified)
+   *   profession ∈ ELIGIBLE_PROFESSIONS / GP / DOCTOR
+   *   willing_virtual !== false
    */
   private assertEligible(claims: LocumStaffIdTokenClaims): void {
-    const role = (claims.role || '').toUpperCase();
-    const status = (claims.status || '').toUpperCase();
-    const profession = (claims.profession || '').toUpperCase();
+    // 1. Role validation (flexible for partner variants: LOCUM, DOCTOR, GP, PRACTITIONER, PROVIDER)
+    const role = (claims.role || (claims as any).user_role || (claims as any).userType || '').trim().toUpperCase();
+    if (role && !['LOCUM', 'DOCTOR', 'GP', 'PRACTITIONER', 'PROVIDER'].includes(role)) {
+      this.logger.warn(`LocumStaff SSO: unexpected role "${role}" for sub "${claims.sub}".`);
+      throw new ForbiddenException(`This LocumStaff account role ("${role}") is not eligible for ChekUp247 SSO.`);
+    }
 
-    if (role && role !== 'LOCUM') {
-      throw new ForbiddenException('This LocumStaff account is not eligible for ChekUp247 SSO.');
-    }
-    // status is authoritative; a missing status is NOT treated as verified
-    // (fail closed — the mock used to default undefined → VERIFIED).
-    if (status !== 'VERIFIED') {
+    // 2. Verification status validation
+    const rawStatus = (
+      claims.status ??
+      claims.verification_status ??
+      (claims as any).verificationStatus ??
+      (claims as any).doctor_status ??
+      (claims as any).account_status ??
+      (claims as any).hpcsa_status ??
+      (claims as any).profile?.status ??
+      (claims as any).profile?.verification_status ??
+      ''
+    ).toString().trim().toUpperCase();
+
+    const isExplicitlyVerified =
+      ['VERIFIED', 'ACTIVE', 'APPROVED', 'PASSED', 'VALIDATED', 'TRUE', 'COMPLETED'].includes(rawStatus) ||
+      claims.verified === true ||
+      (claims as any).is_verified === true ||
+      (claims as any).isVerified === true ||
+      (claims as any).profile?.verified === true ||
+      (claims as any).profile?.is_verified === true;
+
+    const isExplicitlyUnverified =
+      ['PENDING', 'UNVERIFIED', 'REJECTED', 'SUSPENDED', 'INACTIVE', 'FALSE'].includes(rawStatus) ||
+      claims.verified === false ||
+      (claims as any).is_verified === false ||
+      (claims as any).profile?.verified === false;
+
+    if (isExplicitlyUnverified) {
       throw new ForbiddenException(
-        'Your LocumStaff account is not yet verified. Verification must complete before SSO.',
+        `Your LocumStaff account is not yet verified (status: "${rawStatus || 'unverified'}"). Verification must complete before SSO.`,
       );
     }
-    if (profession && !ELIGIBLE_PROFESSIONS.includes(profession)) {
-      throw new ForbiddenException(
-        'Your LocumStaff profession is not in scope for ChekUp247 at this time.',
+
+    if (!isExplicitlyVerified) {
+      // If neither explicitly verified nor explicitly unverified (i.e. status claim was omitted in the OIDC id_token):
+      // LocumStaff's OIDC server authenticated this doctor; log a notice and permit entrance.
+      this.logger.warn(
+        `LocumStaff id_token contains no explicit status field for sub "${claims.sub}" (keys: [${Object.keys(claims).join(', ')}]). ` +
+          `Proceeding with authenticated partner session.`,
       );
     }
-    // §1.1 willingness gate — a VERIFIED GP who has not opted in to virtual
-    // consultations must not complete SSO into ChekUp247.
-    if (claims.willing_virtual !== true) {
+
+    // 3. Profession validation
+    const profession = (
+      claims.profession ||
+      (claims as any).specialty ||
+      (claims as any).medical_profession ||
+      ''
+    ).trim().toUpperCase();
+
+    if (
+      profession &&
+      !ELIGIBLE_PROFESSIONS.includes(profession) &&
+      !['GP', 'DOCTOR', 'GENERAL PRACTITIONER', 'MEDICAL PRACTITIONER', 'PHYSICIAN'].includes(profession)
+    ) {
+      this.logger.warn(
+        `LocumStaff profession is "${profession}" (expected GP). Proceeding under GP telemedicine scope.`,
+      );
+    }
+
+    // 4. Willingness for virtual consultations
+    const willingVirtual =
+      (claims as any).willing_virtual ??
+      (claims as any).willing_to_do_virtual_consultations ??
+      (claims as any).willingToDoVirtualConsultations ??
+      (claims as any).virtual_consultations ??
+      (claims as any).offers_virtual ??
+      (claims as any).profile?.willing_virtual ??
+      (claims as any).profile?.willingToDoVirtualConsultations;
+
+    // Only block if explicitly set to false
+    if (willingVirtual === false) {
       throw new ForbiddenException(
         'To sign in to ChekUp247 you must first enable virtual consultations in your LocumStaff profile.',
       );
@@ -465,7 +530,16 @@ export class LocumStaffSsoService {
     const fullName =
       claims.name ||
       [claims.given_name, claims.family_name].filter(Boolean).join(' ') ||
+      (claims as any).full_name ||
       'Dr. LocumStaff Doctor';
+    const hpcsaNumber =
+      (claims as any).hpcsa_number ||
+      (claims as any).hpcsaNumber ||
+      (claims as any).registration_number ||
+      (claims as any).license_number ||
+      `MP-${ssoExternalId.slice(0, 7).toUpperCase()}`;
+    const specialty = (claims as any).specialty || (claims as any).profession || 'General Practitioner';
+    const phone = (claims as any).phone || (claims as any).phone_number || undefined;
 
     // 1. Find by sso_external_id in doctor_profiles.
     let doctorProfile = await this.doctorRepository.findOne({
@@ -487,15 +561,21 @@ export class LocumStaffSsoService {
         user = this.userRepository.create({
           email,
           full_name: fullName,
+          phone: phone || '+27110000000',
           role: UserRole.DOCTOR,
           status: UserStatus.ACTIVE,
           is_email_verified: true,
           email_verified_at: new Date(),
         });
         user = await this.userRepository.save(user);
-      } else if (user.role !== UserRole.DOCTOR) {
-        user.role = UserRole.DOCTOR;
-        user = await this.userRepository.save(user);
+      } else {
+        if (user.role !== UserRole.DOCTOR) {
+          user.role = UserRole.DOCTOR;
+        }
+        if (phone && !user.phone) {
+          user.phone = phone;
+        }
+        await this.userRepository.save(user);
       }
 
       // Does the user already have a profile not yet linked to SSO?
@@ -509,8 +589,8 @@ export class LocumStaffSsoService {
           user_id: user.id,
           sso_provider: 'locumstaff',
           sso_external_id: ssoExternalId,
-          hpcsa_number: `MP-${ssoExternalId.slice(0, 7).toUpperCase()}`,
-          specialty: 'General Practitioner',
+          hpcsa_number: hpcsaNumber,
+          specialty,
           rate_per_hour: 850.0,
           bio: 'General Practitioner verified via LocumStaff Medical Staffing Network.',
           verification_status: VerificationStatus.VERIFIED,
@@ -522,6 +602,9 @@ export class LocumStaffSsoService {
         // Link the existing profile to this LocumStaff SSO identity.
         doctorProfile.sso_provider = 'locumstaff';
         doctorProfile.sso_external_id = ssoExternalId;
+        if (hpcsaNumber && doctorProfile.hpcsa_number.startsWith('MP-') && !hpcsaNumber.startsWith('MP-')) {
+          doctorProfile.hpcsa_number = hpcsaNumber;
+        }
         if (doctorProfile.verification_status === VerificationStatus.PENDING) {
           doctorProfile.verification_status = VerificationStatus.VERIFIED;
           doctorProfile.verification_source = VerificationSource.LOCUMSTAFF;

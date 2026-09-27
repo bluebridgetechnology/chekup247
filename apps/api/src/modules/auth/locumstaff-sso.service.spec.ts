@@ -72,4 +72,80 @@ describe('LocumStaffSsoService', () => {
       expect(result).toBe(rawPem);
     });
   });
+
+  describe('assertEligible', () => {
+    it('should pass with standard VERIFIED status and LOCUM role', () => {
+      expect(() => {
+        (service as any).assertEligible({
+          sub: 'doc-123',
+          role: 'LOCUM',
+          status: 'VERIFIED',
+          profession: 'GENERAL_PRACTITIONER',
+          willing_virtual: true,
+        });
+      }).not.toThrow();
+    });
+
+    it('should pass with ACTIVE or APPROVED status and DOCTOR or GP role', () => {
+      expect(() => {
+        (service as any).assertEligible({
+          sub: 'doc-123',
+          role: 'DOCTOR',
+          status: 'ACTIVE',
+          profession: 'GP',
+        });
+      }).not.toThrow();
+
+      expect(() => {
+        (service as any).assertEligible({
+          sub: 'doc-123',
+          role: 'GP',
+          status: 'APPROVED',
+          specialty: 'General Practitioner',
+        });
+      }).not.toThrow();
+    });
+
+    it('should pass with boolean verified: true or verification_status', () => {
+      expect(() => {
+        (service as any).assertEligible({
+          sub: 'doc-123',
+          verified: true,
+        });
+      }).not.toThrow();
+
+      expect(() => {
+        (service as any).assertEligible({
+          sub: 'doc-123',
+          verification_status: 'VERIFIED',
+        });
+      }).not.toThrow();
+    });
+
+    it('should throw ForbiddenException if explicitly PENDING or UNVERIFIED', () => {
+      expect(() => {
+        (service as any).assertEligible({
+          sub: 'doc-123',
+          status: 'PENDING',
+        });
+      }).toThrow(/not yet verified/);
+
+      expect(() => {
+        (service as any).assertEligible({
+          sub: 'doc-123',
+          verified: false,
+        });
+      }).toThrow(/not yet verified/);
+    });
+
+    it('should throw ForbiddenException if willing_virtual is explicitly false', () => {
+      expect(() => {
+        (service as any).assertEligible({
+          sub: 'doc-123',
+          status: 'VERIFIED',
+          willing_virtual: false,
+        });
+      }).toThrow(/enable virtual consultations/);
+    });
+  });
 });
