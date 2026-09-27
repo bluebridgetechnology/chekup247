@@ -51,6 +51,8 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           zIndex: 101,
           borderRight: '1px solid var(--color-gold-border)',
           fontFamily: 'var(--font-sans)',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         <div
@@ -97,6 +99,87 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base)" />
           </button>
         </div>
+
+        {/* If Patient is Logged In: Dedicated Top Profile Card & Instant Sign Out */}
+        {isAuthenticated && user && (
+          <div
+            style={{
+              padding: '14px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(223, 171, 98, 0.25)',
+              marginBottom: '20px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--color-gold-base)',
+                  color: 'var(--color-chocolate-base)',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  overflow: 'hidden',
+                }}
+              >
+                {user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={user.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  user.fullName
+                    ? user.fullName.split(' ').map((n) => n[0]).slice(0, 2).join('').toUpperCase()
+                    : 'P'
+                )}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user.fullName || 'Patient Account'}
+                </div>
+                {user.email && (
+                  <div style={{ color: 'rgba(255, 255, 255, 0.65)', fontSize: '0.72rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {user.email}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Direct High-Contrast Sign Out Button */}
+            <button
+              onClick={() => {
+                onClose();
+                logout();
+              }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '9px 14px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(220, 38, 38, 0.18)',
+                border: '1.5px solid rgba(220, 38, 38, 0.45)',
+                color: '#FCA5A5',
+                fontWeight: 700,
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <SolarIcon name="logout-2-linear" size={16} color="#F87171" />
+              <span>Sign Out</span>
+            </button>
+          </div>
+        )}
 
         {/* Navigation Links */}
         <nav
@@ -150,11 +233,6 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           <Link href="/wallet" onClick={onClose} style={{ color: 'var(--color-white-72)', fontSize: '0.9rem' }}>
             My Wallet
           </Link>
-          {!isAuthenticated && (
-            <Link href="/login" onClick={onClose} style={{ color: 'var(--color-white-85)', fontSize: '0.95rem' }}>
-              Patient Sign In
-            </Link>
-          )}
 
           {/* Doctor Portal Quick Access Card */}
           <div
@@ -254,45 +332,71 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '8px',
-                  background: 'transparent',
-                  color: 'var(--color-white-72)',
-                  fontWeight: 600,
+                  backgroundColor: 'rgba(220, 38, 38, 0.18)',
+                  color: '#FCA5A5',
+                  fontWeight: 700,
                   fontSize: '0.9rem',
-                  padding: '10px 20px',
+                  padding: '11px 20px',
                   borderRadius: '12px',
-                  border: '1px solid var(--color-white-20, rgba(255,255,255,0.2))',
+                  border: '1.5px solid rgba(220, 38, 38, 0.45)',
                   width: '100%',
                   boxSizing: 'border-box',
                   cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <SolarIcon name="logout-2-linear" size={16} color="var(--color-white-72)" />
+                <SolarIcon name="logout-2-linear" size={16} color="#F87171" />
                 <span>Sign Out</span>
               </button>
             </>
           ) : (
-            <Link
-              href="/register"
-              onClick={onClose}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                backgroundColor: 'var(--color-gold-primary)',
-                color: 'var(--color-chocolate-base)',
-                fontWeight: 600,
-                fontSize: '0.9rem',
-                padding: '12px 20px',
-                borderRadius: '12px',
-                textDecoration: 'none',
-                width: '100%',
-                boxSizing: 'border-box',
-              }}
-            >
-              <span>Get Started</span>
-              <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
-            </Link>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <Link
+                href="/login"
+                onClick={onClose}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                  color: '#ffffff',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  padding: '11px 20px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  textDecoration: 'none',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <SolarIcon name="user-linear" size={16} color="var(--color-gold-base)" />
+                <span>Patient Sign In</span>
+              </Link>
+              <a
+                href={getDoctorLoginUrl()}
+                onClick={onClose}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  backgroundColor: 'var(--color-gold-base)',
+                  color: 'var(--color-chocolate-base)',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  padding: '11px 20px',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <SolarIcon name="stethoscope-bold" size={16} color="var(--color-chocolate-base)" />
+                <span>Doctor Sign In</span>
+              </a>
+            </div>
           )}
         </div>
       </div>

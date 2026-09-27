@@ -419,24 +419,47 @@ details summary::-webkit-details-marker {
   .desktop-nav {
     display: none !important;
   }
-  .nav-link-login {
-    display: none !important;
-  }
-  .auth-actions .auth-link,
-  .auth-actions .auth-signout {
-    display: none !important;
-  }
   .mobile-toggle {
     display: block !important;
   }
   .header-inner {
-    padding: 0 18px !important;
-    height: 68px !important;
+    padding: 0 16px !important;
+    height: 64px !important;
   }
-  .nav-btn-get-started {
-    padding: 7px 14px !important;
-    height: 34px !important;
-    font-size: 0.8rem !important;
+  .nav-login-group {
+    gap: 8px !important;
+  }
+  .nav-link-login {
+    display: inline-flex !important;
+    padding: 6px 10px !important;
+    font-size: 0.78rem !important;
+    border-radius: 8px !important;
+  }
+  .nav-doctor-login-btn {
+    display: inline-flex !important;
+    padding: 6px 11px !important;
+    font-size: 0.78rem !important;
+    border-radius: 8px !important;
+  }
+  .nav-mobile-signout-btn {
+    display: inline-flex !important;
+  }
+  .auth-avatar-name {
+    display: none !important;
+  }
+}
+
+@media (max-width: 440px) {
+  .nav-link-login {
+    padding: 6px 8px !important;
+    font-size: 0.74rem !important;
+  }
+  .nav-doctor-login-btn {
+    padding: 6px 8px !important;
+    font-size: 0.74rem !important;
+  }
+  .nav-signout-label {
+    display: none !important;
   }
 }
 
@@ -504,40 +527,6 @@ details summary::-webkit-details-marker {
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
-/* Doctor Quick Access Banner in Hero */
-.hero-doctor-quick-login {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 38px;
-  padding: 8px 14px;
-  border-radius: 10px;
-  background: rgba(223, 171, 98, 0.08);
-  border: 1px solid rgba(223, 171, 98, 0.22);
-  width: fit-content;
-}
-
-.hero-doctor-quick-text {
-  font-size: 0.8125rem;
-  color: var(--color-white-78, rgba(255, 255, 255, 0.78));
-}
-
-.hero-doctor-login-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.825rem;
-  font-weight: 700;
-  color: var(--color-gold-base, #DFAB62);
-  text-decoration: none;
-  transition: all 0.18s ease;
-}
-
-.hero-doctor-login-link:hover {
-  color: var(--color-gold-light, #FCE8CA);
-  text-decoration: underline;
-}
 
 .hero-feature-item {
   display: inline-flex;
@@ -657,24 +646,7 @@ details summary::-webkit-details-marker {
     text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
   }
 
-  .hero-doctor-quick-login {
-    width: 100% !important;
-    justify-content: center !important;
-    text-align: center !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    padding: 12px 16px !important;
-    margin-bottom: 32px !important;
-    border-radius: 12px !important;
-  }
 
-  .hero-doctor-quick-text {
-    font-size: 0.85rem !important;
-  }
-
-  .hero-doctor-login-link {
-    font-size: 0.9rem !important;
-  }
 }
 
 /* Why Choose Chekup247 Benefit Grid Styles */

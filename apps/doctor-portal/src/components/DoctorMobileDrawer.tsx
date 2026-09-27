@@ -63,6 +63,8 @@ export function DoctorMobileDrawer({ isOpen, onClose }: DoctorMobileDrawerProps)
           zIndex: 101,
           borderRight: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
           fontFamily: 'var(--font-sans)',
+          overflowY: 'auto',
+          WebkitOverflowScrolling: 'touch',
         }}
       >
         {/* Brand & Close */}
@@ -71,7 +73,7 @@ export function DoctorMobileDrawer({ isOpen, onClose }: DoctorMobileDrawerProps)
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            marginBottom: '28px',
+            marginBottom: '24px',
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -117,6 +119,94 @@ export function DoctorMobileDrawer({ isOpen, onClose }: DoctorMobileDrawerProps)
             <SolarIcon name="close-circle-linear" size={24} color="var(--color-gold-base, #DFAB62)" />
           </button>
         </div>
+
+        {/* If Doctor is Logged In: Dedicated Top Profile Card & Instant Sign Out */}
+        {doctor && (
+          <div
+            style={{
+              padding: '14px',
+              borderRadius: '14px',
+              backgroundColor: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+              marginBottom: '18px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '50%',
+                  background: 'var(--color-gold-pale, #F0E5D3)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 700,
+                  fontSize: '0.9rem',
+                  border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                }}
+              >
+                {(profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={profile?.photoUrl || doctor?.avatarUrl || (profile as any)?.photo_url || undefined}
+                    alt={doctor?.fullName || 'Doctor'}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  (doctor?.fullName || 'Doctor')
+                    .split(/\s+/)
+                    .filter(Boolean)
+                    .slice(0, 2)
+                    .map((part) => part[0])
+                    .join('')
+                    .toUpperCase()
+                )}
+              </div>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ color: '#ffffff', fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {doctor?.fullName || 'Dr. Practitioner'}
+                </div>
+                <div style={{ color: 'var(--color-gold-base, #DFAB62)', fontSize: '0.72rem', fontWeight: 600 }}>
+                  HPCSA: {profile?.hpcsaNumber || 'MP Verified'}
+                </div>
+              </div>
+            </div>
+
+            {/* Direct High-Contrast Sign Out Button */}
+            <button
+              onClick={() => {
+                onClose();
+                logout();
+              }}
+              style={{
+                width: '100%',
+                padding: '9px 14px',
+                borderRadius: '10px',
+                backgroundColor: 'rgba(220, 38, 38, 0.18)',
+                border: '1.5px solid rgba(220, 38, 38, 0.45)',
+                color: '#FCA5A5',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <SolarIcon name="logout-2-linear" size={16} color="#F87171" />
+              <span>Sign Out Practice</span>
+            </button>
+          </div>
+        )}
 
         {/* Navigation Links */}
         <nav
@@ -244,20 +334,22 @@ export function DoctorMobileDrawer({ isOpen, onClose }: DoctorMobileDrawerProps)
               }}
               style={{
                 width: '100%',
-                padding: '10px',
-                borderRadius: 'var(--radius-full, 9999px)',
-                background: 'rgba(255, 255, 255, 0.08)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                color: 'rgba(255, 255, 255, 0.85)',
-                fontSize: '0.85rem',
-                fontWeight: 600,
+                padding: '11px',
+                borderRadius: '12px',
+                backgroundColor: 'rgba(220, 38, 38, 0.18)',
+                border: '1.5px solid rgba(220, 38, 38, 0.45)',
+                color: '#FCA5A5',
+                fontSize: '0.875rem',
+                fontWeight: 700,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '6px',
+                gap: '8px',
+                transition: 'all 0.15s ease',
               }}
             >
+              <SolarIcon name="logout-2-linear" size={16} color="#F87171" />
               <span>Sign Out Practice</span>
             </button>
           </>

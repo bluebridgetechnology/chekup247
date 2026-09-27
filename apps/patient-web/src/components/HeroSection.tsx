@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SolarIcon } from './SolarIcon';
-import { getDoctorRegisterUrl, getDoctorLoginUrl } from '../lib/urls';
+import { getDoctorRegisterUrl } from '../lib/urls';
 
 export function HeroSection() {
   return (
@@ -155,19 +155,6 @@ export function HeroSection() {
             >
               <span>Join as a Doctor</span>
               <SolarIcon name="arrow-right-linear" size={18} />
-            </a>
-          </div>
-
-          {/* Doctor Portal Quick Access & Easy Login Banner */}
-          <div className="hero-doctor-quick-login">
-            <span className="hero-doctor-quick-text">Are you a registered doctor or healthcare provider?</span>
-            <a
-              href={getDoctorLoginUrl()}
-              className="hero-doctor-login-link"
-              title="Doctor Portal Log In"
-            >
-              <SolarIcon name="user-linear" size={15} color="var(--color-gold-base)" />
-              <span>Doctor Log In &rarr;</span>
             </a>
           </div>
 

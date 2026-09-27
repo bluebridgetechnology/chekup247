@@ -384,78 +384,83 @@ export function Navbar() {
                     </div>
                   )}
                 </div>
+
+                {/* Visible Mobile Quick Sign Out Button */}
+                <button
+                  onClick={logout}
+                  className="nav-mobile-signout-btn"
+                  title="Sign Out"
+                  aria-label="Sign Out"
+                  style={{
+                    display: 'none',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '6px 10px',
+                    borderRadius: '8px',
+                    backgroundColor: 'rgba(220, 38, 38, 0.15)',
+                    border: '1px solid rgba(220, 38, 38, 0.35)',
+                    color: '#FCA5A5',
+                    fontSize: '0.78rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <SolarIcon name="logout-2-linear" size={15} color="#F87171" />
+                  <span className="nav-signout-label">Sign Out</span>
+                </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }} className="nav-login-group">
-                <a
-                  href={getDoctorLoginUrl()}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="nav-login-group">
+                <Link
+                  href="/login"
                   style={{
-                    fontSize: '0.825rem',
+                    fontSize: '0.85rem',
                     fontWeight: 600,
-                    color: 'var(--color-gold-base)',
+                    color: 'var(--color-white-90, #FDFBF7)',
                     textDecoration: 'none',
                     transition: 'all 0.2s ease',
                     display: 'inline-flex',
                     alignItems: 'center',
-                    gap: '5px',
-                    padding: '6px 12px',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(223, 171, 98, 0.3)',
-                    backgroundColor: 'rgba(223, 171, 98, 0.08)',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    whiteSpace: 'nowrap',
+                  }}
+                  className="nav-link-login"
+                >
+                  <SolarIcon name="user-linear" size={15} color="var(--color-gold-base)" />
+                  <span>Patient Log In</span>
+                </Link>
+
+                <a
+                  href={getDoctorLoginUrl()}
+                  style={{
+                    fontSize: '0.85rem',
+                    fontWeight: 700,
+                    color: 'var(--color-chocolate-base)',
+                    textDecoration: 'none',
+                    transition: 'all 0.2s ease',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '8px 14px',
+                    borderRadius: '10px',
+                    backgroundColor: 'var(--color-gold-base, #DFAB62)',
+                    border: '1px solid var(--color-gold-base, #DFAB62)',
+                    boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
                     whiteSpace: 'nowrap',
                   }}
                   className="nav-doctor-login-btn"
                   title="Doctor and Healthcare Provider Login"
                 >
-                  <SolarIcon name="user-linear" size={14} color="var(--color-gold-base)" />
+                  <SolarIcon name="stethoscope-bold" size={15} color="var(--color-chocolate-base)" />
                   <span>Doctor Log In</span>
                 </a>
-
-                <Link
-                  href="/login"
-                  style={{
-                    fontSize: '0.875rem',
-                    fontWeight: 500,
-                    color: 'var(--color-white-85)',
-                    textDecoration: 'none',
-                    transition: 'color 0.2s ease',
-                    letterSpacing: '-0.01em',
-                    whiteSpace: 'nowrap',
-                  }}
-                  className="nav-link-login"
-                >
-                  Patient Log In
-                </Link>
               </div>
-            )}
-
-            {/* Primary Navigation CTA — hidden once signed in */}
-            {!isAuthenticated && (
-              <Link
-                href="/register"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  backgroundColor: 'var(--color-gold-primary)',
-                  color: 'var(--color-chocolate-base)',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  padding: '8px 20px',
-                  borderRadius: '10px',
-                  textDecoration: 'none',
-                  lineHeight: 1,
-                  height: '38px',
-                  boxSizing: 'border-box',
-                  transition: 'all 0.2s ease',
-                  letterSpacing: '-0.01em',
-                  whiteSpace: 'nowrap',
-                }}
-                className="nav-btn-get-started"
-              >
-                <span>Get Started</span>
-                <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
-              </Link>
             )}
 
             {/* Compact Mobile Menu Trigger */}
