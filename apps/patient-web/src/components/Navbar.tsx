@@ -412,55 +412,68 @@ export function Navbar() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="nav-login-group">
+              <>
+                {/* Desktop login button group: visible on desktop >= 900px */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="desktop-login-group">
+                  <Link
+                    href="/login"
+                    style={{
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      color: 'var(--color-white-90, #FDFBF7)',
+                      textDecoration: 'none',
+                      transition: 'all 0.2s ease',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      whiteSpace: 'nowrap',
+                    }}
+                    className="nav-link-login"
+                  >
+                    <SolarIcon name="user-linear" size={15} color="var(--color-gold-base)" />
+                    <span>Patient Log In</span>
+                  </Link>
+
+                  <a
+                    href={getDoctorLoginUrl()}
+                    style={{
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      color: 'var(--color-chocolate-base)',
+                      textDecoration: 'none',
+                      transition: 'all 0.2s ease',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '8px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: 'var(--color-gold-base, #DFAB62)',
+                      border: '1px solid var(--color-gold-base, #DFAB62)',
+                      boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
+                      whiteSpace: 'nowrap',
+                    }}
+                    className="nav-doctor-login-btn"
+                    title="Doctor and Healthcare Provider Login"
+                  >
+                    <SolarIcon name="stethoscope-bold" size={15} color="var(--color-chocolate-base)" />
+                    <span>Doctor Log In</span>
+                  </a>
+                </div>
+
+                {/* Mobile compact sign-in trigger: clean label, never cuts off */}
                 <Link
                   href="/login"
-                  style={{
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    color: 'var(--color-white-90, #FDFBF7)',
-                    textDecoration: 'none',
-                    transition: 'all 0.2s ease',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    borderRadius: '10px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    whiteSpace: 'nowrap',
-                  }}
-                  className="nav-link-login"
+                  className="nav-mobile-signin-btn"
+                  title="Sign In to Chekup247"
                 >
                   <SolarIcon name="user-linear" size={15} color="var(--color-gold-base)" />
-                  <span>Patient Log In</span>
+                  <span>Sign In</span>
                 </Link>
-
-                <a
-                  href={getDoctorLoginUrl()}
-                  style={{
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: 'var(--color-chocolate-base)',
-                    textDecoration: 'none',
-                    transition: 'all 0.2s ease',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    padding: '8px 14px',
-                    borderRadius: '10px',
-                    backgroundColor: 'var(--color-gold-base, #DFAB62)',
-                    border: '1px solid var(--color-gold-base, #DFAB62)',
-                    boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
-                    whiteSpace: 'nowrap',
-                  }}
-                  className="nav-doctor-login-btn"
-                  title="Doctor and Healthcare Provider Login"
-                >
-                  <SolarIcon name="stethoscope-bold" size={15} color="var(--color-chocolate-base)" />
-                  <span>Doctor Log In</span>
-                </a>
-              </div>
+              </>
             )}
 
             {/* Compact Mobile Menu Trigger */}
