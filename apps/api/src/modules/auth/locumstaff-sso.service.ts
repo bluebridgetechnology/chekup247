@@ -254,13 +254,18 @@ export class LocumStaffSsoService {
       ''
     ).trim().toUpperCase();
 
-    if (
-      profession &&
-      !ELIGIBLE_PROFESSIONS.includes(profession) &&
-      !['GP', 'DOCTOR', 'GENERAL PRACTITIONER', 'MEDICAL PRACTITIONER', 'PHYSICIAN'].includes(profession)
-    ) {
-      this.logger.warn(
-        `LocumStaff profession is "${profession}" (expected GP). Proceeding under GP telemedicine scope.`,
+    const eligibleProfessions = [
+      ...ELIGIBLE_PROFESSIONS,
+      'GP',
+      'DOCTOR',
+      'GENERAL PRACTITIONER',
+      'MEDICAL PRACTITIONER',
+      'PHYSICIAN',
+    ];
+
+    if (profession && !eligibleProfessions.includes(profession)) {
+      throw new ForbiddenException(
+        'Your LocumStaff profession is not in scope for ChekUp247 at this time.',
       );
     }
 
