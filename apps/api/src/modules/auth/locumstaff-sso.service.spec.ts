@@ -3,6 +3,33 @@ import { Repository } from 'typeorm';
 import { User, DoctorProfile } from '../../database/operational/entities';
 import { TokenService } from './token.service';
 
+// Minimal Redis mock for PKCE store — shared map lives on globalThis so
+// the hoisted jest.mock factory and the test body can both access it.
+(globalThis as any).__mockRedisStore = new Map<string, string>();
+
+jest.mock('ioredis', () => {
+  const getStore = () => {
+    if (!(globalThis as any).__mockRedisStore) {
+      (globalThis as any).__mockRedisStore = new Map<string, string>();
+    }
+    return (globalThis as any).__mockRedisStore as Map<string, string>;
+  };
+  const MockRedis = jest.fn().mockImplementation(() => ({
+    connect: jest.fn().mockResolvedValue(undefined),
+    quit: jest.fn().mockResolvedValue(undefined),
+    set: jest.fn().mockImplementation((key: string, val: string) => {
+      getStore().set(key, val);
+      return Promise.resolve('OK');
+    }),
+    get: jest.fn().mockImplementation((key: string) => Promise.resolve(getStore().get(key) || null)),
+    del: jest.fn().mockImplementation((key: string) => {
+      getStore().delete(key);
+      return Promise.resolve(1);
+    }),
+  }));
+  return { __esModule: true, default: MockRedis };
+});
+
 describe('LocumStaffSsoService', () => {
   let service: LocumStaffSsoService;
   let mockUserRepo: Partial<Repository<User>>;
@@ -10,6 +37,7 @@ describe('LocumStaffSsoService', () => {
   let mockTokenService: Partial<TokenService>;
 
   beforeEach(() => {
+    ((globalThis as any).__mockRedisStore as Map<string, string>).clear();
     mockUserRepo = {
       findOne: jest.fn(),
       create: jest.fn(),
@@ -32,12 +60,12 @@ describe('LocumStaffSsoService', () => {
   });
 
   describe('getAuthorizationUrl', () => {
-    it('should generate a valid OIDC authorization URL with PKCE and state parameters', () => {
+    it('should generate a valid OIDC authorization URL with PKCE and state parameters', async () => {
       // Mock configured clientId on the service instance if not set via env
       (service as any).clientId = 'test-client-id';
       (service as any).locumstaffApiUrl = 'https://api.locumstaff.co.za';
 
-      const result = service.getAuthorizationUrl();
+      const result = await service.getAuthorizationUrl();
 
       expect(result).toBeDefined();
       expect(result.url).toContain('https://api.locumstaff.co.za/v1/oidc/authorize');
@@ -49,9 +77,9 @@ describe('LocumStaffSsoService', () => {
       expect(result.state).toBeDefined();
     });
 
-    it('should throw BadRequestException if clientId is missing', () => {
+    it('should throw BadRequestException if clientId is missing', async () => {
       (service as any).clientId = '';
-      expect(() => service.getAuthorizationUrl()).toThrow();
+      await expect(service.getAuthorizationUrl()).rejects.toThrow();
     });
   });
 

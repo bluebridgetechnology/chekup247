@@ -265,8 +265,12 @@ export class AuthController {
   async locumStaffAuthorize(@Res() res: Response) {
     const doctorPortalUrl = process.env.DOCTOR_PORTAL_URL || 'http://localhost:3001';
     try {
-      const { url, state, codeVerifier } = this.locumStaffSsoService.getAuthorizationUrl();
+      const { url, state, codeVerifier } = await this.locumStaffSsoService.getAuthorizationUrl();
 
+      // Secondary fallback cookie — the primary PKCE path is now Redis-backed
+      // inside the service. This cookie only helps if the callback hits the
+      // API directly (same-origin top-level navigation), not via the doctor
+      // portal's cross-origin fetch (SameSite=lax blocks that).
       res.cookie('chekup_oidc_verifier', codeVerifier, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
