@@ -4,11 +4,13 @@ import {
   BadRequestException,
   UnauthorizedException,
   ForbiddenException,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
+import Redis from 'ioredis';
 import {
   User,
   UserRole,
@@ -65,8 +67,11 @@ export interface OidcExchangeResult {
 /** Professions eligible for SSO at launch (§1.1 — mirrors LocumStaff's ELIGIBLE_PROFESSIONS). */
 const ELIGIBLE_PROFESSIONS = ['GENERAL_PRACTITIONER'];
 
+/** Redis key prefix for PKCE verifiers (10 min TTL). */
+const PKCE_KEY_PREFIX = 'chekup:oidc:pkce:';
+
 @Injectable()
-export class LocumStaffSsoService {
+export class LocumStaffSsoService implements OnModuleDestroy {
   private readonly logger = new Logger(LocumStaffSsoService.name);
 
   // LocumStaff OIDC configuration. These must be the values LocumStaff
@@ -81,8 +86,10 @@ export class LocumStaffSsoService {
   // Cached JWKS public keys, keyed by kid.
   private jwksCache: Map<string, string> = new Map();
 
-  // In-memory cache for pending PKCE verifiers keyed by state (10 min TTL)
-  private readonly pendingPkce = new Map<string, { verifier: string; expiresAt: number }>();
+  // Redis-backed PKCE verifier store — survives restarts and works across
+  // PM2 cluster workers (the in-memory Map + cross-origin SameSite=lax
+  // cookie both silently failed on the VPS, causing the 400).
+  private readonly redis: Redis;
 
   constructor(
     @InjectRepository(User, 'operational')
@@ -90,13 +97,32 @@ export class LocumStaffSsoService {
     @InjectRepository(DoctorProfile, 'operational')
     private readonly doctorRepository: Repository<DoctorProfile>,
     private readonly tokenService: TokenService,
-  ) {}
+  ) {
+    this.redis = new Redis({
+      host: envConfig.REDIS_HOST,
+      port: envConfig.REDIS_PORT,
+      password: envConfig.REDIS_PASSWORD || undefined,
+      lazyConnect: true,
+      maxRetriesPerRequest: 2,
+    });
+    this.redis.connect().catch((err) => {
+      this.logger.warn(`Redis connect (PKCE store) deferred: ${err.message}`);
+    });
+  }
+
+  async onModuleDestroy() {
+    try {
+      await this.redis.quit();
+    } catch { /* graceful shutdown */ }
+  }
 
   /**
    * Generates the OIDC authorization URL for browser-initiated doctor SSO.
    * Creates cryptographic state and PKCE code_challenge / code_verifier pair.
+   * The code_verifier is persisted in Redis (keyed by state, 10 min TTL) so it
+   * survives VPS restarts and PM2 cluster workers.
    */
-  getAuthorizationUrl(): { url: string; state: string; codeVerifier: string } {
+  async getAuthorizationUrl(): Promise<{ url: string; state: string; codeVerifier: string }> {
     if (!this.clientId) {
       throw new BadRequestException('LocumStaff OIDC Client ID is not configured on this server.');
     }
@@ -108,18 +134,17 @@ export class LocumStaffSsoService {
       .update(codeVerifier)
       .digest('base64url');
 
-    // Store in-memory with a 10-minute expiry
-    this.pendingPkce.set(state, {
-      verifier: codeVerifier,
-      expiresAt: Date.now() + 10 * 60 * 1000,
-    });
-
-    // Prune expired entries
-    const now = Date.now();
-    for (const [s, data] of this.pendingPkce.entries()) {
-      if (data.expiresAt < now) {
-        this.pendingPkce.delete(s);
-      }
+    // Persist verifier in Redis with 10 min TTL (replaces the fragile in-memory Map)
+    try {
+      await this.redis.set(
+        `${PKCE_KEY_PREFIX}${state}`,
+        codeVerifier,
+        'EX',
+        600, // 10 minutes
+      );
+    } catch (err: any) {
+      this.logger.error(`Failed to persist PKCE verifier to Redis: ${err.message}`);
+      // Proceed anyway — the verifier is still returned to the controller for cookie fallback
     }
 
     const baseUrl = (this.locumstaffApiUrl || '').replace(/\/+$/, '');
@@ -131,6 +156,11 @@ export class LocumStaffSsoService {
     authUrl.searchParams.set('state', state);
     authUrl.searchParams.set('code_challenge', codeChallenge);
     authUrl.searchParams.set('code_challenge_method', 'S256');
+
+    this.logger.log(
+      `Generated OIDC authorization URL. state="${state}", ` +
+        `redirect_uri="${this.redirectUri}", PKCE stored in Redis.`,
+    );
 
     return {
       url: authUrl.toString(),
@@ -160,13 +190,28 @@ export class LocumStaffSsoService {
     const { code, state } = params;
     let codeVerifier = params.codeVerifier;
 
-    // If codeVerifier is not explicitly passed, attempt resolution from pending PKCE cache by state
-    if (!codeVerifier && state && this.pendingPkce.has(state)) {
-      const stored = this.pendingPkce.get(state);
-      if (stored && stored.expiresAt > Date.now()) {
-        codeVerifier = stored.verifier;
+    // Resolve code_verifier from Redis by state (primary path — replaces the
+    // volatile in-memory Map that was lost across VPS restarts / PM2 workers).
+    if (!codeVerifier && state) {
+      try {
+        const stored = await this.redis.get(`${PKCE_KEY_PREFIX}${state}`);
+        if (stored) {
+          codeVerifier = stored;
+          // Single-use: delete after retrieval
+          await this.redis.del(`${PKCE_KEY_PREFIX}${state}`);
+          this.logger.log(`Resolved PKCE code_verifier from Redis for state "${state}".`);
+        }
+      } catch (err: any) {
+        this.logger.warn(`Redis PKCE lookup failed for state "${state}": ${err.message}`);
       }
-      this.pendingPkce.delete(state);
+    }
+
+    if (!codeVerifier) {
+      this.logger.warn(
+        `No code_verifier available for state "${state?.slice(0, 8)}...". ` +
+          `The PKCE verifier may have expired (10 min TTL) or was never stored. ` +
+          `Proceeding without code_verifier — this will fail if LocumStaff stored a code_challenge.`,
+      );
     }
 
     if (!code) {
@@ -308,6 +353,15 @@ export class LocumStaffSsoService {
       ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
     };
 
+    // Diagnostic log — shows exactly what we're sending to LocumStaff
+    this.logger.log(
+      `Token exchange → ${tokenUrl} | ` +
+        `client_id="${this.clientId?.slice(0, 8)}…" | ` +
+        `redirect_uri="${this.redirectUri}" | ` +
+        `code="${code?.slice(0, 8)}…" | ` +
+        `code_verifier=${codeVerifier ? 'present' : 'ABSENT'}`,
+    );
+
     let response: Response;
     try {
       response = await fetch(tokenUrl, {
@@ -329,9 +383,23 @@ export class LocumStaffSsoService {
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => '');
-      this.logger.error(`LocumStaff token exchange failed: ${response.status} - ${errorText}`);
+      this.logger.error(
+        `LocumStaff token exchange failed: ${response.status} — ${errorText}. ` +
+          `Sent redirect_uri="${this.redirectUri}", code_verifier=${codeVerifier ? 'present' : 'ABSENT'}.`,
+      );
+
+      // Surface LocumStaff's actual error reason so the frontend diagnostics
+      // panel (and VPS logs) show WHY it failed rather than just "400".
+      let reason = '';
+      try {
+        const errJson = JSON.parse(errorText);
+        reason = errJson.error_description || errJson.message || errJson.error || '';
+      } catch {
+        reason = errorText.slice(0, 200);
+      }
+
       throw new UnauthorizedException(
-        `LocumStaff authorization code exchange failed (${response.status})`,
+        `LocumStaff authorization code exchange failed (${response.status})${reason ? ': ' + reason : ''}`,
       );
     }
 
