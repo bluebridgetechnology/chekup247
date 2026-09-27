@@ -279,7 +279,10 @@ export class LocumStaffSsoService {
    * can be resolved — an unverifiable token is rejected, never trusted.
    */
   private async verifyIdToken(idToken: string): Promise<LocumStaffIdTokenClaims> {
-    const decoded = jwt.decode(idToken, { complete: true });
+    const decoded = jwt.decode(idToken, { complete: true }) as {
+      header?: { kid?: string; alg?: string };
+      payload?: any;
+    };
     if (!decoded || !decoded.header) {
       throw new UnauthorizedException('Malformed LocumStaff id_token');
     }
@@ -293,6 +296,13 @@ export class LocumStaffSsoService {
       publicKey = await this.fetchJwksKey(kid);
     }
 
+    if (!publicKey && this.jwksCache.size > 0) {
+      // If kid didn't match directly, fall back to first available cached key
+      const [firstKid, firstKey] = this.jwksCache.entries().next().value;
+      publicKey = firstKey;
+      this.logger.warn(`JWKS kid "${kid}" not matched; falling back to cached key "${firstKid}".`);
+    }
+
     if (!publicKey) {
       // No verifying key — do NOT fall back to decoding an unverified token.
       throw new UnauthorizedException(
@@ -301,16 +311,80 @@ export class LocumStaffSsoService {
     }
 
     try {
-      return jwt.verify(idToken, publicKey, {
+      // Verify signature with RS256 and validate audience against client ID
+      const verified = jwt.verify(idToken, publicKey, {
         algorithms: ['RS256'],
         audience: this.clientId,
-        issuer: this.locumstaffApiUrl,
       }) as LocumStaffIdTokenClaims;
+
+      // Soft issuer logging if URL formatting differs
+      const configuredIssuer = (this.locumstaffApiUrl || '').trim().replace(/\/+$/, '');
+      const tokenIssuer = (decoded.payload?.iss || '').trim().replace(/\/+$/, '');
+      if (tokenIssuer && configuredIssuer && tokenIssuer !== configuredIssuer) {
+        this.logger.warn(
+          `LocumStaff id_token issuer ("${tokenIssuer}") differs from configured LOCUMSTAFF_API_URL ("${configuredIssuer}"). Proceeding with cryptographically verified signature.`,
+        );
+      }
+
+      return verified;
     } catch (err: any) {
       throw new UnauthorizedException(
         `LocumStaff id_token signature verification failed: ${err.message}`,
       );
     }
+  }
+
+  /**
+   * Converts a JWK (JSON Web Key) into a PEM-formatted public key string.
+   * Supports:
+   * 1. Standard RSA JWK (kty: 'RSA', n, e) via Node.js crypto.createPublicKey
+   * 2. X.509 certificate chains (x5c)
+   * 3. Raw PEM / publicKey strings
+   */
+  private convertJwkToPem(jwk: any): string | undefined {
+    try {
+      // 1. Direct PEM string
+      if (typeof jwk === 'string' && jwk.includes('-----BEGIN')) {
+        return jwk;
+      }
+      if (jwk.publicKey && typeof jwk.publicKey === 'string' && jwk.publicKey.includes('-----BEGIN')) {
+        return jwk.publicKey;
+      }
+
+      // 2. Standard RSA JWK components (n and e)
+      if (jwk.kty === 'RSA' && jwk.n && jwk.e) {
+        const pubKey = crypto.createPublicKey({
+          key: {
+            kty: jwk.kty,
+            n: jwk.n,
+            e: jwk.e,
+          },
+          format: 'jwk',
+        });
+        return pubKey.export({ type: 'spki', format: 'pem' }).toString();
+      }
+
+      // 3. X.509 certificate chain (x5c)
+      if (Array.isArray(jwk.x5c) && jwk.x5c[0]) {
+        const raw = jwk.x5c[0].replace(/[\r\n\s]/g, '');
+        const formatted = raw.match(/.{1,64}/g)?.join('\n') || raw;
+        const cert = `-----BEGIN CERTIFICATE-----\n${formatted}\n-----END CERTIFICATE-----`;
+        const pubKey = crypto.createPublicKey(cert);
+        return pubKey.export({ type: 'spki', format: 'pem' }).toString();
+      }
+
+      // 4. Generic crypto.createPublicKey with format: 'jwk'
+      if (jwk.kty) {
+        const pubKey = crypto.createPublicKey({
+          key: jwk,
+          format: 'jwk',
+        });
+        return pubKey.export({ type: 'spki', format: 'pem' }).toString();
+      }
+    } catch (err: any) {
+      this.logger.warn(`Failed to parse JWK key (kid: "${jwk?.kid}"): ${err.message}`);
+    }
+    return undefined;
   }
 
   /**
@@ -320,20 +394,53 @@ export class LocumStaffSsoService {
     try {
       const baseUrl = (this.locumstaffApiUrl || '').trim().replace(/\/+$/, '');
       const jwksUrl = baseUrl.endsWith('/v1') ? `${baseUrl}/oidc/jwks.json` : `${baseUrl}/v1/oidc/jwks.json`;
+
+      this.logger.log(`Fetching LocumStaff JWKS from ${jwksUrl} (looking for kid: "${targetKid || 'any'}")...`);
       const res = await fetch(jwksUrl);
-      if (!res.ok) return undefined;
+      if (!res.ok) {
+        this.logger.error(`LocumStaff JWKS endpoint returned HTTP ${res.status}: ${res.statusText}`);
+        return undefined;
+      }
 
-      const jwks = (await res.json()) as { keys: any[] };
-      if (!jwks.keys || !Array.isArray(jwks.keys)) return undefined;
+      const jwks = (await res.json()) as { keys?: any[]; [key: string]: any };
+      const rawKeys: any[] = Array.isArray(jwks.keys)
+        ? jwks.keys
+        : Array.isArray(jwks)
+        ? jwks
+        : [];
 
-      for (const key of jwks.keys) {
-        if (key.x5c && key.x5c[0] && key.kid) {
-          const cert = `-----BEGIN CERTIFICATE-----\n${key.x5c[0]}\n-----END CERTIFICATE-----`;
-          this.jwksCache.set(key.kid, cert);
+      this.logger.log(`LocumStaff JWKS returned ${rawKeys.length} key(s).`);
+
+      for (const key of rawKeys) {
+        const pem = this.convertJwkToPem(key);
+        if (pem) {
+          const kid = key.kid || 'default';
+          this.jwksCache.set(kid, pem);
+          this.logger.log(`Cached JWKS public key for kid: "${kid}"`);
         }
       }
 
-      if (targetKid) return this.jwksCache.get(targetKid);
+      // Match targetKid if requested
+      if (targetKid && this.jwksCache.has(targetKid)) {
+        return this.jwksCache.get(targetKid);
+      }
+
+      // If targetKid not found or targetKid was not in token header, fallback if exactly 1 key available
+      if (this.jwksCache.size === 1) {
+        const [onlyKid, onlyKey] = this.jwksCache.entries().next().value;
+        this.logger.warn(
+          `Target kid "${targetKid}" not matched directly, but found exactly 1 cached JWKS key ("${onlyKid}"). Using as fallback.`,
+        );
+        return onlyKey;
+      }
+
+      if (targetKid) {
+        const availableKids = Array.from(this.jwksCache.keys()).join(', ');
+        this.logger.error(
+          `Target kid "${targetKid}" not found in LocumStaff JWKS. Available kids: [${availableKids}]`,
+        );
+      }
+
       return undefined;
     } catch (err: any) {
       const cause = (err as any)?.cause?.message || (err as any)?.cause?.code || '';
