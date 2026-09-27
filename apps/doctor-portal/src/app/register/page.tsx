@@ -22,7 +22,18 @@ export default function DoctorRegisterPage() {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [ssoLoading, setSsoLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
+
+  const handleLocumStaffLogin = () => {
+    setSsoLoading(true);
+    const apiBase =
+      process.env.NEXT_PUBLIC_API_URL ||
+      (typeof window !== 'undefined' && window.location.hostname === '127.0.0.1'
+        ? 'http://127.0.0.1:4000/api/v1'
+        : 'http://localhost:4000/api/v1');
+    window.location.href = `${apiBase}/auth/sso/locumstaff`;
+  };
 
   useEffect(() => {
     if (!resendCountdown) return;
@@ -188,18 +199,63 @@ export default function DoctorRegisterPage() {
           )}
 
           {step === 1 ? (
-            <form onSubmit={handleRegister}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <div><label style={labelStyle} htmlFor="doctor-first-name">First name</label><input id="doctor-first-name" required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Thabo" style={inputStyle} /></div>
-                <div><label style={labelStyle} htmlFor="doctor-last-name">Last name</label><input id="doctor-last-name" required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Mthembu" style={inputStyle} /></div>
+            <>
+              {/* LocumStaff SSO Fast-Track */}
+              <button
+                type="button"
+                onClick={handleLocumStaffLogin}
+                disabled={ssoLoading || loading}
+                style={{
+                  width: '100%',
+                  height: 48,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  borderRadius: 12,
+                  backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+                  border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.4))',
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  fontSize: '0.9rem',
+                  fontWeight: 600,
+                  cursor: ssoLoading || loading ? 'wait' : 'pointer',
+                  transition: 'background-color 0.18s ease, border-color 0.18s ease',
+                  opacity: ssoLoading ? 0.8 : 1,
+                  marginBottom: 16,
+                }}
+              >
+                {ssoLoading ? (
+                  <>
+                    <SolarIcon name="refresh-linear" size={18} className="animate-spin" color="var(--color-gold-bronze, #B88647)" />
+                    <span>Connecting to LocumStaff SSO...</span>
+                  </>
+                ) : (
+                  <>
+                    <SolarIcon name="shield-check-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
+                    <span>Fast-Track: Sign in with LocumStaff</span>
+                  </>
+                )}
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', margin: '12px 0 20px', color: 'var(--color-cream-text-muted)', fontSize: '0.78rem' }}>
+                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(42, 23, 15, 0.12)' }} />
+                <span style={{ padding: '0 12px', fontWeight: 500 }}>or create account directly</span>
+                <div style={{ flex: 1, height: 1, backgroundColor: 'rgba(42, 23, 15, 0.12)' }} />
               </div>
-              <div style={{ marginTop: 16 }}><label style={labelStyle} htmlFor="doctor-email">Work email</label><input id="doctor-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@practice.co.za" style={inputStyle} /></div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
-                <div><label style={labelStyle} htmlFor="doctor-password">Password</label><input id="doctor-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" style={inputStyle} /></div>
-                <div><label style={labelStyle} htmlFor="doctor-confirm-password">Confirm password</label><input id="doctor-confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat password" style={inputStyle} /></div>
-              </div>
-              <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', height: 50, marginTop: 24, borderRadius: 12 }}>{loading ? 'Creating your account...' : 'Continue to email verification'}</button>
-            </form>
+
+              <form onSubmit={handleRegister}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div><label style={labelStyle} htmlFor="doctor-first-name">First name</label><input id="doctor-first-name" required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Thabo" style={inputStyle} /></div>
+                  <div><label style={labelStyle} htmlFor="doctor-last-name">Last name</label><input id="doctor-last-name" required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Mthembu" style={inputStyle} /></div>
+                </div>
+                <div style={{ marginTop: 16 }}><label style={labelStyle} htmlFor="doctor-email">Work email</label><input id="doctor-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@practice.co.za" style={inputStyle} /></div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+                  <div><label style={labelStyle} htmlFor="doctor-password">Password</label><input id="doctor-password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="At least 8 characters" style={inputStyle} /></div>
+                  <div><label style={labelStyle} htmlFor="doctor-confirm-password">Confirm password</label><input id="doctor-confirm-password" type="password" required value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Repeat password" style={inputStyle} /></div>
+                </div>
+                <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', height: 50, marginTop: 24, borderRadius: 12 }}>{loading ? 'Creating your account...' : 'Continue to email verification'}</button>
+              </form>
+            </>
           ) : (
             <form onSubmit={handleVerify}>
               <label style={labelStyle} htmlFor="doctor-otp">Verification code</label>

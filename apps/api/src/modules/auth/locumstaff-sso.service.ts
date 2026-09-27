@@ -8,6 +8,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as jwt from 'jsonwebtoken';
+import * as crypto from 'crypto';
 import {
   User,
   UserRole,
@@ -75,6 +76,9 @@ export class LocumStaffSsoService {
   // Cached JWKS public keys, keyed by kid.
   private jwksCache: Map<string, string> = new Map();
 
+  // In-memory cache for pending PKCE verifiers keyed by state (10 min TTL)
+  private readonly pendingPkce = new Map<string, { verifier: string; expiresAt: number }>();
+
   constructor(
     @InjectRepository(User, 'operational')
     private readonly userRepository: Repository<User>,
@@ -82,6 +86,53 @@ export class LocumStaffSsoService {
     private readonly doctorRepository: Repository<DoctorProfile>,
     private readonly tokenService: TokenService,
   ) {}
+
+  /**
+   * Generates the OIDC authorization URL for browser-initiated doctor SSO.
+   * Creates cryptographic state and PKCE code_challenge / code_verifier pair.
+   */
+  getAuthorizationUrl(): { url: string; state: string; codeVerifier: string } {
+    if (!this.clientId) {
+      throw new BadRequestException('LocumStaff OIDC Client ID is not configured on this server.');
+    }
+
+    const state = crypto.randomBytes(16).toString('hex');
+    const codeVerifier = crypto.randomBytes(32).toString('base64url');
+    const codeChallenge = crypto
+      .createHash('sha256')
+      .update(codeVerifier)
+      .digest('base64url');
+
+    // Store in-memory with a 10-minute expiry
+    this.pendingPkce.set(state, {
+      verifier: codeVerifier,
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+
+    // Prune expired entries
+    const now = Date.now();
+    for (const [s, data] of this.pendingPkce.entries()) {
+      if (data.expiresAt < now) {
+        this.pendingPkce.delete(s);
+      }
+    }
+
+    const baseUrl = (this.locumstaffApiUrl || '').replace(/\/+$/, '');
+    const authUrl = new URL(`${baseUrl}/v1/oidc/authorize`);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('client_id', this.clientId);
+    authUrl.searchParams.set('redirect_uri', this.redirectUri);
+    authUrl.searchParams.set('scope', 'openid profile email');
+    authUrl.searchParams.set('state', state);
+    authUrl.searchParams.set('code_challenge', codeChallenge);
+    authUrl.searchParams.set('code_challenge_method', 'S256');
+
+    return {
+      url: authUrl.toString(),
+      state,
+      codeVerifier,
+    };
+  }
 
   /**
    * Performs the complete OIDC exchange (§2):
@@ -101,7 +152,17 @@ export class LocumStaffSsoService {
     codeVerifier?: string;
     state?: string;
   }): Promise<OidcExchangeResult> {
-    const { code, codeVerifier } = params;
+    const { code, state } = params;
+    let codeVerifier = params.codeVerifier;
+
+    // If codeVerifier is not explicitly passed, attempt resolution from pending PKCE cache by state
+    if (!codeVerifier && state && this.pendingPkce.has(state)) {
+      const stored = this.pendingPkce.get(state);
+      if (stored && stored.expiresAt > Date.now()) {
+        codeVerifier = stored.verifier;
+      }
+      this.pendingPkce.delete(state);
+    }
 
     if (!code) {
       throw new BadRequestException('Missing authorization code');
@@ -165,7 +226,8 @@ export class LocumStaffSsoService {
     code: string,
     codeVerifier?: string,
   ): Promise<LocumStaffIdTokenClaims> {
-    const tokenUrl = `${this.locumstaffApiUrl}/v1/oidc/token`;
+    const baseUrl = (this.locumstaffApiUrl || '').trim().replace(/\/+$/, '');
+    const tokenUrl = baseUrl.endsWith('/v1') ? `${baseUrl}/oidc/token` : `${baseUrl}/v1/oidc/token`;
 
     const requestBody = {
       grant_type: 'authorization_code',
@@ -187,7 +249,9 @@ export class LocumStaffSsoService {
         body: JSON.stringify(requestBody),
       });
     } catch (err: any) {
-      this.logger.error(`LocumStaff token endpoint unreachable: ${err.message}`);
+      const cause = (err as any)?.cause?.message || (err as any)?.cause?.code || '';
+      const msg = cause ? `${err.message} (${cause})` : err.message;
+      this.logger.error(`LocumStaff token endpoint unreachable: ${msg}`);
       throw new UnauthorizedException(
         'Could not reach LocumStaff to complete sign-in. Please try again shortly.',
       );
@@ -254,7 +318,8 @@ export class LocumStaffSsoService {
    */
   private async fetchJwksKey(targetKid?: string): Promise<string | undefined> {
     try {
-      const jwksUrl = `${this.locumstaffApiUrl}/v1/oidc/jwks.json`;
+      const baseUrl = (this.locumstaffApiUrl || '').trim().replace(/\/+$/, '');
+      const jwksUrl = baseUrl.endsWith('/v1') ? `${baseUrl}/oidc/jwks.json` : `${baseUrl}/v1/oidc/jwks.json`;
       const res = await fetch(jwksUrl);
       if (!res.ok) return undefined;
 
@@ -271,7 +336,9 @@ export class LocumStaffSsoService {
       if (targetKid) return this.jwksCache.get(targetKid);
       return undefined;
     } catch (err: any) {
-      this.logger.warn(`Could not fetch LocumStaff JWKS: ${err.message}`);
+      const cause = (err as any)?.cause?.message || (err as any)?.cause?.code || '';
+      const msg = cause ? `${err.message} (${cause})` : err.message;
+      this.logger.warn(`Could not fetch LocumStaff JWKS: ${msg}`);
       return undefined;
     }
   }
