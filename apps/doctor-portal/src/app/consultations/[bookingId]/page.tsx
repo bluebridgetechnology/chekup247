@@ -201,7 +201,7 @@ export default function DoctorConsultationWorkspace() {
   const [consultation, setConsultation] = useState<ConsultationDetail | null>(null);
   const [isConsultationEnded, setIsConsultationEnded] = useState<boolean>(false);
   const [tabletDrawerOpen, setTabletDrawerOpen] = useState<boolean>(false);
-  const [mobileActiveTab, setMobileActiveTab] = useState<'video' | 'patient' | 'notes' | 'prescription'>('video');
+  const [mobileActiveTab, setMobileActiveTab] = useState<'video' | 'notes' | 'patient'>('video');
 
   // Video & Controls State
   const [callObject, setCallObject] = useState<DailyCall | null>(null);
@@ -1090,6 +1090,9 @@ export default function DoctorConsultationWorkspace() {
         }
       }
 
+      // Brief grace period (200ms) to ensure WebRTC data channel packet and WS frame leave browser before destroying Daily
+      await new Promise((r) => setTimeout(r, 200));
+
       // 3. Inform backend to mark booking COMPLETED, delete room, and broadcast
       if (bookingId && token) {
         await fetch(`${API_BASE}/consultations/${bookingId}/end`, {
@@ -1444,6 +1447,16 @@ export default function DoctorConsultationWorkspace() {
     );
   }
 
+  const isDoctorSelf =
+    consultation?.patient?.fullName === doctor?.fullName ||
+    consultation?.patient?.email === doctor?.email ||
+    (consultation?.patient?.fullName?.toLowerCase().startsWith('dr.') ?? false);
+
+  const resolvedPatientName =
+    !isDoctorSelf && (consultation?.patient?.fullName || consultation?.booking?.patient?.fullName)
+      ? (consultation?.patient?.fullName || consultation?.booking?.patient?.fullName)
+      : 'Patient';
+
   // --------------------------------------------------------------------------
   // Main Active Consultation Workspace
   // --------------------------------------------------------------------------
@@ -1607,6 +1620,95 @@ export default function DoctorConsultationWorkspace() {
       </header>
 
       {/* ====================================================================
+          1B. MOBILE INTELLIGENT WORKSPACE NAVIGATION (<= 1024px)
+          ==================================================================== */}
+      <div className="mobile-consult-nav-bar">
+        <button
+          type="button"
+          className={`mobile-nav-btn ${mobileActiveTab === 'video' ? 'active' : ''}`}
+          onClick={() => setMobileActiveTab('video')}
+        >
+          <Video size={16} />
+          <span>Live Call</span>
+          {isPatientConnected && <span className="mobile-nav-dot-live" />}
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-nav-btn ${mobileActiveTab === 'notes' ? 'active' : ''}`}
+          onClick={() => setMobileActiveTab('notes')}
+        >
+          <FileText size={16} />
+          <span>Notes &amp; Rx</span>
+          {saveStatus === 'saved' ? (
+            <Check size={13} color="#22C55E" />
+          ) : (
+            <span className="mobile-nav-badge">{diagnoses.length + medications.length}</span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          className={`mobile-nav-btn ${mobileActiveTab === 'patient' ? 'active' : ''}`}
+          onClick={() => setMobileActiveTab('patient')}
+        >
+          <User size={16} />
+          <span>Patient Chart</span>
+          {consultation?.patientMedicalProfile?.allergies && (
+            <span className="mobile-nav-alert-dot" title="Allergies recorded" />
+          )}
+        </button>
+      </div>
+
+      {/* ====================================================================
+          1C. MOBILE STICKY MINI-CALL BAR (When active tab is Notes or Patient)
+          ==================================================================== */}
+      {mobileActiveTab !== 'video' && (
+        <div className="mobile-mini-call-bar">
+          <div className="mobile-mini-call-left" onClick={() => setMobileActiveTab('video')}>
+            <div className="mobile-mini-call-indicator">
+              <span className={`mobile-mini-dot ${isPatientConnected ? 'connected' : 'waiting'}`} />
+              <Video size={13} color="#DFAB62" />
+            </div>
+            <div className="mobile-mini-call-meta">
+              <div className="mobile-mini-patient-name">{resolvedPatientName}</div>
+              <div className="mobile-mini-call-timer">
+                {isPatientConnected ? '● Live' : 'Waiting'} • {formatElapsed(elapsedSeconds)}
+              </div>
+            </div>
+          </div>
+
+          <div className="mobile-mini-call-actions">
+            <button
+              type="button"
+              onClick={toggleMic}
+              className={`mobile-mini-action-btn ${isAudioMuted ? 'muted' : ''}`}
+              title={isAudioMuted ? 'Unmute Mic' : 'Mute Mic'}
+            >
+              {isAudioMuted ? <MicOff size={15} /> : <Mic size={15} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileActiveTab('video')}
+              className="mobile-mini-action-btn return-btn"
+              title="Return to Video View"
+            >
+              <Maximize2 size={13} />
+              <span>Video</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEndModal(true)}
+              className="mobile-mini-action-btn end-btn"
+              title="End Call"
+            >
+              <PhoneOff size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ====================================================================
           2. MAIN CLINICAL CONSULTATION BODY (3-PART DESKTOP LAYOUT)
           ==================================================================== */}
       <div
@@ -1664,7 +1766,7 @@ export default function DoctorConsultationWorkspace() {
               ================================================================ */}
           <div
             ref={videoStageRef}
-            className={`video-stage ${isVideoFullView ? 'video-stage-fullview' : ''}`}
+            className={`video-stage ${isVideoFullView ? 'video-stage-fullview' : ''} ${mobileActiveTab !== 'video' ? 'video-stage-mobile-hidden' : ''}`}
             onDoubleClick={toggleFullscreen}
             style={
               isVideoFullView
@@ -1773,6 +1875,7 @@ export default function DoctorConsultationWorkspace() {
 
             {/* Top Bar inside Video Stage */}
             <div
+              className="video-stage-top-bar"
               style={{
                 position: 'absolute',
                 top: '12px',
@@ -1787,6 +1890,7 @@ export default function DoctorConsultationWorkspace() {
             >
               {/* Left: Consultation Status Badge */}
               <div
+                className="video-status-badge"
                 style={{
                   pointerEvents: 'auto',
                   display: 'inline-flex',
@@ -1808,8 +1912,8 @@ export default function DoctorConsultationWorkspace() {
                     boxShadow: isPatientConnected ? '0 0 8px #22C55E' : 'none',
                   }}
                 />
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#FAF6EE' }}>
-                  {isPatientConnected ? 'Live Video Room' : 'Waiting for Patient'}
+                <span className="video-status-text" style={{ fontSize: '0.75rem', fontWeight: 700, color: '#FAF6EE' }}>
+                  {isPatientConnected ? 'Live' : 'Waiting for Patient'}
                 </span>
                 <span style={{ fontSize: '0.72rem', color: '#DFAB62' }}>•</span>
                 <span style={{ fontSize: '0.72rem', color: '#DFAB62', fontWeight: 600 }}>
@@ -1818,9 +1922,10 @@ export default function DoctorConsultationWorkspace() {
               </div>
 
               {/* Right: Layout Switcher & Swap Controls */}
-              <div style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="video-top-actions" style={{ pointerEvents: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
                 {/* Side-by-Side vs PiP Toggle */}
                 <button
+                  className="video-top-action-btn video-layout-toggle-btn"
                   onClick={() => setVideoLayout(videoLayout === 'pip' ? 'grid' : 'pip')}
                   title={videoLayout === 'pip' ? 'Switch to Side-by-Side Split View' : 'Switch to Picture-in-Picture View'}
                   style={{
@@ -1840,12 +1945,13 @@ export default function DoctorConsultationWorkspace() {
                   }}
                 >
                   {videoLayout === 'pip' ? <Grid size={14} color="#DFAB62" /> : <Layers size={14} color="#DFAB62" />}
-                  <span>{videoLayout === 'pip' ? 'Side-by-Side View' : 'PiP View'}</span>
+                  <span className="video-top-btn-label">{videoLayout === 'pip' ? 'Side-by-Side View' : 'PiP View'}</span>
                 </button>
 
                 {/* Swap Views (only active in PiP mode) */}
                 {videoLayout === 'pip' && (
                   <button
+                    className="video-top-action-btn"
                     onClick={() => setIsSwapped(!isSwapped)}
                     title="Swap Main & Floating Window"
                     style={{
@@ -1865,12 +1971,13 @@ export default function DoctorConsultationWorkspace() {
                     }}
                   >
                     <ArrowLeftRight size={14} />
-                    <span>Swap Views</span>
+                    <span className="video-top-btn-label">Swap Views</span>
                   </button>
                 )}
 
                 {/* Full Video View / Exit Full View */}
                 <button
+                  className="video-top-action-btn"
                   onClick={toggleFullscreen}
                   title={isVideoFullView ? 'Exit Full Video View (Esc)' : 'Expand Video to Full View'}
                   style={{
@@ -1890,10 +1997,22 @@ export default function DoctorConsultationWorkspace() {
                   }}
                 >
                   {isVideoFullView ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
-                  <span>{isVideoFullView ? 'Exit Full View' : 'Full Video View'}</span>
+                  <span className="video-top-btn-label">{isVideoFullView ? 'Exit Full View' : 'Full Video View'}</span>
                 </button>
               </div>
             </div>
+
+            {/* Mobile In-Video Quick Shortcut to Notes & Rx */}
+            <button
+              type="button"
+              onClick={() => setMobileActiveTab('notes')}
+              className="video-stage-notes-pill"
+              title="Open Clinical Notes & Care Plan"
+            >
+              <FileText size={14} color="#2A170F" />
+              <span>Notes &amp; Rx</span>
+              <ChevronRight size={13} color="#2A170F" />
+            </button>
 
             {/* Camera Error Banner */}
             {cameraError && (
@@ -2112,6 +2231,7 @@ export default function DoctorConsultationWorkspace() {
                 {/* Mini Action Toolbar when Doctor is in PiP */}
                 {videoLayout === 'pip' && !isSwapped && (
                   <div
+                    className="pip-desktop-controls"
                     style={{
                       position: 'absolute',
                       top: '6px',
@@ -2256,6 +2376,12 @@ export default function DoctorConsultationWorkspace() {
                   ------------------------------------------------------------ */}
               <div
                 className={videoLayout === 'pip' && isSwapped ? 'doctor-pip' : ''}
+                onClick={() => {
+                  if (videoLayout === 'pip' && isSwapped) {
+                    setIsSwapped(false);
+                  }
+                }}
+                title={videoLayout === 'pip' && isSwapped ? 'Tap to return to main patient view' : undefined}
                 style={
                   videoLayout === 'grid'
                     ? {
@@ -2363,6 +2489,7 @@ export default function DoctorConsultationWorkspace() {
                 {/* Mini Action Toolbar when Patient is in PiP (when swapped) */}
                 {videoLayout === 'pip' && isSwapped && (
                   <div
+                    className="pip-desktop-controls"
                     style={{
                       position: 'absolute',
                       top: '6px',
@@ -2579,7 +2706,7 @@ export default function DoctorConsultationWorkspace() {
 
               {/* Share Screen */}
               <button
-                className="call-ctrl-btn"
+                className="call-ctrl-btn call-ctrl-desktop-only"
                 onClick={toggleScreenShare}
                 title={isSharingScreen ? 'Stop Screen Sharing' : 'Share Screen'}
                 style={{
@@ -2601,7 +2728,7 @@ export default function DoctorConsultationWorkspace() {
 
               {/* Video Effects Toggle */}
               <button
-                className="call-ctrl-btn"
+                className="call-ctrl-btn call-ctrl-desktop-only"
                 onClick={() => setShowEffectsDrawer(!showEffectsDrawer)}
                 title="Video Background & Privacy"
                 style={{
@@ -2638,7 +2765,7 @@ export default function DoctorConsultationWorkspace() {
 
               {/* Full Video View Toggle */}
               <button
-                className="call-ctrl-btn"
+                className="call-ctrl-btn call-ctrl-desktop-only"
                 onClick={toggleFullscreen}
                 title={isVideoFullView ? 'Exit Full Video View (Esc)' : 'Expand Video to Full View'}
                 style={{
@@ -2660,7 +2787,7 @@ export default function DoctorConsultationWorkspace() {
 
               {/* Offer Time Extension Button in Floating Bar */}
               <button
-                className="call-extend-btn"
+                className="call-extend-btn call-ctrl-desktop-only"
                 onClick={() => {
                   setShowExtendModal(true);
                   setExtensionStatus('idle');
@@ -2719,15 +2846,105 @@ export default function DoctorConsultationWorkspace() {
                       bottom: '52px',
                       left: '50%',
                       transform: 'translateX(-50%)',
-                      width: '200px',
+                      width: '220px',
                       backgroundColor: '#2A170F',
                       border: '1px solid rgba(223, 171, 98, 0.3)',
                       borderRadius: '14px',
                       boxShadow: '0 12px 30px rgba(0,0,0,0.6)',
                       padding: '6px',
                       zIndex: 35,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '2px',
                     }}
                   >
+                    {/* + Extend Consultation Time */}
+                    <button
+                      onClick={() => {
+                        setShowExtendModal(true);
+                        setExtensionStatus('idle');
+                        setExtensionMessage(null);
+                        setShowMoreMenu(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        background: 'none',
+                        border: 'none',
+                        color: '#DFAB62',
+                        fontSize: '0.825rem',
+                        fontWeight: 700,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderRadius: '8px',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.15)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <TimerReset size={15} color="#DFAB62" />
+                      <span>+ Extend Consultation</span>
+                    </button>
+
+                    {/* Video Background & Effects */}
+                    <button
+                      onClick={() => {
+                        setShowEffectsDrawer(!showEffectsDrawer);
+                        setShowMoreMenu(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        background: 'none',
+                        border: 'none',
+                        color: '#FAF6EE',
+                        fontSize: '0.825rem',
+                        fontWeight: 600,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderRadius: '8px',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.15)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <Sparkles size={15} color="#DFAB62" />
+                      <span>Video Effects &amp; Privacy</span>
+                    </button>
+
+                    {/* Swap Views */}
+                    <button
+                      onClick={() => {
+                        setIsSwapped(!isSwapped);
+                        setShowMoreMenu(false);
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px',
+                        background: 'none',
+                        border: 'none',
+                        color: '#FAF6EE',
+                        fontSize: '0.825rem',
+                        fontWeight: 600,
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        borderRadius: '8px',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.15)')}
+                      onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                    >
+                      <ArrowLeftRight size={15} color="#DFAB62" />
+                      <span>Swap Video Window</span>
+                    </button>
+
+                    {/* Full Video View / Exit Full View */}
                     <button
                       onClick={() => {
                         toggleFullscreen();
@@ -2735,7 +2952,7 @@ export default function DoctorConsultationWorkspace() {
                       }}
                       style={{
                         width: '100%',
-                        padding: '8px 12px',
+                        padding: '9px 12px',
                         background: 'none',
                         border: 'none',
                         color: '#FAF6EE',
@@ -2975,6 +3192,7 @@ export default function DoctorConsultationWorkspace() {
               CLINICAL NOTES & ENCOUNTER PLAN WORKSPACE (Mission-Critical Feature)
               ================================================================ */}
           <div
+            className={`clinical-notes-card ${mobileActiveTab !== 'notes' ? 'mobile-hidden' : ''}`}
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '16px',
@@ -3606,7 +3824,7 @@ export default function DoctorConsultationWorkspace() {
                       />
                       <input
                         type="text"
-                        placeholder="Frequency (Q8H / 3x daily)"
+                        placeholder="Frequency (Daily: 1-6 / Hourly)"
                         value={newMedFrequency}
                         onChange={(e) => setNewMedFrequency(e.target.value)}
                         style={{
@@ -3632,6 +3850,85 @@ export default function DoctorConsultationWorkspace() {
                           outline: 'none',
                         }}
                       />
+                    </div>
+
+                    {/* Quick Frequency selector chips: Daily (1 2 3 4 5 6 Other) / Hourly */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#2A170F', textTransform: 'uppercase', marginRight: '2px' }}>Daily:</span>
+                        {[
+                          { n: '1', val: 'Once daily' },
+                          { n: '2', val: 'Twice daily (BD)' },
+                          { n: '3', val: '3x daily (TDS)' },
+                          { n: '4', val: '4x daily (QDS)' },
+                          { n: '5', val: '5x daily' },
+                          { n: '6', val: '6x daily' },
+                        ].map((d) => (
+                          <button
+                            key={d.n}
+                            type="button"
+                            onClick={() => setNewMedFrequency(d.val)}
+                            style={{
+                              padding: '2px 7px',
+                              borderRadius: '4px',
+                              border: newMedFrequency === d.val ? '1.5px solid #2A170F' : '1px solid rgba(223, 171, 98, 0.4)',
+                              background: newMedFrequency === d.val ? '#2A170F' : '#FFFFFF',
+                              color: newMedFrequency === d.val ? '#FFFFFF' : '#2A170F',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {d.n}
+                          </button>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!newMedFrequency || ['Once daily', 'Twice daily (BD)', '3x daily (TDS)', '4x daily (QDS)', '5x daily', '6x daily', '4-hourly', '6-hourly', '8-hourly', '12-hourly'].includes(newMedFrequency)) {
+                              setNewMedFrequency('As needed (PRN)');
+                            }
+                          }}
+                          style={{
+                            padding: '2px 7px',
+                            borderRadius: '4px',
+                            border: '1px solid rgba(223, 171, 98, 0.4)',
+                            background: '#FFFFFF',
+                            color: '#2A170F',
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Other
+                        </button>
+
+                        <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#2A170F', textTransform: 'uppercase', marginLeft: '6px', marginRight: '2px' }}>Hourly:</span>
+                        {[
+                          { l: '4h', val: '4-hourly' },
+                          { l: '6h', val: '6-hourly (QDS)' },
+                          { l: '8h', val: '8-hourly (TDS)' },
+                          { l: '12h', val: '12-hourly (BD)' },
+                        ].map((h) => (
+                          <button
+                            key={h.l}
+                            type="button"
+                            onClick={() => setNewMedFrequency(h.val)}
+                            style={{
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              border: newMedFrequency === h.val ? '1.5px solid #2A170F' : '1px solid rgba(223, 171, 98, 0.4)',
+                              background: newMedFrequency === h.val ? '#2A170F' : '#FFFFFF',
+                              color: newMedFrequency === h.val ? '#FFFFFF' : '#2A170F',
+                              fontSize: '0.72rem',
+                              fontWeight: 700,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {h.l}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <input
                       type="text"
@@ -3887,7 +4184,7 @@ export default function DoctorConsultationWorkspace() {
             RIGHT CLINICAL PANEL (30–35% Width, Independently Scrollable)
             ------------------------------------------------------------------ */}
         <aside
-          className={`clinical-panel-drawer ${tabletDrawerOpen ? 'drawer-open' : ''}`}
+          className={`clinical-panel-drawer ${tabletDrawerOpen ? 'drawer-open' : ''} ${mobileActiveTab === 'patient' ? 'drawer-open mobile-active' : ''}`}
           style={{
             width: '360px',
             backgroundColor: '#FFFFFF',
@@ -4916,65 +5213,354 @@ export default function DoctorConsultationWorkspace() {
           box-shadow: none !important;
         }
 
+        /* Mobile Consultation Workspace Navigation Bar (<= 1024px) */
+        .mobile-consult-nav-bar {
+          display: none;
+        }
+        .mobile-mini-call-bar {
+          display: none;
+        }
+        .video-stage-notes-pill {
+          display: none;
+        }
+
         @media (max-width: 1024px) {
           .tablet-toggle-bar {
+            display: none !important;
+          }
+
+          /* Show Mobile Workspace Navigation Segmented Bar */
+          .mobile-consult-nav-bar {
             display: flex !important;
+            align-items: center !important;
+            background-color: #150B07 !important;
+            border-bottom: 1px solid rgba(223, 171, 98, 0.25) !important;
+            padding: 6px 12px !important;
+            gap: 8px !important;
+            flex-shrink: 0 !important;
+            z-index: 28 !important;
+            width: 100% !important;
+            overflow-x: auto !important;
           }
-          .clinical-panel-drawer {
+
+          .mobile-nav-btn {
+            flex: 1 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 7px !important;
+            padding: 9px 12px !important;
+            border-radius: 10px !important;
+            border: 1px solid transparent !important;
+            background: transparent !important;
+            color: rgba(250, 246, 238, 0.72) !important;
+            font-size: 0.8rem !important;
+            font-weight: 600 !important;
+            cursor: pointer !important;
+            white-space: nowrap !important;
+            transition: all 0.18s ease !important;
+          }
+
+          .mobile-nav-btn.active {
+            background: rgba(223, 171, 98, 0.18) !important;
+            color: #DFAB62 !important;
+            border-color: rgba(223, 171, 98, 0.4) !important;
+            font-weight: 700 !important;
+          }
+
+          .mobile-nav-dot-live {
+            width: 7px !important;
+            height: 7px !important;
+            border-radius: 50% !important;
+            background-color: #22C55E !important;
+            box-shadow: 0 0 6px #22C55E !important;
+          }
+
+          .mobile-nav-badge {
+            padding: 1px 6px !important;
+            border-radius: 9999px !important;
+            background: rgba(223, 171, 98, 0.25) !important;
+            color: #DFAB62 !important;
+            font-size: 0.68rem !important;
+            font-weight: 800 !important;
+          }
+
+          .mobile-nav-alert-dot {
+            width: 6px !important;
+            height: 6px !important;
+            border-radius: 50% !important;
+            background-color: #EF4444 !important;
+          }
+
+          /* Sticky Mini-Call Bar (Active in Notes or Chart mode) */
+          .mobile-mini-call-bar {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            background-color: #1F130E !important;
+            border-bottom: 1px solid rgba(223, 171, 98, 0.28) !important;
+            padding: 8px 14px !important;
+            position: sticky !important;
+            top: 0 !important;
+            z-index: 27 !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+          }
+
+          .mobile-mini-call-left {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            cursor: pointer !important;
+            min-width: 0 !important;
+          }
+
+          .mobile-mini-call-indicator {
+            position: relative !important;
+            width: 32px !important;
+            height: 32px !important;
+            border-radius: 50% !important;
+            background-color: rgba(223, 171, 98, 0.15) !important;
+            border: 1px solid rgba(223, 171, 98, 0.3) !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            flex-shrink: 0 !important;
+          }
+
+          .mobile-mini-dot {
+            position: absolute !important;
+            top: -1px !important;
+            right: -1px !important;
+            width: 8px !important;
+            height: 8px !important;
+            border-radius: 50% !important;
+            border: 1.5px solid #1F130E !important;
+          }
+          .mobile-mini-dot.connected {
+            background-color: #22C55E !important;
+            box-shadow: 0 0 6px #22C55E !important;
+          }
+          .mobile-mini-dot.waiting {
+            background-color: #EAB308 !important;
+          }
+
+          .mobile-mini-call-meta {
+            min-width: 0 !important;
+          }
+          .mobile-mini-patient-name {
+            font-size: 0.825rem !important;
+            font-weight: 700 !important;
+            color: #FAF6EE !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            max-width: 140px !important;
+          }
+          .mobile-mini-call-timer {
+            font-size: 0.72rem !important;
+            color: #DFAB62 !important;
+            font-weight: 600 !important;
+          }
+
+          .mobile-mini-call-actions {
+            display: flex !important;
+            align-items: center !important;
+            gap: 8px !important;
+            flex-shrink: 0 !important;
+          }
+
+          .mobile-mini-action-btn {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            gap: 5px !important;
+            padding: 7px 11px !important;
+            border-radius: 9999px !important;
+            border: 1px solid rgba(223, 171, 98, 0.35) !important;
+            background-color: rgba(255, 255, 255, 0.08) !important;
+            color: #FAF6EE !important;
+            font-size: 0.75rem !important;
+            font-weight: 700 !important;
+            cursor: pointer !important;
+          }
+          .mobile-mini-action-btn.muted {
+            background-color: rgba(239, 68, 68, 0.22) !important;
+            border-color: #EF4444 !important;
+            color: #EF4444 !important;
+          }
+          .mobile-mini-action-btn.return-btn {
+            background-color: rgba(223, 171, 98, 0.22) !important;
+            border-color: #DFAB62 !important;
+            color: #DFAB62 !important;
+          }
+          .mobile-mini-action-btn.end-btn {
+            background-color: #DC2626 !important;
+            border-color: #DC2626 !important;
+            color: #FFFFFF !important;
+            padding: 7px !important;
+            border-radius: 50% !important;
+            width: 32px !important;
+            height: 32px !important;
+          }
+
+          /* Video Stage in Mobile Viewport */
+          .video-stage.video-stage-mobile-hidden {
             position: fixed !important;
-            top: 60px;
-            right: 0;
-            bottom: 0;
-            width: 380px !important;
-            transform: translateX(100%);
-            transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1);
-            box-shadow: -8px 0 24px rgba(42, 23, 15, 0.15);
+            width: 1px !important;
+            height: 1px !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            z-index: -1 !important;
+            overflow: hidden !important;
           }
-          .clinical-panel-drawer.drawer-open {
-            transform: translateX(0) !important;
+
+          .video-stage:not(.video-stage-mobile-hidden) {
+            height: calc(100vh - 128px) !important;
+            max-height: calc(100vh - 128px) !important;
+            border-radius: 16px !important;
+            margin-bottom: 0 !important;
+          }
+
+          /* Mobile Shortcut Pill to Notes */
+          .video-stage-notes-pill {
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            position: absolute !important;
+            bottom: 74px !important;
+            right: 14px !important;
+            z-index: 25 !important;
+            padding: 8px 14px !important;
+            border-radius: 9999px !important;
+            background: #DFAB62 !important;
+            color: #2A170F !important;
+            font-size: 0.78rem !important;
+            font-weight: 700 !important;
+            border: none !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+            cursor: pointer !important;
+          }
+
+          /* Clinical Notes Card on Mobile */
+          .clinical-notes-card.mobile-hidden {
+            display: none !important;
+          }
+
+          /* Clinical Panel Drawer on Mobile */
+          .clinical-panel-drawer {
+            display: none !important;
+          }
+          .clinical-panel-drawer.mobile-active {
+            display: flex !important;
+            position: static !important;
+            width: 100% !important;
+            height: auto !important;
+            transform: none !important;
+            box-shadow: none !important;
+            border-left: none !important;
+            border-radius: 16px !important;
+            background-color: #FFFFFF !important;
+            padding: 16px !important;
           }
         }
+
         @media (max-width: 768px) {
           .consultation-main {
-            padding: 12px !important;
-            gap: 12px !important;
+            padding: 8px !important;
+            gap: 10px !important;
           }
-          .video-stage {
-            height: clamp(320px, 48vh, 560px) !important;
-            border-radius: 14px !important;
+
+          /* Top Bar inside Video HUD on Mobile */
+          .video-stage-top-bar {
+            top: 8px !important;
+            left: 8px !important;
+            right: 8px !important;
           }
-          .doctor-pip {
-            max-width: 48vw !important;
-            max-height: 32vh !important;
+
+          .video-top-btn-label {
+            display: none !important;
           }
-          /* Dock the call controls as a reachable bottom bar on touch screens */
-          .call-control-bar {
-            left: 12px !important;
-            right: 12px !important;
-            transform: none !important;
-            bottom: 12px !important;
-            flex-wrap: wrap !important;
+
+          .video-layout-toggle-btn {
+            display: none !important;
+          }
+
+          .video-top-action-btn {
+            width: 36px !important;
+            height: 36px !important;
+            padding: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
             justify-content: center !important;
-            gap: 8px !important;
-            padding: 8px 10px !important;
-            border-radius: 18px !important;
+            border-radius: 50% !important;
           }
+
+          .video-status-badge {
+            padding: 5px 10px !important;
+            gap: 6px !important;
+          }
+
+          /* PiP Self-View on Mobile: Clean face without buttons */
+          .pip-desktop-controls {
+            display: none !important;
+          }
+
+          .doctor-pip {
+            cursor: pointer !important;
+            border-radius: 12px !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+            max-width: 120px !important;
+            max-height: 160px !important;
+            bottom: 74px !important;
+            right: 10px !important;
+          }
+
+          /* Desktop-only Call Controls Hidden on Mobile */
+          .call-ctrl-desktop-only {
+            display: none !important;
+          }
+
+          /* Ergonomic Single-Row Mobile Call Control Bar */
+          .call-control-bar {
+            position: absolute !important;
+            bottom: 14px !important;
+            left: 50% !important;
+            right: auto !important;
+            transform: translateX(-50%) !important;
+            width: auto !important;
+            max-width: 95% !important;
+            display: flex !important;
+            flex-direction: row !important;
+            flex-wrap: nowrap !important;
+            justify-content: center !important;
+            align-items: center !important;
+            gap: 12px !important;
+            padding: 8px 16px !important;
+            border-radius: 9999px !important;
+            background-color: rgba(22, 12, 8, 0.92) !important;
+            backdrop-filter: blur(16px) !important;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6) !important;
+            border: 1px solid rgba(223, 171, 98, 0.35) !important;
+          }
+
           .call-control-bar .call-ctrl-btn {
             width: 44px !important;
             height: 44px !important;
-            flex-shrink: 0;
+            flex-shrink: 0 !important;
           }
-          .call-control-bar .call-extend-btn {
-            height: 44px !important;
+
+          /* Clinical Notes Card on Mobile */
+          .clinical-notes-card {
+            padding: 16px 14px !important;
+            border-radius: 14px !important;
           }
-          .clinical-panel-drawer {
-            width: 100% !important;
-          }
+
           /* Collapse fixed multi-column clinical grids to one column */
           .resp-grid-fixed {
             grid-template-columns: 1fr !important;
           }
         }
+
         @media (max-width: 560px) {
           .header-back-label,
           .header-end-label {

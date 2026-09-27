@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SolarIcon } from './SolarIcon';
+import { getDoctorRegisterUrl } from '../lib/urls';
 
 export function HeroSection() {
   return (
@@ -136,65 +137,25 @@ export function HeroSection() {
           </p>
 
           {/* CTA Row: Book a Consultation & Join as a Doctor */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              flexWrap: 'wrap',
-              marginBottom: '46px',
-            }}
-            className="hero-cta-row"
-          >
-            {/* Primary CTA */}
+          <div className="hero-cta-row">
+            {/* Primary CTA: Book a Consultation */}
             <Link
               href="/doctors"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: 'var(--color-gold-primary)',
-                color: 'var(--color-chocolate-base)',
-                border: '1.5px solid var(--color-gold-primary)',
-                fontWeight: 600,
-                fontSize: '0.925rem',
-                padding: '13px 26px',
-                borderRadius: '12px',
-                textDecoration: 'none',
-                lineHeight: 1,
-                boxSizing: 'border-box',
-                whiteSpace: 'nowrap',
-              }}
               className="hero-btn-primary"
             >
               <span>Book a Consultation</span>
-              <SolarIcon name="arrow-right-linear" size={18} />
+              <SolarIcon name="calendar-date-bold-duotone" size={20} />
             </Link>
 
-            {/* Secondary CTA: Join as a Doctor (Line Button) */}
-            <Link
-              href="/for-doctors"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: 'transparent',
-                color: 'var(--color-gold-primary)',
-                border: '1.5px solid var(--color-gold-primary)',
-                fontWeight: 600,
-                fontSize: '0.925rem',
-                padding: '13px 26px',
-                borderRadius: '12px',
-                textDecoration: 'none',
-                lineHeight: 1,
-                boxSizing: 'border-box',
-                whiteSpace: 'nowrap',
-              }}
+            {/* Secondary CTA: Join as a Doctor -> Doctor Registration Page */}
+            <a
+              href={getDoctorRegisterUrl()}
               className="hero-btn-outline"
+              title="Register as a Doctor on Chekup247"
             >
               <span>Join as a Doctor</span>
               <SolarIcon name="arrow-right-linear" size={18} />
-            </Link>
+            </a>
           </div>
 
           {/* Feature Mini-Nav Indicators */}

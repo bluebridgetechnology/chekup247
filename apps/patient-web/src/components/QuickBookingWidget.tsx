@@ -12,6 +12,10 @@ export interface QuickDoctor {
   specialty: string;
   rate: number;
   rating: number;
+  reviewsCount?: number;
+  duration?: number;
+  offersVideo?: boolean;
+  offersAudio?: boolean;
   image: string;
   nextAvailable: string;
 }
@@ -23,6 +27,10 @@ const RICH_FALLBACK_DOCTORS: QuickDoctor[] = [
     specialty: 'General Practitioner',
     rate: 450,
     rating: 4.95,
+    reviewsCount: 38,
+    duration: 30,
+    offersVideo: true,
+    offersAudio: true,
     image: '/images/doctor_thabo.jpg',
     nextAvailable: 'Available today in 15 mins',
   },
@@ -32,6 +40,10 @@ const RICH_FALLBACK_DOCTORS: QuickDoctor[] = [
     specialty: 'Paediatrician',
     rate: 650,
     rating: 4.98,
+    reviewsCount: 52,
+    duration: 45,
+    offersVideo: true,
+    offersAudio: true,
     image: '/images/doctor_sarah.jpg',
     nextAvailable: 'Available today',
   },
@@ -41,6 +53,10 @@ const RICH_FALLBACK_DOCTORS: QuickDoctor[] = [
     specialty: 'Dermatologist',
     rate: 580,
     rating: 4.97,
+    reviewsCount: 44,
+    duration: 30,
+    offersVideo: true,
+    offersAudio: true,
     image: '/images/doctor_thabo.jpg',
     nextAvailable: 'Available today',
   },
@@ -50,6 +66,10 @@ const RICH_FALLBACK_DOCTORS: QuickDoctor[] = [
     specialty: "Obstetrics & Women's Health",
     rate: 520,
     rating: 4.96,
+    reviewsCount: 29,
+    duration: 45,
+    offersVideo: true,
+    offersAudio: true,
     image: '/images/doctor_kevin.jpg',
     nextAvailable: 'Available today',
   },
@@ -59,6 +79,10 @@ const RICH_FALLBACK_DOCTORS: QuickDoctor[] = [
     specialty: 'Family Physician & Sports',
     rate: 420,
     rating: 4.92,
+    reviewsCount: 33,
+    duration: 30,
+    offersVideo: true,
+    offersAudio: true,
     image: '/images/doctor_kevin.jpg',
     nextAvailable: 'Available today',
   },
@@ -82,7 +106,7 @@ const COMMON_REASONS = [
 ];
 
 interface ChatStep {
-  step: 'specialty' | 'doctor' | 'slot' | 'patient_info' | 'ready';
+  step: 'specialty' | 'doctor' | 'type' | 'slot' | 'patient_info' | 'ready';
 }
 
 export function QuickBookingWidget() {
@@ -102,6 +126,7 @@ export function QuickBookingWidget() {
   const [selectedSpecialty, setSelectedSpecialty] = useState<string>('All');
   const [selectedSpecialtyLabel, setSelectedSpecialtyLabel] = useState<string>('');
   const [selectedDoctor, setSelectedDoctor] = useState<QuickDoctor | null>(null);
+  const [consultationType, setConsultationType] = useState<'video' | 'audio'>('video');
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('10:30');
 
@@ -134,6 +159,10 @@ export function QuickBookingWidget() {
               specialty: d.specialty || 'General Practitioner',
               rate: Number(d.rate_per_hour || d.ratePerHour) || 450,
               rating: Number(d.rating_avg || d.rating) || 4.9,
+              reviewsCount: Number(d.reviews_count || d.reviewsCount) || 38,
+              duration: Number(d.consultation_duration || d.duration) || 30,
+              offersVideo: d.offers_video !== false,
+              offersAudio: d.offers_audio !== false,
               image: d.user?.avatar_url || d.photo_url || '/images/doctor_thabo.jpg',
               nextAvailable: d.next_available_slot || 'Available today',
             }));
@@ -219,6 +248,7 @@ export function QuickBookingWidget() {
     setSelectedSpecialty('All');
     setSelectedSpecialtyLabel('');
     setSelectedDoctor(null);
+    setConsultationType('video');
     setFormError(null);
   };
 
@@ -228,7 +258,7 @@ export function QuickBookingWidget() {
     setSelectedSpecialtyLabel(label);
     if (spec === 'All') {
       setSelectedDoctor(doctors[0] || RICH_FALLBACK_DOCTORS[0]);
-      setCurrentStep('slot');
+      setCurrentStep('type');
     } else {
       setCurrentStep('doctor');
     }
@@ -237,6 +267,12 @@ export function QuickBookingWidget() {
   // Step 2 Doctor Selection Handler
   const handleSelectDoctor = (doc: QuickDoctor) => {
     setSelectedDoctor(doc);
+    setCurrentStep('type');
+  };
+
+  // Step 2.5 Consultation Type Selection Handler
+  const handleSelectConsultationType = (type: 'video' | 'audio') => {
+    setConsultationType(type);
     setCurrentStep('slot');
   };
 
@@ -292,13 +328,14 @@ export function QuickBookingWidget() {
         }
       }
 
-      // 2. Compute date and time
+      // 2. Compute date, time, and dynamic doctor duration
       const targetDay = days[selectedDayIndex];
       const slotId = `slot-${targetDay.dateStr}-${selectedTimeSlot}`;
       const [h, m] = selectedTimeSlot.split(':').map(Number);
       const startObj = new Date(targetDay.dateObj);
       startObj.setHours(h, m, 0, 0);
-      const endObj = new Date(startObj.getTime() + 45 * 60 * 1000);
+      const durationMins = selectedDoctor.duration || 30;
+      const endObj = new Date(startObj.getTime() + durationMins * 60 * 1000);
 
       // 3. Persist checkout draft into sessionStorage
       try {
@@ -308,7 +345,8 @@ export function QuickBookingWidget() {
             doctorId: selectedDoctor.id,
             slotId,
             date: targetDay.dateStr,
-            type: 'video',
+            type: consultationType,
+            duration: durationMins,
             notes: selectedReason,
             patientName: name,
             patientEmail: email,
@@ -328,7 +366,7 @@ export function QuickBookingWidget() {
         targetDay.dateStr,
       )}&start=${encodeURIComponent(startObj.toISOString())}&end=${encodeURIComponent(
         endObj.toISOString(),
-      )}&type=video`;
+      )}&type=${encodeURIComponent(consultationType)}&duration=${encodeURIComponent(durationMins)}`;
 
       router.push(checkoutUrl);
     } catch (err: any) {
@@ -777,8 +815,8 @@ export function QuickBookingWidget() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                           <div
                             style={{
-                              width: '38px',
-                              height: '38px',
+                              width: '42px',
+                              height: '42px',
                               borderRadius: '50%',
                               overflow: 'hidden',
                               position: 'relative',
@@ -786,13 +824,27 @@ export function QuickBookingWidget() {
                               flexShrink: 0,
                             }}
                           >
-                            <Image src={doc.image} alt={doc.name} fill style={{ objectFit: 'cover' }} sizes="38px" />
+                            <Image src={doc.image} alt={doc.name} fill style={{ objectFit: 'cover' }} sizes="42px" />
                           </div>
                           <div>
                             <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
                               {doc.name}
                             </div>
                             <div style={{ fontSize: '0.71875rem', color: '#6B5E55' }}>{doc.specialty}</div>
+                            {/* Star Rating, Reviews & Duration */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
+                              <SolarIcon name="star-bold" size={12} color="#DFAB62" />
+                              <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                                {doc.rating ? doc.rating.toFixed(1) : '4.9'}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: '#8C7768' }}>
+                                ({doc.reviewsCount || 36})
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: '#DFAB62' }}>•</span>
+                              <span style={{ fontSize: '0.7rem', color: '#6B5E55', fontWeight: 600 }}>
+                                {doc.duration || 30} mins
+                              </span>
+                            </div>
                           </div>
                         </div>
 
@@ -832,9 +884,212 @@ export function QuickBookingWidget() {
                     fontSize: '0.825rem',
                     fontWeight: 600,
                     maxWidth: '80%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  {selectedDoctor.name} (R{selectedDoctor.rate})
+                  <span>{selectedDoctor.name}</span>
+                  <span style={{ color: '#DFAB62' }}>★{selectedDoctor.rating.toFixed(1)}</span>
+                  <span>(R{selectedDoctor.rate})</span>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================= */}
+            {/* MESSAGE 2.5: ASSISTANT CONSULTATION TYPE SELECTION         */}
+            {/* ========================================================= */}
+            {selectedDoctor && currentStep !== 'doctor' && currentStep !== 'specialty' && (
+              <>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                  <div
+                    style={{
+                      width: '26px',
+                      height: '26px',
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--color-gold-pale, #F5ECD8)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      marginTop: '2px',
+                    }}
+                  >
+                    <SolarIcon name="videocamera-bold" size={14} color="var(--color-chocolate-base, #2A170F)" />
+                  </div>
+                  <div
+                    style={{
+                      backgroundColor: '#F7F3EB',
+                      border: '1px solid rgba(223, 171, 98, 0.25)',
+                      borderRadius: '14px 14px 14px 2px',
+                      padding: '10px 14px',
+                      maxWidth: '88%',
+                      fontSize: '0.85rem',
+                      lineHeight: 1.45,
+                      color: 'var(--color-chocolate-base, #2A170F)',
+                    }}
+                  >
+                    How would you prefer to consult with <strong>{selectedDoctor.name}</strong>?
+                  </div>
+                </div>
+
+                {/* Step 2.5 Interactive Consultation Type Picker */}
+                {currentStep === 'type' && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginLeft: '34px' }}>
+                    <button
+                      type="button"
+                      onClick={() => handleSelectConsultationType('video')}
+                      style={{
+                        padding: '12px 10px',
+                        borderRadius: '12px',
+                        border: consultationType === 'video'
+                          ? '1.5px solid var(--color-gold-base, #DFAB62)'
+                          : '1px solid rgba(42, 23, 15, 0.15)',
+                        backgroundColor: '#FFFFFF',
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        boxShadow: '0 2px 6px rgba(42, 23, 15, 0.03)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F5ECD8)';
+                        e.currentTarget.style.borderColor = 'var(--color-gold-base, #DFAB62)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#FFFFFF';
+                        e.currentTarget.style.borderColor = consultationType === 'video' ? 'var(--color-gold-base, #DFAB62)' : 'rgba(42, 23, 15, 0.15)';
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(223, 171, 98, 0.2)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <SolarIcon name="videocamera-record-bold" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.625rem',
+                            fontWeight: 700,
+                            color: '#8C601E',
+                            backgroundColor: 'rgba(223, 171, 98, 0.18)',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                            textTransform: 'uppercase',
+                          }}
+                        >
+                          Recommended
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                        Video Call
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#6B5E55', lineHeight: 1.3 }}>
+                        HD secure video &amp; audio with live doctor interaction
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => handleSelectConsultationType('audio')}
+                      style={{
+                        padding: '12px 10px',
+                        borderRadius: '12px',
+                        border: consultationType === 'audio'
+                          ? '1.5px solid var(--color-gold-base, #DFAB62)'
+                          : '1px solid rgba(42, 23, 15, 0.15)',
+                        backgroundColor: '#FFFFFF',
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        boxShadow: '0 2px 6px rgba(42, 23, 15, 0.03)',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F5ECD8)';
+                        e.currentTarget.style.borderColor = 'var(--color-gold-base, #DFAB62)';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = '#FFFFFF';
+                        e.currentTarget.style.borderColor = consultationType === 'audio' ? 'var(--color-gold-base, #DFAB62)' : 'rgba(42, 23, 15, 0.15)';
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '8px',
+                            backgroundColor: 'rgba(42, 23, 15, 0.06)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <SolarIcon name="phone-calling-bold" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '0.625rem',
+                            fontWeight: 700,
+                            color: '#16A34A',
+                            backgroundColor: '#DCFCE7',
+                            padding: '1px 5px',
+                            borderRadius: '4px',
+                          }}
+                        >
+                          Voice Only
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                        Audio Call
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#6B5E55', lineHeight: 1.3 }}>
+                        Voice-only consultation, perfect for low data or quick review
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* User Response 2.5 (Consultation Type Chosen) */}
+            {selectedDoctor && currentStep !== 'type' && currentStep !== 'doctor' && currentStep !== 'specialty' && (
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div
+                  style={{
+                    backgroundColor: 'var(--color-chocolate-base, #2A170F)',
+                    color: '#FFFFFF',
+                    borderRadius: '14px 14px 2px 14px',
+                    padding: '8px 14px',
+                    fontSize: '0.825rem',
+                    fontWeight: 600,
+                    maxWidth: '80%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <SolarIcon
+                    name={consultationType === 'audio' ? 'phone-calling-bold' : 'videocamera-record-bold'}
+                    size={14}
+                    color="#DFAB62"
+                  />
+                  <span>{consultationType === 'audio' ? 'Audio Consultation' : 'Video Consultation'}</span>
                 </div>
               </div>
             )}
@@ -872,7 +1127,7 @@ export function QuickBookingWidget() {
                       color: 'var(--color-chocolate-base, #2A170F)',
                     }}
                   >
-                    When would work best for your 45-min video consultation?
+                    When would work best for your {selectedDoctor?.duration || 30}-min {consultationType === 'audio' ? 'audio' : 'video'} consultation?
                   </div>
                 </div>
 
@@ -1016,7 +1271,7 @@ export function QuickBookingWidget() {
                       color: 'var(--color-chocolate-base, #2A170F)',
                     }}
                   >
-                    Almost done! Where should we send your private video link &amp; receipt? (No password needed):
+                    Almost done! Where should we send your private {consultationType === 'audio' ? 'audio consultation' : 'video'} link &amp; receipt? (No password needed):
                   </div>
                 </div>
 
@@ -1060,7 +1315,7 @@ export function QuickBookingWidget() {
 
                     <div>
                       <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#2A170F', marginBottom: '3px' }}>
-                        Email (for video room &amp; medical invoice) *
+                        Email (for {consultationType === 'audio' ? 'audio consultation' : 'video room'} &amp; medical invoice) *
                       </label>
                       <input
                         type="email"
@@ -1245,7 +1500,7 @@ export function QuickBookingWidget() {
                     <div>
                       <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#2A170F' }}>{selectedDoctor.name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#6B5E55' }}>
-                        {days[selectedDayIndex].dayName}, {days[selectedDayIndex].displayDate} at {selectedTimeSlot}
+                        {consultationType === 'audio' ? 'Audio' : 'Video'} Consultation ({selectedDoctor.duration || 30} mins) • {days[selectedDayIndex].dayName}, {days[selectedDayIndex].displayDate} at {selectedTimeSlot}
                       </div>
                     </div>
                     <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#2A170F' }}>

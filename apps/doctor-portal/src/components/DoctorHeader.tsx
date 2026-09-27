@@ -781,6 +781,34 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
             </div>
           )}
         </div>
+
+        {/* Direct Mobile & Desktop Sign Out Button */}
+        {doctor && (
+          <button
+            onClick={() => logout()}
+            className="doctor-header-signout-btn"
+            title="Sign Out of Practice"
+            aria-label="Sign Out"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '7px 12px',
+              borderRadius: 'var(--radius-full, 9999px)',
+              backgroundColor: 'rgba(220, 38, 38, 0.08)',
+              border: '1.5px solid rgba(220, 38, 38, 0.3)',
+              color: '#dc2626',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'all 0.18s ease',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <SolarIcon name="logout-2-linear" size={15} color="#dc2626" />
+            <span className="doctor-header-signout-label">Sign Out</span>
+          </button>
+        )}
       </div>
     </header>
   );

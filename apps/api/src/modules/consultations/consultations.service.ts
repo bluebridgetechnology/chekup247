@@ -560,6 +560,44 @@ export class ConsultationsService {
   }
 
   /**
+   * Public lightweight status check for consultation lifecycle (polling fallback).
+   */
+  async getConsultationStatus(bookingId: string) {
+    const consultation = await this.consultationRepository.findOne({
+      where: [{ booking_id: bookingId }, { id: bookingId }],
+      relations: ['booking'],
+    });
+
+    if (!consultation) {
+      const booking = await this.bookingRepository.findOne({
+        where: { id: bookingId },
+      });
+      if (!booking) {
+        throw new NotFoundException(`Booking ${bookingId} not found`);
+      }
+      return {
+        bookingId,
+        status: booking.status,
+        isCompleted: booking.status === BookingStatus.COMPLETED,
+        ended_at: null,
+        started_at: null,
+      };
+    }
+
+    const isCompleted =
+      !!consultation.ended_at ||
+      consultation.booking?.status === BookingStatus.COMPLETED;
+
+    return {
+      bookingId,
+      status: consultation.booking?.status || (isCompleted ? BookingStatus.COMPLETED : BookingStatus.CONFIRMED),
+      isCompleted,
+      ended_at: consultation.ended_at || null,
+      started_at: consultation.started_at || null,
+    };
+  }
+
+  /**
    * Retrieves Health Notes for patient, linking to associated prescription if issued.
    */
   async getPatientHealthNotes(patientId: string) {

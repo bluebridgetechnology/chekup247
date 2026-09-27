@@ -111,6 +111,15 @@ export class ConsultationsController {
   }
 
   /**
+   * Public lightweight status check for consultation lifecycle (polling fallback).
+   * Unauthenticated so guest/express patients can reliably detect meeting end.
+   */
+  @Get(':bookingId/status')
+  getConsultationStatus(@Param('bookingId') bookingId: string) {
+    return this.consultationsService.getConsultationStatus(bookingId);
+  }
+
+  /**
    * Retrieves consultation room details & status (BE-602).
    */
   @Get(':bookingId')

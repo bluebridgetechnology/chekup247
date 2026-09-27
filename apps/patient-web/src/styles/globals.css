@@ -419,50 +419,114 @@ details summary::-webkit-details-marker {
   .desktop-nav {
     display: none !important;
   }
-  .nav-link-login {
-    display: none !important;
-  }
-  .auth-actions .auth-link,
-  .auth-actions .auth-signout {
-    display: none !important;
-  }
   .mobile-toggle {
     display: block !important;
   }
   .header-inner {
-    padding: 0 18px !important;
-    height: 68px !important;
+    padding: 0 16px !important;
+    height: 64px !important;
   }
-  .nav-btn-get-started {
-    padding: 7px 14px !important;
-    height: 34px !important;
-    font-size: 0.8rem !important;
+  .nav-login-group {
+    gap: 8px !important;
+  }
+  .nav-link-login {
+    display: inline-flex !important;
+    padding: 6px 10px !important;
+    font-size: 0.78rem !important;
+    border-radius: 8px !important;
+  }
+  .nav-doctor-login-btn {
+    display: inline-flex !important;
+    padding: 6px 11px !important;
+    font-size: 0.78rem !important;
+    border-radius: 8px !important;
+  }
+  .nav-mobile-signout-btn {
+    display: inline-flex !important;
+  }
+  .auth-avatar-name {
+    display: none !important;
+  }
+}
+
+@media (max-width: 440px) {
+  .nav-link-login {
+    padding: 6px 8px !important;
+    font-size: 0.74rem !important;
+  }
+  .nav-doctor-login-btn {
+    padding: 6px 8px !important;
+    font-size: 0.74rem !important;
+  }
+  .nav-signout-label {
+    display: none !important;
   }
 }
 
 /* Chekup247 Hero Section Styles */
+.hero-cta-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
 .hero-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: var(--color-gold-primary, #DFAB62);
+  color: var(--color-chocolate-base, #2A170F);
+  border: 1.5px solid var(--color-gold-primary, #DFAB62);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 14px 28px;
+  border-radius: 12px;
+  text-decoration: none;
+  line-height: 1;
+  box-sizing: border-box;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(223, 171, 98, 0.28);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hero-btn-primary:hover {
-  background-color: var(--color-gold-hover) !important;
-  border-color: var(--color-gold-hover) !important;
+  background-color: var(--color-gold-hover, #F0C688) !important;
+  border-color: var(--color-gold-hover, #F0C688) !important;
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px var(--color-gold-cta-shadow-hover) !important;
+  box-shadow: 0 8px 24px var(--color-gold-cta-shadow-hover, rgba(223, 171, 98, 0.45)) !important;
 }
 
 .hero-btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: rgba(223, 171, 98, 0.12);
+  color: var(--color-gold-primary, #DFAB62);
+  border: 1.5px solid var(--color-gold-primary, #DFAB62);
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 14px 28px;
+  border-radius: 12px;
+  text-decoration: none;
+  line-height: 1;
+  box-sizing: border-box;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.2);
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .hero-btn-outline:hover {
-  background-color: rgba(223, 171, 98, 0.12) !important;
-  border-color: var(--color-gold-hover) !important;
-  color: var(--color-gold-hover) !important;
+  background-color: rgba(223, 171, 98, 0.22) !important;
+  border-color: var(--color-gold-hover, #F0C688) !important;
+  color: #FFFFFF !important;
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
+
 
 .hero-feature-item {
   display: inline-flex;
@@ -539,8 +603,50 @@ details summary::-webkit-details-marker {
     margin-bottom: 30px !important;
   }
   .hero-cta-row {
-    margin-bottom: 36px !important;
+    margin-bottom: 20px !important;
   }
+}
+
+@media (max-width: 640px) {
+  .hero-cta-row {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+    width: 100% !important;
+    margin-bottom: 20px !important;
+  }
+
+  .hero-btn-primary,
+  .hero-btn-outline {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    padding: 17px 24px !important;
+    font-size: 1.06rem !important;
+    font-weight: 700 !important;
+    border-radius: 14px !important;
+    letter-spacing: -0.01em !important;
+    box-sizing: border-box !important;
+  }
+
+  .hero-btn-primary {
+    background-color: var(--color-gold-base, #DFAB62) !important;
+    color: #1E100A !important;
+    border: 2px solid var(--color-gold-base, #DFAB62) !important;
+    box-shadow: 0 10px 28px rgba(223, 171, 98, 0.45) !important;
+  }
+
+  .hero-btn-outline {
+    background-color: rgba(223, 171, 98, 0.18) !important;
+    border: 2px solid var(--color-gold-base, #DFAB62) !important;
+    color: #FAF6EE !important;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4) !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+  }
+
+
 }
 
 /* Why Choose Chekup247 Benefit Grid Styles */
