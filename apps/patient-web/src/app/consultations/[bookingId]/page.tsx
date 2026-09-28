@@ -709,14 +709,50 @@ export default function PatientConsultationPage() {
 
     async function initSession() {
       try {
-        // Start real hardware camera and mic immediately
-        await startRealMedia();
-
         if (!bookingId) {
           setLoadError('No booking ID provided');
           setIsLoading(false);
           return;
         }
+
+        // Check if consultation is already completed/ended before activating camera/mic or joining room
+        try {
+          const checkRes = await fetch(`${API_BASE}/consultations/${bookingId}`, {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+          });
+          if (checkRes.ok) {
+            const checkData = await checkRes.json();
+            if (isMounted) {
+              setConsultation(checkData);
+              if (checkData.doctor) {
+                setDoctorName(checkData.doctor.name || 'Doctor');
+                setDoctorSpecialty(checkData.doctor.specialty || 'General Practitioner');
+                if (checkData.doctor.avatarUrl || checkData.doctor.photoUrl) {
+                  setDoctorAvatarUrl(checkData.doctor.avatarUrl || checkData.doctor.photoUrl || null);
+                }
+              }
+              if (checkData.started_at) {
+                setStartedAt(new Date(checkData.started_at));
+              }
+            }
+            if (
+              checkData.ended_at ||
+              checkData.status === 'completed' ||
+              checkData.booking?.status === 'completed'
+            ) {
+              if (isMounted) {
+                setIsConsultationEnded(true);
+                setIsLoading(false);
+              }
+              return;
+            }
+          }
+        } catch (e) {
+          console.warn('Initial consultation status check note:', e);
+        }
+
+        // Start real hardware camera and mic immediately
+        await startRealMedia();
 
         // Step 1: Join the consultation via API to get room URL + meeting token
         const joinRes = await fetch(`${API_BASE}/consultations/${bookingId}/join`, {
@@ -758,6 +794,11 @@ export default function PatientConsultationPage() {
             }
             if (data.started_at) {
               setStartedAt(new Date(data.started_at));
+            }
+            if (data.ended_at || data.status === 'completed' || data.booking?.status === 'completed') {
+              setIsConsultationEnded(true);
+              setIsLoading(false);
+              return;
             }
           }
 

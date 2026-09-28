@@ -750,14 +750,26 @@ export default function DoctorAppointmentsPage() {
                                 <span>Start</span>
                               </Link>
                             ) : (
-                              <Link
-                                href={`/consultations/${appointment.id}`}
-                                className="btn-secondary"
-                                style={{ padding: '7px 12px', fontSize: '0.8rem' }}
-                              >
-                                <SolarIcon name="document-text-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
-                                <span>Record</span>
-                              </Link>
+                              <>
+                                <Link
+                                  href={`/consultations/${appointment.id}`}
+                                  className="btn-secondary"
+                                  style={{ padding: '7px 12px', fontSize: '0.8rem' }}
+                                  title="View Consultation Record"
+                                >
+                                  <SolarIcon name="document-text-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
+                                  <span>Record</span>
+                                </Link>
+                                <Link
+                                  href={`/consultations/${appointment.id}/prescribe`}
+                                  className="btn-secondary"
+                                  style={{ padding: '7px 12px', fontSize: '0.8rem' }}
+                                  title="Raise Prescription for this patient"
+                                >
+                                  <SolarIcon name="pill-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
+                                  <span>Prescribe</span>
+                                </Link>
+                              </>
                             )}
 
                             <button
@@ -851,14 +863,24 @@ export default function DoctorAppointmentsPage() {
                         <span>Start</span>
                       </Link>
                     ) : (
-                      <Link
-                        href={`/consultations/${appointment.id}`}
-                        className="btn-secondary"
-                        style={{ padding: '10px', fontSize: '0.82rem' }}
-                      >
-                        <SolarIcon name="document-text-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
-                        <span>Record</span>
-                      </Link>
+                      <>
+                        <Link
+                          href={`/consultations/${appointment.id}`}
+                          className="btn-secondary"
+                          style={{ padding: '10px', fontSize: '0.82rem' }}
+                        >
+                          <SolarIcon name="document-text-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
+                          <span>Record</span>
+                        </Link>
+                        <Link
+                          href={`/consultations/${appointment.id}/prescribe`}
+                          className="btn-secondary"
+                          style={{ padding: '10px', fontSize: '0.82rem' }}
+                        >
+                          <SolarIcon name="pill-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
+                          <span>Prescribe</span>
+                        </Link>
+                      </>
                     )}
 
                     <button
@@ -1086,14 +1108,24 @@ export default function DoctorAppointmentsPage() {
                   <span>Launch Video Room</span>
                 </Link>
               ) : (
-                <Link
-                  href={`/consultations/${selectedAppointment.id}`}
-                  className="btn-secondary"
-                  style={{ padding: '9px 20px', fontSize: '0.85rem' }}
-                >
-                  <SolarIcon name="document-text-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
-                  <span>View Consultation Record</span>
-                </Link>
+                <>
+                  <Link
+                    href={`/consultations/${selectedAppointment.id}`}
+                    className="btn-secondary"
+                    style={{ padding: '9px 18px', fontSize: '0.85rem' }}
+                  >
+                    <SolarIcon name="document-text-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                    <span>View Record</span>
+                  </Link>
+                  <Link
+                    href={`/consultations/${selectedAppointment.id}/prescribe`}
+                    className="btn-primary"
+                    style={{ padding: '9px 18px', fontSize: '0.85rem' }}
+                  >
+                    <SolarIcon name="pill-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                    <span>Raise Prescription</span>
+                  </Link>
+                </>
               )}
             </div>
           </div>

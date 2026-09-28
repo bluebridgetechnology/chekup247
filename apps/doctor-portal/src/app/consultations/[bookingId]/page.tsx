@@ -37,6 +37,14 @@ import {
   Share2,
   HelpCircle,
   ArrowRight,
+  ArrowLeft,
+  Printer,
+  Clock,
+  Phone,
+  Mail,
+  ExternalLink,
+  Download,
+  AlertTriangle,
   FileDown,
   ChevronLeft,
   Settings,
@@ -200,6 +208,7 @@ export default function DoctorConsultationWorkspace() {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [consultation, setConsultation] = useState<ConsultationDetail | null>(null);
   const [isConsultationEnded, setIsConsultationEnded] = useState<boolean>(false);
+  const [issuedPrescription, setIssuedPrescription] = useState<any>(null);
   const [tabletDrawerOpen, setTabletDrawerOpen] = useState<boolean>(false);
   const [mobileActiveTab, setMobileActiveTab] = useState<'video' | 'notes' | 'patient'>('video');
 
@@ -589,6 +598,8 @@ export default function DoctorConsultationWorkspace() {
               if (parsed.assessment) setAssessment(parsed.assessment);
               if (parsed.plan) setPlan(parsed.plan);
               if (parsed.patientInstructions) setPatientInstructions(parsed.patientInstructions);
+              if (Array.isArray(parsed.diagnoses) && parsed.diagnoses.length > 0) setDiagnoses(parsed.diagnoses);
+              if (Array.isArray(parsed.medications) && parsed.medications.length > 0) setMedications(parsed.medications);
             } catch {
               setChiefComplaint(data.doctor_notes);
             }
@@ -596,6 +607,49 @@ export default function DoctorConsultationWorkspace() {
           if (data?.patient_notes) {
             setPatientInstructions(data.patient_notes);
           }
+        }
+
+        // Check if consultation has already concluded or ended
+        const isEnded = Boolean(
+          data?.ended_at ||
+          data?.status === 'completed' ||
+          data?.status === 'concluded' ||
+          data?.booking?.status === 'completed' ||
+          data?.booking?.status === 'concluded'
+        );
+
+        if (isEnded) {
+          try {
+            const rxRes = await fetch(`${API_BASE}/prescriptions/booking/${bookingId}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (rxRes.ok) {
+              const rxData = await rxRes.json();
+              if (rxData?.prescription) {
+                if (isMounted) {
+                  setIssuedPrescription(rxData.prescription);
+                  if (Array.isArray(rxData.prescription.items) && rxData.prescription.items.length > 0) {
+                    setMedications((prev) => (prev.length > 0 ? prev : rxData.prescription.items.map((it: any) => ({
+                      id: it.id || String(Math.random()),
+                      name: it.medication_name || it.name || '',
+                      dosage: it.dosage || '',
+                      frequency: it.frequency || '',
+                      duration: it.duration || '',
+                      instructions: it.instructions || '',
+                    }))));
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            console.warn('Could not load existing prescription for consultation summary:', e);
+          }
+
+          if (isMounted) {
+            setIsConsultationEnded(true);
+            setIsLoading(false);
+          }
+          return;
         }
 
         if (data?.booking?.consultation_mode === 'in_clinic') {
@@ -621,6 +675,15 @@ export default function DoctorConsultationWorkspace() {
         if (!joinRes.ok) {
           const errData = await joinRes.json().catch(() => null);
           if (isMounted) {
+            if (
+              errData?.message?.toLowerCase().includes('ended') ||
+              errData?.message?.toLowerCase().includes('completed') ||
+              errData?.message?.toLowerCase().includes('concluded')
+            ) {
+              setIsConsultationEnded(true);
+              setIsLoading(false);
+              return;
+            }
             setCallError(
               errData?.message ||
                 'Unable to join the video consultation room. The video service may be unavailable.',
@@ -1103,7 +1166,15 @@ export default function DoctorConsultationWorkspace() {
           },
           body: JSON.stringify({
             doctorId: doctor?.id,
-            doctorNotes: (assessment || '') + '\n' + (plan || ''),
+            doctorNotes: JSON.stringify({
+              chiefComplaint,
+              hpi,
+              assessment,
+              plan,
+              patientInstructions,
+              diagnoses,
+              medications,
+            }),
           }),
         }).catch((err) => {
           console.warn('API end consultation error:', err);
@@ -1268,178 +1339,737 @@ export default function DoctorConsultationWorkspace() {
       <div
         style={{
           minHeight: '100vh',
-          width: '100vw',
           backgroundColor: '#FAF6EE',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '24px',
           color: '#2A170F',
+          padding: '24px 20px 60px',
         }}
       >
-        <div
-          style={{
-            maxWidth: '640px',
-            width: '100%',
-            backgroundColor: '#FFFFFF',
-            borderRadius: '20px',
-            border: '1px solid rgba(223, 171, 98, 0.25)',
-            boxShadow: '0 20px 50px rgba(42, 23, 15, 0.08)',
-            padding: '36px',
-            textAlign: 'center',
-          }}
-        >
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          {/* Top Breadcrumb & Action Header */}
           <div
             style={{
-              width: '64px',
-              height: '64px',
-              borderRadius: '50%',
-              backgroundColor: 'rgba(34, 197, 94, 0.12)',
-              color: '#16a34a',
               display: 'flex',
+              flexWrap: 'wrap',
               alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 20px',
-              border: '2px solid rgba(34, 197, 94, 0.3)',
-            }}
-          >
-            <CheckCircle2 size={34} />
-          </div>
-
-          <h2
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontSize: '1.75rem',
-              fontWeight: 'var(--font-heading-weight, 400)',
-              color: '#2A170F',
-              marginBottom: '8px',
-              letterSpacing: '-0.02em',
-            }}
-          >
-            Consultation Complete
-          </h2>
-          <p style={{ color: '#6B5E55', fontSize: '0.95rem', lineHeight: 1.5, marginBottom: '28px' }}>
-            {endedPatientName ? (
-              <>The clinical consultation with <strong>{endedPatientName}</strong> has been successfully completed and documented.</>
-            ) : (
-              <>The clinical consultation has been successfully completed and documented.</>
-            )}
-          </p>
-
-          <div
-            style={{
-              backgroundColor: '#FAF6EE',
-              borderRadius: '14px',
-              border: '1px solid rgba(223, 171, 98, 0.2)',
-              padding: '18px 22px',
-              textAlign: 'left',
-              marginBottom: '28px',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+              justifyContent: 'space-between',
               gap: '16px',
+              marginBottom: '24px',
             }}
           >
-            <div>
-              <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>
-                Duration
-              </span>
-              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2A170F', marginTop: '3px' }}>
-                {endedDurationLabel}
-              </div>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>
-                Encounter Date
-              </span>
-              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#2A170F', marginTop: '3px' }}>
-                {endedDateLabel}
-              </div>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>
-                Primary Diagnosis
-              </span>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#2A170F', marginTop: '3px' }}>
-                {diagnoses[0] ? `${diagnoses[0].name} (${diagnoses[0].code})` : '—'}
-              </div>
-            </div>
-            <div>
-              <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>
-                Prescription
-              </span>
-              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#2A170F', marginTop: '3px' }}>
-                {medications.length} items issued
-              </div>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <button
-              onClick={() => setShowSummaryModal(true)}
-              style={{
-                width: '100%',
-                padding: '12px 20px',
-                borderRadius: '9999px',
-                backgroundColor: '#E2B467',
-                color: '#2A170F',
-                fontWeight: 700,
-                fontSize: '0.9rem',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 14px rgba(226, 180, 103, 0.3)',
-              }}
-            >
-              <FileText size={16} />
-              <span>View Consultation Notes & Care Plan</span>
-            </button>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <Link
-                href={`/consultations/${bookingId}/prescribe`}
-                style={{
-                  flex: 1,
-                  padding: '11px 16px',
-                  borderRadius: '9999px',
-                  backgroundColor: '#FFFFFF',
-                  color: '#2A170F',
-                  fontWeight: 600,
-                  fontSize: '0.875rem',
-                  border: '1.5px solid rgba(223, 171, 98, 0.35)',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                }}
-              >
-                <Pill size={15} color="#DFAB62" />
-                <span>View Prescription</span>
-              </Link>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Link
                 href="/appointments"
                 style={{
-                  flex: 1,
-                  padding: '11px 16px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '8px 16px',
                   borderRadius: '9999px',
-                  backgroundColor: '#2A170F',
-                  color: '#FFFFFF',
+                  backgroundColor: '#FFFFFF',
+                  border: '1px solid rgba(223, 171, 98, 0.35)',
+                  color: '#2A170F',
                   fontWeight: 600,
                   fontSize: '0.875rem',
-                  border: 'none',
                   textDecoration: 'none',
+                  boxShadow: '0 2px 6px rgba(42, 23, 15, 0.04)',
+                }}
+              >
+                <ArrowLeft size={16} />
+                <span>Appointments</span>
+              </Link>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#8C7768' }}>/</span>
+                <span style={{ fontSize: '0.875rem', fontWeight: 700, color: '#2A170F' }}>
+                  Encounter Record #{bookingId.slice(0, 8)}
+                </span>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    padding: '3px 10px',
+                    borderRadius: '9999px',
+                    backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                    color: '#15803d',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    border: '1px solid rgba(34, 197, 94, 0.25)',
+                  }}
+                >
+                  <CheckCircle2 size={13} />
+                  Concluded & Documented
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => window.print()}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 18px',
+                  borderRadius: '9999px',
+                  backgroundColor: '#FFFFFF',
+                  border: '1.5px solid rgba(223, 171, 98, 0.35)',
+                  color: '#2A170F',
+                  fontWeight: 600,
+                  fontSize: '0.875rem',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 6px rgba(42, 23, 15, 0.04)',
+                }}
+              >
+                <Printer size={15} />
+                <span>Print Record</span>
+              </button>
+
+              <Link
+                href={`/consultations/${bookingId}/prescribe`}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '9px 20px',
+                  borderRadius: '9999px',
+                  backgroundColor: '#E2B467',
+                  color: '#2A170F',
+                  fontWeight: 700,
+                  fontSize: '0.875rem',
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 14px rgba(226, 180, 103, 0.35)',
+                }}
+              >
+                <Pill size={16} />
+                <span>{medications.length > 0 ? 'Manage Prescription' : 'Raise Prescription'}</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Hero Banner with Patient & Encounter Metrics */}
+          <div
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '20px',
+              border: '1px solid rgba(223, 171, 98, 0.25)',
+              padding: '24px 28px',
+              boxShadow: '0 4px 20px rgba(42, 23, 15, 0.05)',
+              marginBottom: '24px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '20px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '240px' }}>
+              <div
+                style={{
+                  width: '54px',
+                  height: '54px',
+                  borderRadius: '16px',
+                  backgroundColor: 'rgba(223, 171, 98, 0.15)',
+                  color: '#8C5E28',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  gap: '6px',
+                  fontWeight: 800,
+                  fontSize: '1.25rem',
+                  border: '1px solid rgba(223, 171, 98, 0.3)',
                 }}
               >
-                <span>Back to Appointments</span>
-                <ArrowRight size={15} />
-              </Link>
+                {endedPatientName ? endedPatientName.charAt(0).toUpperCase() : 'P'}
+              </div>
+              <div>
+                <h1
+                  style={{
+                    fontFamily: 'var(--font-heading)',
+                    fontSize: '1.5rem',
+                    fontWeight: 700,
+                    margin: '0 0 4px',
+                    color: '#2A170F',
+                    letterSpacing: '-0.02em',
+                  }}
+                >
+                  {endedPatientName || 'Consultation Patient'}
+                </h1>
+                <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px', fontSize: '0.85rem', color: '#6B5E55' }}>
+                  {(consultation?.patient?.phone || consultation?.booking?.patient?.phone) && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Phone size={13} color="#8C7768" />
+                      {consultation?.patient?.phone || consultation?.booking?.patient?.phone}
+                    </span>
+                  )}
+                  {(consultation?.patient?.email || consultation?.booking?.patient?.email) && (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <Mail size={13} color="#8C7768" />
+                      {consultation?.patient?.email || consultation?.booking?.patient?.email}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Metrics Cards */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                gap: '12px',
+                flex: '1',
+                maxWidth: '620px',
+              }}
+            >
+              <div
+                style={{
+                  backgroundColor: '#FAF6EE',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  border: '1px solid rgba(223, 171, 98, 0.2)',
+                }}
+              >
+                <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>
+                  Date & Time
+                </div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2A170F', marginTop: '2px' }}>
+                  {endedDateLabel}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#FAF6EE',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  border: '1px solid rgba(223, 171, 98, 0.2)',
+                }}
+              >
+                <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>
+                  Duration
+                </div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2A170F', marginTop: '2px' }}>
+                  {endedDurationLabel}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#FAF6EE',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  border: '1px solid rgba(223, 171, 98, 0.2)',
+                }}
+              >
+                <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>
+                  Consultation Mode
+                </div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2A170F', marginTop: '2px', textTransform: 'capitalize' }}>
+                  {consultation?.booking?.consultation_mode === 'in_clinic' ? 'In-Clinic' : 'Virtual Video Room'}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  backgroundColor: '#FAF6EE',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  border: '1px solid rgba(223, 171, 98, 0.2)',
+                }}
+              >
+                <div style={{ fontSize: '0.72rem', textTransform: 'uppercase', color: '#8C7768', fontWeight: 700 }}>
+                  Attending Doctor
+                </div>
+                <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2A170F', marginTop: '2px' }}>
+                  {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'Dr. Practitioner'}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Two-Column Clinical Encounter Details */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1.1fr)',
+              gap: '24px',
+              alignItems: 'start',
+            }}
+          >
+            {/* Left Column: Clinical Notes & Findings */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Diagnoses Card */}
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '18px',
+                  border: '1px solid rgba(223, 171, 98, 0.25)',
+                  padding: '24px',
+                  boxShadow: '0 4px 16px rgba(42, 23, 15, 0.04)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Stethoscope size={18} color="#DFAB62" />
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#2A170F' }}>
+                      Clinical Diagnoses & ICD-10 Coding
+                    </h3>
+                  </div>
+                  <span style={{ fontSize: '0.78rem', color: '#8C7768', fontWeight: 600 }}>
+                    {diagnoses.length} condition{diagnoses.length === 1 ? '' : 's'} recorded
+                  </span>
+                </div>
+
+                {diagnoses.length > 0 ? (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                    {diagnoses.map((d, idx) => (
+                      <div
+                        key={d.id || idx}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          padding: '6px 14px',
+                          borderRadius: '9999px',
+                          backgroundColor: idx === 0 ? 'rgba(223, 171, 98, 0.18)' : '#FAF6EE',
+                          border: idx === 0 ? '1.5px solid rgba(223, 171, 98, 0.6)' : '1px solid rgba(223, 171, 98, 0.25)',
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          color: '#2A170F',
+                        }}
+                      >
+                        <span style={{ color: '#8C5E28', fontWeight: 800 }}>{d.code}</span>
+                        <span>—</span>
+                        <span>{d.name}</span>
+                        {idx === 0 && (
+                          <span style={{ fontSize: '0.68rem', backgroundColor: '#DFAB62', color: '#2A170F', padding: '1px 6px', borderRadius: '4px', marginLeft: '4px' }}>
+                            PRIMARY
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p style={{ margin: 0, fontSize: '0.875rem', color: '#8C7768', fontStyle: 'italic' }}>
+                    No specific ICD-10 diagnostic codes were logged for this session.
+                  </p>
+                )}
+              </div>
+
+              {/* SOAP Notes Cards */}
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '18px',
+                  border: '1px solid rgba(223, 171, 98, 0.25)',
+                  padding: '24px',
+                  boxShadow: '0 4px 16px rgba(42, 23, 15, 0.04)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '20px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(223, 171, 98, 0.2)', paddingBottom: '12px' }}>
+                  <FileText size={18} color="#DFAB62" />
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#2A170F' }}>
+                    Clinical Documentation (SOAP Notes)
+                  </h3>
+                </div>
+
+                {/* Chief Complaint */}
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#8C7768', marginBottom: '6px' }}>
+                    Chief Complaint & Reason for Visit
+                  </div>
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      backgroundColor: '#FAF6EE',
+                      border: '1px solid rgba(223, 171, 98, 0.15)',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.5,
+                      color: '#2A170F',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {chiefComplaint || 'No chief complaint recorded.'}
+                  </div>
+                </div>
+
+                {/* HPI */}
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#8C7768', marginBottom: '6px' }}>
+                    History of Present Illness (HPI)
+                  </div>
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      backgroundColor: '#FAF6EE',
+                      border: '1px solid rgba(223, 171, 98, 0.15)',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.5,
+                      color: '#2A170F',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {hpi || 'No HPI recorded.'}
+                  </div>
+                </div>
+
+                {/* Assessment */}
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#8C7768', marginBottom: '6px' }}>
+                    Clinical Assessment & Observations
+                  </div>
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      backgroundColor: '#FAF6EE',
+                      border: '1px solid rgba(223, 171, 98, 0.15)',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.5,
+                      color: '#2A170F',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {assessment || 'No clinical assessment documented.'}
+                  </div>
+                </div>
+
+                {/* Plan */}
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#8C7768', marginBottom: '6px' }}>
+                    Management & Care Plan
+                  </div>
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      backgroundColor: '#FAF6EE',
+                      border: '1px solid rgba(223, 171, 98, 0.15)',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.5,
+                      color: '#2A170F',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {plan || 'No management plan recorded.'}
+                  </div>
+                </div>
+
+                {/* Patient Instructions */}
+                <div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#8C7768', marginBottom: '6px' }}>
+                    Patient Guidance & Home Instructions
+                  </div>
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(223, 171, 98, 0.08)',
+                      border: '1px solid rgba(223, 171, 98, 0.25)',
+                      fontSize: '0.9rem',
+                      lineHeight: 1.5,
+                      color: '#2A170F',
+                      whiteSpace: 'pre-wrap',
+                    }}
+                  >
+                    {patientInstructions || 'No specific patient instructions recorded.'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Right Column: Prescriptions, Medical Profile & Documents */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Prescriptions & Medications Card */}
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '18px',
+                  border: '1px solid rgba(223, 171, 98, 0.25)',
+                  padding: '24px',
+                  boxShadow: '0 4px 16px rgba(42, 23, 15, 0.04)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Pill size={18} color="#DFAB62" />
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#2A170F' }}>
+                      Prescription & Medications
+                    </h3>
+                  </div>
+                  {medications.length > 0 && (
+                    <span
+                      style={{
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        backgroundColor: 'rgba(223, 171, 98, 0.2)',
+                        color: '#8C5E28',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {medications.length} Item{medications.length === 1 ? '' : 's'}
+                    </span>
+                  )}
+                </div>
+
+                {medications.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    {medications.map((m, idx) => (
+                      <div
+                        key={m.id || idx}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          backgroundColor: '#FAF6EE',
+                          border: '1px solid rgba(223, 171, 98, 0.2)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#2A170F' }}>
+                            {m.name}
+                          </span>
+                          {m.dosage && (
+                            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#8C5E28' }}>
+                              {m.dosage}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#6B5E55', marginTop: '3px' }}>
+                          {[m.frequency, m.duration].filter(Boolean).join(' • ')}
+                        </div>
+                        {m.instructions && (
+                          <div style={{ fontSize: '0.78rem', color: '#8C7768', fontStyle: 'italic', marginTop: '4px' }}>
+                            Instructions: {m.instructions}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                      <Link
+                        href={`/consultations/${bookingId}/prescribe`}
+                        style={{
+                          flex: 1,
+                          padding: '9px 14px',
+                          borderRadius: '9999px',
+                          backgroundColor: '#FFFFFF',
+                          border: '1.5px solid rgba(223, 171, 98, 0.4)',
+                          color: '#2A170F',
+                          fontWeight: 700,
+                          fontSize: '0.8rem',
+                          textDecoration: 'none',
+                          textAlign: 'center',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                        }}
+                      >
+                        <Pill size={14} color="#DFAB62" />
+                        <span>View / Amend Script</span>
+                      </Link>
+                      {(issuedPrescription?.id || bookingId) && (
+                        <a
+                          href={`${API_BASE}/prescriptions/booking/${bookingId}/download`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            padding: '9px 14px',
+                            borderRadius: '9999px',
+                            backgroundColor: '#2A170F',
+                            color: '#FFFFFF',
+                            fontWeight: 700,
+                            fontSize: '0.8rem',
+                            textDecoration: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <Download size={14} />
+                          <span>PDF</span>
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{ textAlign: 'center', padding: '16px 10px' }}>
+                    <p style={{ margin: '0 0 14px', fontSize: '0.85rem', color: '#6B5E55', lineHeight: 1.5 }}>
+                      No medications have been prescribed yet for this consultation.
+                    </p>
+                    <Link
+                      href={`/consultations/${bookingId}/prescribe`}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        padding: '10px 20px',
+                        borderRadius: '9999px',
+                        backgroundColor: '#E2B467',
+                        color: '#2A170F',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        textDecoration: 'none',
+                        boxShadow: '0 4px 12px rgba(226, 180, 103, 0.3)',
+                      }}
+                    >
+                      <Plus size={15} />
+                      <span>Raise Prescription</span>
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Patient Medical Profile Card */}
+              <div
+                style={{
+                  backgroundColor: '#FFFFFF',
+                  borderRadius: '18px',
+                  border: '1px solid rgba(223, 171, 98, 0.25)',
+                  padding: '24px',
+                  boxShadow: '0 4px 16px rgba(42, 23, 15, 0.04)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                  <User size={18} color="#DFAB62" />
+                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#2A170F' }}>
+                    Patient Medical Context
+                  </h3>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Allergies */}
+                  <div
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: consultation?.patientMedicalProfile?.allergies ? 'rgba(239, 68, 68, 0.08)' : '#FAF6EE',
+                      border: consultation?.patientMedicalProfile?.allergies
+                        ? '1px solid rgba(239, 68, 68, 0.25)'
+                        : '1px solid rgba(223, 171, 98, 0.15)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        textTransform: 'uppercase',
+                        color: consultation?.patientMedicalProfile?.allergies ? '#dc2626' : '#8C7768',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      {consultation?.patientMedicalProfile?.allergies && <AlertTriangle size={12} />}
+                      Known Allergies & Adverse Reactions
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.85rem',
+                        fontWeight: consultation?.patientMedicalProfile?.allergies ? 700 : 500,
+                        color: consultation?.patientMedicalProfile?.allergies ? '#b91c1c' : '#2A170F',
+                        marginTop: '2px',
+                      }}
+                    >
+                      {consultation?.patientMedicalProfile?.allergies || 'No known drug or environmental allergies reported.'}
+                    </div>
+                  </div>
+
+                  {/* Chronic Conditions */}
+                  <div
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: '#FAF6EE',
+                      border: '1px solid rgba(223, 171, 98, 0.15)',
+                    }}
+                  >
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#8C7768' }}>
+                      Chronic Conditions & Comorbidities
+                    </div>
+                    <div style={{ fontSize: '0.85rem', color: '#2A170F', marginTop: '2px' }}>
+                      {consultation?.patientMedicalProfile?.chronic_conditions || 'None declared.'}
+                    </div>
+                  </div>
+
+                  {/* Blood Group */}
+                  <div
+                    style={{
+                      padding: '10px 14px',
+                      borderRadius: '10px',
+                      backgroundColor: '#FAF6EE',
+                      border: '1px solid rgba(223, 171, 98, 0.15)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#8C7768', textTransform: 'uppercase' }}>
+                      Blood Group
+                    </span>
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem', color: '#2A170F' }}>
+                      {consultation?.patientMedicalProfile?.blood_group || 'Not recorded'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Uploaded Documents Card */}
+              {consultation?.patientDocuments && consultation.patientDocuments.length > 0 && (
+                <div
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '18px',
+                    border: '1px solid rgba(223, 171, 98, 0.25)',
+                    padding: '24px',
+                    boxShadow: '0 4px 16px rgba(42, 23, 15, 0.04)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                    <ClipboardList size={18} color="#DFAB62" />
+                    <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#2A170F' }}>
+                      Attached Patient Documents ({consultation.patientDocuments.length})
+                    </h3>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {consultation.patientDocuments.map((doc) => (
+                      <a
+                        key={doc.id}
+                        href={doc.downloadUrl || `${API_BASE}/documents/${doc.id}/download`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '10px 12px',
+                          borderRadius: '10px',
+                          backgroundColor: '#FAF6EE',
+                          border: '1px solid rgba(223, 171, 98, 0.2)',
+                          textDecoration: 'none',
+                          color: '#2A170F',
+                          fontSize: '0.85rem',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                          <FileText size={15} color="#8C5E28" style={{ flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {doc.title || doc.original_filename}
+                          </span>
+                        </div>
+                        <ExternalLink size={14} color="#8C7768" style={{ flexShrink: 0 }} />
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
