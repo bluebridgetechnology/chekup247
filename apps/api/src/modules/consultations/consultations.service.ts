@@ -213,6 +213,10 @@ export class ConsultationsService {
       consultation = await this.provisionRoom(bookingId);
     }
 
+    if (consultation.ended_at || consultation.booking?.status === BookingStatus.COMPLETED) {
+      throw new BadRequestException('This consultation has already ended.');
+    }
+
     const isDoctor = role === 'doctor';
     let isFirst = false;
 

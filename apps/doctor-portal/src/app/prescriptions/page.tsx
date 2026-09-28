@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { SolarIcon } from '../../components/common/SolarIcon';
+import { SelectPrescriptionPatientModal } from '../../components/prescriptions/SelectPrescriptionPatientModal';
 
 interface MedicationItem {
   name?: string;
@@ -45,6 +46,7 @@ export default function PrescriptionsListPage() {
   const [isAmending, setIsAmending] = useState(false);
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
   const [activeKebabId, setActiveKebabId] = useState<string | null>(null);
+  const [showSelectPatientModal, setShowSelectPatientModal] = useState<boolean>(false);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
 
@@ -230,9 +232,22 @@ export default function PrescriptionsListPage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <Link href="/appointments" className="btn-primary" style={{ padding: '9px 20px', fontSize: '0.84rem' }}>
+            <button
+              type="button"
+              onClick={() => setShowSelectPatientModal(true)}
+              className="btn-primary"
+              style={{ padding: '9px 20px', fontSize: '0.84rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+            >
               <SolarIcon name="add-circle-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
-              <span>Issue From Appointment</span>
+              <span>Raise Prescription</span>
+            </button>
+            <Link
+              href="/appointments"
+              className="btn-secondary"
+              style={{ padding: '9px 18px', fontSize: '0.84rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <SolarIcon name="calendar-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+              <span>Appointments</span>
             </Link>
           </div>
         </div>
@@ -1287,6 +1302,12 @@ export default function PrescriptionsListPage() {
           </div>
         </div>
       )}
+
+      {/* Select Patient Modal for Raising Prescription */}
+      <SelectPrescriptionPatientModal
+        isOpen={showSelectPatientModal}
+        onClose={() => setShowSelectPatientModal(false)}
+      />
     </div>
   );
 }

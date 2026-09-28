@@ -55,20 +55,104 @@ export interface RecommendedLabTest {
   fasting?: boolean;
 }
 
-const COMMON_SA_LAB_TESTS = [
-  'Full Blood Count (FBC) + Diff',
-  'C-Reactive Protein (CRP)',
-  'Urea, Electrolytes & Creatinine (U&E)',
-  'Liver Function Tests (LFT)',
-  'HbA1c (Glycated Haemoglobin)',
-  'Fasting Lipogram / Lipid Profile',
-  'Urine Dipstick & MC&S',
-  'Thyroid Stimulating Hormone (TSH)',
-  'COVID-19 & Flu Rapid Antigen/PCR',
-  'Malaria Rapid Antigen Test',
-  'Serum Ferritin & Iron Studies',
-  'Erythrocyte Sedimentation Rate (ESR)',
+export interface CommonLabPanel {
+  name: string;
+  category: 'Hematology & Acute Phase' | 'Biochemistry & Organ Panels' | 'Endocrine & Metabolic' | 'Microbiology & Rapid Tests';
+  sampleType: string;
+  code: string;
+  description: string;
+  fasting?: boolean;
+}
+
+export const COMMON_SA_LAB_PANELS: CommonLabPanel[] = [
+  {
+    name: 'Full Blood Count (FBC) + Diff',
+    category: 'Hematology & Acute Phase',
+    sampleType: 'Whole Blood (EDTA)',
+    code: 'FBC',
+    description: 'RBC, WBC, platelets & full differential indices',
+  },
+  {
+    name: 'C-Reactive Protein (CRP)',
+    category: 'Hematology & Acute Phase',
+    sampleType: 'Serum (SST)',
+    code: 'CRP',
+    description: 'Quantitative marker for acute bacterial & systemic inflammation',
+  },
+  {
+    name: 'Erythrocyte Sedimentation Rate (ESR)',
+    category: 'Hematology & Acute Phase',
+    sampleType: 'Whole Blood (Sodium Citrate)',
+    code: 'ESR',
+    description: 'Nonspecific screening marker for systemic inflammatory states',
+  },
+  {
+    name: 'Serum Ferritin & Iron Studies',
+    category: 'Hematology & Acute Phase',
+    sampleType: 'Serum (SST)',
+    code: 'FE/FERR',
+    description: 'Total iron, transferrin, saturation & iron-store evaluation',
+  },
+  {
+    name: 'Urea, Electrolytes & Creatinine (U&E)',
+    category: 'Biochemistry & Organ Panels',
+    sampleType: 'Serum (SST)',
+    code: 'U&E',
+    description: 'Renal profile, eGFR, Sodium, Potassium, Chloride, Creatinine',
+  },
+  {
+    name: 'Liver Function Tests (LFT)',
+    category: 'Biochemistry & Organ Panels',
+    sampleType: 'Serum (SST)',
+    code: 'LFT',
+    description: 'ALT, AST, ALP, GGT, Total & Conjugated Bilirubin, Total Protein',
+  },
+  {
+    name: 'Fasting Lipogram / Lipid Profile',
+    category: 'Biochemistry & Organ Panels',
+    sampleType: 'Serum (SST)',
+    fasting: true,
+    code: 'LIPID',
+    description: 'Total cholesterol, HDL, LDL, Triglycerides (requires 10-12h fast)',
+  },
+  {
+    name: 'HbA1c (Glycated Haemoglobin)',
+    category: 'Endocrine & Metabolic',
+    sampleType: 'Whole Blood (EDTA)',
+    code: 'HBA1C',
+    description: '3-month retrospective glycaemic control for diabetes',
+  },
+  {
+    name: 'Thyroid Stimulating Hormone (TSH)',
+    category: 'Endocrine & Metabolic',
+    sampleType: 'Serum (SST)',
+    code: 'TSH',
+    description: 'First-line screening investigation for thyroid gland status',
+  },
+  {
+    name: 'Urine Dipstick & MC&S',
+    category: 'Microbiology & Rapid Tests',
+    sampleType: 'Midstream Urine (Sterile)',
+    code: 'UR-MCS',
+    description: 'Urinalysis microscopy, bacterial culture & antibiotic sensitivity',
+  },
+  {
+    name: 'COVID-19 & Flu Rapid Antigen/PCR',
+    category: 'Microbiology & Rapid Tests',
+    sampleType: 'Nasopharyngeal Swab',
+    code: 'RESP-AG',
+    description: 'SARS-CoV-2 and Influenza A/B rapid diagnostic screening',
+  },
+  {
+    name: 'Malaria Rapid Antigen Test',
+    category: 'Microbiology & Rapid Tests',
+    sampleType: 'Whole Blood (Capillary/EDTA)',
+    code: 'MAL-AG',
+    description: 'Plasmodium falciparum antigen rapid diagnostic screening',
+  },
 ];
+
+const COMMON_SA_LAB_TESTS = COMMON_SA_LAB_PANELS.map((p) => p.name);
 
 const cleanDoctorName = (name?: string) => {
   if (!name) return 'Dr. Practitioner';
@@ -92,9 +176,9 @@ export default function EPrescriptionBuilderPage() {
     email: string;
     phone: string;
   }>({
-    name: 'Sipho Sithole',
-    email: 'sipho.sithole@example.co.za',
-    phone: '+27 82 555 1234',
+    name: '',
+    email: '',
+    phone: '',
   });
 
   // Step / Tab State: 'form' (Step 1 & 2) | 'preview' (Step 3) | 'success'
@@ -129,19 +213,8 @@ export default function EPrescriptionBuilderPage() {
     setSymptoms((prev) => prev.filter((s) => s !== sym));
   };
 
-  // 2. Medication Repeater Items
-  const [medications, setMedications] = useState<MedicationRow[]>([
-    {
-      id: 'med-1',
-      name: 'Amoxicillin / Clavulanic Acid 1000mg',
-      nappi_code: '706035001',
-      schedule_flag: 'S4',
-      dosage: '1 tablet (1000mg)',
-      frequency: '12-hourly (BD)',
-      duration: '5 days',
-      instructions: 'Take with food or a large glass of water. Complete full course.',
-    },
-  ]);
+  // 2. Medication Repeater Items (starts clean/empty per clinical standards)
+  const [medications, setMedications] = useState<MedicationRow[]>([]);
 
   // Medication search per row
   const [activeSearchRowId, setActiveSearchRowId] = useState<string | null>(null);
@@ -183,13 +256,20 @@ export default function EPrescriptionBuilderPage() {
 
   // Recommended Laboratory & Pathology Tests State
   const [recommendedLabTests, setRecommendedLabTests] = useState<RecommendedLabTest[]>([]);
+  const [selectedLabCategory, setSelectedLabCategory] = useState<string>('ALL');
+  const [labSearchQuery, setLabSearchQuery] = useState<string>('');
   const [customLabTestName, setCustomLabTestName] = useState<string>('');
   const [customLabIndication, setCustomLabIndication] = useState<string>('');
   const [customLabUrgent, setCustomLabUrgent] = useState<boolean>(false);
   const [customLabFasting, setCustomLabFasting] = useState<boolean>(false);
   const [isAddingCustomLab, setIsAddingCustomLab] = useState<boolean>(false);
 
-  const toggleQuickLabTest = (testName: string) => {
+  const toggleQuickLabTest = (panelOrName: string | CommonLabPanel) => {
+    const testName = typeof panelOrName === 'string' ? panelOrName : panelOrName.name;
+    const panelObj = typeof panelOrName === 'string'
+      ? COMMON_SA_LAB_PANELS.find((p) => p.name.toLowerCase() === testName.toLowerCase())
+      : panelOrName;
+
     setRecommendedLabTests((prev) => {
       const exists = prev.some((t) => t.name.toLowerCase() === testName.toLowerCase());
       if (exists) {
@@ -202,7 +282,7 @@ export default function EPrescriptionBuilderPage() {
           name: testName,
           indication: selectedIcd10 ? `Investigate / monitor ${selectedIcd10.description}` : 'Clinical diagnostic investigation',
           urgent: false,
-          fasting: testName.toLowerCase().includes('lipogram') || testName.toLowerCase().includes('lipid') || testName.toLowerCase().includes('fasting'),
+          fasting: Boolean(panelObj?.fasting || testName.toLowerCase().includes('lipogram') || testName.toLowerCase().includes('lipid') || testName.toLowerCase().includes('fasting')),
         },
       ];
     });
@@ -435,21 +515,6 @@ export default function EPrescriptionBuilderPage() {
   const removeMedicationRow = (id: string) => {
     if (editingMedicationId === id) {
       setEditingMedicationId(null);
-    }
-    if (medications.length <= 1) {
-      setMedications([
-        {
-          id: `med-${Date.now()}`,
-          name: '',
-          nappi_code: '',
-          schedule_flag: 'S4',
-          dosage: '1 tablet',
-          frequency: 'Once daily',
-          duration: '5 days',
-          instructions: '',
-        },
-      ]);
-      return;
     }
     setMedications((prev) => prev.filter((r) => r.id !== id));
   };
@@ -1270,137 +1335,137 @@ export default function EPrescriptionBuilderPage() {
               </div>
 
               {/* Sane & Clean Medication List */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {medications.map((row, index) => (
-                  <div
-                    key={row.id}
-                    className="rx-med-card"
-                    onClick={() => openEditSidesheet(row.id)}
-                  >
-                    {/* Left: Index badge & Medication Overview */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
-                      <span
-                        style={{
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '50%',
-                          background: row.name ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-gold-pale, #F0E5D3)',
-                          color: row.name ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 800,
-                          fontSize: '0.85rem',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {index + 1}
-                      </span>
+              {medications.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {medications.map((row, index) => (
+                    <div
+                      key={row.id}
+                      className="rx-med-card"
+                      onClick={() => openEditSidesheet(row.id)}
+                    >
+                      {/* Left: Index badge & Medication Overview */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flex: 1, minWidth: 0 }}>
+                        <span
+                          style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            background: row.name ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-gold-pale, #F0E5D3)',
+                            color: row.name ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 800,
+                            fontSize: '0.85rem',
+                            flexShrink: 0,
+                          }}
+                        >
+                          {index + 1}
+                        </span>
 
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        {/* Title & Badges */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
-                          <span
-                            style={{
-                              fontWeight: 800,
-                              fontSize: '0.95rem',
-                              color: row.name ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-cream-text-muted, #6B5E55)',
-                              fontStyle: row.name ? 'normal' : 'italic',
-                            }}
-                          >
-                            {row.name || 'Unnamed medication — click to configure details'}
-                          </span>
-
-                          {row.schedule_flag && (
+                        <div style={{ minWidth: 0, flex: 1 }}>
+                          {/* Title & Badges */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
                             <span
                               style={{
-                                fontSize: '0.725rem',
                                 fontWeight: 800,
-                                padding: '2px 8px',
-                                borderRadius: '9999px',
-                                background:
-                                  row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
-                                    ? '#fee2e2'
-                                    : 'var(--color-gold-pale, #F0E5D3)',
-                                color:
-                                  row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
-                                    ? '#dc2626'
-                                    : 'var(--color-chocolate-base, #2A170F)',
-                                border:
-                                  row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
-                                    ? '1px solid #fca5a5'
-                                    : '1px solid rgba(223, 171, 98, 0.4)',
+                                fontSize: '0.95rem',
+                                color: row.name ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-cream-text-muted, #6B5E55)',
+                                fontStyle: row.name ? 'normal' : 'italic',
                               }}
                             >
-                              Schedule {row.schedule_flag}
+                              {row.name || 'Unnamed medication — click to configure details'}
                             </span>
-                          )}
 
-                          {row.nappi_code && (
-                            <span
-                              style={{
-                                fontSize: '0.725rem',
-                                fontFamily: 'monospace',
-                                fontWeight: 700,
-                                color: 'var(--color-cream-text-muted, #6B5E55)',
-                                background: 'rgba(223, 171, 98, 0.15)',
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                              }}
-                            >
-                              NAPPI: {row.nappi_code}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Dosage, Frequency, Duration & Instructions snippet */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px 12px', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                          <span>
-                            <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Dosage:</strong> {row.dosage || '1 dose'}
-                          </span>
-                          <span>•</span>
-                          <span>
-                            <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Frequency:</strong> {row.frequency || 'Daily'}
-                          </span>
-                          <span>•</span>
-                          <span>
-                            <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Duration:</strong> {row.duration || '5 days'}
-                          </span>
-                          {row.instructions && (
-                            <>
-                              <span>•</span>
-                              <span style={{ fontStyle: 'italic', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                &ldquo;{row.instructions}&rdquo;
+                            {row.schedule_flag && (
+                              <span
+                                style={{
+                                  fontSize: '0.725rem',
+                                  fontWeight: 800,
+                                  padding: '2px 8px',
+                                  borderRadius: '9999px',
+                                  background:
+                                    row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
+                                      ? '#fee2e2'
+                                      : 'var(--color-gold-pale, #F0E5D3)',
+                                  color:
+                                    row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
+                                      ? '#dc2626'
+                                      : 'var(--color-chocolate-base, #2A170F)',
+                                  border:
+                                    row.schedule_flag === 'S5' || row.schedule_flag === 'S6'
+                                      ? '1px solid #fca5a5'
+                                      : '1px solid rgba(223, 171, 98, 0.4)',
+                                }}
+                              >
+                                Schedule {row.schedule_flag}
                               </span>
-                            </>
-                          )}
+                            )}
+
+                            {row.nappi_code && (
+                              <span
+                                style={{
+                                  fontSize: '0.725rem',
+                                  fontFamily: 'monospace',
+                                  fontWeight: 700,
+                                  color: 'var(--color-cream-text-muted, #6B5E55)',
+                                  background: 'rgba(223, 171, 98, 0.15)',
+                                  padding: '1px 6px',
+                                  borderRadius: '4px',
+                                }}
+                              >
+                                NAPPI: {row.nappi_code}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Dosage, Frequency, Duration & Instructions snippet */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px 12px', flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                            <span>
+                              <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Dosage:</strong> {row.dosage || '1 dose'}
+                            </span>
+                            <span>•</span>
+                            <span>
+                              <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Frequency:</strong> {row.frequency || 'Daily'}
+                            </span>
+                            <span>•</span>
+                            <span>
+                              <strong style={{ color: 'var(--color-chocolate-base, #2A170F)' }}>Duration:</strong> {row.duration || '5 days'}
+                            </span>
+                            {row.instructions && (
+                              <>
+                                <span>•</span>
+                                <span style={{ fontStyle: 'italic', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  &ldquo;{row.instructions}&rdquo;
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Right: Actions */}
-                    <div className="rx-med-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openEditSidesheet(row.id);
-                        }}
-                        className="btn-secondary"
-                        style={{
-                          padding: '6px 12px',
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                        }}
-                      >
-                        <SolarIcon name="pen-new-square-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
-                        <span>Edit Details</span>
-                      </button>
+                      {/* Right: Actions */}
+                      <div className="rx-med-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEditSidesheet(row.id);
+                          }}
+                          className="btn-secondary"
+                          style={{
+                            padding: '6px 12px',
+                            fontSize: '0.78rem',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                          }}
+                        >
+                          <SolarIcon name="pen-new-square-linear" size={14} color="var(--color-chocolate-base, #2A170F)" />
+                          <span>Edit Details</span>
+                        </button>
 
-                      {medications.length > 1 && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1425,44 +1490,88 @@ export default function EPrescriptionBuilderPage() {
                         >
                           <SolarIcon name="trash-bin-trash-linear" size={17} color="#dc2626" />
                         </button>
-                      )}
 
-                      <SolarIcon name="alt-arrow-right-linear" size={16} color="var(--color-gold-base, #DFAB62)" />
+                        <SolarIcon name="alt-arrow-right-linear" size={16} color="var(--color-gold-base, #DFAB62)" />
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
 
-                {/* Quick Add Another Medication Dashed Card */}
-                <button
-                  type="button"
-                  onClick={addMedicationAndOpenSidesheet}
+                  {/* Quick Add Another Medication Dashed Card */}
+                  <button
+                    type="button"
+                    onClick={addMedicationAndOpenSidesheet}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      padding: '14px',
+                      borderRadius: '12px',
+                      border: '1.5px dashed var(--color-gold-base, #DFAB62)',
+                      background: 'rgba(223, 171, 98, 0.04)',
+                      color: 'var(--color-chocolate-base, #2A170F)',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      transition: 'all 0.18s ease',
+                      width: '100%',
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = 'var(--color-gold-pale, #F0E5D3)';
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(223, 171, 98, 0.04)';
+                    }}
+                  >
+                    <SolarIcon name="add-circle-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
+                    <span>Add Another Medication Item</span>
+                  </button>
+                </div>
+              ) : (
+                <div
                   style={{
+                    padding: '36px 24px',
+                    borderRadius: '16px',
+                    border: '1.5px dashed rgba(223, 171, 98, 0.4)',
+                    backgroundColor: 'rgba(223, 171, 98, 0.03)',
+                    textAlign: 'center',
                     display: 'flex',
+                    flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px',
-                    padding: '14px',
-                    borderRadius: '12px',
-                    border: '1.5px dashed var(--color-gold-base, #DFAB62)',
-                    background: 'rgba(223, 171, 98, 0.04)',
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    transition: 'all 0.18s ease',
-                    width: '100%',
-                  }}
-                  onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'var(--color-gold-pale, #F0E5D3)';
-                  }}
-                  onMouseLeave={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(223, 171, 98, 0.04)';
+                    gap: '12px',
                   }}
                 >
-                  <SolarIcon name="add-circle-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
-                  <span>Add Another Medication Item</span>
-                </button>
-              </div>
+                  <div
+                    style={{
+                      width: '52px',
+                      height: '52px',
+                      borderRadius: '50%',
+                      backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <SolarIcon name="pill-linear" size={26} color="var(--color-chocolate-base, #2A170F)" />
+                  </div>
+                  <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
+                    No Medications Prescribed Yet
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)', maxWidth: '440px', lineHeight: 1.5 }}>
+                    This prescription is currently empty. Click the button below to add medication items, select dosages, and search the South African NAPPI catalogue.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={addMedicationAndOpenSidesheet}
+                    className="btn-primary"
+                    style={{ padding: '10px 22px', fontSize: '0.85rem', marginTop: '6px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                  >
+                    <SolarIcon name="add-circle-linear" size={17} color="var(--color-chocolate-base, #2A170F)" />
+                    <span>Add First Medication</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Schedule 5/6 Verification Banner */}
@@ -1519,140 +1628,181 @@ export default function EPrescriptionBuilderPage() {
             )}
 
             {/* Step 3: Recommended Laboratory & Pathology Investigations */}
-            <div className="portal-card">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <SolarIcon name="test-tube-linear" size={20} color="var(--color-gold-base, #DFAB62)" />
+            <div className="portal-card" style={{ padding: '24px 26px' }}>
+              {/* Header with Badges and CTA */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                  marginBottom: '20px',
+                  paddingBottom: '16px',
+                  borderBottom: '1px solid rgba(223, 171, 98, 0.2)',
+                }}
+              >
+                <div style={{ maxWidth: '640px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <div
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'var(--color-gold-pale, #F0E5D3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                      }}
+                    >
+                      <SolarIcon name="test-tube-linear" size={18} color="var(--color-chocolate-base, #2A170F)" />
+                    </div>
                     <h3
                       style={{
                         fontFamily: 'var(--font-heading)',
-                        fontSize: '1.15rem',
+                        fontSize: '1.25rem',
                         fontWeight: 'var(--font-heading-weight, 400)',
                         color: 'var(--color-chocolate-base, #2A170F)',
                         margin: 0,
                       }}
                     >
-                      Recommended Laboratory &amp; Pathology Tests
+                      Pathology &amp; Laboratory Investigations
                     </h3>
                     <span
                       style={{
-                        padding: '2px 8px',
+                        padding: '3px 10px',
                         borderRadius: '9999px',
                         fontSize: '0.75rem',
                         fontWeight: 800,
-                        background: 'var(--color-gold-pale, #F0E5D3)',
-                        color: 'var(--color-chocolate-base, #2A170F)',
+                        background: recommendedLabTests.length > 0 ? '#dcfce7' : 'var(--color-gold-pale, #F0E5D3)',
+                        color: recommendedLabTests.length > 0 ? '#15803d' : 'var(--color-chocolate-base, #2A170F)',
+                        border: recommendedLabTests.length > 0 ? '1px solid #86efac' : 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}
                     >
+                      {recommendedLabTests.length > 0 && <span>✓</span>}
                       {recommendedLabTests.length} selected
                     </span>
                   </div>
-                  <p style={{ margin: '3px 0 0 0', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                    Optional: Recommend blood, urine, or microbiology investigations for the patient to complete at Ampath, Lancet, or PathCare.
+                  <p style={{ margin: '0 0 6px 0', fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)', lineHeight: 1.45 }}>
+                    Select diagnostic pathology investigations to include in the official signed requisition for the patient. Requisitions are accepted at all accredited South African laboratories.
                   </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span
+                      style={{
+                        fontSize: '0.72rem',
+                        fontWeight: 700,
+                        color: 'var(--color-gold-bronze, #B88647)',
+                        backgroundColor: 'rgba(223, 171, 98, 0.12)',
+                        padding: '2px 8px',
+                        borderRadius: '6px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      <SolarIcon name="shield-check-linear" size={13} color="var(--color-gold-bronze, #B88647)" />
+                      Ampath • Lancet Laboratories • PathCare Requisition Network
+                    </span>
+                  </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsAddingCustomLab((prev) => !prev)}
-                  className="btn-secondary"
-                  style={{ padding: '7px 14px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <SolarIcon name="add-circle-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
-                  <span>{isAddingCustomLab ? 'Close Custom Test' : '+ Custom Lab Test'}</span>
-                </button>
-              </div>
-
-              {/* Quick Common SA Pathology Test Chips */}
-              <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-cream-text-muted, #6B5E55)', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  Quick Common SA Pathology Panels:
-                </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                  {COMMON_SA_LAB_TESTS.map((testName) => {
-                    const isSelected = recommendedLabTests.some((t) => t.name.toLowerCase() === testName.toLowerCase());
-                    return (
-                      <button
-                        key={testName}
-                        type="button"
-                        onClick={() => toggleQuickLabTest(testName)}
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '8px',
-                          border: isSelected
-                            ? '1.5px solid var(--color-chocolate-base, #2A170F)'
-                            : '1px solid rgba(223, 171, 98, 0.3)',
-                          background: isSelected ? 'var(--color-chocolate-base, #2A170F)' : '#FFFFFF',
-                          color: isSelected ? '#FFFFFF' : 'var(--color-chocolate-base, #2A170F)',
-                          fontSize: '0.78rem',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          transition: 'all 0.15s ease',
-                        }}
-                      >
-                        <span>{isSelected ? '✓ ' + testName : '+ ' + testName}</span>
-                      </button>
-                    );
-                  })}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingCustomLab((prev) => !prev)}
+                    className={isAddingCustomLab ? 'btn-secondary' : 'btn-primary'}
+                    style={{ padding: '8px 16px', fontSize: '0.825rem', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <SolarIcon
+                      name={isAddingCustomLab ? 'close-circle-linear' : 'add-circle-linear'}
+                      size={16}
+                      color={isAddingCustomLab ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-chocolate-base, #2A170F)'}
+                    />
+                    <span>{isAddingCustomLab ? 'Close Custom Form' : '+ Custom Investigation'}</span>
+                  </button>
                 </div>
               </div>
 
-              {/* Custom Lab Test Add Box */}
+              {/* Custom Lab Test Add Drawer */}
               {isAddingCustomLab && (
                 <div
                   style={{
                     backgroundColor: '#FAF6EE',
                     border: '1.5px solid var(--color-gold-base, #DFAB62)',
-                    borderRadius: '12px',
-                    padding: '14px',
-                    marginBottom: '14px',
+                    borderRadius: '16px',
+                    padding: '18px 22px',
+                    marginBottom: '22px',
                     display: 'flex',
                     flexDirection: 'column',
-                    gap: '10px',
+                    gap: '14px',
+                    boxShadow: '0 4px 16px rgba(42, 23, 15, 0.05)',
                   }}
                 >
-                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: '#2A170F' }}>
-                    Specify Custom Pathology / Diagnostic Investigation
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <SolarIcon name="pen-new-square-linear" size={17} color="var(--color-gold-bronze, #B88647)" />
+                      <span style={{ fontSize: '0.9rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                        Specify Custom Pathology Investigation
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                      Non-standard or specialized laboratory tests
+                    </span>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <input
-                      type="text"
-                      value={customLabTestName}
-                      onChange={(e) => setCustomLabTestName(e.target.value)}
-                      placeholder="Investigation Name (e.g. Serum Ferritin, Troponin I, Vitamin D)..."
-                      className="portal-input"
-                      style={{ fontSize: '0.825rem' }}
-                    />
-                    <input
-                      type="text"
-                      value={customLabIndication}
-                      onChange={(e) => setCustomLabIndication(e.target.value)}
-                      placeholder="Clinical Indication / Reason (e.g. Exclude microcytic anaemia)..."
-                      className="portal-input"
-                      style={{ fontSize: '0.825rem' }}
-                    />
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', marginBottom: '5px' }}>
+                        Investigation Name *
+                      </label>
+                      <input
+                        type="text"
+                        value={customLabTestName}
+                        onChange={(e) => setCustomLabTestName(e.target.value)}
+                        placeholder="e.g. Serum Ferritin, Troponin I, Vitamin D (25-OH), D-Dimer..."
+                        className="portal-input"
+                        style={{ fontSize: '0.85rem' }}
+                        autoFocus
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', marginBottom: '5px' }}>
+                        Clinical Indication / Reason (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={customLabIndication}
+                        onChange={(e) => setCustomLabIndication(e.target.value)}
+                        placeholder="e.g. Exclude iron-deficiency anaemia, monitor response..."
+                        className="portal-input"
+                        style={{ fontSize: '0.85rem' }}
+                      />
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                    <div style={{ display: 'flex', gap: '14px' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '14px', paddingTop: '4px' }}>
+                    <div style={{ display: 'flex', gap: '18px', flexWrap: 'wrap' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.825rem', cursor: 'pointer', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
                         <input
                           type="checkbox"
                           checked={customLabFasting}
                           onChange={(e) => setCustomLabFasting(e.target.checked)}
+                          style={{ accentColor: 'var(--color-chocolate-base, #2A170F)', width: '16px', height: '16px' }}
                         />
-                        <span>Fasting Required</span>
+                        <span>Fasting Required (10–12 hours)</span>
                       </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem', cursor: 'pointer' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '7px', fontSize: '0.825rem', cursor: 'pointer', fontWeight: 600 }}>
                         <input
                           type="checkbox"
                           checked={customLabUrgent}
                           onChange={(e) => setCustomLabUrgent(e.target.checked)}
+                          style={{ accentColor: '#dc2626', width: '16px', height: '16px' }}
                         />
-                        <span style={{ color: customLabUrgent ? '#DC2626' : 'inherit', fontWeight: customLabUrgent ? 700 : 400 }}>
+                        <span style={{ color: customLabUrgent ? '#dc2626' : 'var(--color-chocolate-base, #2A170F)' }}>
                           Urgent / STAT Priority
                         </span>
                       </label>
@@ -1663,7 +1813,7 @@ export default function EPrescriptionBuilderPage() {
                         type="button"
                         onClick={() => setIsAddingCustomLab(false)}
                         className="btn-secondary"
-                        style={{ padding: '6px 12px', fontSize: '0.78rem' }}
+                        style={{ padding: '7px 14px', fontSize: '0.8rem' }}
                       >
                         Cancel
                       </button>
@@ -1672,106 +1822,404 @@ export default function EPrescriptionBuilderPage() {
                         onClick={() => handleAddCustomLabTest()}
                         disabled={!customLabTestName.trim()}
                         className="btn-primary"
-                        style={{ padding: '6px 16px', fontSize: '0.78rem' }}
+                        style={{ padding: '7px 18px', fontSize: '0.8rem' }}
                       >
-                        Add Investigation
+                        Add to Requisition
                       </button>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Active Recommended Lab Tests List */}
-              {recommendedLabTests.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {recommendedLabTests.map((t, idx) => (
-                    <div
-                      key={t.id}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        background: '#FFFFFF',
-                        border: '1px solid rgba(223, 171, 98, 0.3)',
-                        boxShadow: '0 2px 4px rgba(42, 23, 15, 0.02)',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <span
+              {/* Category Filter Tabs & Quick Search */}
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+                  {/* Category Pills */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                    {[
+                      { id: 'ALL', label: 'All Panels', count: COMMON_SA_LAB_PANELS.length },
+                      { id: 'Hematology & Acute Phase', label: 'Hematology & Acute Phase', count: COMMON_SA_LAB_PANELS.filter((p) => p.category === 'Hematology & Acute Phase').length },
+                      { id: 'Biochemistry & Organ Panels', label: 'Biochemistry & Organ Panels', count: COMMON_SA_LAB_PANELS.filter((p) => p.category === 'Biochemistry & Organ Panels').length },
+                      { id: 'Endocrine & Metabolic', label: 'Endocrine & Metabolic', count: COMMON_SA_LAB_PANELS.filter((p) => p.category === 'Endocrine & Metabolic').length },
+                      { id: 'Microbiology & Rapid Tests', label: 'Microbiology & Rapid Tests', count: COMMON_SA_LAB_PANELS.filter((p) => p.category === 'Microbiology & Rapid Tests').length },
+                    ].map((cat) => {
+                      const isActive = selectedLabCategory === cat.id;
+                      return (
+                        <button
+                          key={cat.id}
+                          type="button"
+                          onClick={() => setSelectedLabCategory(cat.id)}
                           style={{
-                            width: '24px',
-                            height: '24px',
-                            borderRadius: '50%',
-                            background: 'var(--color-gold-pale, #F0E5D3)',
-                            color: 'var(--color-chocolate-base, #2A170F)',
-                            display: 'flex',
+                            padding: '6px 12px',
+                            borderRadius: '9999px',
+                            border: isActive ? '1.5px solid var(--color-chocolate-base, #2A170F)' : '1px solid rgba(223, 171, 98, 0.3)',
+                            background: isActive ? 'var(--color-chocolate-base, #2A170F)' : '#FFFFFF',
+                            color: isActive ? '#FFFFFF' : 'var(--color-chocolate-base, #2A170F)',
+                            fontSize: '0.78rem',
+                            fontWeight: isActive ? 700 : 500,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.75rem',
-                            fontWeight: 800,
+                            gap: '6px',
+                            transition: 'all 0.15s ease',
                           }}
                         >
-                          {idx + 1}
-                        </span>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
-                            {t.name}
-                          </div>
-                          {t.indication && (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', marginTop: '2px' }}>
-                              Indication: {t.indication}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                          <span>{cat.label}</span>
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              padding: '1px 6px',
+                              borderRadius: '9999px',
+                              backgroundColor: isActive ? 'rgba(255, 255, 255, 0.2)' : 'var(--color-gold-pale, #F0E5D3)',
+                              color: isActive ? '#FFFFFF' : 'var(--color-chocolate-base, #2A170F)',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {cat.count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {t.fasting && (
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' }}>
-                            FASTING
-                          </span>
-                        )}
-                        {t.urgent && (
-                          <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 6px', borderRadius: '4px', background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' }}>
-                            URGENT
-                          </span>
-                        )}
+                  {/* Search Bar */}
+                  <div style={{ minWidth: '220px', flex: 1, maxWidth: '320px' }}>
+                    <div className="doctors-search-pill" style={{ height: '36px', padding: '0 12px' }}>
+                      <SolarIcon name="magnifer-linear" size={15} color="var(--color-gold-base, #DFAB62)" />
+                      <input
+                        type="text"
+                        value={labSearchQuery}
+                        onChange={(e) => setLabSearchQuery(e.target.value)}
+                        placeholder="Search panel or code (e.g. FBC, LFT)..."
+                        className="doctors-search-input"
+                        style={{ fontSize: '0.8rem' }}
+                      />
+                      {labSearchQuery && (
                         <button
                           type="button"
-                          onClick={() => removeLabTest(t.id)}
-                          title="Remove test"
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#DC2626',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                          }}
+                          onClick={() => setLabSearchQuery('')}
+                          style={{ background: 'none', border: 'none', color: '#6B5E55', cursor: 'pointer', fontSize: '0.75rem' }}
                         >
-                          <SolarIcon name="trash-bin-trash-linear" size={16} color="#DC2626" />
+                          ✕
                         </button>
-                      </div>
+                      )}
                     </div>
-                  ))}
+                  </div>
                 </div>
-              ) : (
+
+                {/* Common SA Pathology Panels Grid */}
                 <div
                   style={{
-                    padding: '16px',
-                    borderRadius: '10px',
-                    border: '1.5px dashed rgba(223, 171, 98, 0.35)',
-                    textAlign: 'center',
-                    color: 'var(--color-cream-text-muted, #6B5E55)',
-                    fontSize: '0.8rem',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                    gap: '10px',
+                    marginBottom: '20px',
                   }}
                 >
-                  No lab tests recommended yet. Click any pathology test chip above or specify a custom test if required for this patient.
+                  {COMMON_SA_LAB_PANELS.filter((panel) => {
+                    if (selectedLabCategory !== 'ALL' && panel.category !== selectedLabCategory) {
+                      return false;
+                    }
+                    if (labSearchQuery.trim()) {
+                      const q = labSearchQuery.toLowerCase();
+                      return (
+                        panel.name.toLowerCase().includes(q) ||
+                        panel.code.toLowerCase().includes(q) ||
+                        panel.description.toLowerCase().includes(q) ||
+                        panel.sampleType.toLowerCase().includes(q)
+                      );
+                    }
+                    return true;
+                  }).map((panel) => {
+                    const isSelected = recommendedLabTests.some(
+                      (t) => t.name.toLowerCase() === panel.name.toLowerCase(),
+                    );
+
+                    return (
+                      <div
+                        key={panel.code}
+                        onClick={() => toggleQuickLabTest(panel)}
+                        style={{
+                          padding: '12px 14px',
+                          borderRadius: '12px',
+                          border: isSelected
+                            ? '1.5px solid var(--color-chocolate-base, #2A170F)'
+                            : '1px solid rgba(223, 171, 98, 0.3)',
+                          backgroundColor: isSelected ? '#FAF6EE' : '#FFFFFF',
+                          boxShadow: isSelected
+                            ? '0 3px 10px rgba(42, 23, 15, 0.08)'
+                            : '0 1px 3px rgba(42, 23, 15, 0.02)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          cursor: 'pointer',
+                          transition: 'all 0.18s ease',
+                          position: 'relative',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            (e.currentTarget as HTMLElement).style.borderColor = 'var(--color-gold-base, #DFAB62)';
+                            (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            (e.currentTarget as HTMLElement).style.borderColor = 'rgba(223, 171, 98, 0.3)';
+                            (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+                          }
+                        }}
+                      >
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '4px' }}>
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 800,
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: isSelected ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-gold-pale, #F0E5D3)',
+                                color: isSelected ? '#FFFFFF' : 'var(--color-chocolate-base, #2A170F)',
+                                fontFamily: 'monospace',
+                              }}
+                            >
+                              {panel.code}
+                            </span>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              {panel.fasting && (
+                                <span
+                                  style={{
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    backgroundColor: '#FEF3C7',
+                                    color: '#92400E',
+                                    border: '1px solid #FCD34D',
+                                  }}
+                                >
+                                  FASTING
+                                </span>
+                              )}
+                              <span
+                                style={{
+                                  width: '20px',
+                                  height: '20px',
+                                  borderRadius: '50%',
+                                  backgroundColor: isSelected ? 'var(--color-chocolate-base, #2A170F)' : '#FFFFFF',
+                                  border: isSelected ? 'none' : '1.5px solid rgba(223, 171, 98, 0.5)',
+                                  color: '#FFFFFF',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 800,
+                                }}
+                              >
+                                {isSelected ? '✓' : '+'}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              fontWeight: 800,
+                              fontSize: '0.875rem',
+                              color: 'var(--color-chocolate-base, #2A170F)',
+                              lineHeight: 1.3,
+                              marginBottom: '4px',
+                            }}
+                          >
+                            {panel.name}
+                          </div>
+
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', lineHeight: 1.35 }}>
+                            {panel.description}
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--color-cream-text-muted, #6B5E55)', paddingTop: '4px', borderTop: '1px solid rgba(223, 171, 98, 0.15)' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <SolarIcon name="test-tube-linear" size={13} color="var(--color-gold-bronze, #B88647)" />
+                            <span>{panel.sampleType}</span>
+                          </span>
+
+                          <span style={{ fontWeight: 700, color: isSelected ? '#15803d' : 'var(--color-gold-bronze, #B88647)' }}>
+                            {isSelected ? 'Added to Rx' : '+ Add Test'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
+
+              {/* Active Recommended Lab Tests Requisition Manifest */}
+              <div style={{ marginTop: '10px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                    Requisition Manifest ({recommendedLabTests.length} item{recommendedLabTests.length === 1 ? '' : 's'})
+                  </div>
+                  {recommendedLabTests.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setRecommendedLabTests([])}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#dc2626',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Clear All Tests
+                    </button>
+                  )}
+                </div>
+
+                {recommendedLabTests.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {recommendedLabTests.map((t, idx) => (
+                      <div
+                        key={t.id}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '12px 16px',
+                          borderRadius: '12px',
+                          background: '#FFFFFF',
+                          border: '1.5px solid rgba(223, 171, 98, 0.3)',
+                          boxShadow: '0 2px 6px rgba(42, 23, 15, 0.03)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                          <span
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              background: 'var(--color-chocolate-base, #2A170F)',
+                              color: '#FFFFFF',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.78rem',
+                              fontWeight: 800,
+                              flexShrink: 0,
+                            }}
+                          >
+                            {idx + 1}
+                          </span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '2px' }}>
+                              <span style={{ fontWeight: 800, fontSize: '0.92rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
+                                {t.name}
+                              </span>
+                              {t.fasting && (
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: '#FEF3C7', color: '#92400E', border: '1px solid #FCD34D' }}>
+                                  FASTING REQUIRED
+                                </span>
+                              )}
+                              {t.urgent && (
+                                <span style={{ fontSize: '0.6875rem', fontWeight: 700, padding: '2px 7px', borderRadius: '4px', background: '#FEE2E2', color: '#991B1B', border: '1px solid #FCA5A5' }}>
+                                  URGENT / STAT
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                              <span>Indication:</span>
+                              <input
+                                type="text"
+                                value={t.indication || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setRecommendedLabTests((prev) =>
+                                    prev.map((item) => (item.id === t.id ? { ...item, indication: val } : item)),
+                                  );
+                                }}
+                                placeholder="Specify diagnostic indication (e.g. routine monitoring, rule out deficiency)..."
+                                style={{
+                                  border: 'none',
+                                  borderBottom: '1px dashed rgba(223, 171, 98, 0.4)',
+                                  background: 'transparent',
+                                  fontSize: '0.78rem',
+                                  color: 'var(--color-chocolate-base, #2A170F)',
+                                  padding: '2px 4px',
+                                  width: '70%',
+                                  outline: 'none',
+                                }}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                          <button
+                            type="button"
+                            onClick={() => removeLabTest(t.id)}
+                            title="Remove test from requisition"
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#DC2626',
+                              cursor: 'pointer',
+                              padding: '6px',
+                              borderRadius: '6px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              transition: 'background 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => ((e.currentTarget as HTMLElement).style.background = '#FEE2E2')}
+                            onMouseLeave={(e) => ((e.currentTarget as HTMLElement).style.background = 'none')}
+                          >
+                            <SolarIcon name="trash-bin-trash-linear" size={17} color="#DC2626" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      padding: '24px 20px',
+                      borderRadius: '14px',
+                      border: '1.5px dashed rgba(223, 171, 98, 0.35)',
+                      backgroundColor: 'rgba(223, 171, 98, 0.03)',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                      }}
+                    >
+                      <SolarIcon name="test-tube-linear" size={20} color="var(--color-chocolate-base, #2A170F)" />
+                    </div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
+                      No Pathology Investigations Added
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)', maxWidth: '420px', lineHeight: 1.45 }}>
+                      Select any panel from the categorized tiles above or click &ldquo;+ Custom Investigation&rdquo; to include diagnostic laboratory directives on the patient&apos;s prescription.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Proceed to Preview CTA */}
