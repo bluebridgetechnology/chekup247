@@ -4,7 +4,6 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SolarIcon } from './SolarIcon';
-import { getDoctorRegisterUrl } from '../lib/urls';
 
 export function HeroSection() {
   return (
@@ -136,7 +135,7 @@ export function HeroSection() {
             prescriptions, follow-ups and more — all from the comfort of your home or on the go.
           </p>
 
-          {/* CTA Row: Book a Consultation & Join as a Doctor */}
+          {/* CTA Row: Book a Consultation */}
           <div className="hero-cta-row">
             {/* Primary CTA: Book a Consultation */}
             <Link
@@ -146,16 +145,6 @@ export function HeroSection() {
               <span>Book a Consultation</span>
               <SolarIcon name="calendar-date-bold-duotone" size={20} />
             </Link>
-
-            {/* Secondary CTA: Join as a Doctor -> Doctor Registration Page */}
-            <a
-              href={getDoctorRegisterUrl()}
-              className="hero-btn-outline"
-              title="Register as a Doctor on Chekup247"
-            >
-              <span>Join as a Doctor</span>
-              <SolarIcon name="arrow-right-linear" size={18} />
-            </a>
           </div>
 
           {/* Feature Mini-Nav Indicators */}

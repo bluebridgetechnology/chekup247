@@ -906,7 +906,10 @@ export default function DoctorManagementPage() {
                       {/* Rate & Rating */}
                       <td style={{ verticalAlign: 'middle' }}>
                         <div style={{ fontWeight: 700, color: '#18A875', fontSize: '0.875rem' }}>
-                          {doc.rate_per_hour ? `R ${Number(doc.rate_per_hour).toFixed(2)}/hr` : 'Not provided'}
+                          R {Number(doc.rate_per_hour || 850).toFixed(2)}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#B98232', fontWeight: 600 }}>
+                          Platform Standard Rate
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.75rem', color: '#766C64', marginTop: '2px' }}>
                           <Star size={11} color="#DFA34F" fill="#DFA34F" />
@@ -1266,7 +1269,10 @@ export default function DoctorManagementPage() {
                       <div>
                         <div style={{ color: '#766C64', fontSize: '0.75rem' }}>Consultation Fee:</div>
                         <div style={{ fontWeight: 700, color: '#18A875', marginTop: '2px' }}>
-                          R {Number(selectedDoctor.rate_per_hour || 750).toFixed(2)}/hr
+                          R {Number(selectedDoctor.rate_per_hour || 850).toFixed(2)}
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#B98232', fontWeight: 600 }}>
+                          Platform Standard Rate
                         </div>
                       </div>
 

@@ -21,6 +21,7 @@ function DoctorLoginContent() {
   const [ssoLoading, setSsoLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const isDevLogin = searchParams?.get('dev_login') === 'true';
   const urlError = searchParams?.get('error');
 
   useEffect(() => {
@@ -272,71 +273,6 @@ function DoctorLoginContent() {
             </p>
           </div>
 
-          {/* LocumStaff SSO Button */}
-          <button
-            type="button"
-            onClick={handleLocumStaffLogin}
-            disabled={ssoLoading || loading}
-            style={{
-              width: '100%',
-              height: '48px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              borderRadius: 'var(--radius-full, 9999px)',
-              backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
-              border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.4))',
-              color: 'var(--color-chocolate-base, #2A170F)',
-              fontSize: '0.9rem',
-              fontWeight: 600,
-              cursor: ssoLoading || loading ? 'wait' : 'pointer',
-              transition: 'background-color 0.18s ease, border-color 0.18s ease',
-              opacity: ssoLoading ? 0.8 : 1,
-            }}
-            onMouseEnter={(e) => {
-              if (!ssoLoading) {
-                e.currentTarget.style.backgroundColor = 'rgba(223, 171, 98, 0.25)';
-                e.currentTarget.style.borderColor = 'var(--color-gold-base, #DFAB62)';
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (!ssoLoading) {
-                e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F0E5D3)';
-                e.currentTarget.style.borderColor = 'var(--color-gold-border, rgba(223, 171, 98, 0.4))';
-              }
-            }}
-          >
-            {ssoLoading ? (
-              <>
-                <SolarIcon name="refresh-linear" size={18} className="animate-spin" color="var(--color-gold-bronze, #B88647)" />
-                <span>Connecting to LocumStaff SSO...</span>
-              </>
-            ) : (
-              <>
-                <SolarIcon name="shield-check-linear" size={18} color="var(--color-gold-bronze, #B88647)" />
-                <span>Sign in with LocumStaff account</span>
-              </>
-            )}
-          </button>
-
-          {/* Clean Divider */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              margin: '20px 0',
-              color: 'var(--color-cream-text-muted, #6B5E55)',
-              fontSize: '0.78rem',
-            }}
-          >
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
-            <span style={{ padding: '0 14px', fontWeight: 500, color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-              or sign in with email
-            </span>
-            <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
-          </div>
-
           {/* Error Banner */}
           {error && (
             <div
@@ -359,162 +295,257 @@ function DoctorLoginContent() {
             </div>
           )}
 
-          {/* Direct Login Form */}
-          <form onSubmit={handleSubmit}>
-            {/* Email Field */}
-            <div className="auth-input-group" style={{ marginBottom: '14px' }}>
-              <label className="auth-label" style={{ fontWeight: 500, fontSize: '0.8rem', marginBottom: '5px' }}>
-                Practice Email Address
-              </label>
-              <div className="auth-input-wrapper">
-                <span className="auth-input-icon">
-                  <SolarIcon name="letter-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
-                </span>
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="dr.smith@example.co.za"
-                  className="auth-input"
-                  style={{
-                    backgroundColor: '#ffffff',
-                    border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.28))',
-                    borderRadius: '10px',
-                    height: '44px',
-                    fontSize: '0.875rem',
-                  }}
-                />
-              </div>
-            </div>
+          {/* LocumStaff SSO Button */}
+          <button
+            type="button"
+            onClick={handleLocumStaffLogin}
+            disabled={ssoLoading || loading}
+            style={{
+              width: '100%',
+              height: '52px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '12px',
+              borderRadius: 'var(--radius-full, 9999px)',
+              backgroundColor: 'var(--color-gold-base, #DFAB62)',
+              border: 'none',
+              color: 'var(--color-chocolate-base, #2A170F)',
+              fontSize: '0.95rem',
+              fontWeight: 700,
+              cursor: ssoLoading || loading ? 'wait' : 'pointer',
+              boxShadow: '0 4px 14px rgba(223, 171, 98, 0.35)',
+              transition: 'all 0.18s ease',
+              opacity: ssoLoading ? 0.85 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!ssoLoading) {
+                e.currentTarget.style.backgroundColor = '#d49b4c';
+                e.currentTarget.style.transform = 'translateY(-1px)';
+                e.currentTarget.style.boxShadow = '0 6px 18px rgba(223, 171, 98, 0.45)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!ssoLoading) {
+                e.currentTarget.style.backgroundColor = 'var(--color-gold-base, #DFAB62)';
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 14px rgba(223, 171, 98, 0.35)';
+              }
+            }}
+          >
+            {ssoLoading ? (
+              <>
+                <SolarIcon name="refresh-linear" size={20} className="animate-spin" color="var(--color-chocolate-base, #2A170F)" />
+                <span>Connecting to LocumStaff SSO...</span>
+              </>
+            ) : (
+              <>
+                <SolarIcon name="shield-check-bold" size={20} color="var(--color-chocolate-base, #2A170F)" />
+                <span>Sign in with LocumStaff account</span>
+              </>
+            )}
+          </button>
 
-            {/* Password Field */}
-            <div className="auth-input-group" style={{ marginBottom: '12px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
-                <label className="auth-label" style={{ fontWeight: 500, fontSize: '0.8rem', margin: 0 }}>
-                  Password
-                </label>
-                <Link
-                  href="/login#forgot"
-                  onClick={(e: React.MouseEvent) => {
-                    e.preventDefault();
-                    toastSuccess('Password Reset', 'Password reset link sent to your practice email if registered.');
-                  }}
-                  style={{
-                    fontSize: '0.76rem',
-                    color: 'var(--color-gold-bronze, #B88647)',
-                    textDecoration: 'none',
-                    fontWeight: 500,
-                  }}
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className="auth-input-wrapper">
-                <span className="auth-input-icon">
-                  <SolarIcon name="lock-password-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
+          {/* Clean Trust Badge / Info */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              marginTop: '16px',
+              padding: '10px 14px',
+              borderRadius: '10px',
+              backgroundColor: 'rgba(223, 171, 98, 0.1)',
+              border: '1px solid rgba(223, 171, 98, 0.22)',
+              color: 'var(--color-chocolate-base, #2A170F)',
+              fontSize: '0.78rem',
+              fontWeight: 600,
+              textAlign: 'center',
+            }}
+          >
+            <SolarIcon name="diploma-verified-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
+            <span>HPCSA Vetted Medical Network • LocumStaff Federated SSO</span>
+          </div>
+
+          {/* Direct Email/Password Login Form & Dev Options (Only visible when dev_login === 'true') */}
+          {isDevLogin && (
+            <>
+              {/* Clean Divider */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  margin: '24px 0 20px',
+                  color: 'var(--color-cream-text-muted, #6B5E55)',
+                  fontSize: '0.78rem',
+                }}
+              >
+                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
+                <span style={{ padding: '0 14px', fontWeight: 500, color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                  or sign in with email (Developer Mode)
                 </span>
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="auth-input"
+                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
+              </div>
+
+              {/* Direct Login Form */}
+              <form onSubmit={handleSubmit}>
+                {/* Email Field */}
+                <div className="auth-input-group" style={{ marginBottom: '14px' }}>
+                  <label className="auth-label" style={{ fontWeight: 500, fontSize: '0.8rem', marginBottom: '5px' }}>
+                    Practice Email Address
+                  </label>
+                  <div className="auth-input-wrapper">
+                    <span className="auth-input-icon">
+                      <SolarIcon name="letter-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
+                    </span>
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="dr.smith@example.co.za"
+                      className="auth-input"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.28))',
+                        borderRadius: '10px',
+                        height: '44px',
+                        fontSize: '0.875rem',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Password Field */}
+                <div className="auth-input-group" style={{ marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+                    <label className="auth-label" style={{ fontWeight: 500, fontSize: '0.8rem', margin: 0 }}>
+                      Password
+                    </label>
+                    <Link
+                      href="/login#forgot"
+                      onClick={(e: React.MouseEvent) => {
+                        e.preventDefault();
+                        toastSuccess('Password Reset', 'Password reset link sent to your practice email if registered.');
+                      }}
+                      style={{
+                        fontSize: '0.76rem',
+                        color: 'var(--color-gold-bronze, #B88647)',
+                        textDecoration: 'none',
+                        fontWeight: 500,
+                      }}
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="auth-input-wrapper">
+                    <span className="auth-input-icon">
+                      <SolarIcon name="lock-password-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
+                    </span>
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter your password"
+                      className="auth-input"
+                      style={{
+                        backgroundColor: '#ffffff',
+                        border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.28))',
+                        borderRadius: '10px',
+                        height: '44px',
+                        fontSize: '0.875rem',
+                        paddingRight: '40px',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute',
+                        right: '10px',
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-cream-text-muted, #6B5E55)',
+                        cursor: 'pointer',
+                        padding: '4px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                      aria-label={showPassword ? 'Hide password' : 'Show password'}
+                    >
+                      {showPassword ? (
+                        <SolarIcon name="eye-closed-linear" size={18} color="var(--color-cream-text-muted, #6B5E55)" />
+                      ) : (
+                        <SolarIcon name="eye-linear" size={18} color="var(--color-cream-text-muted, #6B5E55)" />
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Remember Me & Demo Doctor */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', userSelect: 'none' }}>
+                    <input
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      style={{
+                        accentColor: 'var(--color-gold-base, #DFAB62)',
+                        width: '14px',
+                        height: '14px',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                      }}
+                    />
+                    <span>Remember this device</span>
+                  </label>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary"
                   style={{
-                    backgroundColor: '#ffffff',
-                    border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.28))',
-                    borderRadius: '10px',
+                    width: '100%',
                     height: '44px',
                     fontSize: '0.875rem',
-                    paddingRight: '40px',
+                    fontWeight: 600,
+                    borderRadius: '10px',
+                    boxShadow: '0 2px 6px rgba(42, 23, 15, 0.08)',
                   }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '10px',
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--color-cream-text-muted, #6B5E55)',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? (
-                    <SolarIcon name="eye-closed-linear" size={18} color="var(--color-cream-text-muted, #6B5E55)" />
+                  {loading ? (
+                    <span>Signing In...</span>
                   ) : (
-                    <SolarIcon name="eye-linear" size={18} color="var(--color-cream-text-muted, #6B5E55)" />
+                    <>
+                      <span>Sign In to Practice Suite</span>
+                      <SolarIcon name="arrow-right-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
+                    </>
                   )}
                 </button>
-              </div>
-            </div>
+              </form>
 
-            {/* Remember Me & Demo Doctor */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', userSelect: 'none' }}>
-                <input
-                  type="checkbox"
-                  checked={rememberMe}
-                  onChange={(e) => setRememberMe(e.target.checked)}
+              {/* Registration Link */}
+              <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                New medical practitioner?{' '}
+                <Link
+                  href="/register"
                   style={{
-                    accentColor: 'var(--color-gold-base, #DFAB62)',
-                    width: '14px',
-                    height: '14px',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
+                    color: 'var(--color-chocolate-base, #2A170F)',
+                    fontWeight: 600,
+                    textDecoration: 'underline',
+                    textUnderlineOffset: '3px',
                   }}
-                />
-                <span>Remember this device</span>
-              </label>
-            </div>
-
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary"
-              style={{
-                width: '100%',
-                height: '44px',
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                borderRadius: '10px',
-                boxShadow: '0 2px 6px rgba(42, 23, 15, 0.08)',
-              }}
-            >
-              {loading ? (
-                <span>Signing In...</span>
-              ) : (
-                <>
-                  <span>Sign In to Practice Suite</span>
-                  <SolarIcon name="arrow-right-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
-                </>
-              )}
-            </button>
-          </form>
-
-          {/* Registration Link */}
-          <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-            New medical practitioner?{' '}
-            <Link
-              href="/register"
-              style={{
-                color: 'var(--color-chocolate-base, #2A170F)',
-                fontWeight: 600,
-                textDecoration: 'underline',
-                textUnderlineOffset: '3px',
-              }}
-            >
-              Register HPCSA Practice
-            </Link>
-          </div>
+                >
+                  Register HPCSA Practice
+                </Link>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

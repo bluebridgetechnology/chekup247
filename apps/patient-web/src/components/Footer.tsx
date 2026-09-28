@@ -70,11 +70,6 @@ export function Footer({ compact = false }: FooterProps) {
                 </Link>
               </li>
               <li>
-                <Link href="/for-doctors" className="footer-nav-link">
-                  For Providers
-                </Link>
-              </li>
-              <li>
                 <Link href="/about" className="footer-nav-link">
                   About
                 </Link>

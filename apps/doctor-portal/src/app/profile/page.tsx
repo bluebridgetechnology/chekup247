@@ -996,32 +996,50 @@ export default function DoctorProfilePage() {
                 </div>
 
                 <div>
-                  <label className="portal-label">Consultation Rate per Hour (ZAR)</label>
-                  <div style={{ position: 'relative' }}>
+                  <label className="portal-label">Consultation Rate (Platform Standardized)</label>
+                  <div
+                    style={{
+                      padding: '12px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(223, 171, 98, 0.1)',
+                      border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      minHeight: '44px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <SolarIcon name="lock-keyhole-linear" size={17} color="var(--color-gold-bronze, #B88647)" />
+                      <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--color-chocolate-base, #2A170F)' }}>
+                        Standard Platform Consultation Rate: R {ratePerHour || '850'} / session
+                      </span>
+                    </div>
                     <span
                       style={{
-                        position: 'absolute',
-                        left: '14px',
-                        top: '50%',
-                        transform: 'translateY(-50%)',
+                        padding: '3px 8px',
+                        borderRadius: '9999px',
+                        backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                        fontSize: '0.7rem',
                         fontWeight: 700,
-                        color: 'var(--color-gold-bronze)',
-                        fontSize: 'var(--text-sm)',
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.04em',
                       }}
                     >
-                      R
+                      Locked
                     </span>
-                    <input
-                      type="number"
-                      min="0"
-                      step="50"
-                      value={ratePerHour}
-                      onChange={(e) => setRatePerHour(e.target.value)}
-                      className="portal-input"
-                      style={{ paddingLeft: '32px' }}
-                      required
-                    />
                   </div>
+                  <p
+                    style={{
+                      fontSize: 'var(--text-xs)',
+                      color: 'var(--color-cream-text-muted, #6B5E55)',
+                      marginTop: '6px',
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    Consultation fees are standardized platform-wide by ChekUp247 administration. Rates cannot be individually adjusted.
+                  </p>
                   <div
                     style={{
                       display: 'flex',
@@ -1032,7 +1050,7 @@ export default function DoctorProfilePage() {
                     }}
                   >
                     <span style={{ color: 'var(--color-cream-text-muted)' }}>Net 85% practitioner split:</span>
-                    <strong style={{ color: 'var(--color-chocolate-base)' }}>R{netTakeHome}/hr</strong>
+                    <strong style={{ color: 'var(--color-chocolate-base)' }}>R{netTakeHome}/session</strong>
                   </div>
                 </div>
               </div>

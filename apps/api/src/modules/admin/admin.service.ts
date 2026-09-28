@@ -166,6 +166,7 @@ export class AdminService implements OnModuleInit {
     return {
       id: settings.id,
       commission_percent: Number(settings.commission_percent),
+      standard_consultation_rate: Number(settings.standard_consultation_rate ?? 850.00),
       late_cancellation_deduction_percent: Number(settings.late_cancellation_deduction_percent),
       no_show_grace_minutes: Number(settings.no_show_grace_minutes),
       default_slot_duration_minutes: Number(settings.default_slot_duration_minutes),
@@ -185,6 +186,7 @@ export class AdminService implements OnModuleInit {
   async updatePlatformSettings(
     dto: {
       commission_percent?: number;
+      standard_consultation_rate?: number;
       late_cancellation_deduction_percent?: number;
       no_show_grace_minutes?: number;
       default_slot_duration_minutes?: number;
@@ -204,6 +206,9 @@ export class AdminService implements OnModuleInit {
 
     if (dto.commission_percent !== undefined) {
       settings.commission_percent = Number(dto.commission_percent);
+    }
+    if (dto.standard_consultation_rate !== undefined) {
+      settings.standard_consultation_rate = Number(dto.standard_consultation_rate);
     }
     if (dto.late_cancellation_deduction_percent !== undefined) {
       settings.late_cancellation_deduction_percent = Number(dto.late_cancellation_deduction_percent);
@@ -237,6 +242,17 @@ export class AdminService implements OnModuleInit {
     }
 
     await this.settingsRepository.save(settings);
+
+    if (dto.standard_consultation_rate !== undefined) {
+      await this.doctorRepository
+        .createQueryBuilder()
+        .update(DoctorProfile)
+        .set({ rate_per_hour: settings.standard_consultation_rate })
+        .execute();
+      this.logger.log(
+        `Updated all doctor profiles rate_per_hour to ${settings.standard_consultation_rate}`,
+      );
+    }
 
     // Audit log (omit secrets from audit metadata)
     const auditMeta = { ...dto };

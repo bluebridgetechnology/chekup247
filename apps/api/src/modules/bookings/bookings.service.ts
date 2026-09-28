@@ -99,6 +99,16 @@ export class BookingsService {
   ) {}
 
   /**
+   * Creates a booking by executing the distributed booking Saga.
+   */
+  async createBooking(
+    patientId: string,
+    dto: CreateBookingDto,
+  ): Promise<StitchedBookingResponse> {
+    return this.createBookingSaga(patientId, dto);
+  }
+
+  /**
    * BE-501: Booking Creation Saga Orchestrator.
    * Atomic slot reservation on VPS Postgres with compensating rollback
    * and DLQ fallback on AWS RDS write failure.
@@ -218,8 +228,22 @@ export class BookingsService {
     // =========================================================================
     // STEP 2: AWS RDS (Patient DB) — Insert Booking Record
     // =========================================================================
-    const price = Number(doctorProfile.rate_per_hour) || 850.0;
-    const commissionAmount = Math.round(price * 0.15 * 100) / 100; // 15% platform commission
+    let standardRate = 850.0;
+    let commissionPercent = 15.0;
+    try {
+      const settings = await this.platformSettingRepository?.findOne({ where: {} });
+      if (settings?.standard_consultation_rate != null) {
+        standardRate = Number(settings.standard_consultation_rate) || 850.0;
+      }
+      if (settings?.commission_percent != null) {
+        commissionPercent = Number(settings.commission_percent) || 15.0;
+      }
+    } catch (settingsErr: any) {
+      this.logger.warn(`Could not load platform settings for booking rate: ${settingsErr?.message}`);
+    }
+
+    const price = standardRate;
+    const commissionAmount = Math.round(price * (commissionPercent / 100) * 100) / 100;
 
     let createdBooking: Booking;
 

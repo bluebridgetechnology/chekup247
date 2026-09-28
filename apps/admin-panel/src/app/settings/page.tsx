@@ -33,6 +33,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v
 type SettingsTab = 'gateway' | 'financial' | 'scheduling';
 
 interface PlatformSettingsData {
+  standard_consultation_rate?: number;
   commission_percent: number;
   late_cancellation_deduction_percent: number;
   no_show_grace_minutes: number;
@@ -57,6 +58,7 @@ export default function AdminSettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('gateway');
 
   const [settings, setSettings] = useState<PlatformSettingsData>({
+    standard_consultation_rate: 850,
     commission_percent: 15,
     late_cancellation_deduction_percent: 30,
     no_show_grace_minutes: 10,
@@ -80,7 +82,7 @@ export default function AdminSettingsPage() {
   } | null>(null);
   const [copiedWebhook, setCopiedWebhook] = useState(false);
   const [copiedCard, setCopiedCard] = useState<string | null>(null);
-  const [simFee, setSimFee] = useState<number>(500);
+  const [simFee, setSimFee] = useState<number>(850);
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -118,6 +120,7 @@ export default function AdminSettingsPage() {
         const data = await res.json();
         if (data) {
           setSettings({
+            standard_consultation_rate: data.standard_consultation_rate ? Number(data.standard_consultation_rate) : 850,
             commission_percent: Number(data.commission_percent ?? 15),
             late_cancellation_deduction_percent: Number(data.late_cancellation_deduction_percent ?? 30),
             no_show_grace_minutes: Number(data.no_show_grace_minutes ?? 10),
@@ -164,6 +167,7 @@ export default function AdminSettingsPage() {
         },
         credentials: 'include',
         body: JSON.stringify({
+          standard_consultation_rate: Number(settings.standard_consultation_rate ?? 850),
           commission_percent: Number(settings.commission_percent),
           late_cancellation_deduction_percent: Number(settings.late_cancellation_deduction_percent),
           no_show_grace_minutes: Number(settings.no_show_grace_minutes),
@@ -185,6 +189,7 @@ export default function AdminSettingsPage() {
       const updated = await res.json();
       setSettings((prev) => ({
         ...prev,
+        standard_consultation_rate: updated.standard_consultation_rate ? Number(updated.standard_consultation_rate) : prev.standard_consultation_rate,
         commission_percent: Number(updated.commission_percent),
         late_cancellation_deduction_percent: Number(updated.late_cancellation_deduction_percent),
         no_show_grace_minutes: Number(updated.no_show_grace_minutes),
@@ -259,7 +264,7 @@ export default function AdminSettingsPage() {
   };
 
   // Preview calculations based on interactive simFee
-  const activeFee = Number(simFee) > 0 ? Number(simFee) : 500;
+  const activeFee = Number(simFee) > 0 ? Number(simFee) : (settings.standard_consultation_rate || 850);
   const doctorCancellationFee = (activeFee * settings.late_cancellation_deduction_percent) / 100;
   const patientRefundAmount = activeFee - doctorCancellationFee;
   const platformCommissionAmount = (activeFee * settings.commission_percent) / 100;
@@ -1256,6 +1261,54 @@ export default function AdminSettingsPage() {
                     <div style={{ fontSize: '0.78rem', color: '#766C64' }}>
                       Governs platform revenue cuts and patient late cancellation deductions
                     </div>
+                  </div>
+                </div>
+
+                {/* Standard Platform Consultation Rate (ZAR) */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#201712' }}>
+                      Standard Platform Consultation Rate (ZAR)
+                    </label>
+                    <span
+                      style={{
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        color: '#18A875',
+                        background: '#EDFDF5',
+                        padding: '2px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid #BBF7D0',
+                      }}
+                    >
+                      R {Number(settings.standard_consultation_rate ?? 850).toFixed(2)}
+                    </span>
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: '#766C64' }}>R</span>
+                    <input
+                      type="number"
+                      min="50"
+                      step="50"
+                      value={settings.standard_consultation_rate ?? 850}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        setSettings({ ...settings, standard_consultation_rate: val });
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '9px 12px 9px 30px',
+                        borderRadius: '6px',
+                        border: '1px solid #D1C7BD',
+                        fontSize: '0.9rem',
+                        fontWeight: 700,
+                        background: '#FFFFFF',
+                        marginBottom: '6px',
+                      }}
+                    />
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
+                    Universal consultation rate applied to all doctor consultations across ChekUp247. Individual doctors cannot set their own rates.
                   </div>
                 </div>
 

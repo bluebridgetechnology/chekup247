@@ -5,6 +5,7 @@ import {
   DoctorProfile,
   VerificationToken,
   NotificationPreference,
+  PlatformSetting,
 } from '../../database/operational/entities';
 import { PatientMedicalProfile } from '../../database/patient/entities';
 import { AuthController } from './auth.controller';
@@ -20,7 +21,7 @@ import { SmsProvider } from '../notifications/providers/sms.provider';
 @Module({
   imports: [
     TypeOrmModule.forFeature(
-      [User, DoctorProfile, VerificationToken, NotificationPreference],
+      [User, DoctorProfile, VerificationToken, NotificationPreference, PlatformSetting],
       'operational',
     ),
     TypeOrmModule.forFeature([PatientMedicalProfile], 'patient'),

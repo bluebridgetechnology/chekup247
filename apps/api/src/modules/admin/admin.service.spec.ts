@@ -42,8 +42,25 @@ describe('AdminService', () => {
   let reviewRepo: any;
   let auditLogRepo: any;
   let auditService: any;
+  let settingsRepo: any;
 
   beforeEach(async () => {
+    settingsRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 'settings-1',
+        commission_percent: 15.0,
+        standard_consultation_rate: 850.0,
+        late_cancellation_deduction_percent: 30.0,
+        no_show_grace_minutes: 10,
+        default_slot_duration_minutes: 30,
+        default_buffer_minutes: 5,
+        paystack_mode: 'test',
+        created_at: new Date(),
+        updated_at: new Date(),
+      }),
+      create: jest.fn().mockImplementation((dto) => dto || {}),
+      save: jest.fn().mockImplementation((s) => Promise.resolve(s)),
+    };
     bookingRepo = {
       find: jest.fn().mockResolvedValue([
         {
@@ -187,7 +204,7 @@ describe('AdminService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AdminService,
-        { provide: getRepositoryToken(PlatformSetting, 'operational'), useValue: {} },
+        { provide: getRepositoryToken(PlatformSetting, 'operational'), useValue: settingsRepo },
         { provide: getRepositoryToken(AuditLog, 'operational'), useValue: auditLogRepo },
         { provide: getRepositoryToken(DoctorProfile, 'operational'), useValue: doctorRepo },
         { provide: getRepositoryToken(User, 'operational'), useValue: userRepo },
@@ -508,6 +525,35 @@ describe('AdminService', () => {
       userRepo.findOne.mockResolvedValue(null);
 
       await expect(service.exportPatientPopiaData('pat-x', 'admin-1')).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('Platform Settings (Standard Consultation Rate)', () => {
+    it('should return standard_consultation_rate in getPlatformSettings', async () => {
+      const settings = await service.getPlatformSettings();
+      expect(settings.standard_consultation_rate).toBe(850.0);
+    });
+
+    it('should update standard_consultation_rate and sync all doctor profiles', async () => {
+      const qbUpdate = {
+        set: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 5 }),
+      };
+      doctorRepo.createQueryBuilder = jest.fn().mockReturnValue({
+        update: jest.fn().mockReturnValue(qbUpdate),
+      });
+
+      const updated = await service.updatePlatformSettings(
+        { standard_consultation_rate: 950.0 },
+        'admin-1',
+      );
+
+      expect(settingsRepo.save).toHaveBeenCalledWith(
+        expect.objectContaining({ standard_consultation_rate: 950.0 }),
+      );
+      expect(qbUpdate.set).toHaveBeenCalledWith({ rate_per_hour: 950.0 });
+      expect(qbUpdate.execute).toHaveBeenCalled();
+      expect(updated.standard_consultation_rate).toBe(950.0);
     });
   });
 });
