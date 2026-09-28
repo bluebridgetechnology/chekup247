@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
@@ -49,7 +49,7 @@ export default function DoctorOnboardPage() {
   const [identityNumber, setIdentityNumber] = useState('');
   const [specialty, setSpecialty] = useState(profile?.specialty ?? SPECIALTIES[0]);
   const [province, setProvince] = useState('');
-  const [ratePerHour, setRatePerHour] = useState(String(profile?.ratePerHour ?? ''));
+  const [ratePerHour, setRatePerHour] = useState(String(profile?.ratePerHour || '850'));
   const [bio, setBio] = useState('');
   const [offersInClinic, setOffersInClinic] = useState(false);
   const [facilityName, setFacilityName] = useState('');
@@ -280,8 +280,30 @@ export default function DoctorOnboardPage() {
                   </select>
                 </div>
                 <div className="portal-input-group">
-                  <label className="portal-label" htmlFor="rate">Hourly consultation rate <span>*</span></label>
-                  <div className="doctor-onboard-input-prefix"><span>ZAR</span><input id="rate" type="number" min="0" step="50" required value={ratePerHour} onChange={(e) => setRatePerHour(e.target.value)} placeholder="850" className="portal-input" /></div>
+                  <label className="portal-label" htmlFor="rate">
+                    Hourly consultation rate <span>*</span>
+                  </label>
+                  <div className="doctor-onboard-input-prefix">
+                    <span>ZAR</span>
+                    <input
+                      id="rate"
+                      type="number"
+                      readOnly
+                      disabled
+                      value={ratePerHour || '850'}
+                      placeholder="850"
+                      className="portal-input"
+                      style={{
+                        backgroundColor: 'rgba(223, 171, 98, 0.08)',
+                        cursor: 'not-allowed',
+                        color: 'var(--color-chocolate-base, #2A170F)',
+                        fontWeight: 600,
+                      }}
+                    />
+                  </div>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--color-cream-text-muted)', marginTop: '4px', display: 'block' }}>
+                    Standardized platform rate (R 850 / hr). Managed platform-wide.
+                  </span>
                 </div>
               </div>
             </div>

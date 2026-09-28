@@ -17,8 +17,12 @@ export function getDoctorPortalUrl(): string {
   return 'http://localhost:3001';
 }
 
+/**
+ * @deprecated Doctor onboarding is facilitated exclusively through partner LocumStaff.
+ * Public direct registration is disabled. Use getDoctorLoginUrl() instead.
+ */
 export function getDoctorRegisterUrl(): string {
-  return `${getDoctorPortalUrl()}/register`;
+  return `${getDoctorPortalUrl()}/login`;
 }
 
 export function getDoctorLoginUrl(): string {

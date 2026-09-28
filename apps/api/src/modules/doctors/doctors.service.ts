@@ -562,7 +562,6 @@ export class DoctorsService implements OnModuleInit {
 
     const updatableFields = [
       'specialty',
-      'rate_per_hour',
       'bio',
       'documents_url',
       'consultation_types',

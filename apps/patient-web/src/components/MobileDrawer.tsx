@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation';
 import { SolarIcon } from './SolarIcon';
 import { ChekupCrossLogo } from './Navbar';
 import { useAuth } from '../context/AuthContext';
-import { getDoctorLoginUrl, getDoctorRegisterUrl } from '../lib/urls';
+import { getDoctorLoginUrl } from '../lib/urls';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -376,23 +376,6 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                   <SolarIcon name="stethoscope-linear" size={15} color="var(--color-gold-base, #DFAB62)" />
                   <span>Provider Information</span>
                 </Link>
-                <a
-                  href={getDoctorRegisterUrl()}
-                  onClick={onClose}
-                  style={{
-                    color: 'rgba(255, 255, 255, 0.65)',
-                    fontSize: '0.85rem',
-                    fontWeight: 400,
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '1px 0',
-                  }}
-                >
-                  <SolarIcon name="arrow-right-linear" size={13} color="rgba(255, 255, 255, 0.4)" />
-                  <span>Join as a Doctor</span>
-                </a>
               </div>
             </>
           )}

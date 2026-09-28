@@ -1,6 +1,6 @@
 import { LocumStaffSsoService } from './locumstaff-sso.service';
 import { Repository } from 'typeorm';
-import { User, DoctorProfile } from '../../database/operational/entities';
+import { User, DoctorProfile, PlatformSetting } from '../../database/operational/entities';
 import { TokenService } from './token.service';
 
 // Minimal Redis mock for PKCE store — shared map lives on globalThis so
@@ -35,18 +35,24 @@ describe('LocumStaffSsoService', () => {
   let mockUserRepo: Partial<Repository<User>>;
   let mockDoctorRepo: Partial<Repository<DoctorProfile>>;
   let mockTokenService: Partial<TokenService>;
+  let mockPlatformSettingRepo: Partial<Repository<PlatformSetting>>;
 
   beforeEach(() => {
     ((globalThis as any).__mockRedisStore as Map<string, string>).clear();
     mockUserRepo = {
       findOne: jest.fn(),
-      create: jest.fn(),
-      save: jest.fn(),
+      create: jest.fn((dto: any) => ({ ...dto, id: 'user-1' })) as any,
+      save: jest.fn((dto: any) => Promise.resolve({ ...dto, id: dto.id || 'user-1' })) as any,
     };
     mockDoctorRepo = {
       findOne: jest.fn(),
-      create: jest.fn(),
-      save: jest.fn(),
+      create: jest.fn((dto: any) => ({ ...dto, id: 'doc-1' })) as any,
+      save: jest.fn((dto: any) => Promise.resolve({ ...dto, id: dto.id || 'doc-1' })) as any,
+    };
+    mockPlatformSettingRepo = {
+      findOne: jest.fn().mockResolvedValue({
+        standard_consultation_rate: 950.0,
+      }),
     };
     mockTokenService = {
       generateAccessToken: jest.fn().mockReturnValue('mock-token'),
@@ -56,6 +62,7 @@ describe('LocumStaffSsoService', () => {
       mockUserRepo as Repository<User>,
       mockDoctorRepo as Repository<DoctorProfile>,
       mockTokenService as TokenService,
+      mockPlatformSettingRepo as Repository<PlatformSetting>,
     );
   });
 
@@ -174,6 +181,59 @@ describe('LocumStaffSsoService', () => {
           willing_virtual: false,
         });
       }).toThrow(/enable virtual consultations/);
+    });
+  });
+
+  describe('matchOrCreateDoctor', () => {
+    it('should set rate_per_hour to the platform standard rate when creating doctor profile', async () => {
+      mockDoctorRepo.findOne = jest.fn().mockResolvedValue(null);
+      mockUserRepo.findOne = jest.fn().mockResolvedValue(null);
+
+      const result = await service.matchOrCreateDoctor({
+        sub: 'ext-doc-123',
+        iss: 'https://api.locumstaff.co.za',
+        aud: 'chekup247',
+        iat: Date.now(),
+        exp: Date.now() + 3600,
+        email: 'doctor@locumstaff.co.za',
+        name: 'Dr. Jane Doe',
+        role: 'LOCUM',
+        status: 'VERIFIED',
+      });
+
+      expect(mockDoctorRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rate_per_hour: 950.0,
+          sso_provider: 'locumstaff',
+          sso_external_id: 'ext-doc-123',
+        }),
+      );
+      expect(result.doctorProfile.rate_per_hour).toBe(950.0);
+    });
+
+    it('should fallback to 850.00 when platform settings are missing', async () => {
+      mockPlatformSettingRepo.findOne = jest.fn().mockResolvedValue(null);
+      mockDoctorRepo.findOne = jest.fn().mockResolvedValue(null);
+      mockUserRepo.findOne = jest.fn().mockResolvedValue(null);
+
+      const result = await service.matchOrCreateDoctor({
+        sub: 'ext-doc-456',
+        iss: 'https://api.locumstaff.co.za',
+        aud: 'chekup247',
+        iat: Date.now(),
+        exp: Date.now() + 3600,
+        email: 'doctor2@locumstaff.co.za',
+        name: 'Dr. John Doe',
+        role: 'LOCUM',
+        status: 'VERIFIED',
+      });
+
+      expect(mockDoctorRepo.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          rate_per_hour: 850.0,
+        }),
+      );
+      expect(result.doctorProfile.rate_per_hour).toBe(850.0);
     });
   });
 });

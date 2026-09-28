@@ -14,6 +14,9 @@ export class PlatformSetting {
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 15.0 })
   commission_percent: number;
 
+  @Column({ type: 'decimal', precision: 10, scale: 2, default: 850.00 })
+  standard_consultation_rate: number;
+
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 30.0 })
   late_cancellation_deduction_percent: number;
 

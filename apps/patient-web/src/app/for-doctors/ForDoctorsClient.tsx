@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SolarIcon } from '../../components/SolarIcon';
+import { getDoctorLoginUrl } from '../../lib/urls';
 
 interface Testimonial {
   quote: string;
@@ -47,8 +48,7 @@ export default function ForDoctorsClient() {
     setCurrentTestimonial((prev) => (prev === TESTIMONIALS.length - 1 ? 0 : prev + 1));
   };
 
-  const doctorPortalUrl =
-    process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || 'https://doctor.chekup247.com';
+  const doctorPortalUrl = getDoctorLoginUrl();
 
   return (
     <div
@@ -155,9 +155,10 @@ export default function ForDoctorsClient() {
                 marginBottom: 'var(--space-8)',
               }}
             >
-              Join <strong style={{ color: 'var(--color-chocolate-base)', fontWeight: 600 }}>Chekup247</strong> and
-              give your patients convenient, secure, and affordable access to quality care — anytime, anywhere. Our
-              platform makes it easy for you to consult, manage, and grow your practice.
+              Practicing on <strong style={{ color: 'var(--color-chocolate-base)', fontWeight: 600 }}>Chekup247</strong> is
+              facilitated exclusively through our partner <strong style={{ color: 'var(--color-chocolate-base)', fontWeight: 600 }}>LocumStaff</strong>.
+              HPCSA-registered medical practitioners onboarded via LocumStaff gain seamless access to conduct virtual consultations,
+              manage patient records, and grow their practice with reliable weekly payouts.
             </p>
 
             {/* Action Buttons */}
@@ -187,7 +188,7 @@ export default function ForDoctorsClient() {
                   transition: 'all 0.2s ease',
                 }}
               >
-                <span>Become a Provider</span>
+                <span>Doctor Portal Sign In</span>
                 <SolarIcon name="arrow-right-linear" size={16} color="var(--color-white)" />
               </a>
 
@@ -609,17 +610,18 @@ export default function ForDoctorsClient() {
                     marginBottom: 'var(--space-3)',
                   }}
                 >
-                  Create Your Provider Profile
+                  LocumStaff Facilitation
                 </h3>
                 <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--color-cream-text-muted)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: 0 }}>
-                  Sign up and complete your professional profile, including credentials, specialties and availability.
+                  Practicing on ChekUp247 is facilitated exclusively through our partner LocumStaff. Complete your HPCSA verification through LocumStaff to activate your ChekUp247 provider profile.
                 </p>
               </div>
 
               <div style={{ marginTop: 'var(--space-6)' }}>
                 <a
                   href={doctorPortalUrl}
-                  aria-label="Create provider profile"
+                  aria-label="Doctor Portal Sign In"
+                  title="Doctor Portal Sign In"
                   style={{
                     width: '36px',
                     height: '36px',
@@ -1216,7 +1218,7 @@ export default function ForDoctorsClient() {
                   marginBottom: 'var(--space-2)',
                 }}
               >
-                Ready to Make a Bigger Difference?
+                Ready to Consult on Chekup247?
               </h2>
 
               <p
@@ -1228,7 +1230,8 @@ export default function ForDoctorsClient() {
                   margin: 0,
                 }}
               >
-                Join Chekup247 today and start providing quality care, whenever and wherever your patients need you.
+                Practicing on Chekup247 is facilitated exclusively through our partner LocumStaff.
+                Sign in to your Doctor Portal with your verified credentials to begin consulting patients.
               </p>
             </div>
           </div>
@@ -1254,7 +1257,7 @@ export default function ForDoctorsClient() {
                 whiteSpace: 'nowrap',
               }}
             >
-              <span>Become a Provider</span>
+              <span>Doctor Portal Sign In</span>
               <SolarIcon name="arrow-right-linear" size={16} color="var(--color-white)" />
             </a>
 

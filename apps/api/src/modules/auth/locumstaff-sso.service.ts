@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
   OnModuleDestroy,
+  Optional,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -18,6 +19,7 @@ import {
   DoctorProfile,
   VerificationStatus,
   VerificationSource,
+  PlatformSetting,
 } from '../../database/operational/entities';
 import { TokenService } from './token.service';
 import { envConfig } from '../../config/env.config';
@@ -97,6 +99,9 @@ export class LocumStaffSsoService implements OnModuleDestroy {
     @InjectRepository(DoctorProfile, 'operational')
     private readonly doctorRepository: Repository<DoctorProfile>,
     private readonly tokenService: TokenService,
+    @Optional()
+    @InjectRepository(PlatformSetting, 'operational')
+    private readonly platformSettingRepository?: Repository<PlatformSetting>,
   ) {
     this.redis = new Redis({
       host: envConfig.REDIS_HOST,
@@ -658,13 +663,23 @@ export class LocumStaffSsoService implements OnModuleDestroy {
 
       // At this point eligibility (incl. VERIFIED) is already asserted upstream.
       if (!doctorProfile) {
+        let standardRate = 850.0;
+        try {
+          const settings = await this.platformSettingRepository?.findOne({ where: {} });
+          if (settings?.standard_consultation_rate != null) {
+            standardRate = Number(settings.standard_consultation_rate) || 850.0;
+          }
+        } catch (err: any) {
+          this.logger.warn(`Could not fetch platform standard consultation rate: ${err?.message}`);
+        }
+
         doctorProfile = this.doctorRepository.create({
           user_id: user.id,
           sso_provider: 'locumstaff',
           sso_external_id: ssoExternalId,
           hpcsa_number: hpcsaNumber,
           specialty,
-          rate_per_hour: 850.0,
+          rate_per_hour: standardRate,
           bio: 'General Practitioner verified via LocumStaff Medical Staffing Network.',
           verification_status: VerificationStatus.VERIFIED,
           verification_source: VerificationSource.LOCUMSTAFF,

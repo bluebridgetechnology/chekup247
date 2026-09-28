@@ -10,6 +10,7 @@ import {
   UseGuards,
   HttpCode,
   HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -69,6 +70,12 @@ export class AuthController {
     @Body() dto: RegisterDoctorDto,
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (process.env.PUBLIC_DOCTOR_REGISTRATION_ENABLED !== 'true') {
+      throw new ForbiddenException(
+        'Direct doctor registration on ChekUp247 is currently disabled. Please sign in via LocumStaff SSO.',
+      );
+    }
+
     const result = await this.authService.registerDoctor(dto);
 
     // Mirror `register`: registerDoctor returns no accessToken (the OTP

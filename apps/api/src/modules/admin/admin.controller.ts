@@ -224,6 +224,7 @@ export class AdminController {
     @Body()
     dto: {
       commission_percent?: number;
+      standard_consultation_rate?: number;
       late_cancellation_deduction_percent?: number;
       no_show_grace_minutes?: number;
       default_slot_duration_minutes?: number;
