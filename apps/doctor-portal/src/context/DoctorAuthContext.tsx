@@ -7,6 +7,7 @@ export interface DoctorProfileData {
   userId: string;
   hpcsaNumber: string;
   specialty: string;
+  qualifications?: string | null;
   ratePerHour: number;
   ratingAvg: number;
   bio: string;
@@ -85,6 +86,7 @@ interface DoctorAuthContextType {
     email: string;
     password: string;
     phone?: string;
+    is_checkup_locum?: boolean;
   }) => Promise<any>;
   verifyOtp: (email: string, otp: string) => Promise<any>;
   resendOtp: (email: string) => Promise<any>;
@@ -111,6 +113,7 @@ function mapDoctorProfile(raw: any): DoctorProfileData {
     userId: raw.user_id,
     hpcsaNumber: raw.hpcsa_number,
     specialty: raw.specialty,
+    qualifications: raw.qualifications || null,
     secondarySpecialties: raw.secondary_specialties || [],
     ratePerHour: Number(raw.rate_per_hour || 0),
     ratingAvg: Number(raw.rating_avg || 0),
@@ -224,6 +227,7 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
     email: string;
     password: string;
     phone?: string;
+    is_checkup_locum?: boolean;
   }) => {
     const res = await fetch(`${API_BASE}/auth/register-doctor`, {
       method: 'POST',

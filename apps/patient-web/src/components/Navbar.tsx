@@ -7,7 +7,6 @@ import { SolarIcon } from './SolarIcon';
 import { MobileDrawer } from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
-import { getDoctorLoginUrl } from '../lib/urls';
 
 /**
  * Precision Chekup247 Brand Medical Cross Mark
@@ -72,7 +71,6 @@ const NAV_LINKS: NavItem[] = [
   { label: 'Home', href: '/' },
   { label: 'Doctor Consultation', href: '/doctors' },
   { label: 'How It Works', href: '/how-it-works' },
-  { label: 'For Providers', href: '/for-doctors' },
 ];
 
 export function Navbar() {
@@ -435,11 +433,11 @@ export function Navbar() {
                     className="nav-link-login"
                   >
                     <SolarIcon name="user-linear" size={15} color="var(--color-gold-base)" />
-                    <span>Patient Log In</span>
+                    <span>Log In</span>
                   </Link>
 
-                  <a
-                    href={getDoctorLoginUrl()}
+                  <Link
+                    href="/register"
                     style={{
                       fontSize: '0.85rem',
                       fontWeight: 700,
@@ -449,19 +447,18 @@ export function Navbar() {
                       display: 'inline-flex',
                       alignItems: 'center',
                       gap: '6px',
-                      padding: '8px 14px',
+                      padding: '8px 16px',
                       borderRadius: '10px',
                       backgroundColor: 'var(--color-gold-base, #DFAB62)',
                       border: '1px solid var(--color-gold-base, #DFAB62)',
                       boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
                       whiteSpace: 'nowrap',
                     }}
-                    className="nav-doctor-login-btn"
-                    title="Doctor and Healthcare Provider Login"
+                    className="nav-link-register"
+                    title="Sign Up for Chekup247"
                   >
-                    <SolarIcon name="stethoscope-bold" size={15} color="var(--color-chocolate-base)" />
-                    <span>Doctor Log In</span>
-                  </a>
+                    <span>Sign Up</span>
+                  </Link>
                 </div>
 
                 {/* Mobile compact sign-in trigger: clean label, never cuts off */}

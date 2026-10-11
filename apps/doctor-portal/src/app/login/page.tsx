@@ -47,7 +47,7 @@ function DoctorLoginContent() {
     setError(null);
 
     if (!email.trim() || !password) {
-      setError('Please enter your practice email and password');
+      setError('Please enter your email and password');
       return;
     }
 
@@ -346,54 +346,31 @@ function DoctorLoginContent() {
             )}
           </button>
 
-          {/* Clean Trust Badge / Info */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              marginTop: '16px',
-              padding: '10px 14px',
-              borderRadius: '10px',
-              backgroundColor: 'rgba(223, 171, 98, 0.1)',
-              border: '1px solid rgba(223, 171, 98, 0.22)',
-              color: 'var(--color-chocolate-base, #2A170F)',
-              fontSize: '0.78rem',
-              fontWeight: 600,
-              textAlign: 'center',
-            }}
-          >
-            <SolarIcon name="diploma-verified-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
-            <span>HPCSA Vetted Medical Network • LocumStaff Federated SSO</span>
-          </div>
-
-          {/* Direct Email/Password Login Form & Dev Options (Only visible when dev_login === 'true') */}
-          {isDevLogin && (
-            <>
-              {/* Clean Divider */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  margin: '24px 0 20px',
-                  color: 'var(--color-cream-text-muted, #6B5E55)',
-                  fontSize: '0.78rem',
-                }}
-              >
-                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
-                <span style={{ padding: '0 14px', fontWeight: 500, color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                  or sign in with email (Developer Mode)
-                </span>
-                <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
-              </div>
+          {/* Direct Email/Password Login Form */}
+          <>
+            {/* Clean Divider */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                margin: '24px 0 20px',
+                color: 'var(--color-cream-text-muted, #6B5E55)',
+                fontSize: '0.78rem',
+              }}
+            >
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
+              <span style={{ padding: '0 14px', fontWeight: 500, color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                or sign in with email
+              </span>
+              <div style={{ flex: 1, height: '1px', backgroundColor: 'var(--color-gold-border, rgba(223, 171, 98, 0.22))' }} />
+            </div>
 
               {/* Direct Login Form */}
               <form onSubmit={handleSubmit}>
                 {/* Email Field */}
                 <div className="auth-input-group" style={{ marginBottom: '14px' }}>
                   <label className="auth-label" style={{ fontWeight: 500, fontSize: '0.8rem', marginBottom: '5px' }}>
-                    Practice Email Address
+                    Email Address
                   </label>
                   <div className="auth-input-wrapper">
                     <span className="auth-input-icon">
@@ -427,7 +404,7 @@ function DoctorLoginContent() {
                       href="/login#forgot"
                       onClick={(e: React.MouseEvent) => {
                         e.preventDefault();
-                        toastSuccess('Password Reset', 'Password reset link sent to your practice email if registered.');
+                        toastSuccess('Password Reset', 'Password reset link sent to your email if registered.');
                       }}
                       style={{
                         fontSize: '0.76rem',
@@ -536,16 +513,15 @@ function DoctorLoginContent() {
                   href="/register"
                   style={{
                     color: 'var(--color-chocolate-base, #2A170F)',
-                    fontWeight: 600,
+                    fontWeight: 700,
                     textDecoration: 'underline',
                     textUnderlineOffset: '3px',
                   }}
                 >
-                  Register HPCSA Practice
+                  Sign up as Checkup Locum
                 </Link>
               </div>
             </>
-          )}
         </div>
       </div>
     </div>

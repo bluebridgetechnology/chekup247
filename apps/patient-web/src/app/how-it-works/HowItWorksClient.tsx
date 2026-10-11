@@ -118,58 +118,23 @@ export default function HowItWorksClient() {
               care you need — from the comfort of your home.
             </p>
 
-            {/* Toggle Buttons: For Patients vs For Doctors */}
+            {/* Patient Journey Badge */}
             <div
-              role="tablist"
-              aria-label="Audience view selector"
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: 'var(--space-3)',
-                flexWrap: 'wrap',
+                gap: '8px',
+                padding: '8px 18px',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: 'var(--color-gold-pale)',
+                border: '1px solid rgba(223, 171, 98, 0.3)',
+                color: 'var(--color-chocolate-base)',
+                fontSize: 'var(--text-sm)',
+                fontWeight: 600,
               }}
             >
-              <button
-                role="tab"
-                aria-selected={activeTab === 'patient'}
-                onClick={() => setActiveTab('patient')}
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  padding: '11px 28px',
-                  borderRadius: 'var(--radius-full)',
-                  border: activeTab === 'patient' ? 'none' : '1px solid var(--border-color)',
-                  backgroundColor: activeTab === 'patient' ? 'var(--color-gold-bronze)' : 'var(--color-white)',
-                  color: activeTab === 'patient' ? 'var(--color-white)' : 'var(--color-chocolate-base)',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: activeTab === 'patient' ? 600 : 500,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  boxShadow: activeTab === 'patient' ? 'var(--shadow-md)' : 'none',
-                }}
-              >
-                For Patients
-              </button>
-
-              <Link
-                href="/for-doctors"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  padding: '11px 28px',
-                  borderRadius: 'var(--radius-full)',
-                  border: '1px solid var(--border-color)',
-                  backgroundColor: 'var(--color-white)',
-                  color: 'var(--color-chocolate-base)',
-                  fontSize: 'var(--text-sm)',
-                  fontWeight: 500,
-                  textDecoration: 'none',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                For Doctors
-              </Link>
+              <SolarIcon name="shield-check-linear" size={16} color="var(--color-gold-bronze)" />
+              <span>Step-by-Step Patient Healthcare Journey</span>
             </div>
           </div>
 
@@ -740,7 +705,7 @@ export default function HowItWorksClient() {
                 </div>
                 <div style={{ marginTop: 'var(--space-6)' }}>
                   <Link
-                    href="/for-doctors"
+                    href={process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || 'http://localhost:3001/login'}
                     aria-label="Provider credential verification"
                     style={{
                       width: '36px',
@@ -820,7 +785,7 @@ export default function HowItWorksClient() {
                 </div>
                 <div style={{ marginTop: 'var(--space-6)' }}>
                   <Link
-                    href="/for-doctors"
+                    href={process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || 'http://localhost:3001/login'}
                     aria-label="Set up schedule"
                     style={{
                       width: '36px',
@@ -900,7 +865,7 @@ export default function HowItWorksClient() {
                 </div>
                 <div style={{ marginTop: 'var(--space-6)' }}>
                   <Link
-                    href="/for-doctors"
+                    href={process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || 'http://localhost:3001/login'}
                     aria-label="Clinical tools"
                     style={{
                       width: '36px',
@@ -980,7 +945,7 @@ export default function HowItWorksClient() {
                 </div>
                 <div style={{ marginTop: 'var(--space-6)' }}>
                   <Link
-                    href="/for-doctors"
+                    href={process.env.NEXT_PUBLIC_DOCTOR_PORTAL_URL || 'http://localhost:3001/login'}
                     aria-label="Provider payouts"
                     style={{
                       width: '36px',

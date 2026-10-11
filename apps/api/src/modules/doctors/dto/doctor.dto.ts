@@ -32,6 +32,10 @@ export class OnboardDoctorDto {
   @IsString()
   specialty?: string;
 
+  @IsOptional()
+  @IsString()
+  qualifications?: string;
+
   @IsNotEmpty({ message: 'Hourly consultation rate is required' })
   @IsNumber()
   @Min(0, { message: 'Hourly rate must be a positive value' })
@@ -83,6 +87,10 @@ export class UpdateDoctorProfileDto {
   @IsOptional()
   @IsString()
   specialty?: string;
+
+  @IsOptional()
+  @IsString()
+  qualifications?: string;
 
   @IsOptional()
   @IsNumber()

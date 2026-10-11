@@ -68,6 +68,10 @@ export class RegisterDoctorDto {
   @IsOptional()
   @IsBoolean()
   accepts_terms?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  is_checkup_locum?: boolean;
 }
 
 export class LoginDto {

@@ -1120,7 +1120,7 @@ a {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
   min-height: 520px;
-  background: var(--color-cream-surface, #FDFBF7);
+  background: #FFFFFF;
 }
 
 .calendar-week-mobile {

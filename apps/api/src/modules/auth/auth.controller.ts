@@ -70,7 +70,7 @@ export class AuthController {
     @Body() dto: RegisterDoctorDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    if (process.env.PUBLIC_DOCTOR_REGISTRATION_ENABLED !== 'true') {
+    if (process.env.PUBLIC_DOCTOR_REGISTRATION_ENABLED === 'false') {
       throw new ForbiddenException(
         'Direct doctor registration on ChekUp247 is currently disabled. Please sign in via LocumStaff SSO.',
       );

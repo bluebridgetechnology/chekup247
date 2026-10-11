@@ -201,7 +201,7 @@ export default function DoctorRootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <title>Doctor Practice Portal — ChekUp247</title>
         <meta name="description" content="ChekUp247 Doctor Practice Management and Telehealth Suite" />
@@ -250,7 +250,10 @@ export default function DoctorRootLayout({
           }
         `}</style>
       </head>
-      <body style={{ margin: 0, padding: 0, minHeight: '100vh', width: '100%', maxWidth: '100%', overflowX: 'hidden', backgroundColor: 'var(--color-cream-base, #FAF6EE)' }}>
+      <body
+        suppressHydrationWarning
+        style={{ margin: 0, padding: 0, minHeight: '100vh', width: '100%', maxWidth: '100%', overflowX: 'hidden', backgroundColor: 'var(--color-cream-base, #FAF6EE)' }}
+      >
         <DoctorAuthProvider>
           <DoctorPwaProvider>
             <BrandToaster />

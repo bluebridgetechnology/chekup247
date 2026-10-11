@@ -678,8 +678,9 @@ export default function DoctorCalendarPage() {
             style={{
               padding: 0,
               overflow: 'hidden',
-              boxShadow: 'none',
-              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))',
+              backgroundColor: '#FFFFFF',
+              boxShadow: '0 4px 20px rgba(42, 23, 15, 0.05), 0 1px 3px rgba(42, 23, 15, 0.04)',
+              border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
               width: '100%',
             }}
           >
@@ -794,7 +795,7 @@ export default function DoctorCalendarPage() {
                 >
                   {(['all', 'direct', 'locumstaff'] as const).map((src) => {
                     const isActive = filterSource === src;
-                    const label = src === 'all' ? 'All' : src === 'direct' ? 'Telehealth' : 'Locumstaff';
+                    const label = src === 'all' ? 'All' : src === 'direct' ? 'Chekup' : 'Locumstaff';
                     return (
                       <button
                         key={src}
@@ -1400,7 +1401,7 @@ export default function DoctorCalendarPage() {
                                           ? `Booked • ${slot.patientName || 'Confirmed Patient'}`
                                           : isLocum
                                           ? 'LocumStaff Duty Shift'
-                                          : '30 Min Telehealth Slot'}
+                                          : '30 Min ChekUp Slot'}
                                       </div>
                                     </div>
                                   </div>
@@ -1475,7 +1476,7 @@ export default function DoctorCalendarPage() {
                 : 0;
 
               return (
-                <div style={{ padding: '20px 16px', background: 'var(--color-cream-surface, #FDFBF7)' }}>
+                <div style={{ padding: '20px 16px', background: '#FFFFFF' }}>
                   {/* Day View Sub-Header */}
                   <div
                     style={{
@@ -2021,7 +2022,7 @@ export default function DoctorCalendarPage() {
 
             {/* MONTH VIEW */}
             {viewMode === 'month' && (
-              <div style={{ padding: '20px', background: 'var(--color-cream-surface, #FDFBF7)' }}>
+              <div style={{ padding: '20px', background: '#FFFFFF' }}>
                 <div
                   style={{
                     display: 'grid',
@@ -2267,7 +2268,7 @@ export default function DoctorCalendarPage() {
                   border: '1px solid #d8b4fe',
                 }}
               >
-                Locked on Telehealth Roster
+                Locked on ChekUp Roster
               </span>
             </div>
 

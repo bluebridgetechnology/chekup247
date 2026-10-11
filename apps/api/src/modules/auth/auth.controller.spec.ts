@@ -64,13 +64,16 @@ describe('AuthController', () => {
       expect(authService.registerDoctor).not.toHaveBeenCalled();
     });
 
-    it('should throw ForbiddenException if PUBLIC_DOCTOR_REGISTRATION_ENABLED is unset', async () => {
+    it('should succeed when PUBLIC_DOCTOR_REGISTRATION_ENABLED is unset (defaults to enabled)', async () => {
       delete process.env.PUBLIC_DOCTOR_REGISTRATION_ENABLED;
 
-      await expect(controller.registerDoctor(mockDto, mockRes)).rejects.toThrow(
-        ForbiddenException,
-      );
-      expect(authService.registerDoctor).not.toHaveBeenCalled();
+      const result = await controller.registerDoctor(mockDto, mockRes);
+      expect(authService.registerDoctor).toHaveBeenCalledWith(mockDto);
+      expect(result).toEqual({
+        id: 'doc-user-1',
+        email: 'doctor@example.com',
+        role: 'doctor',
+      });
     });
 
     it('should succeed when PUBLIC_DOCTOR_REGISTRATION_ENABLED is true', async () => {
