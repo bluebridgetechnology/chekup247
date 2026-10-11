@@ -481,12 +481,23 @@ export class DoctorsService implements OnModuleInit {
       throw new ConflictException('Doctor profile has already been submitted for this account');
     }
 
+    let standardRate = 850.0;
+    try {
+      const settings = await this.platformSettingRepository.findOne({ where: {} });
+      if (settings?.standard_consultation_rate != null) {
+        standardRate = Number(settings.standard_consultation_rate) || 850.0;
+      }
+    } catch (err: any) {
+      this.logger.warn(`Could not fetch platform standard consultation rate: ${err?.message}`);
+    }
+
     const doctorProfile = this.doctorRepository.create({
       user_id: user.id,
       hpcsa_number: dto.hpcsa_number,
+      qualifications: dto.qualifications || null,
       slug: this.formatSlug(user.full_name),
       specialty: dto.specialty || 'General Practitioner',
-      rate_per_hour: dto.rate_per_hour,
+      rate_per_hour: dto.rate_per_hour || standardRate,
       bio: dto.bio,
       documents_url: dto.documents_url || [],
       consultation_types: [],
@@ -562,6 +573,7 @@ export class DoctorsService implements OnModuleInit {
 
     const updatableFields = [
       'specialty',
+      'qualifications',
       'bio',
       'documents_url',
       'consultation_types',

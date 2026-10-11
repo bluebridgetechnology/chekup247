@@ -48,6 +48,7 @@ export default function DoctorOnboardPage() {
   const [identityType, setIdentityType] = useState<'id' | 'passport'>('id');
   const [identityNumber, setIdentityNumber] = useState('');
   const [specialty, setSpecialty] = useState(profile?.specialty ?? SPECIALTIES[0]);
+  const [qualifications, setQualifications] = useState(profile?.qualifications ?? '');
   const [province, setProvince] = useState('');
   const [ratePerHour, setRatePerHour] = useState(String(profile?.ratePerHour || '850'));
   const [bio, setBio] = useState('');
@@ -56,10 +57,19 @@ export default function DoctorOnboardPage() {
   const [facilityAddress, setFacilityAddress] = useState('');
   const [termsAgreed, setTermsAgreed] = useState(false);
 
+  /* PRESERVED ORIGINAL 3-DOCUMENT VERIFICATION:
+  // To restore the full 3-document requirement in the future, re-enable this list:
+  // const [docs, setDocs] = useState<DocUpload[]>([
+  //   { filename: '', label: 'National ID / Passport', hint: 'PDF, JPG, or PNG - verified against Home Affairs', fileUrl: '' },
+  //   { filename: '', label: 'HPCSA Annual Registration Certificate', hint: 'Current practising certificate (PDF preferred)', fileUrl: '' },
+  //   { filename: '', label: 'Indemnity Insurance Certificate', hint: 'Valid MPS / MDD medical malpractice cover', fileUrl: '' },
+  // ]);
+  */
+
+  // Checkup Locum Onboarding: Only ID/Passport and Medical Qualifications Certificate required
   const [docs, setDocs] = useState<DocUpload[]>([
     { filename: '', label: 'National ID / Passport', hint: 'PDF, JPG, or PNG - verified against Home Affairs', fileUrl: '' },
-    { filename: '', label: 'HPCSA Annual Registration Certificate', hint: 'Current practising certificate (PDF preferred)', fileUrl: '' },
-    { filename: '', label: 'Indemnity Insurance Certificate', hint: 'Valid MPS / MDD medical malpractice cover', fileUrl: '' },
+    { filename: '', label: 'Medical Qualifications Certificate', hint: 'Degree, diploma, or qualification certificate (PDF, JPG, or PNG)', fileUrl: '' },
   ]);
   const [uploadingKey, setUploadingKey] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
@@ -109,6 +119,10 @@ export default function DoctorOnboardPage() {
       setError('HPCSA registration number is required');
       return;
     }
+    if (!qualifications.trim()) {
+      setError('Please enter your medical qualifications and degrees (e.g. MBChB)');
+      return;
+    }
     if (identityType === 'id' && !/^\d{13}$/.test(identityNumber.trim())) {
       setError('South African ID number must be exactly 13 digits');
       return;
@@ -118,7 +132,7 @@ export default function DoctorOnboardPage() {
       return;
     }
     if (docs.some((d) => !d.fileUrl)) {
-      setError('Please upload your ID, HPCSA certificate, and indemnity certificate');
+      setError('Please upload both your National ID / Passport and your Medical Qualifications Certificate');
       return;
     }
     if (!ratePerHour || Number.isNaN(Number(ratePerHour)) || Number(ratePerHour) < 0) {
@@ -139,13 +153,14 @@ export default function DoctorOnboardPage() {
       await onboard({
         ...(doctor ? {} : {}),
         hpcsa_number: hpcsaNumber.trim().toUpperCase(),
+        qualifications: qualifications.trim(),
         document_type: identityType,
         id_number: identityNumber.trim().toUpperCase(),
         specialty,
         province: province || undefined,
         rate_per_hour: Number(ratePerHour),
         bio: bio.trim(),
-        documents_url: docs.map((d) => d.fileUrl),
+        documents_url: docs.map((d) => d.fileUrl).filter(Boolean),
         offers_in_clinic: offersInClinic,
         facility_name: offersInClinic && facilityName.trim() ? facilityName.trim() : undefined,
         facility_address: offersInClinic && facilityAddress.trim() ? facilityAddress.trim() : undefined,
@@ -267,6 +282,23 @@ export default function DoctorOnboardPage() {
                   <input id="hpcsa-number" type="text" required value={hpcsaNumber} onChange={(e) => setHpcsaNumber(e.target.value)} placeholder="MP 0123456" className="portal-input" style={{ textTransform: 'uppercase' }} />
                 </div>
                 <div className="portal-input-group">
+                  <label className="portal-label" htmlFor="qualifications">
+                    Medical Qualifications &amp; Degrees <span>*</span>
+                  </label>
+                  <input
+                    id="qualifications"
+                    type="text"
+                    required
+                    value={qualifications}
+                    onChange={(e) => setQualifications(e.target.value)}
+                    placeholder="e.g. MBChB (UCT), Dip Obst (SA), FCP (SA)"
+                    className="portal-input"
+                  />
+                  <span style={{ fontSize: '0.74rem', color: 'var(--color-cream-text-muted)', marginTop: '4px', display: 'block' }}>
+                    Primary medical degree and post-graduate clinical credentials.
+                  </span>
+                </div>
+                <div className="portal-input-group">
                   <label className="portal-label" htmlFor="specialty">Primary specialty <span>*</span></label>
                   <select id="specialty" value={specialty} onChange={(e) => setSpecialty(e.target.value)} className="portal-input portal-select">
                     {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -333,7 +365,7 @@ export default function DoctorOnboardPage() {
             <div className="doctor-onboard-section">
               <div className="doctor-onboard-section-title">
                 <span className="doctor-onboard-section-number">03</span>
-                <div><h3>Verification documents</h3><p>Clear, current files help us review your application faster.</p></div>
+                <div><h3>Verification documents</h3><p>Upload your identity document and medical qualifications certificate.</p></div>
               </div>
               <div className="doctor-onboard-docs">
                 {docs.map((doc, i) => (

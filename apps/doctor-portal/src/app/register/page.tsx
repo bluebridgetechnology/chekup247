@@ -27,6 +27,7 @@ function DoctorRegisterContent() {
   const [loading, setLoading] = useState(false);
   const [ssoLoading, setSsoLoading] = useState(false);
   const [resendCountdown, setResendCountdown] = useState(0);
+  const [isCheckupLocum, setIsCheckupLocum] = useState(true);
 
   const handleLocumStaffLogin = () => {
     setSsoLoading(true);
@@ -92,6 +93,7 @@ function DoctorRegisterContent() {
         last_name: lastName.trim(),
         email: email.trim(),
         password,
+        is_checkup_locum: isCheckupLocum,
       });
       setStep(2);
       startResendCountdown();
@@ -169,7 +171,11 @@ function DoctorRegisterContent() {
       </section>
 
       <section className="auth-form-pane" style={{ justifyContent: 'center' }}>
-        {!isInternalSignup ? (
+        {/* PRESERVED ORIGINAL REGISTRATION GATE:
+            To restore exclusive LocumStaff SSO gating in the future, re-enable this condition:
+            if (!isInternalSignup) { ...return LocumStaff Notice... }
+            Original disabled markup preserved below for zero rework: */}
+        {false && (
           /* Informative branded notice for LocumStaff onboarding */
           <div className="auth-form-wrapper" style={{ maxWidth: 520, width: '100%', textAlign: 'center' }}>
             {/* Top Badge */}
@@ -263,20 +269,6 @@ function DoctorRegisterContent() {
                 opacity: ssoLoading ? 0.85 : 1,
                 marginBottom: '16px',
               }}
-              onMouseEnter={(e) => {
-                if (!ssoLoading) {
-                  e.currentTarget.style.backgroundColor = '#d49b4c';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                  e.currentTarget.style.boxShadow = '0 6px 18px rgba(223, 171, 98, 0.45)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!ssoLoading) {
-                  e.currentTarget.style.backgroundColor = 'var(--color-gold-base, #DFAB62)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 14px rgba(223, 171, 98, 0.35)';
-                }
-              }}
             >
               {ssoLoading ? (
                 <>
@@ -319,9 +311,10 @@ function DoctorRegisterContent() {
               </Link>
             </p>
           </div>
-        ) : (
-          /* Internal Direct Signup Flow (when internal_signup === 'true') */
-          <div className="auth-form-wrapper" style={{ maxWidth: 560, width: '100%' }}>
+        )}
+
+        {/* Active Direct Checkup Locum Registration Flow */}
+        <div className="auth-form-wrapper" style={{ maxWidth: 560, width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 36 }}>
               {steps.map((item, index) => {
                 const active = index + 1 <= (step === 2 ? 2 : 1);
@@ -399,6 +392,80 @@ function DoctorRegisterContent() {
                 </div>
 
                 <form onSubmit={handleRegister}>
+                  {/* Question: Sign up as Checkup Locum */}
+                  <div
+                    style={{
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      backgroundColor: isCheckupLocum ? 'rgba(223, 171, 98, 0.12)' : 'rgba(42, 23, 15, 0.04)',
+                      border: isCheckupLocum ? '1.5px solid var(--color-gold-base, #DFAB62)' : '1px solid rgba(42, 23, 15, 0.12)',
+                      marginBottom: '20px',
+                      transition: 'all 0.18s ease',
+                    }}
+                  >
+                    <label
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '12px',
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isCheckupLocum}
+                        onChange={(e) => setIsCheckupLocum(e.target.checked)}
+                        style={{
+                          marginTop: '3px',
+                          accentColor: 'var(--color-gold-base, #DFAB62)',
+                          width: '18px',
+                          height: '18px',
+                          cursor: 'pointer',
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            fontSize: '0.92rem',
+                            color: 'var(--color-chocolate-base, #2A170F)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}
+                        >
+                          <span>Sign up as Checkup Locum</span>
+                          <span
+                            style={{
+                              fontSize: '0.68rem',
+                              padding: '2px 8px',
+                              borderRadius: '9999px',
+                              backgroundColor: 'var(--color-gold-base, #DFAB62)',
+                              color: 'var(--color-chocolate-base, #2A170F)',
+                              fontWeight: 800,
+                              letterSpacing: '0.04em',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            Fast-Track
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            fontSize: '0.8rem',
+                            color: 'var(--color-cream-text-muted, #6B5E55)',
+                            lineHeight: 1.45,
+                            marginTop: '4px',
+                          }}
+                        >
+                          Work with ChekUp as a locum practitioner. BHF / PCNS practice number not required — streamlined clinical registration with no upfront indemnity document uploads.
+                        </div>
+                      </div>
+                    </label>
+                  </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div><label style={labelStyle} htmlFor="doctor-first-name">First name</label><input id="doctor-first-name" required value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="Thabo" style={inputStyle} /></div>
                     <div><label style={labelStyle} htmlFor="doctor-last-name">Last name</label><input id="doctor-last-name" required value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Mthembu" style={inputStyle} /></div>
@@ -427,7 +494,6 @@ function DoctorRegisterContent() {
               Already have an account? <Link href="/login" style={{ color: 'var(--color-gold-bronze)', fontWeight: 800 }}>Sign in</Link>
             </p>
           </div>
-        )}
       </section>
     </main>
   );

@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { SolarIcon } from './SolarIcon';
 import { ChekupCrossLogo } from './Navbar';
 import { useAuth } from '../context/AuthContext';
-import { getDoctorLoginUrl } from '../lib/urls';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -333,7 +332,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                   }}
                 >
                   <SolarIcon name="user-linear" size={15} color="var(--color-gold-base, #DFAB62)" />
-                  <span>Patient Sign In</span>
+                  <span>Sign In</span>
                 </Link>
                 <Link
                   href="/register"
@@ -350,38 +349,14 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                   }}
                 >
                   <SolarIcon name="arrow-right-linear" size={13} color="rgba(255, 255, 255, 0.4)" />
-                  <span>Create Patient Account</span>
-                </Link>
-              </div>
-
-              {/* Group 2: I am a Doctor (Stacked text links) */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-                <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-gold-base, #DFAB62)' }}>
-                  I am a Doctor
-                </div>
-                <Link
-                  href="/for-doctors"
-                  onClick={onClose}
-                  style={{
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    fontSize: '0.925rem',
-                    fontWeight: 500,
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '3px 0',
-                  }}
-                >
-                  <SolarIcon name="stethoscope-linear" size={15} color="var(--color-gold-base, #DFAB62)" />
-                  <span>Provider Information</span>
+                  <span>Create an Account</span>
                 </Link>
               </div>
             </>
           )}
         </nav>
 
-        {/* Footer: Prominent Doctor Sign In Button at the bottom */}
+        {/* Footer Action Button */}
         <div style={{ marginTop: 'auto', paddingTop: '24px' }}>
           {isAuthenticated ? (
             <button
@@ -410,8 +385,8 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               <span>Sign Out</span>
             </button>
           ) : (
-            <a
-              href={getDoctorLoginUrl()}
+            <Link
+              href="/register"
               onClick={onClose}
               style={{
                 width: '100%',
@@ -429,11 +404,11 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
                 transition: 'all 0.15s ease',
               }}
-              title="Doctor Portal Sign In"
+              title="Get Started"
             >
-              <SolarIcon name="stethoscope-bold" size={16} color="var(--color-chocolate-base, #2A170F)" />
-              <span>Doctor Sign In</span>
-            </a>
+              <SolarIcon name="user-plus-bold" size={16} color="var(--color-chocolate-base, #2A170F)" />
+              <span>Get Started</span>
+            </Link>
           )}
         </div>
       </div>
