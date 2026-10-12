@@ -170,7 +170,7 @@ function DoctorRegisterContent() {
         <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.76rem' }}>Your account details are encrypted and kept private.</p>
       </section>
 
-      <section className="auth-form-pane" style={{ justifyContent: 'center' }}>
+      <section className="auth-form-pane">
         {/* PRESERVED ORIGINAL REGISTRATION GATE:
             To restore exclusive LocumStaff SSO gating in the future, re-enable this condition:
             if (!isInternalSignup) { ...return LocumStaff Notice... }
@@ -314,7 +314,7 @@ function DoctorRegisterContent() {
         )}
 
         {/* Active Direct Checkup Locum Registration Flow */}
-        <div className="auth-form-wrapper" style={{ maxWidth: 560, width: '100%' }}>
+        <div className="auth-form-wrapper auth-form-wrapper--wide" style={{ maxWidth: 580, width: '100%', margin: 'auto 0' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 36 }}>
               {steps.map((item, index) => {
                 const active = index + 1 <= (step === 2 ? 2 : 1);

@@ -34,66 +34,28 @@ const RICH_FALLBACK_DOCTORS: QuickDoctor[] = [
     image: '/images/doctor_thabo.jpg',
     nextAvailable: 'Available today in 15 mins',
   },
-  {
-    id: 'doc-2',
-    name: 'Dr. Sarah Van Der Merwe',
-    specialty: 'Paediatrician',
-    rate: 650,
-    rating: 4.98,
-    reviewsCount: 52,
-    duration: 45,
-    offersVideo: true,
-    offersAudio: true,
-    image: '/images/doctor_sarah.jpg',
-    nextAvailable: 'Available today',
-  },
-  {
-    id: 'doc-4',
-    name: 'Dr. Lerato Khumalo',
-    specialty: 'Dermatologist',
-    rate: 580,
-    rating: 4.97,
-    reviewsCount: 44,
-    duration: 30,
-    offersVideo: true,
-    offersAudio: true,
-    image: '/images/doctor_thabo.jpg',
-    nextAvailable: 'Available today',
-  },
-  {
-    id: 'doc-6',
-    name: 'Dr. Amina Patel',
-    specialty: "Obstetrics & Women's Health",
-    rate: 520,
-    rating: 4.96,
-    reviewsCount: 29,
-    duration: 45,
-    offersVideo: true,
-    offersAudio: true,
-    image: '/images/doctor_kevin.jpg',
-    nextAvailable: 'Available today',
-  },
-  {
-    id: 'doc-3',
-    name: 'Dr. Kevin Pillay',
-    specialty: 'Family Physician & Sports',
-    rate: 420,
-    rating: 4.92,
-    reviewsCount: 33,
-    duration: 30,
-    offersVideo: true,
-    offersAudio: true,
-    image: '/images/doctor_kevin.jpg',
-    nextAvailable: 'Available today',
-  },
 ];
 
-const SPECIALTY_OPTIONS = [
-  { id: 'all', label: '⚡ Earliest Available GP (Fastest)', specialty: 'All', icon: 'bolt-circle-bold' },
-  { id: 'gp', label: '🩺 General Practitioner & Family', specialty: 'General Practitioner', icon: 'stethoscope-bold' },
-  { id: 'paediatrics', label: '👶 Paediatrics (Child Health)', specialty: 'Paediatrician', icon: 'heart-pulse-bold' },
-  { id: 'dermatology', label: '🧴 Dermatology & Skin Care', specialty: 'Dermatologist', icon: 'shield-check-bold' },
-  { id: 'womens', label: "🌸 Women's Health & Gynae", specialty: "Obstetrics & Women's Health", icon: 'user-bold' },
+export interface SpecialtyOption {
+  id: string;
+  label: string;
+  specialty: string;
+  icon: string;
+  /** MVP visibility gating: only Earliest Available GP is visible during MVP test run */
+  isMvpVisible: boolean;
+}
+
+const SPECIALTY_OPTIONS: SpecialtyOption[] = [
+  { id: 'all', label: '⚡ Earliest Available GP (Fastest)', specialty: 'All', icon: 'bolt-circle-bold', isMvpVisible: true },
+  { id: 'gp', label: '🩺 General Practitioner', specialty: 'General Practitioner', icon: 'stethoscope-bold', isMvpVisible: false },
+  { id: 'dentist', label: '🦷 Dentist', specialty: 'Dentist', icon: 'smile-circle-bold', isMvpVisible: false },
+  { id: 'psychologist', label: '🧠 Psychologist', specialty: 'Psychologist', icon: 'heart-pulse-bold', isMvpVisible: false },
+  { id: 'podiatrist', label: '🦶 Podiatrist', specialty: 'Podiatrist', icon: 'shield-check-bold', isMvpVisible: false },
+  { id: 'dermatologist', label: '🧴 Dermatologist', specialty: 'Dermatologist', icon: 'waterdrops-bold', isMvpVisible: false },
+  { id: 'pediatrician', label: '👶 Pediatrician', specialty: 'Pediatrician', icon: 'user-bold', isMvpVisible: false },
+  { id: 'physician', label: '🩺 Physician', specialty: 'Physician', icon: 'stethoscope-bold', isMvpVisible: false },
+  { id: 'gynaecology', label: '🌸 Obstetrics & Gynaecology', specialty: 'Obstetrics & Gynaecology', icon: 'heart-bold', isMvpVisible: false },
+  { id: 'dietician', label: '🥗 Dietician', specialty: 'Dietician', icon: 'leaf-bold', isMvpVisible: false },
 ];
 
 const COMMON_REASONS = [
@@ -155,18 +117,31 @@ export function QuickBookingWidget() {
           if (docList.length > 0 && isMounted) {
             const mapped: QuickDoctor[] = docList.map((d: any) => ({
               id: d.id,
-              name: d.user?.full_name || d.name || 'Dr. Medical Practitioner',
+              name: d.user?.full_name || d.name || 'Dr. Thabo Molefe',
               specialty: d.specialty || 'General Practitioner',
               rate: Number(d.rate_per_hour || d.ratePerHour) || 450,
-              rating: Number(d.rating_avg || d.rating) || 4.9,
+              rating: Number(d.rating_avg || d.rating) || 4.95,
               reviewsCount: Number(d.reviews_count || d.reviewsCount) || 38,
               duration: Number(d.consultation_duration || d.duration) || 30,
               offersVideo: d.offers_video !== false,
               offersAudio: d.offers_audio !== false,
               image: d.user?.avatar_url || d.photo_url || '/images/doctor_thabo.jpg',
-              nextAvailable: d.next_available_slot || 'Available today',
+              nextAvailable: d.next_available_slot || 'Available today in 15 mins',
             }));
-            setDoctors(mapped);
+
+            // MVP Test Run: strictly retain only Dr. Thabo Molefe
+            const molefeDoctor = mapped.find(
+              (doc) =>
+                doc.name.toLowerCase().includes('molefe') ||
+                doc.id === 'doc-1' ||
+                doc.specialty === 'General Practitioner',
+            );
+
+            if (molefeDoctor) {
+              setDoctors([molefeDoctor]);
+            } else {
+              setDoctors(RICH_FALLBACK_DOCTORS);
+            }
           }
         }
       } catch {
@@ -686,10 +661,10 @@ export function QuickBookingWidget() {
               </div>
             </div>
 
-            {/* Step 1 Interactive Specialty Buttons */}
+            {/* Step 1 Interactive Specialty Buttons (Filtered to MVP visible items) */}
             {currentStep === 'specialty' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginLeft: '34px' }}>
-                {SPECIALTY_OPTIONS.map((item) => (
+                {SPECIALTY_OPTIONS.filter((item) => item.isMvpVisible).map((item) => (
                   <button
                     key={item.id}
                     type="button"

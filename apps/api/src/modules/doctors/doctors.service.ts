@@ -300,11 +300,12 @@ export class DoctorsService implements OnModuleInit {
     }
 
     if (!doctor) {
-      // Fallback: try finding by slug matching format
+      // Fallback: try finding by slug matching format or fallback mock ID
+      const targetSlug = idOrSlug === 'doc-1' ? 'dr-thabo-molefe' : idOrSlug;
       doctor = await this.doctorRepository
         .createQueryBuilder('doc')
         .leftJoinAndSelect('doc.user', 'user')
-        .where('doc.slug = :idOrSlug', { idOrSlug })
+        .where('doc.slug = :targetSlug', { targetSlug })
         .getOne();
     }
 

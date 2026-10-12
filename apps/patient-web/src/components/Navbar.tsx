@@ -7,6 +7,7 @@ import { SolarIcon } from './SolarIcon';
 import { MobileDrawer } from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
+import { getDoctorRegisterUrl, getDoctorLoginUrl } from '../lib/urls';
 
 /**
  * Precision Chekup247 Brand Medical Cross Mark
@@ -77,14 +78,19 @@ export function Navbar() {
   const pathname = usePathname() || '';
   const [mobileOpen, setMobileOpen] = useState(false);
   const [avatarMenuOpen, setAvatarMenuOpen] = useState(false);
+  const [doctorMenuOpen, setDoctorMenuOpen] = useState(false);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
+  const doctorMenuRef = useRef<HTMLDivElement>(null);
   const { user, isAuthenticated, logout } = useAuth();
 
-  // Close the avatar dropdown on outside click.
+  // Close dropdowns on outside click.
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (avatarMenuRef.current && !avatarMenuRef.current.contains(event.target as Node)) {
         setAvatarMenuOpen(false);
+      }
+      if (doctorMenuRef.current && !doctorMenuRef.current.contains(event.target as Node)) {
+        setDoctorMenuOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -204,6 +210,102 @@ export function Navbar() {
                 </Link>
               );
             })}
+
+            {/* Locum & Doctors Menu */}
+            <div style={{ position: 'relative' }} ref={doctorMenuRef}>
+              <button
+                type="button"
+                onClick={() => setDoctorMenuOpen((v) => !v)}
+                aria-expanded={doctorMenuOpen}
+                aria-label="Chekup247 Locum and Doctor portal menu"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontSize: '0.875rem',
+                  fontWeight: 600,
+                  color: doctorMenuOpen ? 'var(--color-gold-base)' : 'var(--color-white-80)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  padding: '6px 0',
+                  letterSpacing: '-0.01em',
+                  whiteSpace: 'nowrap',
+                  transition: 'color 0.2s ease',
+                }}
+                className="nav-link"
+              >
+                <span>Chekup247 Locum</span>
+                <SolarIcon
+                  name={doctorMenuOpen ? 'alt-arrow-up-linear' : 'alt-arrow-down-linear'}
+                  size={14}
+                  color="var(--color-gold-base)"
+                />
+              </button>
+
+              {doctorMenuOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 12px)',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: '260px',
+                    backgroundColor: '#FFFFFF',
+                    borderRadius: '14px',
+                    border: '1px solid var(--color-slate-200, #E5E0D8)',
+                    boxShadow: '0 20px 40px -15px rgba(42, 23, 15, 0.25)',
+                    padding: '8px',
+                    zIndex: 100,
+                    animation: 'fadeIn 0.15s ease-out',
+                  }}
+                >
+                  <div style={{ padding: '8px 12px 6px', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                    For Doctors &amp; Locums
+                  </div>
+                  <a
+                    href={getDoctorRegisterUrl()}
+                    onClick={() => setDoctorMenuOpen(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      color: 'var(--color-chocolate-base, #2A170F)',
+                      fontSize: '0.835rem',
+                      fontWeight: 700,
+                      textDecoration: 'none',
+                      backgroundColor: 'rgba(223, 171, 98, 0.14)',
+                      marginBottom: '4px',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                  >
+                    <SolarIcon name="user-plus-bold" size={16} color="var(--color-gold-bronze, #B88647)" />
+                    <span>Sign up as Chekup247 Locum</span>
+                  </a>
+                  <a
+                    href={getDoctorLoginUrl()}
+                    onClick={() => setDoctorMenuOpen(false)}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
+                      color: 'var(--color-chocolate-base, #2A170F)',
+                      fontSize: '0.835rem',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      transition: 'background-color 0.15s ease',
+                    }}
+                  >
+                    <SolarIcon name="stethoscope-bold" size={16} color="var(--color-gold-bronze, #B88647)" />
+                    <span>Doctor Sign In</span>
+                  </a>
+                </div>
+              )}
+            </div>
           </nav>
 
           {/* RIGHT SIDE: Log In & Primary CTA */}
@@ -413,6 +515,29 @@ export function Navbar() {
               <>
                 {/* Desktop login button group: visible on desktop >= 900px */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="desktop-login-group">
+                  <a
+                    href={getDoctorRegisterUrl()}
+                    style={{
+                      fontSize: '0.82rem',
+                      fontWeight: 700,
+                      color: 'var(--color-gold-base, #DFAB62)',
+                      textDecoration: 'none',
+                      transition: 'all 0.2s ease',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '7px 12px',
+                      borderRadius: '10px',
+                      backgroundColor: 'rgba(223, 171, 98, 0.12)',
+                      border: '1px solid rgba(223, 171, 98, 0.35)',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title="Sign up as Chekup247 Locum"
+                  >
+                    <SolarIcon name="stethoscope-bold" size={15} color="var(--color-gold-base)" />
+                    <span>Sign up as Chekup247 Locum</span>
+                  </a>
+
                   <Link
                     href="/login"
                     style={{
