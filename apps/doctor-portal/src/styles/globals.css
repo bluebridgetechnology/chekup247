@@ -716,14 +716,6 @@ a {
   .prescribe-stationary-header > div:last-child {
     text-align: left !important;
   }
-  .prescribe-steps-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 6px;
-  }
-  .prescribe-steps-inner {
-    min-width: 520px;
-  }
 }
 
 /* ==========================================================================
@@ -2787,49 +2779,115 @@ a {
   }
 }
 
-/* Prescription steps: number badges stay perfectly round when the row shrinks */
-.prescribe-steps-inner > div > div:first-child {
-  flex: 0 0 32px;
+/* ==========================================================================
+   Prescription builder progress rail (.rx-stepper)
+   Three equal steps joined by a line; same structure on desktop and phone.
+   ========================================================================== */
+.rx-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 0 20px;
+  padding-top: 5px;
+}
+
+.rx-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-cream-text-muted, #6B5E55);
+  text-align: center;
+}
+
+/* Connector to the next step, drawn behind the dots */
+.rx-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: calc(50% + 24px);
+  right: calc(-50% + 24px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-gold-border, rgba(223, 171, 98, 0.3));
+}
+.rx-step.is-done:not(:last-child)::after {
+  background: var(--color-gold-base, #DFAB62);
+}
+
+.rx-step-dot {
+  box-sizing: border-box;
   width: 32px;
   height: 32px;
-  min-width: 32px;
-  aspect-ratio: 1 / 1;
+  flex: 0 0 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1;
+  background: var(--color-cream-surface, #FDFBF7);
+  color: var(--color-cream-text-muted, #6B5E55);
+  border: 2px solid var(--color-gold-border, rgba(223, 171, 98, 0.45));
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.rx-step.is-active .rx-step-dot {
+  background: var(--color-gold-primary, #E2B467);
+  border-color: var(--color-gold-primary, #E2B467);
+  color: var(--color-chocolate-base, #2A170F);
+  box-shadow: 0 0 0 4px rgba(223, 171, 98, 0.25);
+}
+.rx-step.is-done .rx-step-dot {
+  background: var(--color-chocolate-base, #2A170F);
+  border-color: var(--color-chocolate-base, #2A170F);
+  color: var(--color-gold-primary, #E2B467);
+}
+
+.rx-step-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+}
+.rx-step-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: inherit;
+}
+.rx-step-sub {
+  font-size: 0.72rem;
+  line-height: 1.25;
+  color: var(--color-cream-text-muted, #6B5E55);
+  opacity: 0.85;
+}
+.rx-step.is-active,
+.rx-step.is-done {
+  color: var(--color-chocolate-base, #2A170F);
+}
+.rx-step:focus-visible .rx-step-dot {
+  outline: 2px solid var(--color-chocolate-base, #2A170F);
+  outline-offset: 3px;
 }
 
 @media (max-width: 640px) {
-  /* The base rule forces a 520px-wide row; on phones the three steps share the card
-     instead: round number on top, short title below, connector lines dropped. */
-  .prescribe-steps-container {
-    padding: 12px !important;
-    overflow-x: visible;
+  .rx-stepper {
+    margin-bottom: 16px;
   }
-  .prescribe-steps-inner {
-    min-width: 0;
-    width: 100%;
-    gap: 6px !important;
-    align-items: flex-start !important;
+  .rx-step {
+    padding: 0 2px;
+    gap: 6px;
   }
-  .prescribe-steps-inner > div:empty {
-    display: none !important;
+  .rx-step-title {
+    font-size: 0.78rem;
   }
-  .prescribe-steps-inner > div:not(:empty) {
-    flex: 1 1 0 !important;
-    min-width: 0;
-    flex-direction: column !important;
-    align-items: center !important;
-    text-align: center;
-    gap: 6px !important;
-  }
-  .prescribe-steps-inner > div > div:last-child,
-  .prescribe-steps-inner > div > div:last-child * {
-    min-width: 0;
-    white-space: normal !important;
-    overflow-wrap: break-word;
-    font-size: 0.72rem !important;
-    line-height: 1.25;
-  }
-  /* Titles only; hide the secondary description line */
-  .prescribe-steps-inner > div > div:last-child > div:nth-child(n + 2) {
+  .rx-step-sub {
     display: none;
   }
 }
