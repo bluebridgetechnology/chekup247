@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 import { SolarIcon } from './SolarIcon';
 import { ChekupCrossLogo } from './Navbar';
 import { useAuth } from '../context/AuthContext';
+import { getDoctorRegisterUrl, getDoctorLoginUrl } from '../lib/urls';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -354,6 +355,54 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               </div>
             </>
           )}
+
+          {/* Divider before Healthcare Professionals */}
+          <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.08)', margin: '10px 0' }} />
+
+          {/* Group 2: For Doctors / Chekup247 Locum */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-gold-base, #DFAB62)' }}>
+              For Healthcare Professionals
+            </div>
+            <a
+              href={getDoctorRegisterUrl()}
+              onClick={onClose}
+              style={{
+                backgroundColor: 'rgba(223, 171, 98, 0.15)',
+                border: '1px solid rgba(223, 171, 98, 0.35)',
+                color: '#FFFFFF',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 12px',
+                borderRadius: '8px',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <SolarIcon name="user-plus-bold" size={16} color="var(--color-gold-base, #DFAB62)" />
+              <span>Sign up as Chekup247 Locum</span>
+            </a>
+            <a
+              href={getDoctorLoginUrl()}
+              onClick={onClose}
+              style={{
+                color: 'rgba(255, 255, 255, 0.85)',
+                fontSize: '0.85rem',
+                fontWeight: 500,
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '4px 0',
+              }}
+            >
+              <SolarIcon name="stethoscope-bold" size={15} color="var(--color-gold-base, #DFAB62)" />
+              <span>Doctor Sign In</span>
+            </a>
+          </div>
         </nav>
 
         {/* Footer Action Button */}

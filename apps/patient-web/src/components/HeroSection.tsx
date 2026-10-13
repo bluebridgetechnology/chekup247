@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { SolarIcon } from './SolarIcon';
+import { getDoctorRegisterUrl, getDoctorLoginUrl } from '../lib/urls';
 
 export function HeroSection() {
   return (
@@ -136,7 +137,7 @@ export function HeroSection() {
           </p>
 
           {/* CTA Row: Book a Consultation */}
-          <div className="hero-cta-row">
+          <div className="hero-cta-row" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '24px' }}>
             {/* Primary CTA: Book a Consultation */}
             <Link
               href="/doctors"
@@ -145,6 +146,66 @@ export function HeroSection() {
               <span>Book a Consultation</span>
               <SolarIcon name="calendar-date-bold-duotone" size={20} />
             </Link>
+          </div>
+
+          {/* Doctor Locum Onboarding Callout Banner */}
+          <div
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '10px',
+              padding: '8px 16px',
+              borderRadius: '9999px',
+              backgroundColor: 'rgba(255, 255, 255, 0.07)',
+              border: '1px solid rgba(223, 171, 98, 0.35)',
+              marginBottom: '32px',
+            }}
+            className="hero-doctor-locum-cta"
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                color: 'var(--color-gold-base)',
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+              }}
+            >
+              <SolarIcon name="stethoscope-bold" size={16} color="var(--color-gold-base)" />
+              <span>For Doctors</span>
+            </span>
+            <span style={{ color: 'rgba(255, 255, 255, 0.35)', fontSize: '0.75rem' }}>•</span>
+            <a
+              href={getDoctorRegisterUrl()}
+              style={{
+                color: '#FFFFFF',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <span>Sign up as Chekup247 Locum</span>
+              <SolarIcon name="arrow-right-linear" size={14} color="var(--color-gold-base)" />
+            </a>
+            <span style={{ color: 'rgba(255, 255, 255, 0.35)', fontSize: '0.75rem' }}>•</span>
+            <a
+              href={getDoctorLoginUrl()}
+              style={{
+                color: 'var(--color-gold-base)',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                textDecoration: 'none',
+              }}
+            >
+              Doctor Sign In
+            </a>
           </div>
 
           {/* Feature Mini-Nav Indicators */}
