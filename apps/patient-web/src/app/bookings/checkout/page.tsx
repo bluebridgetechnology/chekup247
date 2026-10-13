@@ -751,13 +751,14 @@ function CheckoutContent() {
     <div style={{ minHeight: '100vh', background: 'var(--color-cream-base, #FAF6EE)', paddingBottom: '90px' }}>
       {/* Top Header Navigation Strip */}
       <div
+        className="checkout-top-strip"
         style={{
           background: 'var(--color-cream-surface, #FDFBF7)',
           borderBottom: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2))',
           padding: '24px 0',
         }}
       >
-        <div className="container" style={{ maxWidth: '1140px' }}>
+        <div className="container checkout-header" style={{ maxWidth: '1140px' }}>
           <Breadcrumbs
             items={[
               { label: 'Find a Doctor', href: '/doctors' },
@@ -777,6 +778,7 @@ function CheckoutContent() {
           >
             <div>
               <h1
+                className="checkout-title"
                 style={{
                   fontSize: '1.85rem',
                   fontFamily: 'var(--font-heading)',
@@ -897,6 +899,7 @@ function CheckoutContent() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* 1. Combined Doctor & Schedule Overview Card */}
             <div
+              className="checkout-card"
               style={{
                 background: 'var(--color-cream-surface, #FDFBF7)',
                 borderRadius: '20px',
@@ -1005,6 +1008,7 @@ function CheckoutContent() {
 
               {/* Date & Time Strip inside the card */}
               <div
+                className="checkout-datetime-grid"
                 style={{
                   marginTop: '18px',
                   paddingTop: '16px',
@@ -1062,6 +1066,7 @@ function CheckoutContent() {
 
             {/* 2. Interactive Stepper Card (Step 1: Clinical Reason, Step 2: Test Reports) */}
             <div
+              className="checkout-card"
               style={{
                 background: 'var(--color-cream-surface, #FDFBF7)',
                 borderRadius: '20px',
@@ -1079,6 +1084,7 @@ function CheckoutContent() {
                 }}
               >
                 <div
+                  className="checkout-stepper"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1090,6 +1096,7 @@ function CheckoutContent() {
                   {/* Step 1: Reason for Visit (Required) */}
                   <button
                     type="button"
+                    className="checkout-step-btn"
                     onClick={() => {
                       setNotesError(false);
                       setCurrentStep(1);
@@ -1184,6 +1191,7 @@ function CheckoutContent() {
 
                   {/* Connecting Line with Progress Tracker */}
                   <div
+                    className="checkout-step-connector"
                     style={{
                       flex: 1,
                       height: '2px',
@@ -1214,6 +1222,7 @@ function CheckoutContent() {
                   {/* Step 2: Medical Reports (Optional) */}
                   <button
                     type="button"
+                    className="checkout-step-btn"
                     onClick={() => {
                       if (notes.trim().length === 0) {
                         setNotesError(true);
@@ -1318,6 +1327,7 @@ function CheckoutContent() {
                   {/* SMART BOOKING / PATIENT INFORMATION CARD */}
                   {!isAuthenticated ? (
                     <div
+                      className="checkout-patient-card"
                       style={{
                         marginBottom: '26px',
                         padding: '22px',
@@ -1412,6 +1422,7 @@ function CheckoutContent() {
                       )}
 
                       <div
+                        className="checkout-fields-grid"
                         style={{
                           display: 'grid',
                           gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
@@ -1690,7 +1701,7 @@ function CheckoutContent() {
                   </div>
 
                   {/* Step 1 Footer Action */}
-                  <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+                  <div className="checkout-actions checkout-actions-end" style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
                     <button
                       type="button"
                       onClick={() => {
@@ -1870,7 +1881,7 @@ function CheckoutContent() {
                   </div>
 
                   {/* Stepper Navigation Buttons */}
-                  <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div className="checkout-actions" style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
                     <button
                       type="button"
                       onClick={() => setCurrentStep(1)}
@@ -1937,6 +1948,7 @@ function CheckoutContent() {
           {/* RIGHT COLUMN: Streamlined, Balanced Fee Summary Card      */}
           {/* ========================================================= */}
           <div
+            className="checkout-summary-card"
             style={{
               background: 'var(--color-cream-surface, #FDFBF7)',
               borderRadius: '22px',
@@ -2286,6 +2298,7 @@ function CheckoutContent() {
           }}
         >
           <div
+            className="checkout-auth-modal"
             style={{
               background: 'var(--color-cream-surface, #FDFBF7)',
               border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.4))',

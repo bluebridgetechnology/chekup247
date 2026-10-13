@@ -704,174 +704,56 @@ export default function EPrescriptionBuilderPage() {
           </div>
         </div>
 
-        {/* Numbered Step Progress Header Matching Patient System */}
+        {/* Progress rail: 1 Diagnosis -> 2 Medication -> 3 Stationery & signature */}
         {activeTab !== 'success' && (
-          <div
-            className="portal-card prescribe-steps-container"
-            style={{
-              padding: '16px 20px',
-              marginBottom: '22px',
-            }}
-          >
-            <div
-              className="prescribe-steps-inner"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-              }}
-            >
-              {/* Step 1 */}
-              <div
-                onClick={() => {
-                  setActiveTab('form');
-                  setActiveStep(1);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background:
-                      activeStep === 1
-                        ? 'var(--color-gold-primary, #E2B467)'
-                        : selectedIcd10 || icd10Query
-                        ? 'var(--color-chocolate-base, #2A170F)'
-                        : 'var(--color-gold-pale, #F0E5D3)',
-                    color:
-                      activeStep === 1
-                        ? 'var(--color-chocolate-base, #2A170F)'
-                        : selectedIcd10 || icd10Query
-                        ? '#ffffff'
-                        : 'var(--color-chocolate-base, #2A170F)',
-                    fontWeight: 800,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: activeStep === 1 ? '2px solid var(--color-gold-base, #DFAB62)' : 'none',
-                  }}
+          <nav className="rx-stepper" aria-label="Prescription progress">
+            {[
+              {
+                n: 1,
+                title: 'Diagnosis',
+                sub: 'ICD-10 & symptoms',
+                done: Boolean(selectedIcd10 || icd10Query),
+                go: () => { setActiveTab('form'); setActiveStep(1); },
+              },
+              {
+                n: 2,
+                title: 'Medication',
+                sub: 'NAPPI code & presets',
+                done: medications.length > 0 && Boolean(medications[0].name),
+                go: () => { setActiveTab('form'); setActiveStep(2); },
+              },
+              {
+                n: 3,
+                title: 'Review & sign',
+                sub: 'Official SA medical PDF',
+                done: false,
+                go: () => { setActiveTab('preview'); setActiveStep(3); },
+              },
+            ].map((step) => {
+              const isActive = activeStep === step.n;
+              return (
+                <button
+                  key={step.n}
+                  type="button"
+                  onClick={step.go}
+                  aria-current={isActive ? 'step' : undefined}
+                  className={`rx-step${isActive ? ' is-active' : ''}${step.done && !isActive ? ' is-done' : ''}`}
                 >
-                  1
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                    Mandatory Diagnostic ICD-10
-                  </div>
-                  <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                    Primary Diagnosis &amp; Symptoms
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ height: '1px', flex: 1, background: 'rgba(223, 171, 98, 0.3)', margin: '0 16px', minWidth: '24px' }} />
-
-              {/* Step 2 */}
-              <div
-                onClick={() => {
-                  setActiveTab('form');
-                  setActiveStep(2);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background:
-                      activeStep === 2
-                        ? 'var(--color-gold-primary, #E2B467)'
-                        : medications.length > 0 && medications[0].name
-                        ? 'var(--color-chocolate-base, #2A170F)'
-                        : 'var(--color-gold-pale, #F0E5D3)',
-                    color:
-                      activeStep === 2
-                        ? 'var(--color-chocolate-base, #2A170F)'
-                        : medications.length > 0 && medications[0].name
-                        ? '#ffffff'
-                        : 'var(--color-chocolate-base, #2A170F)',
-                    fontWeight: 800,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: activeStep === 2 ? '2px solid var(--color-gold-base, #DFAB62)' : 'none',
-                  }}
-                >
-                  2
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                    Medication Items (Rx)
-                  </div>
-                  <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                    NAPPI Code &amp; Presets
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ height: '1px', flex: 1, background: 'rgba(223, 171, 98, 0.3)', margin: '0 16px', minWidth: '24px' }} />
-
-              {/* Step 3 */}
-              <div
-                onClick={() => {
-                  setActiveTab('preview');
-                  setActiveStep(3);
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                }}
-              >
-                <div
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    background:
-                      activeStep === 3
-                        ? 'var(--color-gold-primary, #E2B467)'
-                        : 'var(--color-gold-pale, #F0E5D3)',
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    fontWeight: 800,
-                    fontSize: '0.85rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    border: activeStep === 3 ? '2px solid var(--color-gold-base, #DFAB62)' : 'none',
-                  }}
-                >
-                  3
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.85rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
-                    Stationary &amp; Signature
-                  </div>
-                  <div style={{ fontSize: '0.725rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                    Official SA Medical PDF
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+                  <span className="rx-step-dot">
+                    {step.done && !isActive ? (
+                      <SolarIcon name="check-read-linear" size={16} color="currentColor" />
+                    ) : (
+                      step.n
+                    )}
+                  </span>
+                  <span className="rx-step-text">
+                    <span className="rx-step-title">{step.title}</span>
+                    <span className="rx-step-sub">{step.sub}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
         )}
 
         {/* Patient Summary Header Card (Clean - No Avatar Circle) */}
@@ -923,60 +805,6 @@ export default function EPrescriptionBuilderPage() {
             </div>
           </div>
         </div>
-
-        {/* Tab Selection: Form vs Preview */}
-        {activeTab !== 'success' && (
-          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('form');
-                setActiveStep(1);
-              }}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '9999px',
-                border: activeTab === 'form' ? 'none' : '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
-                background: activeTab === 'form' ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-cream-surface, #FDFBF7)',
-                color: activeTab === 'form' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <SolarIcon name="pen-new-square-linear" size={16} color={activeTab === 'form' ? '#DFAB62' : 'var(--color-chocolate-base, #2A170F)'} />
-              <span>1. Prescription Form &amp; Items</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('preview');
-                setActiveStep(3);
-              }}
-              style={{
-                padding: '10px 20px',
-                borderRadius: '9999px',
-                border: activeTab === 'preview' ? 'none' : '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
-                background: activeTab === 'preview' ? 'var(--color-chocolate-base, #2A170F)' : 'var(--color-cream-surface, #FDFBF7)',
-                color: activeTab === 'preview' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
-                fontWeight: 700,
-                fontSize: '0.85rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <SolarIcon name="eye-linear" size={16} color={activeTab === 'preview' ? '#DFAB62' : 'var(--color-chocolate-base, #2A170F)'} />
-              <span>2. Official SA Medical Stationary Preview</span>
-            </button>
-          </div>
-        )}
 
         {submitError && (
           <div

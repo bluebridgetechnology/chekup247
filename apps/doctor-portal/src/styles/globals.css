@@ -363,10 +363,13 @@ a {
     color: #9a6d36;
   }
 
-  .doctor-onboard-hero-meta strong,
-  .doctor-onboard-hero-meta span { display: block; }
-  .doctor-onboard-hero-meta strong { font-size: 0.8rem; }
-  .doctor-onboard-hero-meta span { margin-top: 3px; color: #81756b; font-size: 0.72rem; }
+  /* Scoped to the text block so the icon's own <span> keeps its centred grid layout */
+  .doctor-onboard-hero-meta > div strong,
+  .doctor-onboard-hero-meta > div span { display: block; }
+  .doctor-onboard-hero-meta > div strong { font-size: 0.8rem; }
+  .doctor-onboard-hero-meta > div span { margin-top: 3px; color: #81756b; font-size: 0.72rem; }
+  .doctor-onboard-hero-icon { flex-shrink: 0; }
+  .doctor-onboard-hero-icon svg { display: block; }
 
   .doctor-onboard-layout {
     max-width: 1180px;
@@ -712,14 +715,6 @@ a {
   }
   .prescribe-stationary-header > div:last-child {
     text-align: left !important;
-  }
-  .prescribe-steps-container {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    padding-bottom: 6px;
-  }
-  .prescribe-steps-inner {
-    min-width: 520px;
   }
 }
 
@@ -2433,5 +2428,536 @@ a {
   .profile-sticky-bar .btn-primary {
     width: 100%;
     justify-content: center;
+  }
+}
+
+/* ==========================================================================
+   MOBILE DESIGN LAYER (<= 640px)
+   Lighter, denser phone layout shared by every doctor-portal page:
+   compact top bar, 2-up stat tiles, calmer headings, no sideways overflow.
+   ========================================================================== */
+@media (max-width: 640px) {
+  :root {
+    --doctor-topbar-h: 56px;
+  }
+
+  /* ---- Top bar: one tidy row, page title only ---- */
+  .doctor-topbar {
+    padding: 0 10px !important;
+  }
+  .doctor-topbar-left {
+    gap: 6px !important;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+  .doctor-topbar-title {
+    min-width: 0;
+  }
+  .doctor-breadcrumb {
+    display: none !important;
+  }
+  .doctor-topbar .section-title {
+    font-size: 1.05rem !important;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .doctor-topbar-controls {
+    flex: 0 0 auto;
+    gap: 6px !important;
+  }
+  .doctor-status-pill,
+  .doctor-header-signout-btn {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .doctor-header-signout-btn {
+    padding: 0 !important;
+  }
+  .doctor-header-signout-label {
+    display: none !important;
+  }
+
+  /* ---- Page canvas ---- */
+  .doctor-main-scroll {
+    padding: 14px 12px 28px !important;
+  }
+  .doctor-main-scroll > * {
+    min-width: 0;
+  }
+
+  /* ---- Headings: smaller, quieter ---- */
+  .page-eyebrow {
+    font-size: 0.64rem;
+    margin-bottom: 4px;
+  }
+  .page-title {
+    font-size: 1.45rem !important;
+  }
+  .page-subtitle {
+    font-size: 0.82rem;
+    margin-top: 4px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* ---- Stat tiles: 2-up, compact ---- */
+  .dashboard-kpi-grid,
+  .stats-grid-4,
+  .earnings-kpi-grid,
+  .calendar-stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px !important;
+    margin-top: 14px;
+    margin-bottom: 14px;
+  }
+  .dashboard-kpi-grid > *,
+  .stats-grid-4 > *,
+  .earnings-kpi-grid > * {
+    min-width: 0;
+  }
+  .kpi-card,
+  .earnings-kpi-card,
+  .appointments-page .stats-grid-4 .portal-card {
+    padding: 12px 14px !important;
+    border-radius: 14px !important;
+    box-shadow: none !important;
+  }
+  .stat-number,
+  .earnings-kpi-value {
+    font-size: 1.3rem !important;
+    line-height: 1.15;
+    overflow-wrap: anywhere;
+  }
+  .stat-label {
+    font-size: 0.62rem;
+    letter-spacing: 0.04em;
+  }
+  /* Decorative icon tiles add weight without information */
+  .kpi-card > div:first-child > div:last-child:not(.stat-label),
+  .earnings-kpi-icon,
+  .stats-grid-4 .portal-card > div:first-child > div:last-child {
+    display: none !important;
+  }
+  .earnings-kpi-meta {
+    font-size: 0.68rem;
+    line-height: 1.3;
+  }
+
+  /* Calendar stat tiles: stack icon-less, never clip */
+  .calendar-stat-card {
+    padding: 10px 12px;
+    gap: 8px;
+    min-width: 0;
+  }
+  .calendar-stat-icon {
+    display: none;
+  }
+  .calendar-stat-val-row {
+    flex-wrap: wrap;
+    gap: 2px 6px;
+  }
+
+  /* ---- Cards ---- */
+  .portal-card {
+    padding: 14px !important;
+    border-radius: 16px !important;
+  }
+
+  /* ---- Earnings chart: scrolls instead of clipping ---- */
+  .earnings-chart-bars-wrap {
+    gap: 10px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .earnings-chart-bars-wrap::-webkit-scrollbar {
+    display: none;
+  }
+  .earnings-chart-bar-item {
+    min-width: 46px;
+    flex: 0 0 auto;
+  }
+  .earnings-chart-bar-capsule {
+    width: 36px;
+  }
+
+  /* ---- Profile header: title row, then wrapping actions ---- */
+  .profile-head {
+    flex-direction: column;
+    gap: 12px !important;
+    margin-bottom: 14px !important;
+  }
+  .profile-head > div:first-child {
+    min-width: 0 !important;
+    width: 100%;
+  }
+  .profile-head-actions {
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 8px !important;
+  }
+  .profile-head-actions .btn-primary {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  /* ---- Buttons: comfortable tap size ---- */
+  .btn-primary,
+  .btn-secondary {
+    min-height: 40px;
+  }
+}
+
+/* ---- Mobile layer, part 2: hero, chip strips, ICD cards ---- */
+@media (max-width: 640px) {
+  .page-eyebrow,
+  .welcome-eyebrow {
+    display: none !important;
+  }
+
+  .welcome-banner {
+    padding: 16px !important;
+    margin-bottom: 14px !important;
+    border-radius: 16px !important;
+  }
+  .welcome-banner > div:first-child {
+    margin-bottom: 12px !important;
+  }
+  .welcome-actions {
+    gap: 8px !important;
+  }
+  .welcome-actions > a:first-child {
+    grid-column: 1 / -1;
+  }
+  .welcome-actions > a {
+    justify-content: center;
+  }
+  .welcome-actions > a > span {
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+    text-align: center;
+    line-height: 1.2;
+  }
+
+  /* Filter chips become one swipeable row instead of a wrapped block */
+  :is(div, nav):has(> .specialty-chip) {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: -12px;
+    padding-inline: 12px;
+    -webkit-overflow-scrolling: touch;
+  }
+  :is(div, nav):has(> .specialty-chip)::-webkit-scrollbar {
+    display: none;
+  }
+  .specialty-chip {
+    flex: 0 0 auto;
+    padding: 7px 14px;
+    font-size: 0.8rem;
+  }
+
+  /* ICD-10 results: table rows become compact cards */
+  .icd10-page .clinical-table,
+  .icd10-page .clinical-table tbody {
+    display: block;
+    width: 100%;
+  }
+  .icd10-page .clinical-table thead {
+    display: none;
+  }
+  .icd10-page .clinical-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 10px;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--color-gold-border, rgba(223, 171, 98, 0.2));
+  }
+  .icd10-page .clinical-table td {
+    display: block;
+    padding: 0 !important;
+    border: 0 !important;
+    width: auto !important;
+    text-align: left !important;
+  }
+  .icd10-page .clinical-table td:nth-child(1) { grid-area: 1 / 1; }
+  .icd10-page .clinical-table td:nth-child(3) { grid-area: 1 / 2; justify-self: end; }
+  .icd10-page .clinical-table td:nth-child(2) { grid-area: 2 / 1 / 3 / 3; }
+  .icd10-page .clinical-table td:nth-child(4) { grid-area: 3 / 1 / 4 / 3; }
+  .icd10-page .clinical-table td:nth-child(5) { grid-area: 4 / 1 / 5 / 3; margin-top: 6px; }
+
+  /* Earnings chart: all six months fit without sideways scrolling */
+  .earnings-chart-bars-wrap {
+    gap: 6px;
+    overflow-x: visible;
+  }
+  .earnings-chart-bar-item {
+    min-width: 0;
+    flex: 1 1 0;
+  }
+  .earnings-chart-bar-capsule {
+    width: 30px;
+  }
+  .earnings-chart-val-lbl {
+    font-size: 0.62rem;
+  }
+}
+
+/* Dashboard "Today's Appointments" rows on phones: name gets the width */
+@media (max-width: 640px) {
+  .dash-apt-row {
+    display: grid !important;
+    grid-template-columns: 52px minmax(0, 1fr) auto;
+    gap: 2px 10px !important;
+    padding: 10px 0 !important;
+    align-items: center !important;
+  }
+  .dash-apt-time {
+    width: auto !important;
+    grid-row: 1 / 3;
+  }
+  .dash-apt-badge {
+    grid-column: 2;
+    justify-self: start;
+    margin-top: 2px;
+  }
+  .dash-apt-link {
+    grid-column: 3;
+    grid-row: 1 / 3;
+  }
+  .dash-apt-link-label {
+    display: none;
+  }
+}
+
+/* Onboarding + prescription builder: shrinkable on phones */
+@media (max-width: 920px) {
+  .doctor-onboard-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+  .doctor-onboard-layout > *,
+  .doctor-onboard-aside,
+  .doctor-onboard-steps > li {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  .doctor-onboard-steps {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+}
+
+@media (max-width: 640px) {
+  .doctor-onboard-steps {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 6px 12px !important;
+  }
+  .doctor-onboard-steps strong {
+    overflow: visible;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 640px) {
+  .prescribe-page .btn-primary,
+  .prescribe-page .btn-secondary {
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+    justify-content: center;
+  }
+  .prescribe-page .btn-primary > span,
+  .prescribe-page .btn-secondary > span {
+    white-space: normal;
+  }
+}
+
+/* ==========================================================================
+   Prescription builder progress rail (.rx-stepper)
+   Three equal steps joined by a line; same structure on desktop and phone.
+   ========================================================================== */
+.rx-stepper {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0 0 20px;
+  padding-top: 5px;
+}
+
+.rx-step {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  background: none;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  color: var(--color-cream-text-muted, #6B5E55);
+  text-align: center;
+}
+
+/* Connector to the next step, drawn behind the dots */
+.rx-step:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: calc(50% + 24px);
+  right: calc(-50% + 24px);
+  height: 2px;
+  border-radius: 2px;
+  background: var(--color-gold-border, rgba(223, 171, 98, 0.3));
+}
+.rx-step.is-done:not(:last-child)::after {
+  background: var(--color-gold-base, #DFAB62);
+}
+
+.rx-step-dot {
+  box-sizing: border-box;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  line-height: 1;
+  background: var(--color-cream-surface, #FDFBF7);
+  color: var(--color-cream-text-muted, #6B5E55);
+  border: 2px solid var(--color-gold-border, rgba(223, 171, 98, 0.45));
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.rx-step.is-active .rx-step-dot {
+  background: var(--color-gold-primary, #E2B467);
+  border-color: var(--color-gold-primary, #E2B467);
+  color: var(--color-chocolate-base, #2A170F);
+  box-shadow: 0 0 0 4px rgba(223, 171, 98, 0.25);
+}
+.rx-step.is-done .rx-step-dot {
+  background: var(--color-chocolate-base, #2A170F);
+  border-color: var(--color-chocolate-base, #2A170F);
+  color: var(--color-gold-primary, #E2B467);
+}
+
+.rx-step-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  min-width: 0;
+}
+.rx-step-title {
+  font-size: 0.85rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: inherit;
+}
+.rx-step-sub {
+  font-size: 0.72rem;
+  line-height: 1.25;
+  color: var(--color-cream-text-muted, #6B5E55);
+  opacity: 0.85;
+}
+.rx-step.is-active,
+.rx-step.is-done {
+  color: var(--color-chocolate-base, #2A170F);
+}
+.rx-step:focus-visible .rx-step-dot {
+  outline: 2px solid var(--color-chocolate-base, #2A170F);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .rx-stepper {
+    margin-bottom: 16px;
+  }
+  .rx-step {
+    padding: 0 2px;
+    gap: 6px;
+  }
+  .rx-step-title {
+    font-size: 0.78rem;
+  }
+  .rx-step-sub {
+    display: none;
+  }
+}
+
+/* Calendar month view on phones: counts become small number badges, not clipped words */
+.cal-count b { font-weight: 600; }
+.cal-count i { font-style: normal; }
+@media (max-width: 640px) {
+  .cal-month-wrap {
+    padding: 10px 8px !important;
+  }
+  .cal-month-grid {
+    gap: 4px !important;
+  }
+  .cal-month-cell {
+    min-height: 58px !important;
+    padding: 5px 4px !important;
+    border-radius: 8px !important;
+    align-items: stretch;
+  }
+  .cal-month-cell > div:last-child {
+    margin-top: 2px !important;
+  }
+  .cal-month-cell > div:last-child > div {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 2px !important;
+  }
+  .cal-count {
+    display: block;
+    text-align: center;
+    font-size: 0.64rem !important;
+    line-height: 1.25;
+    padding: 1px 0 !important;
+  }
+  .cal-count-word,
+  .cal-no-slots {
+    display: none !important;
+  }
+  .cal-count-open::before,
+  .cal-count-booked::before {
+    content: '';
+  }
+}
+
+/* Calendar day view on phones: narrower time gutter so "08:00 – 08:30" stays on one line beside its badge */
+@media (max-width: 640px) {
+  .cal-day-gutter {
+    width: 46px !important;
+    padding: 12px 4px !important;
+    font-size: 0.68rem !important;
+  }
+  .cal-day-cell {
+    padding: 6px 8px !important;
+  }
+  .cal-day-slot {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
+  .cal-day-slot-left {
+    gap: 8px !important;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .cal-day-slot-icon {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  .cal-day-slot-badge {
+    padding: 2px 7px !important;
+    font-size: 0.66rem !important;
   }
 }

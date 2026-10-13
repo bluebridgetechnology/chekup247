@@ -1775,6 +1775,7 @@ export default function DoctorCalendarPage() {
                         >
                           {/* Time Gutter Column */}
                           <div
+                            className="cal-day-gutter"
                             style={{
                               width: '64px',
                               flexShrink: 0,
@@ -1794,8 +1795,10 @@ export default function DoctorCalendarPage() {
 
                           {/* Hour Content Cell */}
                           <div
+                            className="cal-day-cell"
                             style={{
                               flex: 1,
+                              minWidth: 0,
                               padding: '8px 12px',
                               display: 'flex',
                               flexDirection: 'column',
@@ -1807,7 +1810,7 @@ export default function DoctorCalendarPage() {
                               <div
                                 style={{
                                   display: 'grid',
-                                  gridTemplateColumns: hourSlots.length > 1 ? 'repeat(auto-fit, minmax(280px, 1fr))' : '1fr',
+                                  gridTemplateColumns: hourSlots.length > 1 ? 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))' : 'minmax(0, 1fr)',
                                   gap: '8px',
                                   width: '100%',
                                 }}
@@ -1829,6 +1832,7 @@ export default function DoctorCalendarPage() {
                                   return (
                                     <div
                                       key={slot.id}
+                                      className="cal-day-slot"
                                       onClick={() => setSelectedSlotForDetail(slot)}
                                       style={{
                                         padding: '10px 14px',
@@ -1856,8 +1860,9 @@ export default function DoctorCalendarPage() {
                                         transition: 'all 0.15s ease',
                                       }}
                                     >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                      <div className="cal-day-slot-left" style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                                         <div
+                                          className="cal-day-slot-icon"
                                           style={{
                                             width: '28px',
                                             height: '28px',
@@ -1887,6 +1892,7 @@ export default function DoctorCalendarPage() {
                                               fontFamily: 'var(--font-heading)',
                                               fontSize: '0.875rem',
                                               fontWeight: 600,
+                                              whiteSpace: 'nowrap',
                                               color: 'var(--color-chocolate-base, #2A170F)',
                                             }}
                                           >
@@ -1933,6 +1939,7 @@ export default function DoctorCalendarPage() {
                                           </span>
                                         )}
                                         <span
+                                          className="cal-day-slot-badge"
                                           style={{
                                             padding: '2px 8px',
                                             borderRadius: '9999px',
@@ -2022,8 +2029,9 @@ export default function DoctorCalendarPage() {
 
             {/* MONTH VIEW */}
             {viewMode === 'month' && (
-              <div style={{ padding: '20px', background: '#FFFFFF' }}>
+              <div className="cal-month-wrap" style={{ padding: '20px', background: '#FFFFFF' }}>
                 <div
+                  className="cal-month-grid"
                   style={{
                     display: 'grid',
                     gridTemplateColumns: 'repeat(7, minmax(0, 1fr))',
@@ -2083,6 +2091,7 @@ export default function DoctorCalendarPage() {
                     return (
                       <div
                         key={dayKey}
+                        className="cal-month-cell"
                         onClick={() => {
                           setCurrentDate(dayDate);
                           setMobileSelectedDate(dayDate);
@@ -2142,6 +2151,7 @@ export default function DoctorCalendarPage() {
                             <div style={{ display: 'flex', alignItems: 'center', gap: '3px', flexWrap: 'wrap' }}>
                               {availableCount > 0 && (
                                 <span
+                                  className="cal-count cal-count-open"
                                   style={{
                                     fontSize: '0.65rem',
                                     fontWeight: 600,
@@ -2152,11 +2162,13 @@ export default function DoctorCalendarPage() {
                                     border: '1px solid #99f6e4',
                                   }}
                                 >
-                                  {availableCount} open
+                                  <b>{availableCount}</b>
+                                  <i className="cal-count-word"> open</i>
                                 </span>
                               )}
                               {bookedCount > 0 && (
                                 <span
+                                  className="cal-count cal-count-booked"
                                   style={{
                                     fontSize: '0.65rem',
                                     fontWeight: 600,
@@ -2167,12 +2179,13 @@ export default function DoctorCalendarPage() {
                                     border: '1px solid rgba(223, 171, 98, 0.4)',
                                   }}
                                 >
-                                  {bookedCount} booked
+                                  <b>{bookedCount}</b>
+                                  <i className="cal-count-word"> booked</i>
                                 </span>
                               )}
                             </div>
                           ) : (
-                            <span style={{ fontSize: '0.65rem', color: 'var(--color-cream-text-muted)', opacity: 0.5, fontWeight: 400 }}>
+                            <span className="cal-no-slots" style={{ fontSize: '0.65rem', color: 'var(--color-cream-text-muted)', opacity: 0.5, fontWeight: 400 }}>
                               No slots
                             </span>
                           )}

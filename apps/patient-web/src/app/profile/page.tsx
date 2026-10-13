@@ -317,198 +317,62 @@ export default function PatientProfilePage() {
             </p>
           </div>
 
-          {/* Patient Overview Card without giant avatar */}
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '18px',
-              border: '1px solid #EDE4D4',
-              padding: '22px 26px',
-              boxShadow: '0 4px 16px rgba(42, 23, 15, 0.03)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px',
-              marginBottom: '24px',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-              <div
-                style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '50%',
-                  backgroundColor: '#EAD2B2',
-                  color: '#2A170F',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  fontSize: '0.92rem',
-                }}
-              >
-                {(user.fullName || '')
-                  .split(' ')
-                  .filter(Boolean)
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join('')
-                  .toUpperCase() ||
-                  (user.email ? user.email.slice(0, 2).toUpperCase() : 'PT')}
+          {/* Patient overview */}
+          <div className="profile-overview">
+            <div className="profile-avatar" aria-hidden="true">
+              {(user.fullName || '')
+                .split(' ')
+                .filter(Boolean)
+                .map((n) => n[0])
+                .slice(0, 2)
+                .join('')
+                .toUpperCase() ||
+                (user.email ? user.email.slice(0, 2).toUpperCase() : 'PT')}
+            </div>
+            <div className="profile-overview-text">
+              <div className="profile-overview-name">
+                <span>{user.fullName || user.email?.split('@')[0] || 'Patient Profile'}</span>
+                {!user.isEmailVerified && (
+                  <Link href="/verify-email" className="profile-verify-link">
+                    <SolarIcon name="danger-circle-linear" size={13} color="#D97706" />
+                    <span>Verify email</span>
+                  </Link>
+                )}
               </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <span style={{ fontSize: '1.15rem', fontWeight: 700, color: '#2A170F' }}>
-                    {user.fullName || user.email?.split('@')[0] || 'Patient Profile'}
-                  </span>
-                  {user.isEmailVerified ? (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '3px 9px',
-                        borderRadius: '12px',
-                        backgroundColor: '#ECFDF5',
-                        color: '#1B8755',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                      }}
-                    >
-                      <SolarIcon name="check-circle-bold" size={13} color="#1B8755" />
-                      <span>Verified Patient</span>
-                    </span>
-                  ) : (
-                    <Link
-                      href="/verify-email"
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '3px 9px',
-                        borderRadius: '12px',
-                        backgroundColor: '#FFFBEB',
-                        color: '#D97706',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        textDecoration: 'none',
-                      }}
-                    >
-                      <SolarIcon name="danger-circle-linear" size={13} color="#D97706" />
-                      <span>Verify Email</span>
-                    </Link>
-                  )}
-                </div>
-                <div style={{ fontSize: '0.84rem', color: '#7A6A5E', marginTop: '2px' }}>
-                  {user.email} • South Africa (POPIA Protected)
-                </div>
+              <div className="profile-overview-meta">
+                {user.email} • South Africa (POPIA protected)
               </div>
             </div>
-
-            <Link
-              href="/appointments"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.84rem',
-                fontWeight: 600,
-                color: '#2A170F',
-                backgroundColor: '#F8F3EA',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                textDecoration: 'none',
-                border: '1px solid #EDE4D4',
-              }}
-            >
-              <span>Back to Appointments</span>
-              <SolarIcon name="arrow-right-linear" size={14} color="#2A170F" />
+            <Link href="/appointments" className="profile-back-link">
+              <SolarIcon name="arrow-left-linear" size={15} color="currentColor" />
+              <span>Appointments</span>
             </Link>
           </div>
 
           {/* Tabs */}
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-              marginBottom: '20px',
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('profile');
-                setFeedback(null);
-              }}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '20px',
-                fontSize: '0.88rem',
-                fontWeight: activeTab === 'profile' ? 600 : 500,
-                color: activeTab === 'profile' ? '#2A170F' : '#6B5E55',
-                backgroundColor: activeTab === 'profile' ? '#EEDCC5' : 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.18s ease',
-              }}
-            >
-              <SolarIcon name="user-linear" size={16} color={activeTab === 'profile' ? '#2A170F' : '#6B5E55'} />
-              <span>Personal & Medical Profile</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('documents');
-                setFeedback(null);
-              }}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '20px',
-                fontSize: '0.88rem',
-                fontWeight: activeTab === 'documents' ? 600 : 500,
-                color: activeTab === 'documents' ? '#2A170F' : '#6B5E55',
-                backgroundColor: activeTab === 'documents' ? '#EEDCC5' : 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.18s ease',
-              }}
-            >
-              <SolarIcon name="document-text-linear" size={16} color={activeTab === 'documents' ? '#2A170F' : '#6B5E55'} />
-              <span>Test Reports & Files ({documents.length})</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('notifications');
-                setFeedback(null);
-              }}
-              style={{
-                padding: '9px 18px',
-                borderRadius: '20px',
-                fontSize: '0.88rem',
-                fontWeight: activeTab === 'notifications' ? 600 : 500,
-                color: activeTab === 'notifications' ? '#2A170F' : '#6B5E55',
-                backgroundColor: activeTab === 'notifications' ? '#EEDCC5' : 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                transition: 'all 0.18s ease',
-              }}
-            >
-              <SolarIcon name="bell-linear" size={16} color={activeTab === 'notifications' ? '#2A170F' : '#6B5E55'} />
-              <span>Notification Preferences</span>
-            </button>
+          <div className="profile-tabs" role="tablist" aria-label="Profile sections">
+            {(
+              [
+                { key: 'profile', label: 'Profile', icon: 'user-circle-linear' },
+                { key: 'documents', label: `Reports & files${documents.length ? ` (${documents.length})` : ''}`, icon: 'document-text-linear' },
+                { key: 'notifications', label: 'Notifications', icon: 'bell-linear' },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                className={`profile-tab-btn${activeTab === tab.key ? ' is-active' : ''}`}
+                onClick={() => {
+                  setActiveTab(tab.key);
+                  setFeedback(null);
+                }}
+              >
+                <SolarIcon name={tab.icon} size={17} color="currentColor" />
+                <span>{tab.label}</span>
+              </button>
+            ))}
           </div>
 
           {/* Feedback Banner */}

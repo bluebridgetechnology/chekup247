@@ -490,6 +490,7 @@ export default function DoctorProfilePage() {
     <div className="profile-page">
       {/* Top Header Row with Page Title, Quick Status, and Top-Right Save Changes Button */}
       <div
+        className="profile-head"
         style={{
           display: 'flex',
           alignItems: 'flex-start',
@@ -511,6 +512,7 @@ export default function DoctorProfilePage() {
 
         {/* Top-Right Action Group */}
         <div
+          className="profile-head-actions"
           style={{
             display: 'flex',
             alignItems: 'center',

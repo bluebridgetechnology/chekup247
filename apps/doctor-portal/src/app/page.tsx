@@ -30,6 +30,11 @@ export default function DoctorDashboardPage() {
   const [now, setNow] = useState<number>(Date.now());
 
   const doctorName = doctor?.fullName || 'Dr. Practitioner';
+  // Greeting uses the title + first name only, so long names never crowd the heading
+  const greetingName = (() => {
+    const parts = doctorName.replace(/^dr\.?\s+/i, '').trim().split(/\s+/).filter(Boolean);
+    return `Dr. ${parts[0] || 'Practitioner'}`;
+  })();
   const isVerified = profile?.verificationStatus === 'verified';
 
   // Time-of-day greeting (recomputes with the live clock tick)
@@ -305,7 +310,7 @@ export default function DoctorDashboardPage() {
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <div className="welcome-eyebrow" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               <span
                 style={{
                   fontFamily: 'var(--font-sans)',
@@ -325,7 +330,9 @@ export default function DoctorDashboardPage() {
             </div>
 
             <h1 className="page-title">
-              {greeting}, {doctorName} 👋
+              {greeting},
+              <br />
+              {greetingName} 👋
             </h1>
             <p className="page-subtitle">
               {isPendingVerification
@@ -858,6 +865,7 @@ export default function DoctorDashboardPage() {
                       return (
                         <div
                           key={apt.id}
+                          className="dash-apt-row"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -866,7 +874,7 @@ export default function DoctorDashboardPage() {
                             borderBottom: idx < arr.length - 1 ? '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.16))' : 'none',
                           }}
                         >
-                          <div style={{ width: '68px', flexShrink: 0, fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                          <div className="dash-apt-time" style={{ width: '68px', flexShrink: 0, fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
                             {time}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -878,6 +886,7 @@ export default function DoctorDashboardPage() {
                             </div>
                           </div>
                           <span
+                            className="dash-apt-badge"
                             style={{
                               fontSize: '0.72rem',
                               fontWeight: 700,
@@ -891,6 +900,7 @@ export default function DoctorDashboardPage() {
                             {statusStyle.label}
                           </span>
                           <Link
+                            className="dash-apt-link"
                             href={`/consultations/${apt.id}`}
                             style={{
                               fontSize: '0.78rem',
@@ -903,7 +913,7 @@ export default function DoctorDashboardPage() {
                               flexShrink: 0,
                             }}
                           >
-                            <span>{status === 'completed' ? 'View Notes' : 'View Details'}</span>
+                            <span className="dash-apt-link-label">{status === 'completed' ? 'View Notes' : 'View Details'}</span>
                             <SolarIcon name="alt-arrow-right-linear" size={13} color="var(--color-cream-text-muted, #6B5E55)" />
                           </Link>
                         </div>
@@ -1048,7 +1058,7 @@ export default function DoctorDashboardPage() {
                     No Upcoming Consultations
                   </p>
                   <p style={{ fontSize: '0.875rem', maxWidth: '440px', margin: '0 auto 16px' }}>
-                    Your scheduled patient appointments will appear here with direct one-click access to the Daily.co video consultation room.
+                    Your scheduled patient appointments will appear here with direct one-click access to the video consultation room.
                   </p>
                   <Link href="/calendar" className="btn-primary" style={{ display: 'inline-flex', padding: '8px 18px', fontSize: '0.85rem' }}>
                     Open Clinical Calendar

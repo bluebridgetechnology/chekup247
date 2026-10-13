@@ -200,7 +200,7 @@ export default function DoctorAppointmentsPage() {
                 }}
               >
                 <SolarIcon name="videocamera-record-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
-                Telehealth Queue • Direct Daily.co Launcher
+                Telehealth Queue • Direct Video Launcher
               </span>
             </div>
             <h1 className="page-title">

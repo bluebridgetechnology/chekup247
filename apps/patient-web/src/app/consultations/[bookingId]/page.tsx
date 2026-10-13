@@ -41,6 +41,9 @@ import {
   Move,
   Expand,
   Shrink,
+  ArrowLeft,
+  RefreshCw,
+  VideoOff as VideoOffIcon,
 } from 'lucide-react';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
@@ -1501,27 +1504,26 @@ export default function PatientConsultationPage() {
   // --------------------------------------------------------------------------
   if (loadError) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '20px', backgroundColor: '#1E100A', color: '#FAF6EE', fontFamily: 'var(--font-sans)', padding: '24px' }}>
-        <AlertCircle size={48} color="#EF4444" />
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: 0, color: '#FAF6EE' }}>
-          Connection Issue
-        </h2>
-        <p style={{ fontSize: '0.9rem', color: '#D5C7B8', margin: 0, textAlign: 'center', maxWidth: '400px' }}>
-          {loadError}
-        </p>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          <button
-            onClick={() => window.location.reload()}
-            style={{ padding: '10px 24px', borderRadius: '9999px', backgroundColor: '#E2B467', color: '#2A170F', fontWeight: 700, fontSize: '0.875rem', border: 'none', cursor: 'pointer' }}
-          >
-            Retry Connection
-          </button>
-          <Link
-            href="/appointments"
-            style={{ padding: '10px 24px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.08)', color: '#FAF6EE', fontWeight: 700, fontSize: '0.875rem', border: '1px solid rgba(223,171,98,0.3)', textDecoration: 'none', display: 'flex', alignItems: 'center' }}
-          >
-            Back to Appointments
-          </Link>
+      <div className="room-error-screen">
+        <div className="room-error-card" role="alert">
+          <div className="room-error-icon" aria-hidden="true">
+            <VideoOffIcon size={30} strokeWidth={1.8} />
+          </div>
+          <h2 className="room-error-title">We couldn&apos;t open your consultation room</h2>
+          <p className="room-error-text">{loadError}</p>
+          <div className="room-error-actions">
+            <button type="button" className="room-error-primary" onClick={() => window.location.reload()}>
+              <RefreshCw size={16} />
+              <span>Try again</span>
+            </button>
+            <Link href="/appointments" className="room-error-secondary">
+              <ArrowLeft size={16} />
+              <span>Back to appointments</span>
+            </Link>
+          </div>
+          <p className="room-error-hint">
+            Still stuck? Check your internet connection and allow camera and microphone access, then try again.
+          </p>
         </div>
       </div>
     );

@@ -163,7 +163,7 @@ export default function DoctorOfflinePage() {
               Clinical Continuity Notice
             </div>
             <div style={{ fontSize: '0.825rem', color: '#B45309', lineHeight: 1.4 }}>
-              Active video calls (Daily.co) and electronic prescription signing (ICD-10) require an active encrypted connection. If you are mid-consultation, please switch to mobile hotspot or notify your patient via SMS.
+              Active video calls and electronic prescription signing (ICD-10) require an active encrypted connection. If you are mid-consultation, please switch to mobile hotspot or notify your patient via SMS.
             </div>
           </div>
         </div>

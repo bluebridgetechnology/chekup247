@@ -64,6 +64,7 @@ export function PatientPortalHeader({
       }}
     >
       <div
+        className="portal-header-inner"
         style={{
           width: '100%',
           height: '100%',
@@ -74,7 +75,7 @@ export function PatientPortalHeader({
         }}
       >
         {/* LEFT: Chekup247 Brand Logo & Patient Portal Identifier */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <div className="portal-header-left" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           {/* Mobile hamburger button with min 44x44 tap target */}
           <button
             onClick={onToggleMobileSidebar}
@@ -129,6 +130,7 @@ export function PatientPortalHeader({
 
               {/* Patient Portal Badge/Label */}
               <span
+                className="portal-brand-label"
                 style={{
                   fontSize: '0.8rem',
                   fontWeight: 500,
@@ -145,7 +147,7 @@ export function PatientPortalHeader({
         </div>
 
         {/* RIGHT: Notifications & Patient Account Control */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <div className="portal-header-right" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           {/* Live Notification Bell with API & WebSocket subscription */}
           <NotificationBell variant="portal" />
 

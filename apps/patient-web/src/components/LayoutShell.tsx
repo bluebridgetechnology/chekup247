@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { QuickBookingWidget } from './QuickBookingWidget';
+import { useAuth } from '../context/AuthContext';
 
 interface LayoutShellProps {
   children: React.ReactNode;
@@ -12,6 +13,7 @@ interface LayoutShellProps {
 
 export function LayoutShell({ children }: LayoutShellProps) {
   const pathname = usePathname() || '';
+  const { isAuthenticated, isLoading } = useAuth();
 
   // Dedicated authenticated portal and auth routes should NOT render public marketing header & footer
   const isExcludedRoute =
@@ -37,7 +39,8 @@ export function LayoutShell({ children }: LayoutShellProps) {
         {children}
       </main>
       <Footer />
-      <QuickBookingWidget />
+      {/* Floating Quick Book is for visitors only; signed-in users get a header button instead */}
+      {!isLoading && !isAuthenticated && <QuickBookingWidget />}
     </>
   );
 }
