@@ -144,6 +144,7 @@ export function Navbar() {
           >
             <ChekupCrossLogo size={26} />
             <span
+              className="nav-brand-text"
               style={{
                 fontSize: '1.28rem',
                 fontWeight: 700,

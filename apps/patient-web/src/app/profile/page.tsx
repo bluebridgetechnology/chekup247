@@ -429,6 +429,7 @@ export default function PatientProfilePage() {
 
           {/* Tabs */}
           <div
+            className="profile-tabs"
             style={{
               display: 'flex',
               gap: '8px',
@@ -437,6 +438,7 @@ export default function PatientProfilePage() {
           >
             <button
               type="button"
+              className="profile-tab-btn"
               onClick={() => {
                 setActiveTab('profile');
                 setFeedback(null);
@@ -462,6 +464,7 @@ export default function PatientProfilePage() {
 
             <button
               type="button"
+              className="profile-tab-btn"
               onClick={() => {
                 setActiveTab('documents');
                 setFeedback(null);
@@ -487,6 +490,7 @@ export default function PatientProfilePage() {
 
             <button
               type="button"
+              className="profile-tab-btn"
               onClick={() => {
                 setActiveTab('notifications');
                 setFeedback(null);

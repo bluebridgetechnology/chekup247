@@ -2444,6 +2444,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
 
                         {/* Date & Time Row */}
                         <div
+                          className="portal-card-datetime"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -2453,11 +2454,15 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                             marginBottom: '8px',
                           }}
                         >
-                          <SolarIcon name="calendar-linear" size={14} color="#B88647" />
-                          <span style={{ fontWeight: 700 }}>{booking.dateFormatted}</span>
-                          <span style={{ color: '#D5C1A7' }}>•</span>
-                          <SolarIcon name="clock-circle-linear" size={13} color="#7A6A5E" />
-                          <span style={{ fontWeight: 600 }}>{booking.startTime} – {booking.endTime}</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <SolarIcon name="calendar-linear" size={14} color="#B88647" />
+                            <span style={{ fontWeight: 700 }}>{booking.dateFormatted}</span>
+                          </span>
+                          <span className="portal-card-dot" style={{ color: '#D5C1A7' }}>•</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                            <SolarIcon name="clock-circle-linear" size={13} color="#7A6A5E" />
+                            <span style={{ fontWeight: 600 }}>{booking.startTime} – {booking.endTime}</span>
+                          </span>
                         </div>
 
                         {/* Micro Status Badges */}

@@ -4838,3 +4838,95 @@ details summary::-webkit-details-marker {
   }
 }
 
+
+/* ==========================================================================
+   PATIENT PORTAL: PHONE LAYER (<= 640px)
+   ========================================================================== */
+@media (max-width: 640px) {
+  /* Header: logo + bell + account must all fit; the account/menu were pushed off-screen */
+  .portal-header-inner {
+    padding: 0 10px !important;
+  }
+  .portal-header-left {
+    gap: 4px !important;
+    min-width: 0;
+  }
+  .portal-header-right {
+    gap: 6px !important;
+    flex-shrink: 0;
+  }
+  .portal-brand-label {
+    display: none !important;
+  }
+
+  /* Stat strip labels wrap instead of clipping */
+  .portal-stat-label {
+    white-space: normal !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    font-size: 0.62rem !important;
+  }
+
+  /* Appointment card: date and time stay whole, wrapping between them */
+  .portal-card-datetime {
+    flex-wrap: wrap;
+    row-gap: 2px !important;
+  }
+  .portal-card-datetime > span {
+    white-space: nowrap;
+  }
+  .portal-card-dot {
+    display: none;
+  }
+  .portal-card-datetime {
+    column-gap: 12px !important;
+  }
+
+  .portal-join-btn,
+  .portal-details-btn {
+    white-space: nowrap;
+    padding-inline: 10px !important;
+    font-size: 0.84rem !important;
+  }
+}
+
+/* Public/site header on phones when signed in: brand, bell, account, sign-out, menu all fit */
+@media (max-width: 480px) {
+  .header-inner {
+    padding: 0 10px !important;
+  }
+  .header-actions,
+  .auth-actions {
+    gap: 6px !important;
+  }
+  .nav-brand-text {
+    font-size: 1.1rem !important;
+  }
+  .nav-mobile-signout-btn {
+    padding: 7px !important;
+    min-width: 34px;
+    justify-content: center;
+  }
+  .mobile-toggle {
+    margin-left: 0 !important;
+    padding: 4px !important;
+  }
+}
+
+/* Profile tabs: swipeable pills instead of three squashed wrapping labels */
+@media (max-width: 640px) {
+  .profile-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-inline: -12px;
+    padding-inline: 12px;
+  }
+  .profile-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .profile-tab-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 9px 14px !important;
+  }
+}
