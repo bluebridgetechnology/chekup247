@@ -5565,3 +5565,155 @@ details summary::-webkit-details-marker {
     gap: 8px !important;
   }
 }
+
+/* ==========================================================================
+   Homepage "For doctors" band + footer column
+   ========================================================================== */
+.footer-top-grid {
+  grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+  gap: 40px;
+}
+@media (max-width: 1000px) {
+  .footer-top-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .footer-top-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.doctors-band {
+  background-color: var(--color-cream-base);
+  padding: 8px 0 24px;
+  width: 100%;
+}
+.doctors-band-container {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 32px;
+  box-sizing: border-box;
+}
+.doctors-band-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: 32px;
+  padding: 32px 36px;
+  background: #fff;
+  border: 1px solid rgba(223, 171, 98, 0.35);
+  border-radius: 24px;
+  box-shadow: 0 4px 20px rgba(42, 23, 15, 0.04);
+}
+.doctors-band-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  background: rgba(223, 171, 98, 0.16);
+  color: #8E5A1C;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.doctors-band-title {
+  margin: 12px 0 8px;
+  font-family: var(--font-heading), sans-serif;
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--color-chocolate-base, #2A170F);
+}
+.doctors-band-text {
+  margin: 0;
+  max-width: 480px;
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: #6B5E55;
+}
+.doctors-band-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.doctors-band-action {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  text-decoration: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.doctors-band-action:hover {
+  transform: translateY(-1px);
+}
+.doctors-band-action-icon {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+}
+.doctors-band-action-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.doctors-band-action-text strong {
+  font-size: 1rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+.doctors-band-action-text small {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  opacity: 0.8;
+}
+.doctors-band-action-primary {
+  background: var(--color-chocolate-base, #2A170F);
+  color: #FAF6EE;
+  box-shadow: 0 6px 18px rgba(42, 23, 15, 0.18);
+}
+.doctors-band-action-primary .doctors-band-action-icon {
+  background: rgba(223, 171, 98, 0.2);
+  color: #DFAB62;
+}
+.doctors-band-action-primary:hover {
+  background: #3E2114;
+}
+.doctors-band-action-secondary {
+  background: #FAF6EE;
+  color: var(--color-chocolate-base, #2A170F);
+  border: 1.5px solid rgba(223, 171, 98, 0.5);
+}
+.doctors-band-action-secondary .doctors-band-action-icon {
+  background: rgba(223, 171, 98, 0.18);
+  color: #8E5A1C;
+}
+.doctors-band-action-secondary:hover {
+  background: #F4ECDD;
+}
+@media (max-width: 900px) {
+  .doctors-band-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 22px;
+    padding: 26px 22px;
+  }
+  .doctors-band-title {
+    font-size: 1.4rem;
+  }
+}
+@media (max-width: 640px) {
+  .doctors-band-container {
+    padding: 0 20px;
+  }
+}

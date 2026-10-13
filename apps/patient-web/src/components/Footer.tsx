@@ -4,12 +4,14 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { ChekupCrossLogo } from './Navbar';
+import { useDoctorAuthUrls } from '../lib/urls';
 
 export interface FooterProps {
   compact?: boolean;
 }
 
 export function Footer({ compact = false }: FooterProps) {
+  const doctorUrls = useDoctorAuthUrls();
   return (
     <footer className={`site-footer ${compact ? 'site-footer--compact' : ''}`}>
       <div className="footer-container">
@@ -73,6 +75,23 @@ export function Footer({ compact = false }: FooterProps) {
                 <Link href="/about" className="footer-nav-link">
                   About
                 </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* For Doctors */}
+          <div className="footer-nav-col">
+            <h4 className="footer-heading">For Doctors</h4>
+            <ul className="footer-nav-list">
+              <li>
+                <a href={doctorUrls.login} className="footer-nav-link">
+                  Doctor sign in
+                </a>
+              </li>
+              <li>
+                <a href={doctorUrls.register} className="footer-nav-link">
+                  Doctor sign up
+                </a>
               </li>
             </ul>
           </div>

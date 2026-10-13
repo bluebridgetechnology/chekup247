@@ -10,6 +10,7 @@ import { FeaturedDoctorsSection } from '../components/FeaturedDoctorsSection';
 import { TestimonialsSection } from '../components/TestimonialsSection';
 import { FaqSection } from '../components/FaqSection';
 import { FinalCtaSection } from '../components/FinalCtaSection';
+import { DoctorsBandSection } from '../components/DoctorsBandSection';
 
 export default function HomeClient() {
   return (
@@ -38,7 +39,10 @@ export default function HomeClient() {
       {/* 8. FREQUENTLY ASKED QUESTIONS */}
       <FaqSection />
 
-      {/* 9. FINAL HIGH-IMPACT CTA BANNER */}
+      {/* 9. FOR DOCTORS: clear doctor sign-in / sign-up */}
+      <DoctorsBandSection />
+
+      {/* 10. FINAL HIGH-IMPACT CTA BANNER */}
       <FinalCtaSection />
     </div>
   );
