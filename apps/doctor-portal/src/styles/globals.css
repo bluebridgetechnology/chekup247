@@ -2891,3 +2891,44 @@ a {
     display: none;
   }
 }
+
+/* Calendar month view on phones: counts become small number badges, not clipped words */
+.cal-count b { font-weight: 600; }
+.cal-count i { font-style: normal; }
+@media (max-width: 640px) {
+  .cal-month-wrap {
+    padding: 10px 8px !important;
+  }
+  .cal-month-grid {
+    gap: 4px !important;
+  }
+  .cal-month-cell {
+    min-height: 58px !important;
+    padding: 5px 4px !important;
+    border-radius: 8px !important;
+    align-items: stretch;
+  }
+  .cal-month-cell > div:last-child {
+    margin-top: 2px !important;
+  }
+  .cal-month-cell > div:last-child > div {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 2px !important;
+  }
+  .cal-count {
+    display: block;
+    text-align: center;
+    font-size: 0.64rem !important;
+    line-height: 1.25;
+    padding: 1px 0 !important;
+  }
+  .cal-count-word,
+  .cal-no-slots {
+    display: none !important;
+  }
+  .cal-count-open::before,
+  .cal-count-booked::before {
+    content: '';
+  }
+}
