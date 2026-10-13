@@ -2093,6 +2093,7 @@ export default function DoctorConsultationWorkspace() {
   return (
     <div
       ref={workspaceContainerRef}
+      className="consult-workspace"
       style={{
         display: 'flex',
         flexDirection: 'column',
@@ -2110,6 +2111,7 @@ export default function DoctorConsultationWorkspace() {
           1. APPLICATION HEADER (Edge-to-Edge Dark Chocolate)
           ==================================================================== */}
       <header
+        className="consult-header"
         style={{
           height: '60px',
           backgroundColor: '#1F130E',
@@ -6223,6 +6225,49 @@ export default function DoctorConsultationWorkspace() {
             flex: 0 0 auto !important;
             padding: 10px 14px !important;
             min-height: 40px !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          /* Lighter chrome: shorter bars, dynamic viewport height, no duplicate End */
+          .consult-workspace {
+            height: 100dvh !important;
+            width: 100% !important;
+          }
+          .consult-header {
+            height: 52px !important;
+            padding: 0 12px !important;
+          }
+          .mobile-consult-nav-bar {
+            padding: 4px 8px !important;
+          }
+          .mobile-nav-btn {
+            padding: 7px 6px !important;
+            border-radius: 9px !important;
+          }
+          .mobile-mini-call-bar {
+            padding: 6px 12px !important;
+            min-height: 0 !important;
+          }
+          .mobile-mini-call-indicator {
+            width: 30px !important;
+            height: 30px !important;
+          }
+          .mobile-mini-call-timer {
+            display: inline !important;
+          }
+          .mobile-mini-action-btn {
+            padding: 6px 10px !important;
+          }
+          .mobile-mini-action-btn.end-btn {
+            display: none !important;
+          }
+          .clinical-notes-card {
+            box-shadow: none !important;
+          }
+          .video-stage:not(.video-stage-mobile-hidden) {
+            height: calc(100dvh - 120px) !important;
+            max-height: calc(100dvh - 120px) !important;
           }
         }
 

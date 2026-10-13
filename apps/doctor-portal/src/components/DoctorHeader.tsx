@@ -235,7 +235,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
       }}
     >
       {/* Left: Mobile Toggle & Dynamic Breadcrumbs */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+      <div className="doctor-topbar-left" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         {onMobileToggle && (
           <button
             onClick={onMobileToggle}
@@ -256,8 +256,8 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
           </button>
         )}
 
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 600 }}>
+        <div className="doctor-topbar-title" style={{ minWidth: 0 }}>
+          <div className="doctor-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)', fontWeight: 600 }}>
             <span>Practice</span>
             <span>/</span>
             <span style={{ color: 'var(--color-gold-bronze, #B88647)' }}>{pageLabel}</span>

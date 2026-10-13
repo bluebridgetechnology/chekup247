@@ -305,7 +305,7 @@ export default function DoctorDashboardPage() {
           }}
         >
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+            <div className="welcome-eyebrow" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
               <span
                 style={{
                   fontFamily: 'var(--font-sans)',
@@ -858,6 +858,7 @@ export default function DoctorDashboardPage() {
                       return (
                         <div
                           key={apt.id}
+                          className="dash-apt-row"
                           style={{
                             display: 'flex',
                             alignItems: 'center',
@@ -866,7 +867,7 @@ export default function DoctorDashboardPage() {
                             borderBottom: idx < arr.length - 1 ? '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.16))' : 'none',
                           }}
                         >
-                          <div style={{ width: '68px', flexShrink: 0, fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                          <div className="dash-apt-time" style={{ width: '68px', flexShrink: 0, fontSize: '0.82rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
                             {time}
                           </div>
                           <div style={{ flex: 1, minWidth: 0 }}>
@@ -878,6 +879,7 @@ export default function DoctorDashboardPage() {
                             </div>
                           </div>
                           <span
+                            className="dash-apt-badge"
                             style={{
                               fontSize: '0.72rem',
                               fontWeight: 700,
@@ -891,6 +893,7 @@ export default function DoctorDashboardPage() {
                             {statusStyle.label}
                           </span>
                           <Link
+                            className="dash-apt-link"
                             href={`/consultations/${apt.id}`}
                             style={{
                               fontSize: '0.78rem',
@@ -903,7 +906,7 @@ export default function DoctorDashboardPage() {
                               flexShrink: 0,
                             }}
                           >
-                            <span>{status === 'completed' ? 'View Notes' : 'View Details'}</span>
+                            <span className="dash-apt-link-label">{status === 'completed' ? 'View Notes' : 'View Details'}</span>
                             <SolarIcon name="alt-arrow-right-linear" size={13} color="var(--color-cream-text-muted, #6B5E55)" />
                           </Link>
                         </div>
