@@ -2699,7 +2699,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
             {/* Note & Close button */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '6px' }}>
               <span style={{ fontSize: '0.72rem', color: '#9B8B7F' }}>
-                Both options include encrypted video link & SAST time
+                Both options include encrypted video link & your local time
               </span>
               <button
                 onClick={() => setCalendarModalBooking(null)}

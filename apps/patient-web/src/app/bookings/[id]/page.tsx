@@ -13,6 +13,7 @@ import { RescheduleModal } from '../../../components/RescheduleModal';
 import { ReviewModal } from '../../../components/ReviewModal';
 import { ClinicalVerificationModal } from '../../../components/ClinicalVerificationModal';
 import { formatDoctorName } from '../../../lib/doctorName';
+import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
 
 interface AttachedDoc {
   name: string;
@@ -245,8 +246,8 @@ export default function BookingDetailPage() {
     : 'Upcoming Consultation';
 
   const formattedTime = startIso
-    ? `${new Date(startIso).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })} – ${new Date(booking?.slot?.endTime || startIso).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })} SAST`
-    : '10:00 – 10:45 SAST';
+    ? `${formatClockTime(startIso)} – ${formatClockTime(booking?.slot?.endTime || startIso)} ${formatZoneAbbr(startIso)}`.trim()
+    : 'Time to be confirmed';
 
   const isJoinActive = () => {
     if (!startIso) return false;

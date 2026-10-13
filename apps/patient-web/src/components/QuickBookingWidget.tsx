@@ -5,6 +5,15 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { SolarIcon } from './SolarIcon';
 import { useAuth } from '../context/AuthContext';
+import { formatClockTime, formatZoneAbbr, getViewerTimeZone, localDateKey } from '../lib/time';
+
+interface LiveSlot {
+  id: string;
+  startTime: string; // UTC ISO
+  endTime: string; // UTC ISO
+  durationMinutes?: number;
+  isLocked?: boolean;
+}
 
 export interface QuickDoctor {
   id: string;
@@ -90,7 +99,10 @@ export function QuickBookingWidget() {
   const [selectedDoctor, setSelectedDoctor] = useState<QuickDoctor | null>(null);
   const [consultationType, setConsultationType] = useState<'video' | 'audio'>('video');
   const [selectedDayIndex, setSelectedDayIndex] = useState<number>(0);
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('10:30');
+  const [slots, setSlots] = useState<LiveSlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<LiveSlot | null>(null);
+  const [viewerTz, setViewerTz] = useState<string>('Africa/Johannesburg');
 
   // Patient Info State
   const [patientName, setPatientName] = useState('');
@@ -191,22 +203,76 @@ export function QuickBookingWidget() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen]);
 
-  // Compute 3 upcoming dates
-  const days = React.useMemo(() => {
-    const list = [];
-    const today = new Date();
-    for (let i = 0; i < 3; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      const dayName = i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : d.toLocaleDateString('en-ZA', { weekday: 'short' });
-      const dateStr = d.toISOString().split('T')[0];
-      const displayDate = d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' });
-      list.push({ dayName, dateStr, displayDate, dateObj: d });
-    }
-    return list;
+  useEffect(() => {
+    setViewerTz(getViewerTimeZone());
   }, []);
 
-  const timeSlots = ['09:00', '10:30', '12:00', '14:00', '15:30', '17:00'];
+  // Live availability for the chosen doctor (UTC slots from the API)
+  useEffect(() => {
+    if (!selectedDoctor) return;
+    let alive = true;
+    setSlotsLoading(true);
+    setSlots([]);
+    setSelectedSlot(null);
+    fetch(`${API_BASE}/doctors/${encodeURIComponent(selectedDoctor.id)}/availability`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (alive && data && Array.isArray(data.slots)) setSlots(data.slots);
+      })
+      .catch(() => {})
+      .finally(() => alive && setSlotsLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [selectedDoctor]);
+
+  // Bookable slots only (same 15-minute rule as the API), grouped by the viewer's local date
+  const slotsByDay = React.useMemo(() => {
+    const MIN_REMAINING_MS = 15 * 60 * 1000;
+    const now = Date.now();
+    const map = new Map<string, LiveSlot[]>();
+    for (const sl of slots) {
+      if (sl.isLocked || new Date(sl.endTime).getTime() - now < MIN_REMAINING_MS) continue;
+      const key = localDateKey(new Date(sl.startTime));
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(sl);
+    }
+    map.forEach((list) => list.sort((x, y) => +new Date(x.startTime) - +new Date(y.startTime)));
+    return map;
+  }, [slots]);
+
+  // Next 3 days (viewer-local) that actually have availability
+  const days = React.useMemo(() => {
+    const list: { dayName: string; dateStr: string; displayDate: string }[] = [];
+    const todayKey = localDateKey(new Date());
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowKey = localDateKey(tomorrow);
+    Array.from(slotsByDay.keys())
+      .sort()
+      .slice(0, 3)
+      .forEach((key) => {
+        const [y, m, dd] = key.split('-').map(Number);
+        const d = new Date(y, m - 1, dd);
+        list.push({
+          dayName: key === todayKey ? 'Today' : key === tomorrowKey ? 'Tomorrow' : d.toLocaleDateString('en-ZA', { weekday: 'short' }),
+          dateStr: key,
+          displayDate: d.toLocaleDateString('en-ZA', { day: 'numeric', month: 'short' }),
+        });
+      });
+    return list;
+  }, [slotsByDay]);
+
+  const daySlots = days[selectedDayIndex] ? slotsByDay.get(days[selectedDayIndex].dateStr) || [] : [];
+
+  useEffect(() => {
+    setSelectedDayIndex(0);
+  }, [slots]);
+
+  useEffect(() => {
+    setSelectedSlot(daySlots[0] || null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDayIndex, slotsByDay]);
 
   // Filter doctors based on conversational selection
   const matchingDoctors = React.useMemo(() => {
@@ -304,13 +370,14 @@ export function QuickBookingWidget() {
       }
 
       // 2. Compute date, time, and dynamic doctor duration
+      if (!selectedSlot) {
+        throw new Error('Please choose an available time first.');
+      }
       const targetDay = days[selectedDayIndex];
-      const slotId = `slot-${targetDay.dateStr}-${selectedTimeSlot}`;
-      const [h, m] = selectedTimeSlot.split(':').map(Number);
-      const startObj = new Date(targetDay.dateObj);
-      startObj.setHours(h, m, 0, 0);
-      const durationMins = selectedDoctor.duration || 30;
-      const endObj = new Date(startObj.getTime() + durationMins * 60 * 1000);
+      const slotId = selectedSlot.id;
+      const startObj = new Date(selectedSlot.startTime);
+      const endObj = new Date(selectedSlot.endTime);
+      const durationMins = selectedSlot.durationMinutes || selectedDoctor.duration || 30;
 
       // 3. Persist checkout draft into sessionStorage
       try {
@@ -1142,13 +1209,13 @@ export function QuickBookingWidget() {
 
                     {/* Time slots */}
                     <div className="quick-booking-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
-                      {timeSlots.map((time) => {
-                        const isSelected = selectedTimeSlot === time;
+                      {daySlots.map((slot) => {
+                        const isSelected = selectedSlot?.id === slot.id;
                         return (
                           <button
-                            key={time}
+                            key={slot.id}
                             type="button"
-                            onClick={() => setSelectedTimeSlot(time)}
+                            onClick={() => setSelectedSlot(slot)}
                             style={{
                               padding: '7px 4px',
                               borderRadius: '8px',
@@ -1162,16 +1229,29 @@ export function QuickBookingWidget() {
                               cursor: 'pointer',
                             }}
                           >
-                            {time}
+                            {formatClockTime(slot.startTime)}
                           </button>
                         );
                       })}
                     </div>
+                    {slotsLoading ? (
+                      <div style={{ fontSize: '0.8125rem', opacity: 0.7 }}>Checking the doctor&apos;s availability…</div>
+                    ) : days.length === 0 ? (
+                      <div style={{ fontSize: '0.8125rem', opacity: 0.8 }}>
+                        No open times right now. Please check back soon or pick another doctor.
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                        Times shown in your local time ({viewerTz.split('/').pop()?.replace(/_/g, ' ')}{formatZoneAbbr(selectedSlot?.startTime) ? `, ${formatZoneAbbr(selectedSlot?.startTime)}` : ''})
+                      </div>
+                    )}
 
                     <button
                       type="button"
                       onClick={handleConfirmSlot}
+                      disabled={!selectedSlot}
                       style={{
+                        opacity: selectedSlot ? 1 : 0.5,
                         padding: '10px',
                         backgroundColor: 'var(--color-chocolate-base, #2A170F)',
                         color: 'var(--color-gold-base, #DFAB62)',
@@ -1187,7 +1267,11 @@ export function QuickBookingWidget() {
                         marginTop: '4px',
                       }}
                     >
-                      <span>Continue with {days[selectedDayIndex].dayName} at {selectedTimeSlot}</span>
+                      <span>
+                        {selectedSlot
+                          ? `Continue with ${days[selectedDayIndex].dayName} at ${formatClockTime(selectedSlot.startTime)}`
+                          : 'Choose a time'}
+                      </span>
                       <SolarIcon name="arrow-right-linear" size={16} color="var(--color-gold-base, #DFAB62)" />
                     </button>
                   </div>
@@ -1209,7 +1293,7 @@ export function QuickBookingWidget() {
                     maxWidth: '80%',
                   }}
                 >
-                  {days[selectedDayIndex].dayName}, {days[selectedDayIndex].displayDate} at {selectedTimeSlot}
+                  {days[selectedDayIndex]?.dayName}, {days[selectedDayIndex]?.displayDate} at {selectedSlot ? formatClockTime(selectedSlot.startTime) : ''} {formatZoneAbbr(selectedSlot?.startTime)}
                 </div>
               </div>
             )}
@@ -1478,7 +1562,7 @@ export function QuickBookingWidget() {
                     <div>
                       <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#2A170F' }}>{selectedDoctor.name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#6B5E55' }}>
-                        {consultationType === 'audio' ? 'Audio' : 'Video'} Consultation ({selectedDoctor.duration || 30} mins) • {days[selectedDayIndex].dayName}, {days[selectedDayIndex].displayDate} at {selectedTimeSlot}
+                        {consultationType === 'audio' ? 'Audio' : 'Video'} Consultation ({selectedDoctor.duration || 30} mins) • {days[selectedDayIndex]?.dayName}, {days[selectedDayIndex]?.displayDate} at {selectedSlot ? formatClockTime(selectedSlot.startTime) : ''} {formatZoneAbbr(selectedSlot?.startTime)}
                       </div>
                     </div>
                     <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#2A170F' }}>

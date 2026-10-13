@@ -31,6 +31,7 @@ import {
 import { useAuth } from '../../../context/AuthContext';
 import { toastSuccess, toastError } from '../../../lib/toast';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
+import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
 
 interface DoctorDetail {
   id: string;
@@ -352,18 +353,8 @@ function CheckoutContent() {
   }, [slot]);
 
   const formattedTime = useMemo(() => {
-    if (!slot) return '10:00 – 10:45 SAST';
-    const start = new Date(slot.startTime).toLocaleTimeString('en-ZA', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-    const end = new Date(slot.endTime).toLocaleTimeString('en-ZA', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    });
-    return `${start} – ${end} SAST`;
+    if (!slot) return 'Selected time';
+    return `${formatClockTime(slot.startTime)} – ${formatClockTime(slot.endTime)} ${formatZoneAbbr(slot.startTime)}`.trim();
   }, [slot]);
 
   // Handle local file drop or selection
