@@ -2730,7 +2730,7 @@ export default function DoctorConsultationWorkspace() {
                 ...(videoLayout === 'grid'
                   ? {
                       display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))',
                       gap: '12px',
                       padding: '12px',
                       boxSizing: 'border-box' as const,
@@ -3897,6 +3897,7 @@ export default function DoctorConsultationWorkspace() {
 
             {/* Segmented Tab Navigation */}
             <div
+              className="clinical-subtabs"
               style={{
                 display: 'flex',
                 backgroundColor: '#FAF6EE',
@@ -3920,6 +3921,7 @@ export default function DoctorConsultationWorkspace() {
                   <button
                     key={tab.id}
                     type="button"
+                    className="clinical-subtab-btn"
                     onClick={() => setActiveClinicalTab(tab.id as any)}
                     style={{
                       flex: 1,
@@ -3949,7 +3951,7 @@ export default function DoctorConsultationWorkspace() {
 
             {/* TAB 1: SOAP NOTES (Chief Complaint, HPI, Assessment, Plan) in 2x2 Grid */}
             {activeClinicalTab === 'notes' && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: '14px' }}>
                 {/* Chief Complaint */}
                 <div
                   style={{
@@ -4297,7 +4299,7 @@ export default function DoctorConsultationWorkspace() {
                     Confirmed Diagnoses for this Encounter ({diagnoses.length})
                   </div>
                   {diagnoses.length > 0 ? (
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '10px' }}>
                       {diagnoses.map((d) => (
                         <div
                           key={d.id}
@@ -4612,7 +4614,7 @@ export default function DoctorConsultationWorkspace() {
 
                 {/* Medication Cards */}
                 {medications.length > 0 ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '10px' }}>
                     {medications.map((m) => (
                       <div
                         key={m.id}
@@ -4721,7 +4723,7 @@ export default function DoctorConsultationWorkspace() {
                 </div>
 
                 {followupRequired && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '14px' }}>
                     <div>
                       <label style={{ fontSize: '0.72rem', fontWeight: 800, color: '#2A170F', textTransform: 'uppercase', marginBottom: '6px', display: 'block' }}>
                         Recommended Follow-up Date
@@ -6091,6 +6093,23 @@ export default function DoctorConsultationWorkspace() {
             border-radius: 16px !important;
             background-color: #FFFFFF !important;
             padding: 16px !important;
+            box-sizing: border-box !important;
+            flex: 1 1 0 !important;
+            flex-shrink: 1 !important;
+            min-width: 0 !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+          }
+
+          /* While the patient chart is showing, the (otherwise empty) main column
+             collapses to a padded 16px strip that pushed the chart off-screen. */
+          .consultation-main:has(+ .clinical-panel-drawer.mobile-active) {
+            flex: 0 0 0 !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            padding: 0 !important;
+            gap: 0 !important;
+            overflow: visible !important;
           }
         }
 
@@ -6191,6 +6210,22 @@ export default function DoctorConsultationWorkspace() {
           }
         }
 
+        @media (max-width: 768px) {
+          /* Clinical sub-tabs scroll as a swipeable strip with full-size labels */
+          .clinical-subtabs {
+            scrollbar-width: none !important;
+            -webkit-overflow-scrolling: touch;
+          }
+          .clinical-subtabs::-webkit-scrollbar {
+            display: none !important;
+          }
+          .clinical-subtab-btn {
+            flex: 0 0 auto !important;
+            padding: 10px 14px !important;
+            min-height: 40px !important;
+          }
+        }
+
         @media (max-width: 560px) {
           .header-back-label,
           .header-end-label {
@@ -6200,6 +6235,23 @@ export default function DoctorConsultationWorkspace() {
         @media (max-width: 420px) {
           .header-status-text {
             display: none !important;
+          }
+
+          /* Fit all three workspace tabs on a phone without sideways scrolling */
+          .mobile-consult-nav-bar {
+            padding: 6px 8px !important;
+            gap: 4px !important;
+          }
+          .mobile-nav-btn {
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            gap: 5px !important;
+            padding: 9px 6px !important;
+            font-size: 0.74rem !important;
+          }
+          .mobile-nav-btn svg {
+            width: 14px !important;
+            height: 14px !important;
           }
         }
       `}</style>
