@@ -30,6 +30,11 @@ export default function DoctorDashboardPage() {
   const [now, setNow] = useState<number>(Date.now());
 
   const doctorName = doctor?.fullName || 'Dr. Practitioner';
+  // Greeting uses the title + first name only, so long names never crowd the heading
+  const greetingName = (() => {
+    const parts = doctorName.replace(/^dr\.?\s+/i, '').trim().split(/\s+/).filter(Boolean);
+    return `Dr. ${parts[0] || 'Practitioner'}`;
+  })();
   const isVerified = profile?.verificationStatus === 'verified';
 
   // Time-of-day greeting (recomputes with the live clock tick)
@@ -325,7 +330,9 @@ export default function DoctorDashboardPage() {
             </div>
 
             <h1 className="page-title">
-              {greeting}, {doctorName} 👋
+              {greeting},
+              <br />
+              {greetingName} 👋
             </h1>
             <p className="page-subtitle">
               {isPendingVerification
@@ -1051,7 +1058,7 @@ export default function DoctorDashboardPage() {
                     No Upcoming Consultations
                   </p>
                   <p style={{ fontSize: '0.875rem', maxWidth: '440px', margin: '0 auto 16px' }}>
-                    Your scheduled patient appointments will appear here with direct one-click access to the Daily.co video consultation room.
+                    Your scheduled patient appointments will appear here with direct one-click access to the video consultation room.
                   </p>
                   <Link href="/calendar" className="btn-primary" style={{ display: 'inline-flex', padding: '8px 18px', fontSize: '0.85rem' }}>
                     Open Clinical Calendar
