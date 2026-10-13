@@ -2932,3 +2932,32 @@ a {
     content: '';
   }
 }
+
+/* Calendar day view on phones: narrower time gutter so "08:00 – 08:30" stays on one line beside its badge */
+@media (max-width: 640px) {
+  .cal-day-gutter {
+    width: 46px !important;
+    padding: 12px 4px !important;
+    font-size: 0.68rem !important;
+  }
+  .cal-day-cell {
+    padding: 6px 8px !important;
+  }
+  .cal-day-slot {
+    padding: 8px 10px !important;
+    gap: 6px !important;
+  }
+  .cal-day-slot-left {
+    gap: 8px !important;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .cal-day-slot-icon {
+    width: 24px !important;
+    height: 24px !important;
+  }
+  .cal-day-slot-badge {
+    padding: 2px 7px !important;
+    font-size: 0.66rem !important;
+  }
+}

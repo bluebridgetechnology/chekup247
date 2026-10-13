@@ -1775,6 +1775,7 @@ export default function DoctorCalendarPage() {
                         >
                           {/* Time Gutter Column */}
                           <div
+                            className="cal-day-gutter"
                             style={{
                               width: '64px',
                               flexShrink: 0,
@@ -1794,8 +1795,10 @@ export default function DoctorCalendarPage() {
 
                           {/* Hour Content Cell */}
                           <div
+                            className="cal-day-cell"
                             style={{
                               flex: 1,
+                              minWidth: 0,
                               padding: '8px 12px',
                               display: 'flex',
                               flexDirection: 'column',
@@ -1829,6 +1832,7 @@ export default function DoctorCalendarPage() {
                                   return (
                                     <div
                                       key={slot.id}
+                                      className="cal-day-slot"
                                       onClick={() => setSelectedSlotForDetail(slot)}
                                       style={{
                                         padding: '10px 14px',
@@ -1856,8 +1860,9 @@ export default function DoctorCalendarPage() {
                                         transition: 'all 0.15s ease',
                                       }}
                                     >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                                      <div className="cal-day-slot-left" style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
                                         <div
+                                          className="cal-day-slot-icon"
                                           style={{
                                             width: '28px',
                                             height: '28px',
@@ -1887,6 +1892,7 @@ export default function DoctorCalendarPage() {
                                               fontFamily: 'var(--font-heading)',
                                               fontSize: '0.875rem',
                                               fontWeight: 600,
+                                              whiteSpace: 'nowrap',
                                               color: 'var(--color-chocolate-base, #2A170F)',
                                             }}
                                           >
@@ -1933,6 +1939,7 @@ export default function DoctorCalendarPage() {
                                           </span>
                                         )}
                                         <span
+                                          className="cal-day-slot-badge"
                                           style={{
                                             padding: '2px 8px',
                                             borderRadius: '9999px',
