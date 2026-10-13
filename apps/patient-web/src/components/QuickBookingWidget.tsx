@@ -597,6 +597,7 @@ export function QuickBookingWidget() {
 
           {/* Chat Stream Body */}
           <div
+            className="quick-booking-body"
             style={{
               padding: '16px 18px',
               overflowY: 'auto',
@@ -663,7 +664,7 @@ export function QuickBookingWidget() {
 
             {/* Step 1 Interactive Specialty Buttons (Filtered to MVP visible items) */}
             {currentStep === 'specialty' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginLeft: '34px' }}>
+              <div className="quick-booking-indent" style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginLeft: '34px' }}>
                 {SPECIALTY_OPTIONS.filter((item) => item.isMvpVisible).map((item) => (
                   <button
                     key={item.id}
@@ -761,7 +762,7 @@ export function QuickBookingWidget() {
 
                 {/* Step 2 Interactive Doctor Picker */}
                 {currentStep === 'doctor' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '34px' }}>
+                  <div className="quick-booking-indent" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '34px' }}>
                     {matchingDoctors.map((doc) => (
                       <div
                         key={doc.id}
@@ -910,7 +911,7 @@ export function QuickBookingWidget() {
 
                 {/* Step 2.5 Interactive Consultation Type Picker */}
                 {currentStep === 'type' && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', marginLeft: '34px' }}>
+                  <div className="quick-booking-indent quick-booking-grid-2" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '8px', marginLeft: '34px' }}>
                     <button
                       type="button"
                       onClick={() => handleSelectConsultationType('video')}
@@ -1108,9 +1109,9 @@ export function QuickBookingWidget() {
 
                 {/* Step 3 Interactive Day & Slot Picker */}
                 {currentStep === 'slot' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '34px' }}>
+                  <div className="quick-booking-indent" style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginLeft: '34px' }}>
                     {/* Days */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                    <div className="quick-booking-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
                       {days.map((item, idx) => {
                         const isSelected = selectedDayIndex === idx;
                         return (
@@ -1140,7 +1141,7 @@ export function QuickBookingWidget() {
                     </div>
 
                     {/* Time slots */}
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                    <div className="quick-booking-grid-3" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '6px' }}>
                       {timeSlots.map((time) => {
                         const isSelected = selectedTimeSlot === time;
                         return (
@@ -1254,6 +1255,7 @@ export function QuickBookingWidget() {
                 {currentStep === 'patient_info' && (
                   <form
                     onSubmit={handlePatientInfoSubmit}
+                    className="quick-booking-indent quick-booking-form"
                     style={{
                       display: 'flex',
                       flexDirection: 'column',
@@ -1460,6 +1462,7 @@ export function QuickBookingWidget() {
                 </div>
 
                 <div
+                  className="quick-booking-indent"
                   style={{
                     marginLeft: '34px',
                     backgroundColor: '#FAF6EE',
@@ -1471,7 +1474,7 @@ export function QuickBookingWidget() {
                     gap: '12px',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(223, 171, 98, 0.2)', paddingBottom: '10px' }}>
+                  <div className="quick-booking-summary-row" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', borderBottom: '1px solid rgba(223, 171, 98, 0.2)', paddingBottom: '10px' }}>
                     <div>
                       <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#2A170F' }}>{selectedDoctor.name}</div>
                       <div style={{ fontSize: '0.75rem', color: '#6B5E55' }}>

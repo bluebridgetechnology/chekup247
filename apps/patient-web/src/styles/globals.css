@@ -574,6 +574,71 @@ details summary::-webkit-details-marker {
   background-color: #FFFDF9 !important;
 }
 
+/* Quick booking widget: mobile layout */
+.quick-booking-body,
+.quick-booking-popover * {
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .quick-booking-trigger-btn {
+    bottom: 16px !important;
+    right: 16px !important;
+  }
+
+  /* Popover becomes a bottom sheet spanning the viewport width */
+  .quick-booking-popover {
+    left: 12px !important;
+    right: 12px !important;
+    bottom: 76px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 96px) !important;
+    border-radius: 18px !important;
+  }
+
+  .quick-booking-body {
+    padding: 14px 12px !important;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Reclaim the avatar indent so cards use the full width */
+  .quick-booking-indent {
+    margin-left: 0 !important;
+  }
+
+  .quick-booking-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  }
+
+  .quick-booking-form {
+    padding: 12px !important;
+  }
+
+  /* 16px inputs stop iOS Safari zooming the page on focus */
+  .quick-booking-popover input,
+  .quick-booking-popover textarea,
+  .quick-booking-popover select {
+    font-size: 16px !important;
+    min-height: 44px;
+  }
+
+  .quick-booking-popover button {
+    min-height: 40px;
+  }
+
+  .quick-booking-summary-row {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 360px) {
+  .quick-booking-grid-2 {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
 @keyframes quickBookPopIn {
   from {
     opacity: 0;
