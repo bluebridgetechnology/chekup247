@@ -3278,6 +3278,7 @@ export default function DoctorConsultationWorkspace() {
                 style={{
                   width: '42px',
                   height: '42px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   border: isAudioMuted ? '1.5px solid #EF4444' : '1px solid rgba(223, 171, 98, 0.25)',
                   backgroundColor: isAudioMuted ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.08)',
@@ -3300,6 +3301,7 @@ export default function DoctorConsultationWorkspace() {
                 style={{
                   width: '42px',
                   height: '42px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   border: isVideoMuted ? '1.5px solid #EF4444' : '1px solid rgba(223, 171, 98, 0.25)',
                   backgroundColor: isVideoMuted ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.08)',
@@ -3322,6 +3324,7 @@ export default function DoctorConsultationWorkspace() {
                 style={{
                   width: '42px',
                   height: '42px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   border: isSpeakerMuted ? '1.5px solid #EF4444' : '1px solid rgba(223, 171, 98, 0.25)',
                   backgroundColor: isSpeakerMuted ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.08)',
@@ -3344,6 +3347,7 @@ export default function DoctorConsultationWorkspace() {
                 style={{
                   width: '42px',
                   height: '42px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   border: isSharingScreen ? '1.5px solid #DFAB62' : '1px solid rgba(223, 171, 98, 0.25)',
                   backgroundColor: isSharingScreen ? 'rgba(223, 171, 98, 0.2)' : 'rgba(255, 255, 255, 0.08)',
@@ -3366,6 +3370,7 @@ export default function DoctorConsultationWorkspace() {
                 style={{
                   width: '42px',
                   height: '42px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   border: activeEffect !== 'none' || showEffectsDrawer ? '1.5px solid #DFAB62' : '1px solid rgba(223, 171, 98, 0.25)',
                   backgroundColor: activeEffect !== 'none' || showEffectsDrawer ? 'rgba(223, 171, 98, 0.25)' : 'rgba(255, 255, 255, 0.08)',
@@ -3403,6 +3408,7 @@ export default function DoctorConsultationWorkspace() {
                 style={{
                   width: '42px',
                   height: '42px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   border: isVideoFullView ? '1.5px solid #DFAB62' : '1px solid rgba(223, 171, 98, 0.25)',
                   backgroundColor: isVideoFullView ? 'rgba(223, 171, 98, 0.25)' : 'rgba(255, 255, 255, 0.08)',
@@ -3457,6 +3463,7 @@ export default function DoctorConsultationWorkspace() {
                   style={{
                     width: '42px',
                     height: '42px',
+                    flexShrink: 0,
                     borderRadius: '50%',
                     border: '1px solid rgba(223, 171, 98, 0.25)',
                     backgroundColor: 'rgba(255, 255, 255, 0.08)',
@@ -5174,6 +5181,7 @@ export default function DoctorConsultationWorkspace() {
                 style={{
                   width: '42px',
                   height: '42px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   backgroundColor: 'rgba(220, 38, 38, 0.12)',
                   display: 'flex',
@@ -5532,6 +5540,7 @@ export default function DoctorConsultationWorkspace() {
                   style={{
                     width: '36px',
                     height: '36px',
+                    flexShrink: 0,
                     borderRadius: '10px',
                     backgroundColor: 'rgba(223, 171, 98, 0.15)',
                     display: 'flex',

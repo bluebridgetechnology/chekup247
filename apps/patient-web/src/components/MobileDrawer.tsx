@@ -24,7 +24,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 100,
+        zIndex: 10000,
         display: 'flex',
       }}
     >
@@ -51,7 +51,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           display: 'flex',
           flexDirection: 'column',
           boxShadow: '0 20px 30px rgba(0, 0, 0, 0.5)',
-          zIndex: 101,
+          zIndex: 10001,
           borderRight: '1px solid rgba(223, 171, 98, 0.18)',
           fontFamily: 'var(--font-sans)',
           overflowY: 'auto',
@@ -230,7 +230,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               padding: '4px 0',
             }}
           >
-            Doctor Consultation
+            Find a Doctor
           </Link>
 
           <Link
@@ -377,13 +377,16 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             </>
           )}
 
+          {/* Doctors' sign-in / sign-up: visitors only (signed-in patients don't need it) */}
+          {!isAuthenticated && (
+            <>
           {/* Divider before Healthcare Professionals */}
           <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.08)', margin: '10px 0' }} />
 
           {/* Group 2: For Doctors / Chekup247 Locum */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <div style={{ fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-gold-base, #DFAB62)' }}>
-              For Healthcare Professionals
+              For Doctors
             </div>
             <a
               href={getDoctorRegisterUrl()}
@@ -404,7 +407,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               }}
             >
               <SolarIcon name="user-plus-bold" size={16} color="var(--color-gold-base, #DFAB62)" />
-              <span>Sign up as Chekup247 Locum</span>
+              <span>Doctor sign up</span>
             </a>
             <a
               href={getDoctorLoginUrl()}
@@ -421,9 +424,11 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               }}
             >
               <SolarIcon name="stethoscope-bold" size={15} color="var(--color-gold-base, #DFAB62)" />
-              <span>Doctor Sign In</span>
+              <span>Doctor sign in</span>
             </a>
           </div>
+            </>
+          )}
         </nav>
 
         {/* Footer Action Button */}

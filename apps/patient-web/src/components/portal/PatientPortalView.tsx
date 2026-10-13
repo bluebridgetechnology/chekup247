@@ -13,6 +13,7 @@ import {
 } from '../../lib/portalData';
 import { getGoogleCalendarUrl, downloadIcsForBooking } from '../../lib/calendar';
 import { PortalDoctorFinder } from './PortalDoctorFinder';
+import { formatDoctorName } from '../../lib/doctorName';
 
 function SearchParamListener({ onChangeView }: { onChangeView: (v: string) => void }) {
   const searchParams = useSearchParams();
@@ -1492,7 +1493,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
             year: 'numeric',
           })
         : 'Recent';
-      const docName = p.doctor?.fullName || p.doctor?.name ? `Dr. ${p.doctor?.fullName || p.doctor?.name}` : 'Attending Doctor (HPCSA)';
+      const docName = formatDoctorName(p.doctor?.fullName || p.doctor?.name) || 'Attending Doctor (HPCSA)';
       const itemCount = (p.items || []).length;
       return {
         id: `presc-${p.id}`,
@@ -2534,6 +2535,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                   style={{
                     width: '38px',
                     height: '38px',
+                    flexShrink: 0,
                     borderRadius: '10px',
                     backgroundColor: '#FAF5ED',
                     border: '1px solid #EDE4D4',

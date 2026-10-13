@@ -353,7 +353,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
           )}
         </div>
 
-        {/* Practice Alerts Bell */}
+        {/* Notifications Bell */}
         <div style={{ position: 'relative' }} ref={notifDropdownRef}>
           <button
             onClick={() => {
@@ -373,7 +373,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
               justifyContent: 'center',
               transition: 'all 0.18s ease',
             }}
-            title="Practice Notifications"
+            title="My Notifications"
           >
             <SolarIcon name="bell-linear" size={20} color="var(--color-chocolate-base, #2A170F)" />
             {hasImportant && (
@@ -407,6 +407,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
           {/* Notifications Popover */}
           {notificationsOpen && (
             <div
+              className="doctor-notif-dropdown"
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 8px)',
@@ -435,7 +436,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--color-chocolate-base, #2A170F)' }}>
-                    Practice Alerts
+                    My Notifications
                   </span>
                   {unreadCount > 0 && (
                     <span className="badge-gold">
@@ -506,7 +507,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                 {notifications.length === 0 && !isPendingVerification ? (
                   <div style={{ padding: '36px 20px', textAlign: 'center', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                     <SolarIcon name="bell-linear" size={32} color="var(--color-gold-bronze, #B88647)" style={{ margin: '0 auto 8px', opacity: 0.5 }} />
-                    <p style={{ margin: 0, fontSize: '0.875rem' }}>No new practice alerts</p>
+                    <p style={{ margin: 0, fontSize: '0.875rem' }}>No new notifications</p>
                   </div>
                 ) : (
                   notifications.map((notif) => {

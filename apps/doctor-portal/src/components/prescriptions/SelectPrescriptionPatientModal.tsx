@@ -245,7 +245,7 @@ export function SelectPrescriptionPatientModal({
         </div>
 
         {/* Search Bar */}
-        <div style={{ padding: '16px 28px', borderBottom: '1px solid rgba(223, 171, 98, 0.15)' }}>
+        <div className="rx-patient-search" style={{ padding: '16px 28px', borderBottom: '1px solid rgba(223, 171, 98, 0.15)' }}>
           <div className="doctors-search-pill" style={{ width: '100%', height: '44px' }}>
             <SolarIcon name="magnifer-linear" size={18} color="var(--color-gold-base, #DFAB62)" />
             <input
@@ -278,6 +278,7 @@ export function SelectPrescriptionPatientModal({
 
         {/* Patient List */}
         <div
+          className="rx-patient-list"
           style={{
             padding: '20px 28px',
             overflowY: 'auto',
@@ -366,6 +367,7 @@ export function SelectPrescriptionPatientModal({
               return (
                 <div
                   key={patient.patientId}
+                  className="rx-patient-row"
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -420,6 +422,7 @@ export function SelectPrescriptionPatientModal({
                       </div>
 
                       <div
+                        className="rx-patient-meta"
                         style={{
                           display: 'flex',
                           alignItems: 'center',
@@ -449,7 +452,7 @@ export function SelectPrescriptionPatientModal({
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <div className="rx-patient-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                     <button
                       type="button"
                       onClick={(e) => {

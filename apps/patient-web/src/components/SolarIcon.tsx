@@ -1,7 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Icon } from '@iconify/react';
+import { Icon, addCollection } from '@iconify/react';
+import solarIcons from '../lib/solar-icons.json';
+
+// Register the icons this app uses locally so they render instantly and offline
+// instead of being fetched from the public Iconify API. Regenerate the subset with
+// `npm run icons:build` after adding a new icon name.
+addCollection(solarIcons as Parameters<typeof addCollection>[0]);
 
 interface SolarIconProps {
   name: string;

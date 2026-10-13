@@ -12,6 +12,7 @@ import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { RescheduleModal } from '../../../components/RescheduleModal';
 import { ReviewModal } from '../../../components/ReviewModal';
 import { ClinicalVerificationModal } from '../../../components/ClinicalVerificationModal';
+import { formatDoctorName } from '../../../lib/doctorName';
 
 interface AttachedDoc {
   name: string;
@@ -1120,7 +1121,7 @@ export default function BookingDetailPage() {
                   <div>
                     <strong>Short-Notice Cancellation (&lt; 24 Hours Away):</strong>
                     <div style={{ marginTop: '4px', fontSize: '0.825rem' }}>
-                      Per policy, a 30% doctor reservation fee (<strong>R{deductionAmount.toFixed(2)}</strong>) will be allocated to Dr. {booking.doctor?.fullName}.
+                      Per policy, a 30% doctor reservation fee (<strong>R{deductionAmount.toFixed(2)}</strong>) will be allocated to {formatDoctorName(booking.doctor?.fullName)}.
                       The remaining 70% (<strong>R{remainderAmount.toFixed(2)}</strong>) is refunded to you.
                     </div>
                   </div>

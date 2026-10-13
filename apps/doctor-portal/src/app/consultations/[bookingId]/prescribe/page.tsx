@@ -1476,6 +1476,7 @@ export default function EPrescriptionBuilderPage() {
                       style={{
                         width: '32px',
                         height: '32px',
+                        flexShrink: 0,
                         borderRadius: '8px',
                         background: 'var(--color-gold-pale, #F0E5D3)',
                         display: 'flex',
@@ -2029,6 +2030,7 @@ export default function EPrescriptionBuilderPage() {
                       style={{
                         width: '38px',
                         height: '38px',
+                        flexShrink: 0,
                         borderRadius: '50%',
                         backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
                         display: 'flex',

@@ -331,6 +331,7 @@ export default function HowItWorksClient() {
                       style={{
                         width: '44px',
                         height: '44px',
+                        flexShrink: 0,
                         borderRadius: 'var(--radius-full)',
                         backgroundColor: 'var(--color-brand-50)',
                         color: 'var(--color-brand-600)',
@@ -368,6 +369,7 @@ export default function HowItWorksClient() {
                     style={{
                       width: '36px',
                       height: '36px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-gold-pale)',
                       color: 'var(--color-gold-bronze)',
@@ -416,6 +418,7 @@ export default function HowItWorksClient() {
                       style={{
                         width: '44px',
                         height: '44px',
+                        flexShrink: 0,
                         borderRadius: 'var(--radius-full)',
                         backgroundColor: 'var(--color-rating-bg)',
                         display: 'flex',
@@ -452,6 +455,7 @@ export default function HowItWorksClient() {
                     style={{
                       width: '36px',
                       height: '36px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-gold-pale)',
                       color: 'var(--color-gold-bronze)',
@@ -500,6 +504,7 @@ export default function HowItWorksClient() {
                       style={{
                         width: '44px',
                         height: '44px',
+                        flexShrink: 0,
                         borderRadius: 'var(--radius-full)',
                         backgroundColor: '#EDE9FE',
                         display: 'flex',
@@ -536,6 +541,7 @@ export default function HowItWorksClient() {
                     style={{
                       width: '36px',
                       height: '36px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-gold-pale)',
                       color: 'var(--color-gold-bronze)',
@@ -584,6 +590,7 @@ export default function HowItWorksClient() {
                       style={{
                         width: '44px',
                         height: '44px',
+                        flexShrink: 0,
                         borderRadius: 'var(--radius-full)',
                         backgroundColor: '#DCFCE7',
                         display: 'flex',
@@ -620,6 +627,7 @@ export default function HowItWorksClient() {
                     style={{
                       width: '36px',
                       height: '36px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-gold-pale)',
                       color: 'var(--color-gold-bronze)',
@@ -676,6 +684,7 @@ export default function HowItWorksClient() {
                       style={{
                         width: '44px',
                         height: '44px',
+                        flexShrink: 0,
                         borderRadius: 'var(--radius-full)',
                         backgroundColor: 'var(--color-brand-50)',
                         display: 'flex',
@@ -710,6 +719,7 @@ export default function HowItWorksClient() {
                     style={{
                       width: '36px',
                       height: '36px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-gold-pale)',
                       color: 'var(--color-gold-bronze)',
@@ -756,6 +766,7 @@ export default function HowItWorksClient() {
                       style={{
                         width: '44px',
                         height: '44px',
+                        flexShrink: 0,
                         borderRadius: 'var(--radius-full)',
                         backgroundColor: 'var(--color-rating-bg)',
                         display: 'flex',
@@ -790,6 +801,7 @@ export default function HowItWorksClient() {
                     style={{
                       width: '36px',
                       height: '36px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-gold-pale)',
                       color: 'var(--color-gold-bronze)',
@@ -836,6 +848,7 @@ export default function HowItWorksClient() {
                       style={{
                         width: '44px',
                         height: '44px',
+                        flexShrink: 0,
                         borderRadius: 'var(--radius-full)',
                         backgroundColor: '#EDE9FE',
                         display: 'flex',
@@ -870,6 +883,7 @@ export default function HowItWorksClient() {
                     style={{
                       width: '36px',
                       height: '36px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-gold-pale)',
                       color: 'var(--color-gold-bronze)',
@@ -916,6 +930,7 @@ export default function HowItWorksClient() {
                       style={{
                         width: '44px',
                         height: '44px',
+                        flexShrink: 0,
                         borderRadius: 'var(--radius-full)',
                         backgroundColor: '#DCFCE7',
                         display: 'flex',
@@ -950,6 +965,7 @@ export default function HowItWorksClient() {
                     style={{
                       width: '36px',
                       height: '36px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-gold-pale)',
                       color: 'var(--color-gold-bronze)',
@@ -1036,6 +1052,7 @@ export default function HowItWorksClient() {
                 style={{
                   width: '44px',
                   height: '44px',
+                  flexShrink: 0,
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'var(--color-slate-100)',
                   display: 'flex',
@@ -1075,6 +1092,7 @@ export default function HowItWorksClient() {
                 style={{
                   width: '44px',
                   height: '44px',
+                  flexShrink: 0,
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'var(--color-slate-100)',
                   display: 'flex',
@@ -1114,6 +1132,7 @@ export default function HowItWorksClient() {
                 style={{
                   width: '44px',
                   height: '44px',
+                  flexShrink: 0,
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'var(--color-slate-100)',
                   display: 'flex',
@@ -1153,6 +1172,7 @@ export default function HowItWorksClient() {
                 style={{
                   width: '44px',
                   height: '44px',
+                  flexShrink: 0,
                   borderRadius: 'var(--radius-md)',
                   backgroundColor: 'var(--color-slate-100)',
                   display: 'flex',

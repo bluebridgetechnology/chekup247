@@ -11,6 +11,7 @@ import {
   Loader2,
   ChevronRight,
 } from 'lucide-react';
+import { formatDoctorName } from '../lib/doctorName';
 
 interface AvailableSlot {
   id: string;
@@ -233,7 +234,7 @@ export function RescheduleModal({
               <Clock size={32} style={{ opacity: 0.4, margin: '0 auto 8px' }} />
               <p style={{ fontWeight: 600, color: 'var(--color-slate-700)' }}>No other open slots found</p>
               <p style={{ fontSize: '0.85rem', margin: '4px 0 0' }}>
-                Dr. {doctorName} has no other open slots in the near future. You can cancel and receive a refund or credit.
+                {formatDoctorName(doctorName)} has no other open slots in the near future. You can cancel and receive a refund or credit.
               </p>
             </div>
           ) : (

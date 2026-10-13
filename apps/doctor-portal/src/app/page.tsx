@@ -351,7 +351,8 @@ export default function DoctorDashboardPage() {
           </Link>
           <Link href="/prescriptions/new" className="btn-secondary">
             <SolarIcon name="document-text-linear" size={17} color="var(--color-chocolate-base, #2A170F)" />
-            <span>Write E-Prescription</span>
+            <span className="welcome-label-full">Write E-Prescription</span>
+            <span className="welcome-label-short">E-Prescription</span>
           </Link>
           <Link href="/icd10" className="btn-secondary">
             <SolarIcon name="magnifer-linear" size={17} color="var(--color-chocolate-base, #2A170F)" />
@@ -385,6 +386,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '40px',
                 height: '40px',
+                flexShrink: 0,
                 borderRadius: '50%',
                 background: '#fef3c7',
                 display: 'flex',
@@ -643,6 +645,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '36px',
                 height: '36px',
+                flexShrink: 0,
                 borderRadius: '10px',
                 background: 'var(--color-gold-glow, rgba(223, 171, 98, 0.12))',
                 display: 'flex',
@@ -689,6 +692,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '36px',
                 height: '36px',
+                flexShrink: 0,
                 borderRadius: '10px',
                 background: 'var(--color-gold-glow, rgba(223, 171, 98, 0.12))',
                 display: 'flex',
@@ -717,6 +721,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '36px',
                 height: '36px',
+                flexShrink: 0,
                 borderRadius: '10px',
                 background: 'var(--color-gold-glow, rgba(223, 171, 98, 0.12))',
                 display: 'flex',
@@ -749,6 +754,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '36px',
                 height: '36px',
+                flexShrink: 0,
                 borderRadius: '10px',
                 background: 'var(--color-gold-glow, rgba(223, 171, 98, 0.12))',
                 display: 'flex',

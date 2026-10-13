@@ -178,6 +178,7 @@ export function ReviewModal({
               style={{
                 width: '40px',
                 height: '40px',
+                flexShrink: 0,
                 borderRadius: '12px',
                 background: 'rgba(14, 147, 132, 0.1)',
                 color: 'var(--color-brand-600)',
