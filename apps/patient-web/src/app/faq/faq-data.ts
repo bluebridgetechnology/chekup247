@@ -65,7 +65,7 @@ export const ALL_FAQS: FaqItem[] = [
   {
     category: 'Privacy & Security',
     q: 'Are the video consultations recorded?',
-    a: 'No. Video and audio streams are encrypted peer-to-peer WebRTC connections powered by Daily.co. We never record, store, or monitor your private medical consultation video.',
+    a: 'No. Video and audio streams are encrypted peer-to-peer WebRTC connections. We never record, store, or monitor your private medical consultation video.',
   },
 
   // Cancellations & Rescheduling

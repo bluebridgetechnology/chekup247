@@ -529,8 +529,8 @@ export default function HowItWorksClient() {
                     Join Your Video Call
                   </h3>
                   <p style={{ fontFamily: 'var(--font-sans)', color: 'var(--color-cream-text-muted)', fontSize: 'var(--text-sm)', lineHeight: 1.6, margin: 0 }}>
-                    At your scheduled time, tap &ldquo;Join Consultation&rdquo; to enter your encrypted video room powered
-                    by Daily.co. Talk face-to-face with your physician from any device.
+                    At your scheduled time, tap &ldquo;Join Consultation&rdquo; to enter your encrypted video room.
+                    Talk face-to-face with your physician from any device.
                   </p>
                 </div>
 
