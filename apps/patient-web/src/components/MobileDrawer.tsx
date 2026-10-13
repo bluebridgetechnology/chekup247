@@ -354,7 +354,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                   }}
                 >
                   <SolarIcon name="user-linear" size={15} color="var(--color-gold-base, #DFAB62)" />
-                  <span>Sign In</span>
+                  <span>Patient login</span>
                 </Link>
                 <Link
                   href="/register"
