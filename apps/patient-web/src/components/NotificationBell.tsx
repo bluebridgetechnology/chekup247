@@ -21,7 +21,7 @@ export interface AppNotification {
 }
 
 export interface NotificationBellProps {
-  variant?: 'default' | 'portal';
+  variant?: 'default' | 'portal' | 'navbar';
 }
 
 export function NotificationBell({ variant = 'default' }: NotificationBellProps = {}) {
@@ -141,6 +141,8 @@ export function NotificationBell({ variant = 'default' }: NotificationBellProps 
   };
 
   if (!isAuthenticated) return null;
+  // 'portal' and 'navbar' both sit on the dark chocolate header: borderless round button, cream icon
+  const onDark = variant !== 'default';
 
   return (
     <div style={{ position: 'relative' }} ref={dropdownRef}>
@@ -151,7 +153,7 @@ export function NotificationBell({ variant = 'default' }: NotificationBellProps 
           if (!isOpen) fetchNotifications();
         }}
         style={
-          variant === 'portal'
+          onDark
             ? {
                 position: 'relative',
                 background: isOpen ? 'rgba(255, 255, 255, 0.12)' : 'transparent',
@@ -185,13 +187,13 @@ export function NotificationBell({ variant = 'default' }: NotificationBellProps 
         title="Notifications"
         aria-label="View notifications"
       >
-        <SolarIcon name="bell-linear" size={20} color={variant === 'portal' ? '#FAF6EE' : 'currentColor'} />
+        <SolarIcon name="bell-linear" size={20} color={onDark ? '#FAF6EE' : 'currentColor'} />
         {unreadCount > 0 && (
           <span
             style={{
               position: 'absolute',
-              top: variant === 'portal' ? '6px' : '-4px',
-              right: variant === 'portal' ? '6px' : '-4px',
+              top: onDark ? '6px' : '-4px',
+              right: onDark ? '6px' : '-4px',
               background: '#ef4444',
               color: '#ffffff',
               fontSize: '0.68rem',
@@ -204,7 +206,7 @@ export function NotificationBell({ variant = 'default' }: NotificationBellProps 
               justifyContent: 'center',
               padding: '0 3px',
               boxShadow: '0 2px 6px rgba(239, 68, 68, 0.4)',
-              border: variant === 'portal' ? '1.5px solid #23150D' : '2px solid #ffffff',
+              border: onDark ? '1.5px solid #23150D' : '2px solid #ffffff',
             }}
           >
             {unreadCount > 9 ? '9+' : unreadCount}

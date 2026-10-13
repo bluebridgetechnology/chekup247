@@ -419,7 +419,7 @@ details summary::-webkit-details-marker {
   display: none;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .desktop-nav {
     display: none !important;
   }
@@ -5485,8 +5485,8 @@ details summary::-webkit-details-marker {
   background: var(--color-gold-hover, #ECC076);
   transform: translateY(-1px);
 }
-@media (max-width: 900px) {
-  /* Mobile gets it in the menu drawer instead */
+@media (max-width: 1100px) {
+  /* Below the desktop breakpoint it lives in the menu drawer instead */
   .nav-quick-book-btn {
     display: none;
   }
@@ -5503,5 +5503,65 @@ details summary::-webkit-details-marker {
     width: auto !important;
     max-width: none !important;
     max-height: calc(100dvh - 86px);
+  }
+}
+
+
+/* ==========================================================================
+   Site header: clear hierarchy.  Desktop: Log in (quiet) + Get Started (primary).
+   Phones/tablets: one Get Started button + menu; everything else lives in the drawer.
+   ========================================================================== */
+.nav-login-link {
+  padding: 8px 14px;
+  border-radius: 10px;
+  color: var(--color-white-90, #FDFBF7);
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.nav-login-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+.nav-getstarted-btn,
+.nav-mobile-getstarted {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 20px;
+  border-radius: 10px;
+  background: var(--color-gold-base, #DFAB62);
+  color: var(--color-chocolate-base, #2A170F);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  box-shadow: 0 2px 8px rgba(223, 171, 98, 0.25);
+  transition: background-color 0.15s ease, transform 0.15s ease;
+}
+.nav-getstarted-btn:hover,
+.nav-mobile-getstarted:hover {
+  background: var(--color-gold-hover, #ECC076);
+  transform: translateY(-1px);
+}
+.nav-mobile-getstarted {
+  display: none;
+}
+@media (max-width: 1100px) {
+  .nav-mobile-getstarted {
+    display: inline-flex;
+    padding: 9px 16px;
+  }
+}
+/* The header's right-hand cluster never wraps or pushes past the viewport */
+.header-actions {
+  gap: 12px !important;
+}
+@media (max-width: 1100px) {
+  .header-actions {
+    gap: 8px !important;
   }
 }

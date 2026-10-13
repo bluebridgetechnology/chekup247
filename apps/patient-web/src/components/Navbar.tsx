@@ -70,7 +70,7 @@ interface NavItem {
 
 const NAV_LINKS: NavItem[] = [
   { label: 'Home', href: '/' },
-  { label: 'Doctor Consultation', href: '/doctors' },
+  { label: 'Find a Doctor', href: '/doctors' },
   { label: 'How It Works', href: '/how-it-works' },
 ];
 
@@ -212,13 +212,14 @@ export function Navbar() {
               );
             })}
 
-            {/* Locum & Doctors Menu */}
+            {/* For Doctors: visitors only; goes straight to the doctor portal's own sign-in / sign-up pages */}
+            {!isAuthenticated && (
             <div style={{ position: 'relative' }} ref={doctorMenuRef}>
               <button
                 type="button"
                 onClick={() => setDoctorMenuOpen((v) => !v)}
                 aria-expanded={doctorMenuOpen}
-                aria-label="Chekup247 Locum and Doctor portal menu"
+                aria-label="For doctors: sign in or sign up"
                 style={{
                   background: 'none',
                   border: 'none',
@@ -236,7 +237,7 @@ export function Navbar() {
                 }}
                 className="nav-link"
               >
-                <span>Chekup247 Locum</span>
+                <span>For Doctors</span>
                 <SolarIcon
                   name={doctorMenuOpen ? 'alt-arrow-up-linear' : 'alt-arrow-down-linear'}
                   size={14}
@@ -262,7 +263,7 @@ export function Navbar() {
                   }}
                 >
                   <div style={{ padding: '8px 12px 6px', fontSize: '0.68rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                    For Doctors &amp; Locums
+                    Healthcare professionals
                   </div>
                   <a
                     href={getDoctorRegisterUrl()}
@@ -283,7 +284,7 @@ export function Navbar() {
                     }}
                   >
                     <SolarIcon name="user-plus-bold" size={16} color="var(--color-gold-bronze, #B88647)" />
-                    <span>Sign up as Chekup247 Locum</span>
+                    <span>Doctor sign up</span>
                   </a>
                   <a
                     href={getDoctorLoginUrl()}
@@ -302,11 +303,12 @@ export function Navbar() {
                     }}
                   >
                     <SolarIcon name="stethoscope-bold" size={16} color="var(--color-gold-bronze, #B88647)" />
-                    <span>Doctor Sign In</span>
+                    <span>Doctor sign in</span>
                   </a>
                 </div>
               )}
             </div>
+            )}
           </nav>
 
           {/* RIGHT SIDE: Log In & Primary CTA */}
@@ -328,7 +330,7 @@ export function Navbar() {
                 </Link>
 
                 {/* Notifications (self-contained dropdown) */}
-                <NotificationBell />
+                <NotificationBell variant="navbar" />
 
                 {/* Avatar + name: clicking navigates to the appointments dashboard;
                     the caret opens a dropdown with the account actions. */}
@@ -491,116 +493,22 @@ export function Navbar() {
                     </div>
                   )}
                 </div>
-
-                {/* Visible Mobile Quick Sign Out Button */}
-                <button
-                  onClick={logout}
-                  className="nav-mobile-signout-btn"
-                  title="Sign Out"
-                  aria-label="Sign Out"
-                  style={{
-                    display: 'none',
-                    alignItems: 'center',
-                    gap: '5px',
-                    padding: '6px 10px',
-                    borderRadius: '8px',
-                    backgroundColor: 'rgba(220, 38, 38, 0.15)',
-                    border: '1px solid rgba(220, 38, 38, 0.35)',
-                    color: '#FCA5A5',
-                    fontSize: '0.78rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <SolarIcon name="logout-2-linear" size={15} color="#F87171" />
-                  <span className="nav-signout-label">Sign Out</span>
-                </button>
               </div>
             ) : (
               <>
-                {/* Desktop login button group: visible on desktop >= 900px */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }} className="desktop-login-group">
-                  <a
-                    href={getDoctorRegisterUrl()}
-                    style={{
-                      fontSize: '0.82rem',
-                      fontWeight: 700,
-                      color: 'var(--color-gold-base, #DFAB62)',
-                      textDecoration: 'none',
-                      transition: 'all 0.2s ease',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '7px 12px',
-                      borderRadius: '10px',
-                      backgroundColor: 'rgba(223, 171, 98, 0.12)',
-                      border: '1px solid rgba(223, 171, 98, 0.35)',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title="Sign up as Chekup247 Locum"
-                  >
-                    <SolarIcon name="stethoscope-bold" size={15} color="var(--color-gold-base)" />
-                    <span>Sign up as Chekup247 Locum</span>
-                  </a>
-
-                  <Link
-                    href="/login"
-                    style={{
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      color: 'var(--color-white-90, #FDFBF7)',
-                      textDecoration: 'none',
-                      transition: 'all 0.2s ease',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 14px',
-                      borderRadius: '10px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
-                      whiteSpace: 'nowrap',
-                    }}
-                    className="nav-link-login"
-                  >
-                    <SolarIcon name="user-linear" size={15} color="var(--color-gold-base)" />
-                    <span>Log In</span>
+                {/* Desktop: one quiet text link + one primary action */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} className="desktop-login-group">
+                  <Link href="/login" className="nav-login-link">
+                    Log in
                   </Link>
-
-                  <Link
-                    href="/register"
-                    style={{
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      color: 'var(--color-chocolate-base)',
-                      textDecoration: 'none',
-                      transition: 'all 0.2s ease',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '8px 16px',
-                      borderRadius: '10px',
-                      backgroundColor: 'var(--color-gold-base, #DFAB62)',
-                      border: '1px solid var(--color-gold-base, #DFAB62)',
-                      boxShadow: '0 2px 8px rgba(223, 171, 98, 0.25)',
-                      whiteSpace: 'nowrap',
-                    }}
-                    className="nav-link-register"
-                    title="Sign Up for Chekup247"
-                  >
-                    <span>Sign Up</span>
+                  <Link href="/register" className="nav-getstarted-btn" title="Create your Chekup247 account">
+                    Get Started
                   </Link>
                 </div>
 
-                {/* Mobile compact sign-in trigger: clean label, never cuts off */}
-                <Link
-                  href="/login"
-                  className="nav-mobile-signin-btn"
-                  title="Sign In to Chekup247"
-                >
-                  <SolarIcon name="user-linear" size={15} color="var(--color-gold-base)" />
-                  <span>Sign In</span>
+                {/* Phone/tablet: a single clear action; Log in and For Doctors live in the menu */}
+                <Link href="/register" className="nav-mobile-getstarted" title="Create your Chekup247 account">
+                  Get Started
                 </Link>
               </>
             )}
