@@ -3065,3 +3065,19 @@ a {
     padding-right: 8px;
   }
 }
+
+/* Dashboard "Write E-Prescription" button: full label on wide screens, a short one that never wraps on phones */
+.welcome-label-short {
+  display: none;
+}
+@media (max-width: 560px) {
+  .welcome-label-full {
+    display: none;
+  }
+  .welcome-label-short {
+    display: inline;
+  }
+  .welcome-actions > a > span {
+    white-space: nowrap !important;
+  }
+}

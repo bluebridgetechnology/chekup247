@@ -351,7 +351,8 @@ export default function DoctorDashboardPage() {
           </Link>
           <Link href="/prescriptions/new" className="btn-secondary">
             <SolarIcon name="document-text-linear" size={17} color="var(--color-chocolate-base, #2A170F)" />
-            <span>Write E-Prescription</span>
+            <span className="welcome-label-full">Write E-Prescription</span>
+            <span className="welcome-label-short">E-Prescription</span>
           </Link>
           <Link href="/icd10" className="btn-secondary">
             <SolarIcon name="magnifer-linear" size={17} color="var(--color-chocolate-base, #2A170F)" />
