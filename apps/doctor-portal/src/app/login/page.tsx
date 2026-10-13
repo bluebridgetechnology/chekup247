@@ -462,7 +462,7 @@ function DoctorLoginContent() {
                   </div>
                 </div>
 
-                {/* Remember Me & Demo Doctor */}
+                {/* Remember Me */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '7px', cursor: 'pointer', fontSize: '0.78rem', color: 'var(--color-cream-text-muted, #6B5E55)', userSelect: 'none' }}>
                     <input
@@ -479,37 +479,6 @@ function DoctorLoginContent() {
                     />
                     <span>Remember this device</span>
                   </label>
-                </div>
-
-                {/* MVP Test Run Helper: Quick Fill Dr. Molefe */}
-                <div style={{ marginBottom: '16px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEmail('doctor@chekup247.com');
-                      setPassword('DoctorChekup2026!');
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      borderRadius: '8px',
-                      border: '1px dashed var(--color-gold-base, #DFAB62)',
-                      backgroundColor: 'rgba(223, 171, 98, 0.08)',
-                      color: 'var(--color-chocolate-base, #2A170F)',
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      transition: 'all 0.15s ease',
-                    }}
-                    title="Fill test credentials for Dr. Thabo Molefe"
-                  >
-                    <SolarIcon name="bolt-circle-bold" size={15} color="var(--color-gold-bronze, #B88647)" />
-                    <span>⚡ Fill Dr. Molefe (MVP Test Run)</span>
-                  </button>
                 </div>
 
                 {/* Submit Button */}

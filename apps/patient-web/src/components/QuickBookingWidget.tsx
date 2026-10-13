@@ -15,6 +15,9 @@ interface LiveSlot {
   isLocked?: boolean;
 }
 
+/** Default MVP test doctor (doctor@chekup247.com); the widget is pinned to this slug. */
+const MVP_DOCTOR_SLUG = 'dr-thabo-molefe';
+
 export interface QuickDoctor {
   id: string;
   name: string;
@@ -26,7 +29,8 @@ export interface QuickDoctor {
   offersVideo?: boolean;
   offersAudio?: boolean;
   image: string;
-  nextAvailable: string;
+  slug?: string;
+  nextAvailable?: string;
 }
 
 const RICH_FALLBACK_DOCTORS: QuickDoctor[] = [
@@ -41,7 +45,6 @@ const RICH_FALLBACK_DOCTORS: QuickDoctor[] = [
     offersVideo: true,
     offersAudio: true,
     image: '/images/doctor_thabo.jpg',
-    nextAvailable: 'Available today in 15 mins',
   },
 ];
 
@@ -129,6 +132,7 @@ export function QuickBookingWidget() {
           if (docList.length > 0 && isMounted) {
             const mapped: QuickDoctor[] = docList.map((d: any) => ({
               id: d.id,
+              slug: d.slug,
               name: d.user?.full_name || d.name || 'Dr. Thabo Molefe',
               specialty: d.specialty || 'General Practitioner',
               rate: Number(d.rate_per_hour || d.ratePerHour) || 450,
@@ -138,11 +142,14 @@ export function QuickBookingWidget() {
               offersVideo: d.offers_video !== false,
               offersAudio: d.offers_audio !== false,
               image: d.user?.avatar_url || d.photo_url || '/images/doctor_thabo.jpg',
-              nextAvailable: d.next_available_slot || 'Available today in 15 mins',
+              nextAvailable: d.next_available_slot || undefined,
             }));
 
-            // MVP Test Run: strictly retain only Dr. Thabo Molefe
-            const molefeDoctor = mapped.find(
+            // MVP Test Run: strictly retain only Dr. Thabo Molefe, pinned by slug
+            // (several "Molefe" profiles exist, so never match on name alone first)
+            const molefeDoctor =
+              mapped.find((doc) => doc.slug === MVP_DOCTOR_SLUG) ||
+              mapped.find(
               (doc) =>
                 doc.name.toLowerCase().includes('molefe') ||
                 doc.id === 'doc-1' ||
@@ -895,6 +902,7 @@ export function QuickBookingWidget() {
                           <div style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--color-chocolate-base, #2A170F)' }}>
                             R{doc.rate}
                           </div>
+                          {doc.nextAvailable && (
                           <span
                             style={{
                               fontSize: '0.625rem',
@@ -907,6 +915,7 @@ export function QuickBookingWidget() {
                           >
                             {doc.nextAvailable}
                           </span>
+                          )}
                         </div>
                       </div>
                     ))}
