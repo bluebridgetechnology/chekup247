@@ -126,12 +126,12 @@ export default function PatientWalletPage() {
                 gap: '8px',
                 padding: '10px 20px',
                 borderRadius: '12px',
-                background: 'linear-gradient(135deg, var(--color-brand-600) 0%, var(--color-brand-700) 100%)',
-                color: '#ffffff',
+                background: 'linear-gradient(135deg, #E8BE72 0%, #DFAB62 100%)',
+                color: '#2A170F',
                 fontWeight: 700,
                 fontSize: '0.9rem',
                 textDecoration: 'none',
-                boxShadow: '0 4px 14px rgba(13, 148, 136, 0.25)',
+                boxShadow: '0 4px 14px rgba(223, 171, 98, 0.35)',
               }}
             >
               <span>Book with Credits</span>
@@ -145,11 +145,11 @@ export default function PatientWalletPage() {
         {/* Balance Hero Card */}
         <div
           style={{
-            background: 'linear-gradient(135deg, #0d9488 0%, #115e59 100%)',
+            background: 'linear-gradient(135deg, #3A2113 0%, #2A170F 100%)',
             borderRadius: '24px',
             padding: '36px',
             color: '#ffffff',
-            boxShadow: '0 10px 30px rgba(13, 148, 136, 0.25)',
+            boxShadow: '0 10px 30px rgba(42, 23, 15, 0.28)',
             display: 'flex',
             flexWrap: 'wrap',
             alignItems: 'center',
@@ -159,7 +159,7 @@ export default function PatientWalletPage() {
         >
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', opacity: 0.9, fontSize: '0.9rem', fontWeight: 600 }}>
-              <Wallet size={18} />
+              <Wallet size={18} color="#E2B467" />
               <span>ACTIVE WALLET BALANCE</span>
             </div>
             <div
@@ -176,27 +176,27 @@ export default function PatientWalletPage() {
                 ZAR
               </span>
             </div>
-            <div style={{ marginTop: '12px', fontSize: '0.85rem', color: '#ccfbf1', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Sparkles size={16} />
+            <div style={{ marginTop: '12px', fontSize: '0.85rem', color: '#E8D9C3', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Sparkles size={16} color="#E2B467" />
               <span>Credits are automatically applied at checkout to reduce consultation costs</span>
             </div>
           </div>
 
           <div
             style={{
-              background: 'rgba(255, 255, 255, 0.12)',
+              background: 'rgba(223, 171, 98, 0.12)',
               backdropFilter: 'blur(8px)',
               padding: '18px 24px',
               borderRadius: '16px',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
+              border: '1px solid rgba(223, 171, 98, 0.3)',
               maxWidth: '300px',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, fontSize: '0.9rem' }}>
-              <ShieldCheck size={18} />
+              <ShieldCheck size={18} color="#E2B467" />
               <span>Guaranteed Protection</span>
             </div>
-            <p style={{ fontSize: '0.8rem', color: '#ccfbf1', marginTop: '6px', lineHeight: 1.4 }}>
+            <p style={{ fontSize: '0.8rem', color: '#E8D9C3', marginTop: '6px', lineHeight: 1.4 }}>
               Funds refunded to your wallet never expire and can be redeemed towards any HPCSA practitioner on ChekUp247.
             </p>
           </div>
@@ -224,7 +224,7 @@ export default function PatientWalletPage() {
 
           {isLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '40px 0' }}>
-              <Loader2 size={32} className="animate-spin" style={{ color: 'var(--color-brand-600)' }} />
+              <Loader2 size={32} className="animate-spin" style={{ color: '#B88647' }} />
             </div>
           ) : ledger.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--color-slate-400)' }}>
@@ -259,8 +259,8 @@ export default function PatientWalletPage() {
                           width: '40px',
                           height: '40px',
                           borderRadius: '10px',
-                          background: item.is_redeemed ? '#f1f5f9' : '#ecfdf5',
-                          color: item.is_redeemed ? '#64748b' : '#059669',
+                          background: item.is_redeemed ? '#f1f5f9' : '#F5ECD8',
+                          color: item.is_redeemed ? '#64748b' : '#8E5A1C',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -284,7 +284,7 @@ export default function PatientWalletPage() {
                         style={{
                           fontWeight: 800,
                           fontSize: '1.05rem',
-                          color: item.is_redeemed ? '#64748b' : '#059669',
+                          color: item.is_redeemed ? '#64748b' : '#8E5A1C',
                         }}
                       >
                         {item.is_redeemed ? '-' : '+'}R{Number(item.amount).toFixed(2)}
@@ -294,7 +294,7 @@ export default function PatientWalletPage() {
                           fontSize: '0.75rem',
                           fontWeight: 700,
                           textTransform: 'uppercase',
-                          color: item.is_redeemed ? '#64748b' : '#059669',
+                          color: item.is_redeemed ? '#64748b' : '#8E5A1C',
                         }}
                       >
                         {item.is_redeemed ? 'Redeemed' : 'Available'}

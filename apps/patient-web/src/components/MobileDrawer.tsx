@@ -256,6 +256,27 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               </div>
 
               <Link
+                href="/appointments?view=find-doctor"
+                onClick={onClose}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  alignSelf: 'flex-start',
+                  padding: '9px 16px',
+                  borderRadius: '9999px',
+                  background: 'var(--color-gold-primary, #DFAB62)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  margin: '4px 0 6px',
+                }}
+              >
+                <SolarIcon name="bolt-circle-bold" size={17} color="#2A170F" />
+                <span>Quick Book</span>
+              </Link>
+              <Link
                 href="/appointments"
                 onClick={onClose}
                 style={{

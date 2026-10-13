@@ -2362,786 +2362,131 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                 </div>
               );
 
+              const isJoinable = booking.status === 'confirmed' && !booking.isPast;
+              const statusMeta =
+                booking.status === 'confirmed' && !booking.isPast
+                  ? { label: 'Confirmed', tone: 'ok', icon: '' }
+                  : booking.status === 'confirmed'
+                  ? { label: 'Concluded', tone: 'muted', icon: 'check-circle-bold' }
+                  : booking.status === 'completed'
+                  ? { label: 'Completed', tone: 'done', icon: 'check-circle-bold' }
+                  : booking.status === 'cancelled'
+                  ? { label: 'Cancelled', tone: 'bad', icon: 'danger-circle-bold' }
+                  : {
+                      label: String(booking.status || 'pending').replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase()),
+                      tone: 'muted',
+                      icon: '',
+                    };
+              const [dow, dayMonth] = String(booking.dateFormatted || '').split(', ');
+              const [dayNum, monthAbbr] = String(dayMonth || '').split(' ');
+              const place = (booking.doctor.location || '').split(',')[0];
+              const showReason = booking.reason && booking.reason !== 'Telehealth Consultation';
+
               return (
-                <div
+                <article
                   key={booking.id}
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    border: '1px solid #EDE4D4',
-                    borderRadius: '18px',
-                    boxShadow: '0 2px 12px rgba(42, 23, 15, 0.03)',
-                    padding: '22px 24px',
-                    position: 'relative',
-                    zIndex: isOverflowOpen ? 60 : 1,
-                    transition: 'transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease',
-                  }}
-                  className="portal-appointment-card"
+                  className={`appt-card${isJoinable ? ' is-live' : ''}`}
+                  style={{ zIndex: isOverflowOpen ? 60 : 1 }}
                 >
-                  {/* ==========================================
-                      MOBILE CARD VIEW (<= 768px)
-                      Balanced SaaS mobile card (~175px height)
-                      ========================================== */}
-                  <div className="portal-mobile-card-view">
-                    {/* Top Row: Avatar + Info + Kebab */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', width: '100%' }}>
-                      {/* Doctor Avatar */}
-                      <div
-                        style={{
-                          position: 'relative',
-                          width: '58px',
-                          height: '58px',
-                          borderRadius: '12px',
-                          overflow: 'hidden',
-                          flexShrink: 0,
-                          backgroundColor: '#F7EFE1',
-                          border: '1.5px solid #E2D5C3',
-                          boxShadow: '0 2px 6px rgba(42, 23, 15, 0.06)',
-                        }}
-                      >
-                        <Image
-                          src={booking.doctor.photoUrl}
-                          alt={booking.doctor.name}
-                          fill
-                          sizes="58px"
-                          style={{ objectFit: 'cover', borderRadius: '10px' }}
-                        />
-                      </div>
-
-                      {/* Doctor Meta & Time */}
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <h3
-                          style={{
-                            fontSize: '1.02rem',
-                            fontWeight: 700,
-                            color: '#23150D',
-                            margin: '0 0 3px 0',
-                            lineHeight: 1.25,
-                            letterSpacing: '-0.01em',
-                            fontFamily: 'var(--font-heading), sans-serif',
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                          }}
-                        >
-                          {booking.doctor.name}
-                        </h3>
-
-                        <div
-                          style={{
-                            fontSize: '0.78rem',
-                            color: '#B88647',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            marginBottom: '6px',
-                          }}
-                        >
-                          <span>{booking.doctor.specialty}</span>
-                          <span style={{ color: '#D5C1A7', margin: '0 5px' }}>•</span>
-                          <span style={{ color: '#7A6A5E', fontWeight: 500 }}>{booking.doctor.location.split(',')[0]}</span>
-                        </div>
-
-                        {/* Date & Time Row */}
-                        <div
-                          className="portal-card-datetime"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontSize: '0.8rem',
-                            color: '#23150D',
-                            marginBottom: '8px',
-                          }}
-                        >
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <SolarIcon name="calendar-linear" size={14} color="#B88647" />
-                            <span style={{ fontWeight: 700 }}>{booking.dateFormatted}</span>
-                          </span>
-                          <span className="portal-card-dot" style={{ color: '#D5C1A7' }}>•</span>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                            <SolarIcon name="clock-circle-linear" size={13} color="#7A6A5E" />
-                            <span style={{ fontWeight: 600 }}>{booking.startTime} – {booking.endTime}</span>
-                          </span>
-                        </div>
-
-                        {/* Micro Status Badges */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '7px', flexWrap: 'wrap' }}>
-                          {booking.status === 'confirmed' && !booking.isPast && (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                color: '#0E7039',
-                                backgroundColor: '#EAF7EE',
-                                border: '1px solid #BEE7C9',
-                                padding: '3px 9px',
-                                borderRadius: '12px',
-                                fontSize: '0.72rem',
-                                fontWeight: 600,
-                              }}
-                            >
-                              <span style={{ width: '5px', height: '5px', borderRadius: '50%', backgroundColor: '#0E7039' }} />
-                              <span>Confirmed</span>
-                            </span>
-                          )}
-
-                          {booking.status === 'confirmed' && booking.isPast && (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                color: '#7A6A5E',
-                                backgroundColor: '#F2EAE0',
-                                border: '1px solid #E2D5C3',
-                                padding: '3px 9px',
-                                borderRadius: '12px',
-                                fontSize: '0.72rem',
-                                fontWeight: 600,
-                              }}
-                            >
-                              <SolarIcon name="check-circle-bold" size={12} color="#7A6A5E" />
-                              <span>Concluded</span>
-                            </span>
-                          )}
-
-                          {booking.status === 'completed' && (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                color: '#0D7B70',
-                                backgroundColor: '#E6F4F2',
-                                border: '1px solid #BFE4DF',
-                                padding: '3px 9px',
-                                borderRadius: '12px',
-                                fontSize: '0.72rem',
-                                fontWeight: 600,
-                              }}
-                            >
-                              <SolarIcon name="check-circle-bold" size={12} color="#0D7B70" />
-                              <span>Completed</span>
-                            </span>
-                          )}
-
-                          {booking.status === 'cancelled' && (
-                            <span
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '5px',
-                                color: '#C5221F',
-                                backgroundColor: '#FDECEC',
-                                border: '1px solid #F8C8C7',
-                                padding: '3px 9px',
-                                borderRadius: '12px',
-                                fontSize: '0.72rem',
-                                fontWeight: 600,
-                              }}
-                            >
-                              <SolarIcon name="danger-circle-bold" size={12} color="#C5221F" />
-                              <span>Cancelled</span>
-                            </span>
-                          )}
-
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontSize: '0.72rem',
-                              color: '#7A6A5E',
-                              backgroundColor: '#FAF5ED',
-                              border: '1px solid #EDE4D4',
-                              padding: '3px 8px',
-                              borderRadius: '12px',
-                              fontWeight: 500,
-                            }}
-                          >
-                            <SolarIcon name="videocamera-record-bold" size={12} color="#B88647" />
-                            <span>Video</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Kebab Action Menu */}
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveOverflowId(isOverflowOpen ? null : booking.id);
-                          }}
-                          style={{
-                            width: '36px',
-                            height: '36px',
-                            borderRadius: '50%',
-                            border: '1px solid #EDE4D4',
-                            background: '#FAF5ED',
-                            color: '#2A170F',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            padding: 0,
-                          }}
-                          className="portal-overflow-btn"
-                          aria-label="More options"
-                        >
-                          <SolarIcon name="menu-dots-bold" size={16} color="#2A170F" />
-                        </button>
-
-                        {isOverflowOpen && renderOverflowMenu()}
-                      </div>
-                    </div>
-
-                    {/* Bottom Row: Quick Action Buttons */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        marginTop: '14px',
-                        paddingTop: '13px',
-                        borderTop: '1px solid #F4EBE1',
-                        width: '100%',
-                      }}
-                    >
-                      {booking.status === 'confirmed' && !booking.isPast ? (
-                        <Link
-                          href={booking.joinUrl || `/consultations/${booking.id}`}
-                          style={{
-                            flex: 1,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            backgroundColor: '#2E1A10',
-                            color: '#FAF6EE',
-                            fontSize: '0.82rem',
-                            fontWeight: 600,
-                            padding: '9px 14px',
-                            borderRadius: '20px',
-                            textDecoration: 'none',
-                            minHeight: '40px',
-                            boxShadow: '0 2px 8px rgba(42, 23, 15, 0.14)',
-                          }}
-                          className="portal-join-btn"
-                        >
-                          <SolarIcon name="videocamera-record-bold" size={14} color="#DFAB62" />
-                          <span>Join Consultation</span>
-                        </Link>
-                      ) : (
-                        <Link
-                          href={booking.doctor?.id ? `/doctors/${booking.doctor.id}` : '/appointments?view=find-doctor'}
-                          style={{
-                            flex: 1,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            backgroundColor: '#EDD5B3',
-                            color: '#2A170F',
-                            fontSize: '0.82rem',
-                            fontWeight: 600,
-                            padding: '9px 14px',
-                            borderRadius: '20px',
-                            textDecoration: 'none',
-                            minHeight: '40px',
-                          }}
-                          className="portal-book-again-btn"
-                        >
-                          <SolarIcon name="calendar-add-linear" size={14} color="#2A170F" />
-                          <span>Book Again</span>
-                        </Link>
-                      )}
-
-                      <Link
-                        href={`/bookings/${booking.id}`}
-                        style={{
-                          flex: 1,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
-                          backgroundColor: '#FFFFFF',
-                          border: '1px solid #D5C1A7',
-                          color: '#2A170F',
-                          fontSize: '0.82rem',
-                          fontWeight: 600,
-                          padding: '9px 14px',
-                          borderRadius: '20px',
-                          textDecoration: 'none',
-                          minHeight: '40px',
-                        }}
-                        className="portal-details-btn"
-                      >
-                        <span>View Details</span>
-                        <SolarIcon name="arrow-right-linear" size={13} color="#2A170F" />
-                      </Link>
-                    </div>
+                  <div className="appt-date" aria-hidden="true">
+                    <span className="appt-date-dow">{dow}</span>
+                    <span className="appt-date-num">{dayNum}</span>
+                    <span className="appt-date-mon">{monthAbbr}</span>
                   </div>
 
-                  {/* ==========================================
-                      DESKTOP CARD VIEW (> 768px)
-                      Spacious 4-column balanced SaaS row
-                      ========================================== */}
-                  <div className="portal-desktop-card-view">
-                    {/* COL 1: Date & Time Block */}
-                    <div
-                      style={{
-                        width: '116px',
-                        flexShrink: 0,
-                        backgroundColor: '#FAF5ED',
-                        borderRadius: '14px',
-                        border: '1px solid #EFE4D4',
-                        padding: '14px 10px',
-                        textAlign: 'center',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        alignItems: 'center',
-                      }}
-                      className="portal-date-box"
-                    >
-                      <div
-                        style={{
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          letterSpacing: '0.06em',
-                          color: '#8C7464',
-                          textTransform: 'uppercase',
-                          marginBottom: '4px',
-                        }}
-                      >
-                        {booking.dateFormatted}
-                      </div>
-
-                      <div
-                        style={{
-                          fontSize: '1.5rem',
-                          fontWeight: 800,
-                          color: '#23150D',
-                          lineHeight: 1.15,
-                          fontFamily: 'var(--font-heading), sans-serif',
-                        }}
-                      >
-                        {booking.startTime}
-                      </div>
-
-                      <div
-                        style={{
-                          fontSize: '0.74rem',
-                          color: '#7A6A5E',
-                          fontWeight: 500,
-                          marginTop: '4px',
-                        }}
-                      >
-                        to {booking.endTime}
-                      </div>
-                    </div>
-
-                    {/* COL 2: Doctor Portrait & Information */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '16px',
-                        flex: '1 1 360px',
-                        minWidth: '240px',
-                      }}
-                      className="portal-doctor-info-col"
-                    >
-                      {/* Doctor Photograph */}
-                      <div
-                        style={{
-                          position: 'relative',
-                          width: '76px',
-                          height: '76px',
-                          borderRadius: '12px',
-                          overflow: 'hidden',
-                          flexShrink: 0,
-                          backgroundColor: '#F7EFE1',
-                          border: '1.5px solid #E2D5C3',
-                          boxShadow: '0 2px 8px rgba(42, 23, 15, 0.06)',
-                        }}
-                        className="portal-doctor-avatar"
-                      >
-                        <Image
-                          src={booking.doctor.photoUrl}
-                          alt={booking.doctor.name}
-                          fill
-                          sizes="76px"
-                          style={{ objectFit: 'cover', borderRadius: '10px' }}
-                        />
-                      </div>
-
-                      {/* Doctor Details */}
-                      <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minWidth: 0 }}>
-                        <h3
-                          style={{
-                            fontSize: '1.08rem',
-                            fontWeight: 700,
-                            color: '#23150D',
-                            margin: '0 0 4px 0',
-                            lineHeight: 1.25,
-                            letterSpacing: '-0.01em',
-                            fontFamily: 'var(--font-heading), sans-serif',
-                          }}
-                          className="portal-doctor-name"
-                        >
-                          {booking.doctor.name}
-                        </h3>
-
-                        {/* Specialty and Qualifications */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '8px',
-                            marginBottom: '6px',
-                          }}
-                          className="portal-doctor-specialty-row"
-                        >
-                          <span
-                            style={{
-                              fontSize: '0.84rem',
-                              fontWeight: 600,
-                              color: '#B88647',
-                            }}
-                          >
-                            {booking.doctor.specialty}
-                          </span>
-                          {booking.doctor.qualifications && (
-                            <span className="portal-doctor-quals" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                              <span style={{ color: '#D5C1A7', fontSize: '0.75rem' }}>•</span>
-                              <span
-                                style={{
-                                  fontSize: '0.78rem',
-                                  color: '#7A6A5E',
-                                }}
-                              >
-                                {booking.doctor.qualifications}
-                              </span>
-                            </span>
-                          )}
+                  <div className="appt-main">
+                    <div className="appt-head">
+                      <div className="appt-doctor">
+                        <div className="appt-avatar">
+                          <Image
+                            src={booking.doctor.photoUrl}
+                            alt={booking.doctor.name}
+                            fill
+                            sizes="52px"
+                            style={{ objectFit: 'cover' }}
+                          />
                         </div>
-
-                        {/* Location with Pin */}
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '6px',
-                            fontSize: '0.78rem',
-                            color: '#6B5E55',
-                            marginBottom: '8px',
-                          }}
-                          className="portal-doctor-location"
-                        >
-                          <SolarIcon name="map-point-linear" size={13} color="#B88647" />
-                          <span>{booking.doctor.location}</span>
-                        </div>
-
-                        {/* Specialty Tags */}
-                        {booking.doctor.tags && booking.doctor.tags.length > 0 && (
-                          <div
-                            style={{
-                              display: 'flex',
-                              flexWrap: 'wrap',
-                              gap: '6px',
-                            }}
-                            className="portal-doctor-tags"
-                          >
-                            {booking.doctor.tags.map((tag) => (
-                              <span
-                                key={tag}
-                                style={{
-                                  fontSize: '0.7rem',
-                                  fontWeight: 500,
-                                  color: '#5F4D41',
-                                  backgroundColor: '#FAF4EB',
-                                  padding: '3px 9px',
-                                  borderRadius: '8px',
-                                  border: '1px solid #EDE2D1',
-                                  whiteSpace: 'nowrap',
-                                }}
-                                className="portal-tag-chip"
-                              >
-                                {tag}
-                              </span>
-                            ))}
+                        <div className="appt-doctor-text">
+                          <h3 className="appt-doctor-name">{booking.doctor.name}</h3>
+                          <div className="appt-doctor-sub">
+                            <span>{booking.doctor.specialty}</span>
+                            {place && (
+                              <>
+                                <span className="appt-dot">•</span>
+                                <span>{place}</span>
+                              </>
+                            )}
                           </div>
-                        )}
+                        </div>
                       </div>
-                    </div>
-
-                    {/* COL 3: Consultation Information (Status & Channel) */}
-                    <div
-                      style={{
-                        flex: '0 0 190px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        paddingLeft: '18px',
-                        borderLeft: '1px solid #F2EAE0',
-                      }}
-                      className="portal-consultation-info-col"
-                    >
-                      {/* Status Pill */}
-                      <div>
-                        {booking.status === 'confirmed' && !booking.isPast && (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              color: '#0E7039',
-                              backgroundColor: '#EAF7EE',
-                              border: '1px solid #BEE7C9',
-                              padding: '4px 10px',
-                              borderRadius: '16px',
-                              fontSize: '0.78rem',
-                              fontWeight: 600,
-                            }}
-                          >
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#0E7039' }} />
-                            <span>Confirmed</span>
-                          </span>
-                        )}
-
-                        {booking.status === 'confirmed' && booking.isPast && (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              color: '#7A6A5E',
-                              backgroundColor: '#F2EAE0',
-                              border: '1px solid #E2D5C3',
-                              padding: '4px 10px',
-                              borderRadius: '16px',
-                              fontSize: '0.78rem',
-                              fontWeight: 600,
-                            }}
-                          >
-                            <SolarIcon name="check-circle-bold" size={13} color="#7A6A5E" />
-                            <span>Concluded</span>
-                          </span>
-                        )}
-
-                        {booking.status === 'completed' && (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              color: '#0D7B70',
-                              backgroundColor: '#E6F4F2',
-                              border: '1px solid #BFE4DF',
-                              padding: '4px 10px',
-                              borderRadius: '16px',
-                              fontSize: '0.78rem',
-                              fontWeight: 600,
-                            }}
-                          >
-                            <SolarIcon name="check-circle-bold" size={13} color="#0D7B70" />
-                            <span>Completed</span>
-                          </span>
-                        )}
-
-                        {booking.status === 'cancelled' && (
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              color: '#C5221F',
-                              backgroundColor: '#FDECEC',
-                              border: '1px solid #F8C8C7',
-                              padding: '4px 10px',
-                              borderRadius: '16px',
-                              fontSize: '0.78rem',
-                              fontWeight: 600,
-                            }}
-                          >
-                            <SolarIcon name="danger-circle-bold" size={13} color="#C5221F" />
-                            <span>Cancelled</span>
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Consultation Channel */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '7px',
-                          fontSize: '0.82rem',
-                          color: '#2A170F',
-                          fontWeight: 600,
-                        }}
-                      >
-                        <SolarIcon name="videocamera-record-bold" size={15} color="#B88647" />
-                        <span>Video Consultation</span>
-                      </div>
-
-                      {/* Session Duration & Specs */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          fontSize: '0.76rem',
-                          color: '#7A6A5E',
-                        }}
-                      >
-                        <SolarIcon name="clock-circle-linear" size={13} color="#A08F83" />
-                        <span>{booking.durationFormatted || '45 minutes'}</span>
-                      </div>
-
-                      {/* Booking Reference */}
-                      <div
-                        style={{
-                          fontSize: '0.72rem',
-                          color: '#9B8B7F',
-                          fontFamily: 'monospace',
-                        }}
-                      >
-                        Ref #{booking.id.substring(0, 8).toUpperCase()}
-                      </div>
-                    </div>
-
-                    {/* COL 4: Primary & Secondary Actions + Desktop Kebab */}
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        flexShrink: 0,
-                      }}
-                      className="portal-actions-col"
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '8px',
-                          minWidth: '150px',
-                        }}
-                        className="portal-action-buttons-wrap"
-                      >
-                        {/* Primary Button */}
-                        {booking.status === 'confirmed' && !booking.isPast ? (
-                          <Link
-                            href={booking.joinUrl || `/consultations/${booking.id}`}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '7px',
-                              backgroundColor: '#2E1A10',
-                              color: '#FAF6EE',
-                              fontSize: '0.84rem',
-                              fontWeight: 600,
-                              padding: '10px 18px',
-                              borderRadius: '22px',
-                              textDecoration: 'none',
-                              minHeight: '44px',
-                              boxShadow: '0 2px 8px rgba(42, 23, 15, 0.16)',
-                              transition: 'all 0.16s ease',
-                            }}
-                            className="portal-join-btn"
-                          >
-                            <SolarIcon name="videocamera-record-bold" size={15} color="#DFAB62" />
-                            <span>Join Consultation</span>
-                          </Link>
+                      <span className={`appt-status tone-${statusMeta.tone}`}>
+                        {statusMeta.icon ? (
+                          <SolarIcon name={statusMeta.icon} size={13} color="currentColor" />
                         ) : (
-                          <Link
-                            href={booking.doctor?.id ? `/doctors/${booking.doctor.id}` : '/appointments?view=find-doctor'}
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px',
-                              backgroundColor: '#EDD5B3',
-                              color: '#2A170F',
-                              fontSize: '0.84rem',
-                              fontWeight: 600,
-                              padding: '10px 18px',
-                              borderRadius: '22px',
-                              textDecoration: 'none',
-                              minHeight: '44px',
-                            }}
-                            className="portal-book-again-btn"
-                          >
-                            <SolarIcon name="calendar-add-linear" size={14} color="#2A170F" />
-                            <span>Book Again</span>
-                          </Link>
+                          <span className="appt-status-dot" />
                         )}
+                        <span>{statusMeta.label}</span>
+                      </span>
+                    </div>
 
-                        {/* Secondary Button */}
-                        <Link
-                          href={`/bookings/${booking.id}`}
-                          style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            backgroundColor: '#FFFFFF',
-                            border: '1px solid #D5C1A7',
-                            color: '#2A170F',
-                            fontSize: '0.82rem',
-                            fontWeight: 600,
-                            padding: '8px 16px',
-                            borderRadius: '20px',
-                            textDecoration: 'none',
-                            minHeight: '40px',
-                            transition: 'all 0.16s ease',
-                          }}
-                          className="portal-details-btn"
-                        >
-                          <span>View Details</span>
-                          <SolarIcon name="arrow-right-linear" size={13} color="#2A170F" />
-                        </Link>
-                      </div>
+                    <div className="appt-meta">
+                      <span className="appt-meta-item">
+                        <SolarIcon name="clock-circle-linear" size={15} color="currentColor" />
+                        <strong>
+                          {booking.startTime} – {booking.endTime}
+                        </strong>
+                      </span>
+                      <span className="appt-meta-item">
+                        <SolarIcon name="videocamera-record-linear" size={15} color="currentColor" />
+                        <span>Video · {booking.durationFormatted || '45 mins'}</span>
+                      </span>
+                      <span className="appt-meta-item appt-ref">Ref #{booking.id.substring(0, 8).toUpperCase()}</span>
+                    </div>
 
-                      {/* Desktop Three-dot Overflow Control */}
-                      <div style={{ position: 'relative' }} className="portal-desktop-overflow">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveOverflowId(isOverflowOpen ? null : booking.id);
-                          }}
-                          style={{
-                            width: '44px',
-                            height: '44px',
-                            borderRadius: '50%',
-                            border: 'none',
-                            background: 'transparent',
-                            color: '#2A170F',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            transition: 'background-color 0.16s ease',
-                          }}
-                          className="portal-overflow-btn"
-                          aria-label="More options"
-                        >
-                          <SolarIcon name="menu-dots-bold" size={18} color="#2A170F" />
-                        </button>
+                    {showReason && <p className="appt-reason">{booking.reason}</p>}
+                  </div>
 
-                        {/* Desktop Dropdown */}
-                        {isOverflowOpen && renderOverflowMenu()}
-                      </div>
+                  <div className="appt-actions">
+                    {isJoinable ? (
+                      <Link
+                        href={booking.joinUrl || `/consultations/${booking.id}`}
+                        className="appt-btn appt-btn-primary portal-join-btn"
+                      >
+                        <SolarIcon name="videocamera-record-bold" size={16} color="#DFAB62" />
+                        <span>Join consultation</span>
+                      </Link>
+                    ) : (
+                      <Link
+                        href={booking.doctor?.id ? `/doctors/${booking.doctor.id}` : '/appointments?view=find-doctor'}
+                        className="appt-btn appt-btn-soft portal-book-again-btn"
+                      >
+                        <SolarIcon name="calendar-add-linear" size={16} color="#2A170F" />
+                        <span>Book again</span>
+                      </Link>
+                    )}
+
+                    <Link href={`/bookings/${booking.id}`} className="appt-btn appt-btn-outline portal-details-btn">
+                      <span>Details</span>
+                      <SolarIcon name="arrow-right-linear" size={14} color="currentColor" />
+                    </Link>
+
+                    <div className="appt-kebab">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveOverflowId(isOverflowOpen ? null : booking.id);
+                        }}
+                        className="appt-kebab-btn portal-overflow-btn"
+                        aria-label="More options"
+                        aria-expanded={isOverflowOpen}
+                      >
+                        <SolarIcon name="menu-dots-bold" size={18} color="#2A170F" />
+                      </button>
+                      {isOverflowOpen && renderOverflowMenu()}
                     </div>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>

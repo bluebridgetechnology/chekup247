@@ -321,6 +321,12 @@ export function Navbar() {
           >
             {isAuthenticated && user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }} className="auth-actions">
+                {/* Quick Book: a plain button for signed-in users (the floating widget is visitors-only) */}
+                <Link href="/appointments?view=find-doctor" className="nav-quick-book-btn">
+                  <SolarIcon name="bolt-circle-bold" size={17} color="currentColor" />
+                  <span>Quick Book</span>
+                </Link>
+
                 {/* Notifications (self-contained dropdown) */}
                 <NotificationBell />
 
