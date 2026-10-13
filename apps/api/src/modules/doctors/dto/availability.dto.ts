@@ -60,6 +60,11 @@ export class CreateRecurringAvailabilityDto {
   @IsNotEmpty()
   @IsString()
   endDate: string; // YYYY-MM-DD or ISO string
+
+  /** IANA timezone the HH:mm times are expressed in (e.g. "Africa/Johannesburg"). Defaults to the server's. */
+  @IsOptional()
+  @IsString()
+  timeZone?: string;
 }
 
 export class GetAvailabilityQueryDto {

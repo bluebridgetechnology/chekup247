@@ -100,8 +100,8 @@ export function BlackoutManagerModal({
         },
         credentials: 'include',
         body: JSON.stringify({
-          startTime: `${startDate}T00:00:00.000Z`,
-          endTime: `${endDate}T23:59:59.999Z`,
+          startTime: new Date(`${startDate}T00:00:00`).toISOString(), // doctor's local midnight
+          endTime: new Date(`${endDate}T23:59:59.999`).toISOString(),
           reason,
         }),
       });

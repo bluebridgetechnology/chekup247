@@ -440,4 +440,25 @@ describe('DoctorsService (Unit)', () => {
       );
     });
   });
+  describe('createRecurringAvailability timezone', () => {
+    it('builds shift windows in the doctor timeZone (08:00 Johannesburg = 06:00Z)', async () => {
+      const day = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      const dow = new Date(`${day}T12:00:00Z`).getUTCDay();
+      const res: any = await service.createRecurringAvailability('u-1', {
+        daysOfWeek: [dow],
+        startTime: '08:00',
+        endTime: '10:00',
+        slotDurationMinutes: 30,
+        bufferMinutes: 10,
+        startDate: day,
+        endDate: day,
+        timeZone: 'Africa/Johannesburg',
+      } as any);
+      const starts = res.slots.map((s: any) => new Date(s.start_time).toISOString());
+      // 08:00-10:00 SAST window, 30-min slots + 10-min buffer
+      expect(starts[0]).toBe(`${day}T06:00:00.000Z`);
+      expect(starts[1]).toBe(`${day}T06:40:00.000Z`);
+      expect(starts[starts.length - 1] <= `${day}T07:30:00.000Z`).toBe(true);
+    });
+  });
 });

@@ -33,6 +33,7 @@ import {
   BatchDeleteSlotsDto,
 } from './dto/availability.dto';
 import { TokenService } from '../auth/token.service';
+import { isValidTimeZone, zonedWallTimeToUtc } from '../../common/utils/zoned-time';
 import { DirectorySyncService } from './directory-sync.service';
 import { AvailabilitySyncService } from './availability-sync.service';
 import {
@@ -788,22 +789,48 @@ export class DoctorsService implements OnModuleInit {
       },
     });
 
-    // Iterate days
-    const current = new Date(startDay);
-    current.setHours(0, 0, 0, 0);
+    // Iterate days. When the client sends its IANA timeZone, walk calendar dates and
+    // build each window from that zone's wall-clock time (so 08:00 means 08:00 for the
+    // doctor, whatever timezone the server runs in). Without it, keep the legacy
+    // server-local behaviour.
+    const tz = isValidTimeZone(dto.timeZone) ? dto.timeZone : null;
+    const ymd = (v: string) => {
+      const [yy, mm, dd] = v.slice(0, 10).split('-').map(Number);
+      return { yy, mm, dd };
+    };
 
-    const finalDate = new Date(endDay);
-    finalDate.setHours(23, 59, 59, 999);
+    let current: Date;
+    let finalDate: Date;
+    if (tz) {
+      const sd = ymd(dto.startDate);
+      const ed = ymd(dto.endDate);
+      current = new Date(Date.UTC(sd.yy, sd.mm - 1, sd.dd));
+      finalDate = new Date(Date.UTC(ed.yy, ed.mm - 1, ed.dd));
+    } else {
+      current = new Date(startDay);
+      current.setHours(0, 0, 0, 0);
+      finalDate = new Date(endDay);
+      finalDate.setHours(23, 59, 59, 999);
+    }
 
     while (current <= finalDate) {
-      const dayOfWeek = current.getDay(); // 0=Sunday, 1=Monday, ... 6=Saturday
+      const dayOfWeek = tz ? current.getUTCDay() : current.getDay(); // 0=Sunday ... 6=Saturday
 
       if (dto.daysOfWeek.includes(dayOfWeek)) {
-        const windowStart = new Date(current);
-        windowStart.setHours(startHour, startMin, 0, 0);
-
-        const windowEnd = new Date(current);
-        windowEnd.setHours(endHour, endMin, 0, 0);
+        let windowStart: Date;
+        let windowEnd: Date;
+        if (tz) {
+          const y = current.getUTCFullYear();
+          const m = current.getUTCMonth() + 1;
+          const d = current.getUTCDate();
+          windowStart = zonedWallTimeToUtc(y, m, d, startHour, startMin, tz);
+          windowEnd = zonedWallTimeToUtc(y, m, d, endHour, endMin, tz);
+        } else {
+          windowStart = new Date(current);
+          windowStart.setHours(startHour, startMin, 0, 0);
+          windowEnd = new Date(current);
+          windowEnd.setHours(endHour, endMin, 0, 0);
+        }
 
         let slotStart = new Date(windowStart);
 
@@ -855,7 +882,8 @@ export class DoctorsService implements OnModuleInit {
         }
       }
 
-      current.setDate(current.getDate() + 1);
+      if (tz) current.setUTCDate(current.getUTCDate() + 1);
+      else current.setDate(current.getDate() + 1);
     }
 
     if (slotsToCreate.length === 0) {
