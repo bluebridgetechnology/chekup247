@@ -4008,7 +4008,7 @@ details summary::-webkit-details-marker {
 /* Responsive Breakpoints */
 @media (max-width: 990px) {
   .doctor-profile-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 28px;
   }
   .doctor-layout-container {
@@ -4034,6 +4034,176 @@ details summary::-webkit-details-marker {
     border-bottom: 1px solid var(--color-profile-border-subtle);
     padding-right: 0;
     padding-bottom: 20px;
+  }
+}
+
+/* Doctor profile: phone layout */
+@media (max-width: 640px) {
+  .doctor-layout-container {
+    padding: 0 14px;
+  }
+
+  .doctor-breadcrumb-bar {
+    padding: 12px 0;
+  }
+
+  .doctor-profile-grid {
+    margin-top: 18px;
+    gap: 18px;
+  }
+
+  .doctor-summary-card,
+  .doctor-tabs-card,
+  .doctor-booking-card {
+    padding: 20px 16px;
+    margin-bottom: 18px;
+  }
+
+  .doctor-summary-top {
+    gap: 18px;
+  }
+
+  .doctor-portrait-container {
+    width: 150px;
+    height: 180px;
+  }
+
+  .doctor-name-heading {
+    font-size: 1.5rem;
+  }
+
+  .doctor-specialty-title {
+    font-size: 0.95rem;
+    margin-bottom: 10px;
+  }
+
+  .doctor-rating-row {
+    justify-content: center;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+
+  /* Credentials become tidy centred chips rather than a ragged pipe-separated line */
+  .doctor-credentials-row {
+    gap: 8px;
+  }
+
+  .doctor-credential-divider {
+    display: none;
+  }
+
+  .doctor-credential-item {
+    padding: 5px 10px;
+    border-radius: 9999px;
+    background-color: var(--color-profile-tag-bg);
+    border: 1px solid var(--color-profile-border-subtle);
+    font-size: 0.8rem;
+  }
+
+  .doctor-credentials-badge-row {
+    justify-content: center;
+  }
+
+  .doctor-services-row {
+    margin-top: 18px;
+    padding-top: 16px;
+    gap: 10px;
+  }
+
+  .doctor-service-block {
+    min-width: 0;
+  }
+
+  /* Tabs scroll sideways instead of wrapping or squashing */
+  .doctor-tabs-nav {
+    gap: 22px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    margin-bottom: 20px;
+  }
+
+  .doctor-tabs-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .doctor-tab-btn {
+    flex-shrink: 0;
+    font-size: 0.98rem;
+    white-space: nowrap;
+  }
+
+  .doctor-section-heading {
+    font-size: 1.15rem;
+  }
+
+  .doctor-bio-text {
+    font-size: 0.95rem;
+    line-height: 1.65;
+    margin-bottom: 20px;
+  }
+
+  .doctor-expertise-box {
+    padding: 16px;
+  }
+
+  .doctor-reviews-header {
+    flex-wrap: wrap;
+    gap: 6px 12px;
+  }
+
+  .doctor-rating-summary {
+    padding: 18px 16px;
+  }
+
+  .doctor-review-card {
+    padding: 16px;
+  }
+
+  .doctor-review-top {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Booking card */
+  .doctor-booking-header {
+    gap: 10px;
+  }
+
+  .doctor-booking-price {
+    font-size: 1.5rem;
+  }
+
+  .doctor-booking-tab {
+    font-size: 0.78rem;
+    padding: 9px 4px;
+    min-height: 40px;
+  }
+
+  .doctor-booking-days-grid {
+    gap: 4px;
+  }
+
+  .doctor-booking-day-btn {
+    min-height: 56px;
+  }
+
+  .doctor-booking-slots-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .doctor-booking-slot-btn {
+    min-height: 44px;
+  }
+
+  .doctor-booking-selected-top {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .doctor-booking-cta {
+    min-height: 48px;
+    padding: 14px 16px;
   }
 }
 
