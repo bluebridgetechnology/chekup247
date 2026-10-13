@@ -499,7 +499,7 @@ export function Navbar() {
                 {/* Desktop: one quiet text link + one primary action */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} className="desktop-login-group">
                   <Link href="/login" className="nav-login-link">
-                    Log in
+                    Patient login
                   </Link>
                   <Link href="/register" className="nav-getstarted-btn" title="Create your Chekup247 account">
                     Get Started
