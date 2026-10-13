@@ -120,7 +120,7 @@ export default function PrivacyClient() {
                 4. Video Consultation Confidentiality & Audio Streams
               </h2>
               <p>
-                All video and audio consultations between you and the doctor are encrypted using WebRTC technology (powered by Daily.co). <strong>Video and audio streams are never recorded or stored on our servers.</strong> The consultation is strictly real-time and confidential between patient and attending physician.
+                All video and audio consultations between you and the doctor are encrypted using WebRTC technology. <strong>Video and audio streams are never recorded or stored on our servers.</strong> The consultation is strictly real-time and confidential between patient and attending physician.
               </p>
             </section>
 

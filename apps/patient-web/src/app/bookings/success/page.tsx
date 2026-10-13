@@ -513,7 +513,7 @@ function SuccessContent() {
       `DTEND:${formatICSDate(endDate)}`,
       `SUMMARY:ChekUp247 Consultation with ${doctorName}`,
       `DESCRIPTION:Your video telehealth consultation with ${doctorName}. Open consultation room: https://chekup247.com/consultations/${booking.id}`,
-      `LOCATION:ChekUp247 Virtual Video Room (Daily.co)`,
+      `LOCATION:ChekUp247 Virtual Video Room`,
       'STATUS:CONFIRMED',
       'END:VEVENT',
       'END:VCALENDAR',

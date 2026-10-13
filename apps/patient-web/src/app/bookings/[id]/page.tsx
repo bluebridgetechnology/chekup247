@@ -476,7 +476,7 @@ export default function BookingDetailPage() {
                       </Link>
 
                       <span style={{ fontSize: '0.8rem', color: '#D5C1A7' }}>
-                        {isJoinActive() ? 'Doctor is ready' : 'Encrypted Daily.co Video Room'}
+                        {isJoinActive() ? 'Doctor is ready' : 'Encrypted Video Room'}
                       </span>
                     </div>
                   </div>
