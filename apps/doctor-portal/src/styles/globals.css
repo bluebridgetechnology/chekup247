@@ -2962,18 +2962,13 @@ a {
   }
 }
 
-/* Calendar slot cards: status tags sit on the top border with a solid fill */
-.cal-tagged-card {
-  margin-top: 10px;
-}
+/* Calendar slot cards: status tags.
+   Desktop: inside the card, on the right. Phones: sitting on the card's top border. */
 .cal-border-tags {
-  position: absolute;
-  top: -10px;
-  right: 14px;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 6px;
-  z-index: 1;
 }
 .cal-border-tag {
   display: inline-flex;
@@ -2987,5 +2982,23 @@ a {
   line-height: 1.5;
   letter-spacing: 0.02em;
   white-space: nowrap;
-  box-shadow: 0 0 0 2px var(--color-cream-base, #FAF6EE);
+}
+@media (min-width: 641px) {
+  .cal-day-slot.cal-tagged-card {
+    padding: 10px 14px !important;
+  }
+}
+@media (max-width: 640px) {
+  .cal-tagged-card {
+    margin-top: 10px;
+  }
+  .cal-border-tags {
+    position: absolute;
+    top: -10px;
+    right: 14px;
+    z-index: 1;
+  }
+  .cal-border-tag {
+    box-shadow: 0 0 0 2px var(--color-cream-base, #FAF6EE);
+  }
 }
