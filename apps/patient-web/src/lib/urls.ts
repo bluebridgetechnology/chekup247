@@ -1,3 +1,7 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+
 /**
  * Centralized platform URL resolution for Chekup247.
  * Resolves doctor portal, registration, and login URLs consistently
@@ -23,4 +27,16 @@ export function getDoctorRegisterUrl(): string {
 
 export function getDoctorLoginUrl(): string {
   return `${getDoctorPortalUrl()}/login`;
+}
+
+/**
+ * Doctor portal URLs for client components. The first render uses the env/default value so server and
+ * client markup match; it then re-resolves on the browser's hostname (production domain vs local dev).
+ */
+export function useDoctorAuthUrls(): { register: string; login: string } {
+  const [urls, setUrls] = useState({ register: getDoctorRegisterUrl(), login: getDoctorLoginUrl() });
+  useEffect(() => {
+    setUrls({ register: getDoctorRegisterUrl(), login: getDoctorLoginUrl() });
+  }, []);
+  return urls;
 }
