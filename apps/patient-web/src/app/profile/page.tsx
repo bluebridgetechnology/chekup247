@@ -844,7 +844,7 @@ export default function PatientProfilePage() {
                 <div
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))',
                     gap: '12px',
                     maxWidth: '560px',
                     margin: '0 auto 16px auto',

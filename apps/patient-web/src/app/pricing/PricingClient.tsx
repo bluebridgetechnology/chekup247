@@ -237,6 +237,7 @@ export default function PricingClient() {
                 style={{
                   width: '40px',
                   height: '40px',
+                  flexShrink: 0,
                   borderRadius: '10px',
                   background: 'var(--color-brand-50)',
                   color: 'var(--color-brand-600)',

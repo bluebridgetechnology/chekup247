@@ -107,6 +107,7 @@ export function BatchSlotActionModal({
               style={{
                 width: '40px',
                 height: '40px',
+                flexShrink: 0,
                 borderRadius: '50%',
                 background: '#fee2e2',
                 color: '#dc2626',

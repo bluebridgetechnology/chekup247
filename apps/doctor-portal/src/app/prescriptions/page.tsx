@@ -264,6 +264,7 @@ export default function PrescriptionsListPage() {
                 style={{
                   width: '36px',
                   height: '36px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   background: 'var(--color-gold-pale, #F0E5D3)',
                   display: 'flex',
@@ -292,6 +293,7 @@ export default function PrescriptionsListPage() {
                 style={{
                   width: '36px',
                   height: '36px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   background: 'var(--color-gold-pale, #F0E5D3)',
                   display: 'flex',
@@ -320,6 +322,7 @@ export default function PrescriptionsListPage() {
                 style={{
                   width: '36px',
                   height: '36px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   background: counts.controlled > 0 ? '#fee2e2' : 'var(--color-gold-pale, #F0E5D3)',
                   display: 'flex',
@@ -352,6 +355,7 @@ export default function PrescriptionsListPage() {
                 style={{
                   width: '36px',
                   height: '36px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   background: 'var(--color-gold-pale, #F0E5D3)',
                   display: 'flex',

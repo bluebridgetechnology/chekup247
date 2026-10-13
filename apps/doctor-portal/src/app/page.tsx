@@ -385,6 +385,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '40px',
                 height: '40px',
+                flexShrink: 0,
                 borderRadius: '50%',
                 background: '#fef3c7',
                 display: 'flex',
@@ -643,6 +644,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '36px',
                 height: '36px',
+                flexShrink: 0,
                 borderRadius: '10px',
                 background: 'var(--color-gold-glow, rgba(223, 171, 98, 0.12))',
                 display: 'flex',
@@ -689,6 +691,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '36px',
                 height: '36px',
+                flexShrink: 0,
                 borderRadius: '10px',
                 background: 'var(--color-gold-glow, rgba(223, 171, 98, 0.12))',
                 display: 'flex',
@@ -717,6 +720,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '36px',
                 height: '36px',
+                flexShrink: 0,
                 borderRadius: '10px',
                 background: 'var(--color-gold-glow, rgba(223, 171, 98, 0.12))',
                 display: 'flex',
@@ -749,6 +753,7 @@ export default function DoctorDashboardPage() {
               style={{
                 width: '36px',
                 height: '36px',
+                flexShrink: 0,
                 borderRadius: '10px',
                 background: 'var(--color-gold-glow, rgba(223, 171, 98, 0.12))',
                 display: 'flex',

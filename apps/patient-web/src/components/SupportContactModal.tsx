@@ -178,6 +178,7 @@ export function SupportContactModal({ isOpen, onClose }: SupportContactModalProp
               style={{
                 width: '38px',
                 height: '38px',
+                flexShrink: 0,
                 borderRadius: '50%',
                 background: 'rgba(223,171,98,0.18)',
                 display: 'flex',

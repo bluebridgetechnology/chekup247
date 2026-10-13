@@ -407,6 +407,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
           {/* Notifications Popover */}
           {notificationsOpen && (
             <div
+              className="doctor-notif-dropdown"
               style={{
                 position: 'absolute',
                 top: 'calc(100% + 8px)',

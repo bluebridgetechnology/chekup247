@@ -231,6 +231,7 @@ export default function DoctorAppointmentsPage() {
                 style={{
                   width: '36px',
                   height: '36px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   background: 'var(--color-gold-pale, #F0E5D3)',
                   display: 'flex',
@@ -260,6 +261,7 @@ export default function DoctorAppointmentsPage() {
                 style={{
                   width: '36px',
                   height: '36px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   background: 'var(--color-gold-pale, #F0E5D3)',
                   display: 'flex',
@@ -288,6 +290,7 @@ export default function DoctorAppointmentsPage() {
                 style={{
                   width: '36px',
                   height: '36px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   background: 'var(--color-gold-pale, #F0E5D3)',
                   display: 'flex',
@@ -316,6 +319,7 @@ export default function DoctorAppointmentsPage() {
                 style={{
                   width: '36px',
                   height: '36px',
+                  flexShrink: 0,
                   borderRadius: '50%',
                   background: 'var(--color-gold-pale, #F0E5D3)',
                   display: 'flex',

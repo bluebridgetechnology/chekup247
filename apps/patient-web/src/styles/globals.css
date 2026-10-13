@@ -5491,3 +5491,17 @@ details summary::-webkit-details-marker {
     display: none;
   }
 }
+
+/* Notification dropdown on phones: pinned under the header, full width with side margins,
+   instead of hanging off the bell and spilling past the left edge of the screen */
+@media (max-width: 640px) {
+  .notif-dropdown {
+    position: fixed !important;
+    top: 70px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 86px);
+  }
+}

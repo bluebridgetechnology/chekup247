@@ -589,6 +589,7 @@ export default function ForDoctorsClient() {
                     style={{
                       width: '44px',
                       height: '44px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-rating-bg)',
                       display: 'flex',
@@ -625,6 +626,7 @@ export default function ForDoctorsClient() {
                   style={{
                     width: '36px',
                     height: '36px',
+                    flexShrink: 0,
                     borderRadius: 'var(--radius-full)',
                     backgroundColor: 'var(--color-gold-pale)',
                     color: 'var(--color-gold-bronze)',
@@ -673,6 +675,7 @@ export default function ForDoctorsClient() {
                     style={{
                       width: '44px',
                       height: '44px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-rating-bg)',
                       display: 'flex',
@@ -708,6 +711,7 @@ export default function ForDoctorsClient() {
                   style={{
                     width: '36px',
                     height: '36px',
+                    flexShrink: 0,
                     borderRadius: 'var(--radius-full)',
                     backgroundColor: 'var(--color-gold-pale)',
                     color: 'var(--color-gold-bronze)',
@@ -756,6 +760,7 @@ export default function ForDoctorsClient() {
                     style={{
                       width: '44px',
                       height: '44px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-rating-bg)',
                       display: 'flex',
@@ -791,6 +796,7 @@ export default function ForDoctorsClient() {
                   style={{
                     width: '36px',
                     height: '36px',
+                    flexShrink: 0,
                     borderRadius: 'var(--radius-full)',
                     backgroundColor: 'var(--color-gold-pale)',
                     color: 'var(--color-gold-bronze)',
@@ -839,6 +845,7 @@ export default function ForDoctorsClient() {
                     style={{
                       width: '44px',
                       height: '44px',
+                      flexShrink: 0,
                       borderRadius: 'var(--radius-full)',
                       backgroundColor: 'var(--color-rating-bg)',
                       display: 'flex',
@@ -874,6 +881,7 @@ export default function ForDoctorsClient() {
                   style={{
                     width: '36px',
                     height: '36px',
+                    flexShrink: 0,
                     borderRadius: 'var(--radius-full)',
                     backgroundColor: 'var(--color-gold-pale)',
                     color: 'var(--color-gold-bronze)',

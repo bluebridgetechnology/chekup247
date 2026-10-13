@@ -258,6 +258,7 @@ export default function PatientWalletPage() {
                         style={{
                           width: '40px',
                           height: '40px',
+                          flexShrink: 0,
                           borderRadius: '10px',
                           background: item.is_redeemed ? '#f1f5f9' : '#F5ECD8',
                           color: item.is_redeemed ? '#64748b' : '#8E5A1C',

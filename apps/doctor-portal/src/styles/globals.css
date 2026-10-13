@@ -3002,3 +3002,66 @@ a {
     box-shadow: 0 0 0 2px var(--color-cream-base, #FAF6EE);
   }
 }
+
+/* Doctor profile: holiday mode header and the "Raise Prescription" patient picker on phones */
+@media (max-width: 640px) {
+  .profile-holiday-title {
+    flex-wrap: wrap;
+  }
+  .rx-patient-search {
+    padding: 12px 14px !important;
+  }
+  .rx-patient-list {
+    padding: 14px !important;
+  }
+  .rx-patient-row {
+    flex-direction: column;
+    align-items: stretch !important;
+    gap: 12px;
+    padding: 14px !important;
+  }
+  .rx-patient-meta {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 4px !important;
+  }
+  .rx-patient-meta span {
+    overflow-wrap: anywhere;
+  }
+  .rx-patient-actions {
+    width: 100%;
+  }
+  .rx-patient-actions .btn-primary {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 42px;
+  }
+}
+
+/* Dropdowns that hang off a control near the screen edge: keep them fully on screen on phones */
+@media (max-width: 640px) {
+  .cal-actions-menu {
+    left: 0 !important;
+    right: auto !important;
+  }
+  .doctor-notif-dropdown {
+    position: fixed !important;
+    top: 62px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: none !important;
+    max-height: calc(100dvh - 78px);
+  }
+  /* Native date inputs have a wide intrinsic size; let them shrink to their grid cell */
+  .portal-input[type='date'],
+  .portal-input[type='time'] {
+    min-width: 0;
+    max-width: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    font-size: 0.84rem;
+    padding-left: 10px;
+    padding-right: 8px;
+  }
+}

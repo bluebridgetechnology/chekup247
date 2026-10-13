@@ -762,7 +762,7 @@ export default function DoctorProfilePage() {
             Credential Compliance Status
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: '12px' }}>
             <div
               style={{
                 display: 'flex',
@@ -957,6 +957,7 @@ export default function DoctorProfilePage() {
                   style={{
                     width: '34px',
                     height: '34px',
+                    flexShrink: 0,
                     borderRadius: '50%',
                     backgroundColor: 'var(--color-gold-pale)',
                     display: 'flex',
@@ -974,7 +975,7 @@ export default function DoctorProfilePage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '20px', marginBottom: '20px' }}>
                 <div>
                   <label className="portal-label">Primary Specialty</label>
                   <select
@@ -1167,7 +1168,7 @@ export default function DoctorProfilePage() {
                 border: '1.5px solid var(--color-gold-border)',
               }}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '20px', marginBottom: '20px' }}>
                 <div>
                   <label className="portal-label">Years of Clinical Experience</label>
                   <input
@@ -1367,8 +1368,8 @@ export default function DoctorProfilePage() {
                     />
                   </div>
 
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <div style={{ minWidth: 0, flex: '1 1 0' }}>
+                    <div className="profile-holiday-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                       <h2 className="section-title">Holiday Mode &amp; Practice Availability</h2>
                       <span
                         className={isOnHoliday ? 'badge-warning' : 'badge-success'}
@@ -1422,6 +1423,7 @@ export default function DoctorProfilePage() {
                   style={{
                     width: '34px',
                     height: '34px',
+                    flexShrink: 0,
                     borderRadius: '50%',
                     backgroundColor: 'var(--color-gold-pale)',
                     display: 'flex',
@@ -1547,6 +1549,7 @@ export default function DoctorProfilePage() {
                   style={{
                     width: '34px',
                     height: '34px',
+                    flexShrink: 0,
                     borderRadius: '50%',
                     backgroundColor: 'var(--color-gold-pale)',
                     display: 'flex',
@@ -1586,7 +1589,7 @@ export default function DoctorProfilePage() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '16px', marginBottom: '16px' }}>
                 <div>
                   <label className="portal-label">Practice / Rooms Name</label>
                   <input
@@ -1609,7 +1612,7 @@ export default function DoctorProfilePage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '14px' }}>
                 <div>
                   <label className="portal-label">Suburb &amp; City</label>
                   <input
@@ -1672,6 +1675,7 @@ export default function DoctorProfilePage() {
                   style={{
                     width: '34px',
                     height: '34px',
+                    flexShrink: 0,
                     borderRadius: '50%',
                     backgroundColor: 'var(--color-gold-pale)',
                     display: 'flex',
@@ -1689,7 +1693,7 @@ export default function DoctorProfilePage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '18px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: '18px', marginBottom: '20px' }}>
                 {/* 1. Government-Issued ID */}
                 <div
                   style={{
@@ -2057,6 +2061,7 @@ export default function DoctorProfilePage() {
                     style={{
                       width: '34px',
                       height: '34px',
+                      flexShrink: 0,
                       borderRadius: '50%',
                       backgroundColor: 'var(--color-gold-pale)',
                       display: 'flex',
@@ -2237,6 +2242,7 @@ export default function DoctorProfilePage() {
                   style={{
                     width: '34px',
                     height: '34px',
+                    flexShrink: 0,
                     borderRadius: '50%',
                     backgroundColor: 'var(--color-gold-pale)',
                     display: 'flex',
@@ -2254,7 +2260,7 @@ export default function DoctorProfilePage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '16px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '16px', marginBottom: '16px' }}>
                 <div>
                   <label className="portal-label">Account Holder Name</label>
                   <input
@@ -2288,7 +2294,7 @@ export default function DoctorProfilePage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '14px' }}>
                 <div>
                   <label className="portal-label">Account Number</label>
                   <input

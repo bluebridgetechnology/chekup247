@@ -266,6 +266,7 @@ export function PatientPortalSidebar({
               style={{
                 width: '30px',
                 height: '30px',
+                flexShrink: 0,
                 borderRadius: '8px',
                 backgroundColor: 'rgba(223, 171, 98, 0.22)',
                 display: 'flex',

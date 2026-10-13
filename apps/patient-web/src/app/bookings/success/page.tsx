@@ -1156,6 +1156,7 @@ function SuccessContent() {
                       style={{
                         width: '34px',
                         height: '34px',
+                        flexShrink: 0,
                         borderRadius: '10px',
                         background: 'rgba(223, 171, 98, 0.25)',
                         display: 'flex',
@@ -2186,6 +2187,7 @@ function SuccessContent() {
                 style={{
                   width: '32px',
                   height: '32px',
+                  flexShrink: 0,
                   borderRadius: '8px',
                   background: 'rgba(223, 171, 98, 0.18)',
                   display: 'flex',

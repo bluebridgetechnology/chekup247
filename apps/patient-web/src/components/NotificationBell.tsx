@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
 import { useAuth } from '../context/AuthContext';
 import type { Socket } from 'socket.io-client';
+import { formatDoctorName } from '../lib/doctorName';
 
 export interface AppNotification {
   id: string;
@@ -158,6 +159,7 @@ export function NotificationBell({ variant = 'default' }: NotificationBellProps 
                 borderRadius: '50%',
                 width: '44px',
                 height: '44px',
+                flexShrink: 0,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -213,6 +215,7 @@ export function NotificationBell({ variant = 'default' }: NotificationBellProps 
       {/* Floating Dropdown */}
       {isOpen && (
         <div
+          className="notif-dropdown"
           style={{
             position: 'absolute',
             top: 'calc(100% + 10px)',
@@ -381,7 +384,7 @@ export function NotificationBell({ variant = 'default' }: NotificationBellProps 
                       >
                         {notif.payload?.message ||
                           (notif.payload?.doctorName
-                            ? `Consultation with Dr. ${notif.payload.doctorName}`
+                            ? `Consultation with ${formatDoctorName(notif.payload.doctorName)}`
                             : 'Update on your appointment.')}
                       </p>
 

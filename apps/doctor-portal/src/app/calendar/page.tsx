@@ -414,6 +414,7 @@ export default function DoctorCalendarPage() {
                   style={{ position: 'fixed', inset: 0, zIndex: 40 }}
                 />
                 <div
+                  className="cal-actions-menu"
                   style={{
                     position: 'absolute',
                     top: '100%',
@@ -716,6 +717,7 @@ export default function DoctorCalendarPage() {
                     style={{
                       width: '32px',
                       height: '32px',
+                      flexShrink: 0,
                       borderRadius: '50%',
                       border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
                       background: 'var(--color-cream-surface, #FDFBF7)',
@@ -735,6 +737,7 @@ export default function DoctorCalendarPage() {
                     style={{
                       width: '32px',
                       height: '32px',
+                      flexShrink: 0,
                       borderRadius: '50%',
                       border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
                       background: 'var(--color-cream-surface, #FDFBF7)',

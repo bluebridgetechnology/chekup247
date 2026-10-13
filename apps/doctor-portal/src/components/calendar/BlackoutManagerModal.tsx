@@ -200,6 +200,7 @@ export function BlackoutManagerModal({
               style={{
                 width: '40px',
                 height: '40px',
+                flexShrink: 0,
                 borderRadius: '50%',
                 background: 'var(--color-gold-pale, #F0E5D3)',
                 display: 'flex',
@@ -306,8 +307,8 @@ export function BlackoutManagerModal({
               Schedule New Out-of-Office Period
             </h3>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '14px' }}>
-              <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '12px', marginBottom: '14px' }}>
+              <div style={{ minWidth: 0 }}>
                 <label className="portal-label">
                   Start Date
                 </label>
@@ -319,7 +320,7 @@ export function BlackoutManagerModal({
                   className="portal-input"
                 />
               </div>
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <label className="portal-label">
                   End Date
                 </label>

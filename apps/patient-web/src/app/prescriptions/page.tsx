@@ -1147,6 +1147,7 @@ export default function PatientPrescriptionsPage() {
                           style={{
                             width: '36px',
                             height: '36px',
+                            flexShrink: 0,
                             borderRadius: '8px',
                             border: '1px solid #EDE5D8',
                             background: '#FAF7F2',
@@ -1170,6 +1171,7 @@ export default function PatientPrescriptionsPage() {
                           style={{
                             width: '36px',
                             height: '36px',
+                            flexShrink: 0,
                             borderRadius: '8px',
                             border: '1px solid #EDE5D8',
                             background: '#FAF7F2',
