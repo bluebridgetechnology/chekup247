@@ -1,5 +1,6 @@
 'use client';
 
+import { formatClockTime, formatZoneAbbr } from '../../lib/time';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
@@ -429,13 +430,13 @@ export default function DoctorAppointmentsPage() {
                   <SolarIcon name="clock-circle-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
                   <span>
                     {imminentAppointment.slot?.startTime
-                      ? new Date(imminentAppointment.slot.startTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                      ? formatClockTime(imminentAppointment.slot.startTime)
                       : '10:00'}{' '}
                     –{' '}
                     {imminentAppointment.slot?.endTime
-                      ? new Date(imminentAppointment.slot.endTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                      ? formatClockTime(imminentAppointment.slot.endTime)
                       : '10:45'}{' '}
-                    SAST
+                    {formatZoneAbbr()}
                   </span>
                 </span>
 
@@ -665,10 +666,10 @@ export default function DoctorAppointmentsPage() {
                   {filteredList.map((appointment) => {
                     const startIso = appointment.slot?.startTime;
                     const startTimeStr = startIso
-                      ? new Date(startIso).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                      ? formatClockTime(startIso)
                       : '10:00';
                     const endTimeStr = appointment.slot?.endTime
-                      ? new Date(appointment.slot.endTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                      ? formatClockTime(appointment.slot.endTime)
                       : '10:45';
                     const dateStr = startIso
                       ? new Date(startIso).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -709,7 +710,7 @@ export default function DoctorAppointmentsPage() {
                             </span>
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.8rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                               <SolarIcon name="clock-circle-linear" size={13} color="var(--color-gold-bronze, #B88647)" />
-                              <span>{startTimeStr} – {endTimeStr} SAST</span>
+                              <span>{startTimeStr} – {endTimeStr} {formatZoneAbbr()}</span>
                             </span>
                           </div>
                         </td>
@@ -800,10 +801,10 @@ export default function DoctorAppointmentsPage() {
             {filteredList.map((appointment) => {
               const startIso = appointment.slot?.startTime;
               const startTimeStr = startIso
-                ? new Date(startIso).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                ? formatClockTime(startIso)
                 : '10:00';
               const endTimeStr = appointment.slot?.endTime
-                ? new Date(appointment.slot.endTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: false })
+                ? formatClockTime(appointment.slot.endTime)
                 : '10:45';
               const dateStr = startIso
                 ? new Date(startIso).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -1039,9 +1040,9 @@ export default function DoctorAppointmentsPage() {
                   </div>
                   <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 'var(--font-heading-weight, 400)', fontSize: '0.925rem', color: 'var(--color-chocolate-base, #2A170F)', marginTop: '3px' }}>
                     {selectedAppointment.slot?.startTime
-                      ? new Date(selectedAppointment.slot.startTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })
+                      ? formatClockTime(selectedAppointment.slot.startTime)
                       : '10:00'}{' '}
-                    SAST
+                    {formatZoneAbbr()}
                   </div>
                 </div>
               </div>

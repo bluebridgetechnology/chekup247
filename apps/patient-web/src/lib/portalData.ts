@@ -1,3 +1,5 @@
+import { formatClockTime, formatZoneAbbr } from './time';
+
 export interface PortalDoctor {
   id: string;
   name: string;
@@ -223,22 +225,19 @@ export function mapApiBookingToPortalBooking(rawBooking: any, fallbackDoctor?: P
   const days = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
   const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEPT', 'OCT', 'NOV', 'DEC'];
   const fullMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const fullDays = ['Sun', 'Mon', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const fullDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   const dayName = days[startTimeObj.getDay()];
   const dateNum = startTimeObj.getDate();
   const monthName = months[startTimeObj.getMonth()];
   const dateFormatted = `${dayName}, ${dateNum} ${monthName}`;
-  const fullDateFormatted = `${fullDays[startTimeObj.getDay()] || 'Thu'}, ${dateNum} ${fullMonths[startTimeObj.getMonth()]} ${startTimeObj.getFullYear()}`;
+  const fullDateFormatted = `${fullDays[startTimeObj.getDay()]}, ${dateNum} ${fullMonths[startTimeObj.getMonth()]} ${startTimeObj.getFullYear()}`;
 
-  const formatHourMin = (d: Date) => {
-    const h = String(d.getHours()).padStart(2, '0');
-    const m = String(d.getMinutes()).padStart(2, '0');
-    return `${h}:${m}`;
-  };
+  const formatHourMin = (d: Date) => formatClockTime(d.toISOString());
 
   const startTime = formatHourMin(startTimeObj);
-  const endTime = formatHourMin(endTimeObj);
+  // End time carries the viewer's zone label (e.g. "2:45 PM WAT") so every card is unambiguous
+  const endTime = `${formatHourMin(endTimeObj)} ${formatZoneAbbr(endTimeObj.toISOString())}`.trim();
   const durationMinutes = Math.max(15, Math.round((endTimeObj.getTime() - startTimeObj.getTime()) / (1000 * 60)));
   const isPast = Date.now() > endTimeObj.getTime();
 

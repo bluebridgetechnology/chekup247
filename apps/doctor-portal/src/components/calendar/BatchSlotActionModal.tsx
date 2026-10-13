@@ -51,8 +51,8 @@ export function BatchSlotActionModal({
         },
         credentials: 'include',
         body: JSON.stringify({
-          startDate: `${startDate}T00:00:00.000Z`,
-          endDate: `${endDate}T23:59:59.999Z`,
+          startDate: new Date(`${startDate}T00:00:00`).toISOString(), // doctor's local midnight
+          endDate: new Date(`${endDate}T23:59:59.999`).toISOString(),
         }),
       });
 

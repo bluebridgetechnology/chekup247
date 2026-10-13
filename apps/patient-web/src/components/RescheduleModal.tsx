@@ -1,5 +1,6 @@
 'use client';
 
+import { formatClockTime, formatZoneAbbr } from '../lib/time';
 import React, { useState, useEffect } from 'react';
 import { toastSuccess, toastError, errorMessage } from '../lib/toast';
 import {
@@ -282,10 +283,7 @@ export function RescheduleModal({
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))', gap: '10px' }}>
                     {groupedSlots[selectedDateKey]?.map((slot) => {
                       const isChosen = selectedSlot?.id === slot.id;
-                      const timeStr = new Date(slot.start_time).toLocaleTimeString('en-ZA', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      });
+                      const timeStr = formatClockTime(slot.start_time);
 
                       return (
                         <button
@@ -342,10 +340,7 @@ export function RescheduleModal({
                     month: 'short',
                   })}{' '}
                   at{' '}
-                  {new Date(selectedSlot.start_time).toLocaleTimeString('en-ZA', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                  {formatClockTime(selectedSlot.start_time)} {formatZoneAbbr(selectedSlot.start_time)}
                 </strong>
               </span>
             ) : (

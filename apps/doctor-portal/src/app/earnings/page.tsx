@@ -1,5 +1,6 @@
 'use client';
 
+import { formatClockTime, formatZoneAbbr } from '../../lib/time';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import {
@@ -728,7 +729,7 @@ export default function DoctorEarningsPage() {
                             })}
                           </div>
                           <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted)' }}>
-                            {new Date(c.date).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })} SAST
+                            {formatClockTime(c.date)} {formatZoneAbbr(c.date)}
                           </div>
                         </td>
                         <td style={{ textAlign: 'center', whiteSpace: 'nowrap', color: 'var(--color-cream-text-muted)' }}>
@@ -785,7 +786,7 @@ export default function DoctorEarningsPage() {
 
                   <div className="doctor-mobile-card-row" style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted)' }}>
                     <span>
-                      {new Date(c.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })} • {new Date(c.date).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(c.date).toLocaleDateString('en-ZA', { day: 'numeric', month: 'short', year: 'numeric' })} • {formatClockTime(c.date)}
                     </span>
                     <span>{c.duration}</span>
                   </div>

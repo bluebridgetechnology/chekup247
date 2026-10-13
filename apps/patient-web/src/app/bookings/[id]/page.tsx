@@ -1115,7 +1115,7 @@ export default function BookingDetailPage() {
                 {isOver24h ? (
                   <div>
                     <strong>Full Refund Eligible (≥ 24 Hours Away):</strong> Your appointment is scheduled for{' '}
-                    {booking.slot?.startTime ? new Date(booking.slot.startTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit' }) : 'later'}.
+                    {booking.slot?.startTime ? `${formatClockTime(booking.slot.startTime)} ${formatZoneAbbr(booking.slot.startTime)}` : 'later'}.
                     You will receive 100% of your R{price.toFixed(2)} payment.
                   </div>
                 ) : (

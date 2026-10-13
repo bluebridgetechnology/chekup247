@@ -1,5 +1,6 @@
 'use client';
 
+import { formatClockTime, formatZoneAbbr } from '../../lib/time';
 import React, { useState } from 'react';
 import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
@@ -49,15 +50,7 @@ export function SlotDetailModal({
     day: 'numeric',
   });
 
-  const timeRange = `${startDate.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })} - ${endDate.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })}`;
+  const timeRange = `${formatClockTime(startDate.toISOString())} - ${formatClockTime(endDate.toISOString())}`;
 
   const durationMinutes = Math.round(
     (endDate.getTime() - startDate.getTime()) / (60 * 1000),
@@ -360,7 +353,7 @@ export function SlotDetailModal({
                   border: '1px solid rgba(223, 171, 98, 0.3)',
                 }}
               >
-                SAST
+                {formatZoneAbbr(startDate.toISOString())}
               </span>
             </div>
 

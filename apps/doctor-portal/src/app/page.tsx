@@ -1,5 +1,6 @@
 'use client';
 
+import { formatClockTime, formatZoneAbbr } from '../lib/time';
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import {
@@ -325,7 +326,7 @@ export default function DoctorDashboardPage() {
               </span>
               <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--color-gold-base)' }} />
               <span style={{ fontSize: '0.8rem', color: 'var(--color-cream-text-muted)' }}>
-                SAST {new Date().toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })}
+                {formatZoneAbbr()} {new Date().toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })}
               </span>
             </div>
 
@@ -855,7 +856,7 @@ export default function DoctorDashboardPage() {
                     .slice(0, 5)
                     .map((apt: any, idx: number, arr: any[]) => {
                       const time = apt.slot?.startTime
-                        ? new Date(apt.slot.startTime).toLocaleTimeString('en-ZA', { hour: '2-digit', minute: '2-digit', hour12: true })
+                        ? formatClockTime(apt.slot.startTime)
                         : '--:--';
                       const status: string = apt.status || 'confirmed';
                       const startMs = apt.slot?.startTime ? new Date(apt.slot.startTime).getTime() : 0;
@@ -1096,10 +1097,10 @@ export default function DoctorDashboardPage() {
                             .toUpperCase();
 
                           const sTime = apt.slot?.startTime
-                            ? new Date(apt.slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                            ? formatClockTime(apt.slot.startTime)
                             : '--:--';
                           const eTime = apt.slot?.endTime
-                            ? new Date(apt.slot.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                            ? formatClockTime(apt.slot.endTime)
                             : '--:--';
 
                           const isToday = apt.slot?.startTime
@@ -1152,7 +1153,7 @@ export default function DoctorDashboardPage() {
                                     }}
                                   >
                                     <SolarIcon name="clock-circle-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
-                                    <span>SAST {dateLabel}</span>
+                                    <span>{formatZoneAbbr()} {dateLabel}</span>
                                   </span>
                                   {diffMins !== null && diffMins <= 60 && (
                                     <span
@@ -1211,10 +1212,10 @@ export default function DoctorDashboardPage() {
                       .toUpperCase();
 
                     const sTime = apt.slot?.startTime
-                      ? new Date(apt.slot.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                      ? formatClockTime(apt.slot.startTime)
                       : '--:--';
                     const eTime = apt.slot?.endTime
-                      ? new Date(apt.slot.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+                      ? formatClockTime(apt.slot.endTime)
                       : '--:--';
 
                     const isToday = apt.slot?.startTime
@@ -1261,7 +1262,7 @@ export default function DoctorDashboardPage() {
                         <div className="doctor-mobile-card-row" style={{ fontSize: '0.84rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                             <SolarIcon name="clock-circle-linear" size={14} color="var(--color-gold-bronze, #B88647)" />
-                            <span>SAST {dateLabel}</span>
+                            <span>{formatZoneAbbr()} {dateLabel}</span>
                           </span>
                           <span style={{ color: '#059669', fontWeight: 700 }}>
                             R{Number(apt.price || profile?.ratePerHour || 850).toFixed(2)}
@@ -1355,14 +1356,7 @@ export default function DoctorDashboardPage() {
                     <SolarIcon name="clock-circle-linear" size={16} color="var(--color-gold-bronze, #B88647)" />
                     <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--color-chocolate-base, #2A170F)' }}>
                       {nextBooking.slot?.startTime
-                        ? new Date(nextBooking.slot.startTime).toLocaleString('en-ZA', {
-                            weekday: 'short',
-                            day: 'numeric',
-                            month: 'short',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                            hour12: false,
-                          }) + ' SAST'
+                        ? `${new Date(nextBooking.slot.startTime).toLocaleDateString('en-ZA', { weekday: 'short', day: 'numeric', month: 'short' })}, ${formatClockTime(nextBooking.slot.startTime)} ${formatZoneAbbr(nextBooking.slot.startTime)}`
                         : 'Scheduled'}
                     </span>
                   </div>

@@ -1,5 +1,6 @@
 'use client';
 
+import { formatClockRange, formatClockTime, formatHourLabel, formatUtcOffset, formatZoneAbbr } from '../../lib/time';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { SolarIcon } from '../../components/common/SolarIcon';
@@ -778,7 +779,7 @@ export default function DoctorCalendarPage() {
                     alignItems: 'center',
                   }}
                 >
-                  SAST (UTC+2)
+                  {formatZoneAbbr()} ({formatUtcOffset()})
                 </span>
               </div>
 
@@ -1056,16 +1057,8 @@ export default function DoctorCalendarPage() {
                             </div>
                           ) : (
                             daySlots.map((slot) => {
-                              const sTime = new Date(slot.startTime).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false,
-                              });
-                              const eTime = new Date(slot.endTime).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false,
-                              });
+                              const sTime = formatClockTime(slot.startTime);
+                              const eTime = formatClockTime(slot.endTime);
 
                               const isLocum = slot.source === 'locumstaff';
                               const isPast = new Date(slot.endTime).getTime() < Date.now();
@@ -1120,7 +1113,7 @@ export default function DoctorCalendarPage() {
                                         textOverflow: 'ellipsis',
                                       }}
                                     >
-                                      {sTime}–{eTime}
+                                      {formatClockRange(slot.startTime, slot.endTime)}
                                     </span>
                                     {isLocum && !isCancelled && (
                                       <span title="Synced from LocumStaff (Locked)">
@@ -1347,16 +1340,8 @@ export default function DoctorCalendarPage() {
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                             {selectedDaySlots.map((slot) => {
-                              const sTime = new Date(slot.startTime).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false,
-                              });
-                              const eTime = new Date(slot.endTime).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false,
-                              });
+                              const sTime = formatClockTime(slot.startTime);
+                              const eTime = formatClockTime(slot.endTime);
                               const isLocum = slot.source === 'locumstaff';
                               const isCancelled = slot.bookingStatus === 'cancelled' || !!slot.cancellationFeeEarned;
 
@@ -1755,14 +1740,14 @@ export default function DoctorCalendarPage() {
                             borderRadius: '4px',
                           }}
                         >
-                          {String(nowHour).padStart(2, '0')}:{String(nowMinute).padStart(2, '0')}
+                          {formatClockTime(new Date(2000, 0, 1, nowHour, nowMinute).toISOString())}
                         </span>
                       </div>
                     )}
 
                     {/* Hourly Rows */}
                     {hours.map((hour, idx) => {
-                      const hourLabel = `${String(hour).padStart(2, '0')}:00`;
+                      const hourLabel = formatHourLabel(hour);
                       const hourSlots = daySlots.filter((slot) => {
                         const sDate = new Date(slot.startTime);
                         return sDate.getHours() === hour;
@@ -1824,16 +1809,8 @@ export default function DoctorCalendarPage() {
                                 }}
                               >
                                 {hourSlots.map((slot) => {
-                                  const sTime = new Date(slot.startTime).toLocaleTimeString([], {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: false,
-                                  });
-                                  const eTime = new Date(slot.endTime).toLocaleTimeString([], {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    hour12: false,
-                                  });
+                                  const sTime = formatClockTime(slot.startTime);
+                                  const eTime = formatClockTime(slot.endTime);
                                   const isLocum = slot.source === 'locumstaff';
                                   const isCancelled = slot.bookingStatus === 'cancelled' || !!slot.cancellationFeeEarned;
 
@@ -2307,8 +2284,8 @@ export default function DoctorCalendarPage() {
                 {locumSlots.map((slot) => {
                   const start = new Date(slot.startTime);
                   const end = new Date(slot.endTime);
-                  const sTime = start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
-                  const eTime = end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+                  const sTime = formatClockTime(start.toISOString());
+                  const eTime = formatClockTime(end.toISOString());
                   const isPast = end.getTime() < Date.now();
 
                   return (

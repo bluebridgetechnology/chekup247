@@ -271,6 +271,8 @@ export function SlotCreationModal({
           bufferMinutes: bufferTime,
           startDate: recurrenceStartDate,
           endDate: recurrenceEndDate,
+          // the shift times are the doctor's local wall-clock times
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         };
       }
 
