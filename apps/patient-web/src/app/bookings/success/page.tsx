@@ -1,5 +1,6 @@
 'use client';
 
+import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
 import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
@@ -538,16 +539,8 @@ function SuccessContent() {
     : 'Friday, 25 September 2026';
 
   const formattedTime = booking?.slot?.startTime
-    ? `${new Date(booking.slot.startTime).toLocaleTimeString('en-ZA', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      })} – ${new Date(booking.slot.endTime).toLocaleTimeString('en-ZA', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      })} SAST`
-    : '11:50 – 12:20 SAST';
+    ? `${formatClockTime(booking.slot.startTime)} – ${formatClockTime(booking.slot.endTime)} ${formatZoneAbbr(booking.slot.startTime)}`.trim()
+    : 'Time to be confirmed';
 
   // Support both API state and standard confirmed status
   const isPaymentConfirmed =

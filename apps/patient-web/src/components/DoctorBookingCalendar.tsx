@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
+import { formatClockTime, formatZoneAbbr } from '../lib/time';
 
 export interface AvailabilitySlotDto {
   id: string;
@@ -62,6 +63,7 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlotDto | null>(null);
   const [userTimeZone, setUserTimeZone] = useState<string>('Africa/Johannesburg');
+  const [zoneAbbr, setZoneAbbr] = useState<string>('');
 
   // Consultation modes (Video, In-Clinic, Audio)
   const availableModes = useMemo(() => {
@@ -91,6 +93,7 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
       if (tz) setUserTimeZone(tz);
+      setZoneAbbr(formatZoneAbbr());
     } catch {
       // Default to SAST
     }
@@ -181,16 +184,14 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     return dates;
   }, [weekOffset, daysWithSlots]);
 
-  // Set default selected date
+  // Default to the first day with availability; re-evaluate when live slots arrive
   useEffect(() => {
-    if (!selectedDate && displayDays.length > 0) {
-      const firstWithSlots = displayDays.find((d) => d.hasSlots);
-      if (firstWithSlots) {
-        setSelectedDate(firstWithSlots.dateKey);
-      } else {
-        setSelectedDate(displayDays[0].dateKey);
-      }
-    }
+    if (displayDays.length === 0) return;
+    const current = displayDays.find((d) => d.dateKey === selectedDate);
+    if (current?.hasSlots) return;
+    const firstWithSlots = displayDays.find((d) => d.hasSlots);
+    if (firstWithSlots) setSelectedDate(firstWithSlots.dateKey);
+    else if (!selectedDate) setSelectedDate(displayDays[0].dateKey);
   }, [displayDays, selectedDate]);
 
   // Slots for selected day
@@ -208,18 +209,7 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     }
   }, [selectedDate, slotsForSelectedDay]);
 
-  const formatSlotTime = (isoString: string) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      });
-    } catch {
-      return '08:30';
-    }
-  };
+  const formatSlotTime = (isoString: string) => formatClockTime(isoString) || isoString;
 
   const formatSelectedDateHeading = (dateKey: string) => {
     if (!dateKey) return '';
@@ -417,7 +407,10 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
           <span style={{ fontWeight: 600 }}>{formatSelectedDateHeading(selectedDate)}</span>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             <SolarIcon name="globe-linear" size={13} color="currentColor" />
-            <span>{userTimeZone.replace('_', ' ')}</span>
+            <span>
+              {userTimeZone.replace('_', ' ')}
+              {zoneAbbr ? ` (${zoneAbbr})` : ''}
+            </span>
           </span>
         </div>
       </div>
