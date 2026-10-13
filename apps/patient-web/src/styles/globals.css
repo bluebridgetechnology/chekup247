@@ -3980,10 +3980,104 @@ details summary::-webkit-details-marker {
   align-items: start;
 }
 
+/* Grid children must be allowed to shrink or long content forces horizontal overflow */
+.checkout-layout-grid > * {
+  min-width: 0;
+}
+
 @media (max-width: 980px) {
   .checkout-layout-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 28px;
+  }
+
+  .checkout-summary-card {
+    position: static !important;
+    max-width: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .checkout-top-strip {
+    padding: 16px 0 !important;
+  }
+
+  .checkout-title {
+    font-size: 1.4rem !important;
+  }
+
+  .checkout-layout-grid {
+    gap: 20px;
+  }
+
+  .checkout-card,
+  .checkout-summary-card {
+    padding: 18px 16px !important;
+    border-radius: 18px !important;
+  }
+
+  .checkout-patient-card {
+    padding: 16px !important;
+  }
+
+  .checkout-datetime-grid,
+  .checkout-fields-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  /* Stepper: two equal compact columns, labels wrap instead of overflowing */
+  .checkout-stepper {
+    gap: 4px !important;
+    align-items: flex-start !important;
+  }
+
+  .checkout-step-btn {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    gap: 8px !important;
+    text-align: center !important;
+  }
+
+  .checkout-step-btn > div:last-child {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .checkout-step-btn > div:last-child > div {
+    justify-content: center;
+  }
+
+  .checkout-step-connector {
+    flex: 0 0 20px !important;
+    min-width: 20px !important;
+    margin: 18px 0 0 !important;
+    align-self: flex-start;
+  }
+
+  /* Action buttons: full-width, primary on top */
+  .checkout-actions {
+    flex-direction: column-reverse !important;
+    align-items: stretch !important;
+  }
+
+  .checkout-actions > button {
+    width: 100%;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .checkout-auth-modal {
+    padding: 24px 18px !important;
+    border-radius: 20px !important;
+  }
+
+  .checkout-card h2 {
+    font-size: 1.1rem !important;
+    line-height: 1.3;
   }
 }
 
