@@ -1361,8 +1361,10 @@ export default function DoctorCalendarPage() {
                                 <div
                                   key={slot.id}
                                   onClick={() => setSelectedSlotForDetail(slot)}
+                                  className="cal-tagged-card"
                                   style={{
-                                    padding: '12px 14px',
+                                    position: 'relative',
+                                    padding: '14px 14px 12px',
                                     borderRadius: '12px',
                                     border: slot.isBooked
                                       ? '1px solid var(--color-gold-base, #DFAB62)'
@@ -1406,20 +1408,23 @@ export default function DoctorCalendarPage() {
                                     </div>
                                   </div>
 
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  {/* Status tag sits on the card's top border */}
+                                  <div className="cal-border-tags">
                                     {slot.cancellationFeeEarned && (
-                                      <span style={{ fontSize: '0.68rem', fontWeight: 600, background: '#ffe4e6', color: '#be123c', padding: '2px 6px', borderRadius: '4px' }}>
+                                      <span className="cal-border-tag" style={{ background: '#be123c' }}>
                                         +R{slot.cancellationFeeEarned}
                                       </span>
                                     )}
                                     <span
+                                      className="cal-border-tag"
                                       style={{
-                                        fontSize: '0.72rem',
-                                        fontWeight: 600,
-                                        padding: '2px 8px',
-                                        borderRadius: '9999px',
-                                        background: slot.isBooked ? 'var(--color-gold-pale)' : isLocum ? '#f3e8ff' : '#E7F5EF',
-                                        color: slot.isBooked ? 'var(--color-chocolate-base)' : isLocum ? '#7e22ce' : '#047857',
+                                        background: isCancelled
+                                          ? '#dc2626'
+                                          : slot.isBooked
+                                          ? 'var(--color-chocolate-base, #2A170F)'
+                                          : isLocum
+                                          ? '#7e22ce'
+                                          : '#0f766e',
                                       }}
                                     >
                                       {isCancelled ? 'Cancelled' : slot.isBooked ? 'Booked' : isLocum ? 'Locked' : 'Open'}
@@ -1832,10 +1837,11 @@ export default function DoctorCalendarPage() {
                                   return (
                                     <div
                                       key={slot.id}
-                                      className="cal-day-slot"
+                                      className="cal-day-slot cal-tagged-card"
                                       onClick={() => setSelectedSlotForDetail(slot)}
                                       style={{
-                                        padding: '10px 14px',
+                                        position: 'relative',
+                                        padding: '14px 14px 10px',
                                         borderRadius: '10px',
                                         border: slot.isBooked
                                           ? '1px solid var(--color-gold-base, #DFAB62)'
@@ -1919,41 +1925,21 @@ export default function DoctorCalendarPage() {
                                         </div>
                                       </div>
 
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                      {/* Status tags sit on the card's top border */}
+                                      <div className="cal-border-tags">
                                         {isLocum && (
-                                          <span
-                                            style={{
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              gap: '3px',
-                                              padding: '2px 6px',
-                                              borderRadius: '6px',
-                                              background: '#f3e8ff',
-                                              color: '#7e22ce',
-                                              fontSize: '0.68rem',
-                                              fontWeight: 600,
-                                            }}
-                                          >
-                                            <SolarIcon name="lock-bold" size={10} color="#7e22ce" />
+                                          <span className="cal-border-tag" style={{ background: '#7e22ce' }}>
+                                            <SolarIcon name="lock-bold" size={10} color="#ffffff" />
                                             <span>Locked</span>
                                           </span>
                                         )}
                                         <span
-                                          className="cal-day-slot-badge"
+                                          className="cal-border-tag"
                                           style={{
-                                            padding: '2px 8px',
-                                            borderRadius: '9999px',
-                                            fontSize: '0.7rem',
-                                            fontWeight: 600,
                                             background: slot.isBooked
                                               ? 'var(--color-chocolate-base, #2A170F)'
                                               : isCancelled
-                                              ? '#fee2e2'
-                                              : '#ccfbf1',
-                                            color: slot.isBooked
-                                              ? '#ffffff'
-                                              : isCancelled
-                                              ? '#991b1b'
+                                              ? '#dc2626'
                                               : '#0f766e',
                                           }}
                                         >
