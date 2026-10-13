@@ -363,10 +363,13 @@ a {
     color: #9a6d36;
   }
 
-  .doctor-onboard-hero-meta strong,
-  .doctor-onboard-hero-meta span { display: block; }
-  .doctor-onboard-hero-meta strong { font-size: 0.8rem; }
-  .doctor-onboard-hero-meta span { margin-top: 3px; color: #81756b; font-size: 0.72rem; }
+  /* Scoped to the text block so the icon's own <span> keeps its centred grid layout */
+  .doctor-onboard-hero-meta > div strong,
+  .doctor-onboard-hero-meta > div span { display: block; }
+  .doctor-onboard-hero-meta > div strong { font-size: 0.8rem; }
+  .doctor-onboard-hero-meta > div span { margin-top: 3px; color: #81756b; font-size: 0.72rem; }
+  .doctor-onboard-hero-icon { flex-shrink: 0; }
+  .doctor-onboard-hero-icon svg { display: block; }
 
   .doctor-onboard-layout {
     max-width: 1180px;
@@ -2757,22 +2760,6 @@ a {
 }
 
 @media (max-width: 640px) {
-  .prescribe-steps-container {
-    padding: 12px !important;
-  }
-  .prescribe-steps-inner {
-    gap: 8px;
-  }
-  .prescribe-steps-inner > div {
-    min-width: 0;
-  }
-  .prescribe-steps-inner > div:not([style*="height"]) {
-    flex: 1 1 0 !important;
-  }
-  .prescribe-steps-inner > div > div:last-child {
-    min-width: 0;
-    font-size: 0.8rem;
-  }
 }
 
 @media (max-width: 640px) {
@@ -2783,10 +2770,6 @@ a {
   .doctor-onboard-steps strong {
     overflow: visible;
     white-space: normal;
-  }
-  /* Prescription steps: number + title only */
-  .prescribe-steps-inner > div > div:last-child > div:nth-child(n + 2) {
-    display: none;
   }
 }
 
@@ -2801,5 +2784,52 @@ a {
   .prescribe-page .btn-primary > span,
   .prescribe-page .btn-secondary > span {
     white-space: normal;
+  }
+}
+
+/* Prescription steps: number badges stay perfectly round when the row shrinks */
+.prescribe-steps-inner > div > div:first-child {
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  aspect-ratio: 1 / 1;
+}
+
+@media (max-width: 640px) {
+  /* The base rule forces a 520px-wide row; on phones the three steps share the card
+     instead: round number on top, short title below, connector lines dropped. */
+  .prescribe-steps-container {
+    padding: 12px !important;
+    overflow-x: visible;
+  }
+  .prescribe-steps-inner {
+    min-width: 0;
+    width: 100%;
+    gap: 6px !important;
+    align-items: flex-start !important;
+  }
+  .prescribe-steps-inner > div:empty {
+    display: none !important;
+  }
+  .prescribe-steps-inner > div:not(:empty) {
+    flex: 1 1 0 !important;
+    min-width: 0;
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center;
+    gap: 6px !important;
+  }
+  .prescribe-steps-inner > div > div:last-child,
+  .prescribe-steps-inner > div > div:last-child * {
+    min-width: 0;
+    white-space: normal !important;
+    overflow-wrap: break-word;
+    font-size: 0.72rem !important;
+    line-height: 1.25;
+  }
+  /* Titles only; hide the secondary description line */
+  .prescribe-steps-inner > div > div:last-child > div:nth-child(n + 2) {
+    display: none;
   }
 }
