@@ -296,7 +296,7 @@ export function DoctorCard({
                 color: 'var(--color-chocolate-muted)',
               }}
             >
-              / session
+              / 30 min
             </span>
           </div>
         </div>

@@ -1,3 +1,4 @@
+import { priceForDuration, resolveConsultationRate, slotMinutes } from '../doctors/consultation-fee';
 import {
   Injectable,
   NotFoundException,
@@ -242,7 +243,10 @@ export class BookingsService {
       this.logger.warn(`Could not load platform settings for booking rate: ${settingsErr?.message}`);
     }
 
-    const price = standardRate;
+    // Price = the doctor's rate per 30 minutes (the admin's platform rate for LocumStaff doctors,
+    // the doctor's own rate otherwise) x the session length, so a 1-hour slot costs double.
+    const { rate } = resolveConsultationRate(doctorProfile, standardRate);
+    const price = priceForDuration(rate, lockedSlot ? slotMinutes(lockedSlot.start_time, lockedSlot.end_time) : 30);
     const commissionAmount = Math.round(price * (commissionPercent / 100) * 100) / 100;
 
     let createdBooking: Booking;

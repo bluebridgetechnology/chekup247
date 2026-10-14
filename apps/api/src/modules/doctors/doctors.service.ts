@@ -32,6 +32,12 @@ import {
   CreateBlackoutDto,
   BatchDeleteSlotsDto,
 } from './dto/availability.dto';
+import {
+  DEFAULT_PLATFORM_CONSULTATION_RATE,
+  PRICING_BLOCK_MINUTES,
+  priceForDuration,
+  resolveConsultationRate,
+} from './consultation-fee';
 import { TokenService } from '../auth/token.service';
 import { isValidTimeZone, zonedWallTimeToUtc } from '../../common/utils/zoned-time';
 import { DirectorySyncService } from './directory-sync.service';
@@ -269,8 +275,10 @@ export class DoctorsService implements OnModuleInit {
       }
     }
 
+    const platformRate = await this.getPlatformConsultationRate();
+
     return {
-      doctors,
+      doctors: doctors.map((d) => this.withConsultationRate(d, platformRate)) as any,
       total,
       page,
       limit,
@@ -373,7 +381,7 @@ export class DoctorsService implements OnModuleInit {
     ];
 
     return {
-      ...doctor,
+      ...this.withConsultationRate(doctor, await this.getPlatformConsultationRate()),
       available_slots: slots.length > 0 ? slots : this.generateDefaultSlots(),
       recent_reviews: mockReviews,
     };
@@ -406,6 +414,27 @@ export class DoctorsService implements OnModuleInit {
       date: tomorrow.toISOString().split('T')[0],
       is_available: true,
     }));
+  }
+
+  /** Platform-wide consultation rate (per 30 minutes) set by the admin. */
+  async getPlatformConsultationRate(): Promise<number> {
+    try {
+      const settings = await this.platformSettingRepository.findOne({ where: {} });
+      const rate = Number(settings?.standard_consultation_rate);
+      if (rate > 0) return rate;
+    } catch (err: any) {
+      this.logger.warn(`Could not fetch platform consultation rate: ${err?.message}`);
+    }
+    return DEFAULT_PLATFORM_CONSULTATION_RATE;
+  }
+
+  /**
+   * Adds the rate patients actually pay (per 30 minutes) to a doctor payload.
+   * Total price for a session = consultation_rate x length / 30 (see priceForDuration).
+   */
+  withConsultationRate<T extends DoctorProfile>(doctor: T, platformRate: number) {
+    const { rate, source } = resolveConsultationRate(doctor, platformRate);
+    return { ...doctor, consultation_rate: rate, rate_block_minutes: PRICING_BLOCK_MINUTES, fee_source: source };
   }
 
   async getDoctorById(id: string): Promise<DoctorProfile | null> {
@@ -1050,6 +1079,11 @@ export class DoctorsService implements OnModuleInit {
       });
     });
 
+    const { rate: consultationRate, source: feeSource } = resolveConsultationRate(
+      doctor,
+      await this.getPlatformConsultationRate(),
+    );
+
     // Group by YYYY-MM-DD
     const groupedByDate: Record<string, any[]> = {};
     const formattedSlots = slots.map((s) => {
@@ -1065,6 +1099,8 @@ export class DoctorsService implements OnModuleInit {
         endTime: s.end_time.toISOString(),
         date: dateStr,
         durationMinutes,
+        // total price for THIS slot: rate per 30 minutes x its length
+        price: priceForDuration(consultationRate, durationMinutes),
         source: s.source,
         isLocked: s.is_locked,
       };
@@ -1080,6 +1116,9 @@ export class DoctorsService implements OnModuleInit {
       doctorName: doctor.user?.full_name || 'Dr. Practitioner',
       slug: doctor.slug,
       ratePerHour: Number(doctor.rate_per_hour),
+      consultationRate,
+      rateBlockMinutes: PRICING_BLOCK_MINUTES,
+      feeSource,
       totalSlots: formattedSlots.length,
       startDate: startDate.toISOString(),
       endDate: endDate.toISOString(),

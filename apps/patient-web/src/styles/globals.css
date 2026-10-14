@@ -6379,3 +6379,12 @@ button.nav-quick-book-btn {
   cursor: pointer;
   text-align: inherit;
 }
+
+.qb-time-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 0.66rem;
+  font-weight: 500;
+  opacity: 0.75;
+  white-space: nowrap;
+}

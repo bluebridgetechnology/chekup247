@@ -1015,7 +1015,7 @@ export default function DoctorProfilePage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <SolarIcon name="lock-keyhole-linear" size={17} color="var(--color-gold-bronze, #B88647)" />
                       <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--color-chocolate-base, #2A170F)' }}>
-                        Standard Platform Consultation Rate: R {ratePerHour || '850'} / session
+                        Platform Consultation Rate: R {profile?.consultationRate ?? (ratePerHour || '850')} per 30 minutes (longer sessions are charged in proportion)
                       </span>
                     </div>
                     <span

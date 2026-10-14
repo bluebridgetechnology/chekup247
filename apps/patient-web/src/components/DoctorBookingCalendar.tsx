@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
+import { priceForDuration } from '../lib/pricing';
 import { formatClockTime, formatZoneAbbr } from '../lib/time';
 
 export interface AvailabilitySlotDto {
@@ -21,6 +22,8 @@ interface DoctorBookingCalendarProps {
     id: string;
     slug: string;
     rate_per_hour: number | string;
+    /** Price per 30 minutes (platform rate for LocumStaff doctors). */
+    consultation_rate?: number | string;
     consultation_duration_minutes?: number;
     offers_video?: boolean;
     offers_audio?: boolean;
@@ -237,9 +240,11 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
     return d.getHours() >= 17;
   });
 
-  const fee = Number(doctor.rate_per_hour || 850).toFixed(2);
+  // price = rate per 30 minutes x the length of the selected slot
+  const ratePer30 = Number(doctor.consultation_rate || doctor.rate_per_hour || 850);
   const doctorName = doctor.user?.full_name || 'Dr. Thabo Molefe';
   const activeDuration = selectedSlot?.durationMinutes || defaultDuration;
+  const fee = priceForDuration(ratePer30, activeDuration).toFixed(2);
 
   return (
     <div className="doctor-booking-card">

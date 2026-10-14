@@ -244,13 +244,16 @@ export class AdminService implements OnModuleInit {
     await this.settingsRepository.save(settings);
 
     if (dto.standard_consultation_rate !== undefined) {
+      // Keep stored rates in step for LocumStaff doctors only. Doctors who run their own
+      // practice set their own rate, which the platform fee must never overwrite.
       await this.doctorRepository
         .createQueryBuilder()
         .update(DoctorProfile)
         .set({ rate_per_hour: settings.standard_consultation_rate })
+        .where('verification_source = :source', { source: VerificationSource.LOCUMSTAFF })
         .execute();
       this.logger.log(
-        `Updated all doctor profiles rate_per_hour to ${settings.standard_consultation_rate}`,
+        `Updated LocumStaff doctor profiles rate_per_hour to ${settings.standard_consultation_rate}`,
       );
     }
 

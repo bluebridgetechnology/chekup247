@@ -537,6 +537,7 @@ describe('AdminService', () => {
     it('should update standard_consultation_rate and sync all doctor profiles', async () => {
       const qbUpdate = {
         set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
         execute: jest.fn().mockResolvedValue({ affected: 5 }),
       };
       doctorRepo.createQueryBuilder = jest.fn().mockReturnValue({
@@ -552,6 +553,8 @@ describe('AdminService', () => {
         expect.objectContaining({ standard_consultation_rate: 950.0 }),
       );
       expect(qbUpdate.set).toHaveBeenCalledWith({ rate_per_hour: 950.0 });
+      // only LocumStaff doctors follow the platform rate; own-practice doctors keep their own
+      expect(qbUpdate.where).toHaveBeenCalledWith('verification_source = :source', { source: 'locumstaff' });
       expect(qbUpdate.execute).toHaveBeenCalled();
       expect(updated.standard_consultation_rate).toBe(950.0);
     });
