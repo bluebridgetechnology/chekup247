@@ -105,14 +105,14 @@ export default function JoinConsultationPage() {
               {state.startsAt ? (
                 <>
                   {' '}
-                  (1 hour before your {formatClockTime(state.startsAt)} start).
+                  (15 minutes before your {formatClockTime(state.startsAt)} start).
                 </>
               ) : (
                 '.'
               )}
             </p>
             <p style={{ color: 'var(--color-cream-text-muted, #6B5E55)', margin: '0 0 18px', fontSize: '0.9rem' }}>
-              Come back to this same button in your email then.
+              Come back to this same button in your email then. The room closes when your booked time is over.
             </p>
             <button
               type="button"

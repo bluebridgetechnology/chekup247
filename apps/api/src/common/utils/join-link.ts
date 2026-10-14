@@ -34,6 +34,21 @@ export function buildJoinUrl(bookingId: string, patientId: string): string {
   return `${envConfig.PATIENT_WEB_URL.replace(/\/+$/, '')}/join/${signJoinLinkToken(bookingId, patientId)}`;
 }
 
-/** Joining opens this long before the start and closes this long after the slot ends. */
-export const JOIN_OPENS_BEFORE_MS = 60 * 60 * 1000;
-export const JOIN_CLOSES_AFTER_MS = 12 * 60 * 60 * 1000;
+/** The patient's room opens this long before the booked start... */
+export const JOIN_OPENS_BEFORE_MINUTES = 15;
+export const JOIN_OPENS_BEFORE_MS = JOIN_OPENS_BEFORE_MINUTES * 60 * 1000;
+
+/**
+ * ...and closes when the booked time (plus any paid in-call extensions) is over: the doctor is no
+ * longer there, so the room is no longer open to the patient.
+ */
+export function patientJoinWindow(
+  slotStart: Date | string,
+  slotEnd: Date | string,
+  paidExtraMinutes = 0,
+): { opensAt: Date; closesAt: Date } {
+  return {
+    opensAt: new Date(new Date(slotStart).getTime() - JOIN_OPENS_BEFORE_MS),
+    closesAt: new Date(new Date(slotEnd).getTime() + paidExtraMinutes * 60 * 1000),
+  };
+}

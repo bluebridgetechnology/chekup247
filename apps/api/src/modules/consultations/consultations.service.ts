@@ -30,6 +30,7 @@ import {
 } from '../../database/patient/entities';
 import { AvailabilitySlot, DoctorProfile, User } from '../../database/operational/entities';
 import { envConfig } from '../../config/env.config';
+import { JOIN_OPENS_BEFORE_MINUTES, patientJoinWindow } from '../../common/utils/join-link';
 import { DailyService } from './daily.service';
 import { ConsultationGateway } from './consultation.gateway';
 import { PaystackService } from '../payments/paystack.service';
@@ -218,6 +219,12 @@ export class ConsultationsService {
     }
 
     const isDoctor = role === 'doctor';
+
+    // The patient's room is open from 15 minutes before the booked start until the booked time
+    // (plus paid extensions) is over, because the doctor is no longer there after that.
+    if (!isDoctor) {
+      await this.assertPatientMayJoinNow(consultation);
+    }
     let isFirst = false;
 
     // First participant to join starts the official consultation timer
@@ -1065,6 +1072,45 @@ export class ConsultationsService {
       remaining_seconds: remainingSeconds,
       already_finalized: false,
     };
+  }
+
+  /** Rejects a patient joining before the room opens or after the booked time is over. */
+  private async assertPatientMayJoinNow(consultation: Consultation): Promise<void> {
+    const booking =
+      consultation.booking ?? (await this.bookingRepository.findOne({ where: { id: consultation.booking_id } }));
+    if (!booking) return;
+    if (booking.status === BookingStatus.CANCELLED) {
+      throw new BadRequestException('This booking was cancelled.');
+    }
+    if (booking.status === BookingStatus.NO_SHOW) {
+      throw new BadRequestException('This consultation has ended.');
+    }
+    const slot = booking.slot_id ? await this.slotRepository.findOne({ where: { id: booking.slot_id } }) : null;
+    if (!slot) return;
+
+    const extras = await this.extensionRepository.find({
+      where: { consultation_id: consultation.id, status: ExtensionStatus.PAID },
+    });
+    const { opensAt, closesAt } = patientJoinWindow(
+      slot.start_time,
+      slot.end_time,
+      extras.reduce((sum, e) => sum + e.duration_minutes, 0),
+    );
+    const now = Date.now();
+    if (now < opensAt.getTime()) {
+      throw new BadRequestException({
+        message: `Your consultation room opens ${JOIN_OPENS_BEFORE_MINUTES} minutes before your start time.`,
+        code: 'TOO_EARLY',
+        opensAt: opensAt.toISOString(),
+        startsAt: new Date(slot.start_time).toISOString(),
+      });
+    }
+    if (now > closesAt.getTime()) {
+      throw new BadRequestException({
+        message: 'The time for this consultation has passed, so the room is closed.',
+        code: 'EXPIRED',
+      });
+    }
   }
 
   /**

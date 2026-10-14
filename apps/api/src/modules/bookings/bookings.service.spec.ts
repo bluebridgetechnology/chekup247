@@ -3,6 +3,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { BookingsService } from './bookings.service';
 import { Booking, BookingStatus, PaymentStatus, Payment } from '../../database/patient/entities';
 import { AvailabilitySlot, DoctorProfile, User, PlatformSetting } from '../../database/operational/entities';
+import { Consultation, ConsultationExtension } from '../../database/patient/entities';
 import { PaymentsService } from '../payments/payments.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { TokenService } from '../auth/token.service';
@@ -38,6 +39,14 @@ describe('BookingsService (Saga & Cross-DB)', () => {
     save: jest.fn((entity) => Promise.resolve({ ...entity, id: 'booking-uuid-123' })),
     find: jest.fn(),
     findOne: jest.fn(),
+  };
+
+  const mockConsultationRepository = {
+    findOne: jest.fn().mockResolvedValue(null),
+  };
+
+  const mockExtensionRepository = {
+    find: jest.fn().mockResolvedValue([]),
   };
 
   const mockPaymentRepository = {
@@ -94,6 +103,8 @@ describe('BookingsService (Saga & Cross-DB)', () => {
         BookingsService,
         { provide: getRepositoryToken(Booking, 'patient'), useValue: mockBookingRepository },
         { provide: getRepositoryToken(Payment, 'patient'), useValue: mockPaymentRepository },
+        { provide: getRepositoryToken(Consultation, 'patient'), useValue: mockConsultationRepository },
+        { provide: getRepositoryToken(ConsultationExtension, 'patient'), useValue: mockExtensionRepository },
         { provide: getRepositoryToken(AvailabilitySlot, 'operational'), useValue: mockSlotRepository },
         { provide: getRepositoryToken(DoctorProfile, 'operational'), useValue: mockDoctorRepository },
         { provide: getRepositoryToken(User, 'operational'), useValue: mockUserRepository },
@@ -588,11 +599,13 @@ describe('BookingsService (Saga & Cross-DB)', () => {
 
     beforeEach(() => {
       mockUserRepository.findOne.mockResolvedValue(user);
+      mockConsultationRepository.findOne.mockResolvedValue(null);
+      mockExtensionRepository.find.mockResolvedValue([]);
     });
 
     it('returns a guest session bound to the booking when the window is open', async () => {
       mockBookingRepository.findOne.mockResolvedValue(mkBooking());
-      mockSlotRepository.findOne.mockResolvedValue(slotAt(20));
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(10));
       const res = await service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'));
       expect(res.bookingId).toBe('b1');
       expect(res.accessToken).toBe('guest-access-token');
@@ -608,19 +621,45 @@ describe('BookingsService (Saga & Cross-DB)', () => {
       await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).resolves.toBeDefined();
     });
 
-    it('is not open more than an hour before the start (tells the patient when)', async () => {
+    it('is not open more than 15 minutes before the start (tells the patient when)', async () => {
       mockBookingRepository.findOne.mockResolvedValue(mkBooking());
-      mockSlotRepository.findOne.mockResolvedValue(slotAt(180));
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(30));
       await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toMatchObject({
         response: expect.objectContaining({ code: 'TOO_EARLY' }),
       });
     });
 
-    it('closes long after the consultation', async () => {
+    it('closes as soon as the booked time is over', async () => {
       mockBookingRepository.findOne.mockResolvedValue(mkBooking());
-      mockSlotRepository.findOne.mockResolvedValue(slotAt(-24 * 60));
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(-31)); // 30 min slot that ended a minute ago
       await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toMatchObject({
         response: expect.objectContaining({ code: 'EXPIRED' }),
+      });
+    });
+
+    it('stays open past the booked time only while a paid extension covers it', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking());
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(-40)); // ended 10 min ago
+      mockConsultationRepository.findOne.mockResolvedValue({ id: 'c1', ended_at: null });
+      mockExtensionRepository.find.mockResolvedValue([{ duration_minutes: 15 }]);
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).resolves.toBeDefined();
+      mockExtensionRepository.find.mockResolvedValue([{ duration_minutes: 5 }]);
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'EXPIRED' }),
+      });
+    });
+
+    it('is closed once the consultation has ended, even inside the booked time', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking());
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(-5));
+      mockConsultationRepository.findOne.mockResolvedValue({ id: 'c1', ended_at: new Date() });
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'ENDED' }),
+      });
+      mockConsultationRepository.findOne.mockResolvedValue(null);
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking({ status: BookingStatus.COMPLETED }));
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'ENDED' }),
       });
     });
 

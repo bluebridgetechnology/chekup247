@@ -20,6 +20,9 @@ import {
   BookingStatus,
   PaymentStatus,
   Payment,
+  Consultation,
+  ConsultationExtension,
+  ExtensionStatus,
 } from '../../database/patient/entities';
 import {
   AvailabilitySlot,
@@ -44,7 +47,7 @@ import {
 import { randomBytes } from 'crypto';
 import { TokenService } from '../auth/token.service';
 import { GUEST_SCOPE } from '../../common/guards/guest-scope';
-import { JOIN_CLOSES_AFTER_MS, JOIN_OPENS_BEFORE_MS, verifyJoinLinkToken } from '../../common/utils/join-link';
+import { JOIN_OPENS_BEFORE_MINUTES, patientJoinWindow, verifyJoinLinkToken } from '../../common/utils/join-link';
 
 export interface CreateBookingDto {
   slotId: string;
@@ -100,6 +103,10 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     private readonly bookingRepository: Repository<Booking>,
     @InjectRepository(Payment, 'patient')
     private readonly paymentRepository: Repository<Payment>,
+    @InjectRepository(Consultation, 'patient')
+    private readonly consultationRepository: Repository<Consultation>,
+    @InjectRepository(ConsultationExtension, 'patient')
+    private readonly extensionRepository: Repository<ConsultationExtension>,
     @InjectRepository(AvailabilitySlot, 'operational')
     private readonly slotRepository: Repository<AvailabilitySlot>,
     @InjectRepository(DoctorProfile, 'operational')
@@ -259,23 +266,38 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     if (booking.status === BookingStatus.PENDING) {
       throw new BadRequestException('This booking has not been paid yet, so there is no consultation to join.');
     }
+    if (booking.status === BookingStatus.COMPLETED || booking.status === BookingStatus.NO_SHOW) {
+      throw new BadRequestException({ message: 'This consultation has ended.', code: 'ENDED' });
+    }
 
     const slot = await this.slotRepository.findOne({ where: { id: booking.slot_id } });
     const now = Date.now();
     if (slot) {
-      const start = new Date(slot.start_time).getTime();
-      const end = new Date(slot.end_time).getTime();
-      if (now < start - JOIN_OPENS_BEFORE_MS) {
+      // The room is open from 15 minutes before the start until the booked time (plus any paid
+      // extensions) is over; a finished consultation is closed whatever the clock says.
+      const consultation = await this.consultationRepository.findOne({ where: { booking_id: booking.id } });
+      if (consultation?.ended_at) {
+        throw new BadRequestException({ message: 'This consultation has ended.', code: 'ENDED' });
+      }
+      const extras = consultation
+        ? await this.extensionRepository.find({ where: { consultation_id: consultation.id, status: ExtensionStatus.PAID } })
+        : [];
+      const { opensAt, closesAt } = patientJoinWindow(
+        slot.start_time,
+        slot.end_time,
+        extras.reduce((sum, e) => sum + e.duration_minutes, 0),
+      );
+      if (now < opensAt.getTime()) {
         throw new BadRequestException({
-          message: 'Your consultation is not open yet. This link works from 1 hour before your start time.',
+          message: `Your consultation room opens ${JOIN_OPENS_BEFORE_MINUTES} minutes before your start time.`,
           code: 'TOO_EARLY',
-          opensAt: new Date(start - JOIN_OPENS_BEFORE_MS).toISOString(),
-          startsAt: new Date(start).toISOString(),
+          opensAt: opensAt.toISOString(),
+          startsAt: new Date(slot.start_time).toISOString(),
         });
       }
-      if (now > end + JOIN_CLOSES_AFTER_MS) {
+      if (now > closesAt.getTime()) {
         throw new BadRequestException({
-          message: 'This consultation window has passed.',
+          message: 'The time for this consultation has passed, so the room is closed.',
           code: 'EXPIRED',
         });
       }

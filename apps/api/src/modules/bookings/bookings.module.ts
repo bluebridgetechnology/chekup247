@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
-import { Booking, Payment } from '../../database/patient/entities';
+import { Booking, Payment, Consultation, ConsultationExtension } from '../../database/patient/entities';
 import { AvailabilitySlot, DoctorProfile, User, PlatformSetting } from '../../database/operational/entities';
 import { BookingsController } from './bookings.controller';
 import { BookingsService } from './bookings.service';
@@ -12,7 +12,7 @@ import { QUEUES } from '../queues/queue.constants';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Booking, Payment], 'patient'),
+    TypeOrmModule.forFeature([Booking, Payment, Consultation, ConsultationExtension], 'patient'),
     TypeOrmModule.forFeature([AvailabilitySlot, DoctorProfile, User, PlatformSetting], 'operational'),
     BullModule.registerQueue({ name: QUEUES.BOOKING_DLQ }),
     PaymentsModule,
