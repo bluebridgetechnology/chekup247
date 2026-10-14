@@ -17,6 +17,10 @@ export class PlatformSetting {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 850.00 })
   standard_consultation_rate: number;
 
+  /** A slot closes for booking this many minutes before it starts (0 = until the start). */
+  @Column({ type: 'int', default: 15 })
+  booking_lead_minutes: number;
+
   /** Sessions shorter than this are billed as if they were this long (0 = no minimum). */
   @Column({ type: 'int', default: 30 })
   minimum_billable_minutes: number;

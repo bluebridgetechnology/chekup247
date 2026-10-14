@@ -1,5 +1,6 @@
 'use client';
 
+import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../lib/bookingWindow';
 import { formatClockTime, formatZoneAbbr } from '../lib/time';
 import React, { useState, useEffect } from 'react';
 import { toastSuccess, toastError, errorMessage } from '../lib/toast';
@@ -66,12 +67,11 @@ export function RescheduleModal({
         if (res.ok) {
           const data = await res.json();
           const openSlots = (data.slots || []).filter(
-            // Keep slots with at least the minimum bookable time remaining
-            // (must match backend SLOT_BOOKING_MIN_REMAINING_MINUTES).
+            // Only times starting at least the booking lead time from now (lib/bookingWindow.ts).
             (s: AvailableSlot) =>
               !s.is_booked &&
               !s.is_locked &&
-              new Date(s.end_time).getTime() - Date.now() >= 15 * 60 * 1000,
+              isSlotBookable(s.start_time, data.bookingLeadMinutes ?? DEFAULT_BOOKING_LEAD_MINUTES),
           );
           setSlots(openSlots);
           if (openSlots.length > 0) {

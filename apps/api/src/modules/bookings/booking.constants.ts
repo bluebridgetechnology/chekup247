@@ -1,31 +1,26 @@
 /**
- * Minimum remaining consultation time required for a slot to stay bookable.
+ * A slot can be booked only while it still starts at least `lead` minutes from now, so the
+ * patient and doctor have time to get ready. The lead is the admin's "Booking lead time"
+ * Platform Setting; this default applies only if settings can't be read.
  *
- * A slot expires when `end_time - now < SLOT_BOOKING_MIN_REMAINING_MS`.
- * E.g. with a 15-minute minimum, a 30-min 18:00–18:30 slot stays bookable
- * until 18:15; at 18:01 it still has 29 minutes left, so it can be booked.
+ * E.g. with a 15-minute lead, the 17:40 slot closes at 17:25.
  *
- * Frontend duplicates this threshold (patient-web cannot import from the API).
- * Keep `SLOT_BOOKING_MIN_REMAINING_MINUTES` in sync in:
- * - apps/patient-web/src/components/DoctorBookingCalendar.tsx
- * - apps/patient-web/src/app/bookings/checkout/page.tsx
- * - apps/patient-web/src/components/RescheduleModal.tsx
+ * Patient-web applies the same rule using the `bookingLeadMinutes` the availability endpoint
+ * returns, so there is no duplicated constant on the frontend.
  */
-export const SLOT_BOOKING_MIN_REMAINING_MINUTES = 15;
+export const DEFAULT_BOOKING_LEAD_MINUTES = 15;
 
-export const SLOT_BOOKING_MIN_REMAINING_MS =
-  SLOT_BOOKING_MIN_REMAINING_MINUTES * 60 * 1000;
-
-export function slotRemainingMs(
-  endTime: Date | string | number,
-  now: number = Date.now(),
-): number {
-  return new Date(endTime).getTime() - now;
+/** Normalises the admin's lead-time setting (0 = bookable right up to the start). */
+export function resolveBookingLeadMinutes(value: unknown): number {
+  if (value === null || value === undefined || value === '') return DEFAULT_BOOKING_LEAD_MINUTES;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : DEFAULT_BOOKING_LEAD_MINUTES;
 }
 
 export function isSlotBookable(
-  endTime: Date | string | number,
+  startTime: Date | string | number,
+  leadMinutes: number = DEFAULT_BOOKING_LEAD_MINUTES,
   now: number = Date.now(),
 ): boolean {
-  return slotRemainingMs(endTime, now) >= SLOT_BOOKING_MIN_REMAINING_MS;
+  return new Date(startTime).getTime() - now >= leadMinutes * 60 * 1000;
 }

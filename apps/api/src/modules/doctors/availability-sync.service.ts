@@ -245,9 +245,9 @@ export class AvailabilitySyncService {
         break;
       }
 
-      // Skip slots with too little bookable time remaining (already started
-      // with less than the minimum remaining, or fully in the past)
-      if (!isSlotBookable(currentSlotEnd)) {
+      // Skip slots that have already started. The admin's booking lead time is applied
+      // when slots are listed and booked, so changing it never needs a regeneration.
+      if (!isSlotBookable(currentSlotStart, 0)) {
         currentSlotStart = new Date(currentSlotEnd.getTime() + bufferMs);
         continue;
       }

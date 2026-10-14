@@ -33,6 +33,7 @@ import { toastSuccess, toastError } from '../../../lib/toast';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
 import { SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../../../lib/featureFlags';
+import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../../../lib/bookingWindow';
 import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../../../lib/pricing';
 
 interface DoctorDetail {
@@ -343,14 +344,9 @@ function CheckoutContent() {
   const totalPayable = Math.max(0, consultationPrice - creditsApplied);
   const isFullyCovered = totalPayable === 0;
 
-  // A slot stays bookable while at least the minimum consultation time remains
-  // (must match backend SLOT_BOOKING_MIN_REMAINING_MINUTES).
-  const isPastSlot = Boolean(
-    slot &&
-      (slot.endTime
-        ? new Date(slot.endTime).getTime() - Date.now() < 15 * 60 * 1000
-        : slot.startTime && new Date(slot.startTime).getTime() <= Date.now())
-  );
+  // A time closes for booking `lead` minutes before it starts (lib/bookingWindow.ts; the API
+  // enforces the admin's setting when the booking is made).
+  const isPastSlot = Boolean(slot && slot.startTime && !isSlotBookable(slot.startTime, DEFAULT_BOOKING_LEAD_MINUTES));
 
   // Format date and time (en-ZA locale)
   const formattedDate = useMemo(() => {
