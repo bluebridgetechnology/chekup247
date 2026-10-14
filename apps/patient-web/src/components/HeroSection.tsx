@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DIRECT_BOOKING_CTAS } from '../lib/featureFlags';
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -136,16 +137,18 @@ export function HeroSection() {
           </p>
 
           {/* CTA Row: Book a Consultation */}
-          <div className="hero-cta-row" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '24px' }}>
-            {/* Primary CTA: Book a Consultation */}
-            <Link
-              href="/doctors"
-              className="hero-btn-primary"
-            >
-              <span>Book a Consultation</span>
-              <SolarIcon name="calendar-date-bold-duotone" size={20} />
-            </Link>
-          </div>
+          {SHOW_DIRECT_BOOKING_CTAS && (
+            <div className="hero-cta-row" style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', marginBottom: '24px' }}>
+              {/* Primary CTA: Book a Consultation */}
+              <Link
+                href="/doctors"
+                className="hero-btn-primary"
+              >
+                <span>Book a Consultation</span>
+                <SolarIcon name="calendar-date-bold-duotone" size={20} />
+              </Link>
+            </div>
+          )}
 
           {/* Feature Mini-Nav Indicators */}
           <div

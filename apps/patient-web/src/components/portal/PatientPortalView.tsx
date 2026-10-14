@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DIRECT_BOOKING_CTAS } from '../../lib/featureFlags';
 import React, { useState, useEffect, useMemo } from 'react';
 import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import Link from 'next/link';
@@ -353,25 +354,27 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
             <p style={{ fontSize: '0.84rem', color: '#6B5E55', maxWidth: '400px', margin: '0 auto 16px auto' }}>
               Healthcare practitioners you consult with on Chekup247 will automatically appear here for convenient follow-ups.
             </p>
-            <Link
-              href="/appointments?view=find-doctor"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                backgroundColor: '#EDD5B3',
-                color: '#2A170F',
-                fontSize: '0.84rem',
-                fontWeight: 600,
-                padding: '8px 18px',
-                borderRadius: '20px',
-                textDecoration: 'none',
-                minHeight: '40px',
-              }}
-            >
-              <span>Find a Doctor</span>
-              <SolarIcon name="arrow-right-linear" size={13} color="#2A170F" />
-            </Link>
+            {SHOW_DIRECT_BOOKING_CTAS && (
+              <Link
+                href="/appointments?view=find-doctor"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  backgroundColor: '#EDD5B3',
+                  color: '#2A170F',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  padding: '8px 18px',
+                  borderRadius: '20px',
+                  textDecoration: 'none',
+                  minHeight: '40px',
+                }}
+              >
+                <span>Find a Doctor</span>
+                <SolarIcon name="arrow-right-linear" size={13} color="#2A170F" />
+              </Link>
+            )}
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
@@ -1767,30 +1770,32 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
           </div>
 
           {/* Primary CTA: Book a Consultation */}
-          <Link
-            href="/appointments?view=find-doctor"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '8px',
-              backgroundColor: '#EDD5B3',
-              color: '#2A170F',
-              fontSize: '0.86rem',
-              fontWeight: 600,
-              padding: '9px 18px',
-              borderRadius: '24px',
-              textDecoration: 'none',
-              minHeight: '44px',
-              boxShadow: '0 2px 8px rgba(223, 171, 98, 0.22)',
-              transition: 'all 0.18s ease',
-              whiteSpace: 'nowrap',
-            }}
-            className="portal-primary-cta"
-          >
-            <SolarIcon name="calendar-linear" size={16} color="#2A170F" />
-            <span>Book a Consultation</span>
-            <SolarIcon name="arrow-right-linear" size={14} color="#2A170F" />
-          </Link>
+          {SHOW_DIRECT_BOOKING_CTAS && (
+            <Link
+              href="/appointments?view=find-doctor"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                backgroundColor: '#EDD5B3',
+                color: '#2A170F',
+                fontSize: '0.86rem',
+                fontWeight: 600,
+                padding: '9px 18px',
+                borderRadius: '24px',
+                textDecoration: 'none',
+                minHeight: '44px',
+                boxShadow: '0 2px 8px rgba(223, 171, 98, 0.22)',
+                transition: 'all 0.18s ease',
+                whiteSpace: 'nowrap',
+              }}
+              className="portal-primary-cta"
+            >
+              <SolarIcon name="calendar-linear" size={16} color="#2A170F" />
+              <span>Book a Consultation</span>
+              <SolarIcon name="arrow-right-linear" size={14} color="#2A170F" />
+            </Link>
+          )}
         </div>
 
         {/* ==================================================================
