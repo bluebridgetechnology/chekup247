@@ -230,6 +230,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
         padding: '0 28px',
         position: 'sticky',
         top: 0,
+        flex: '0 0 auto',
         zIndex: 30,
         boxShadow: '0 1px 0 rgba(42, 23, 15, 0.02)',
       }}
