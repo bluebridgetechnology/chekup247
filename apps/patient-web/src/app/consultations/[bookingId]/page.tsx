@@ -489,9 +489,24 @@ export default function PatientConsultationPage() {
   // --------------------------------------------------------------------------
   const applyBackgroundEffect = useCallback(
     async (effect: BackgroundEffectType, presetId?: string, customImg?: string, customBuffer?: ArrayBuffer) => {
-      setActiveEffect(effect);
       const chosenPreset = presetId || selectedBgPreset;
-      if (presetId) setSelectedBgPreset(presetId);
+      const flashNotice = (msg: string) => {
+        setBackgroundNotice(msg);
+        setTimeout(() => setBackgroundNotice(null), 5000);
+      };
+
+      if (effect !== 'none') {
+        let supported = true;
+        try {
+          supported = DailyIframe.supportedBrowser().supportsVideoProcessing !== false;
+        } catch {
+          supported = true;
+        }
+        if (!supported) {
+          flashNotice('Background effects are not supported on this browser or device. Try Chrome or Edge on a laptop or desktop.');
+          return;
+        }
+      }
 
       if (callObject) {
         try {
@@ -529,20 +544,17 @@ export default function PatientConsultationPage() {
               video: { processor: { type: 'none' } },
             });
           }
+          // Only reflect the effect in the UI once Daily has actually applied it
+          setActiveEffect(effect);
+          if (presetId) setSelectedBgPreset(presetId);
           // Force track synchronization after input settings update
           syncDailyTracks(callObject);
         } catch (err: any) {
           console.warn('Daily background processor exception:', err);
-          const isMobile = typeof navigator !== 'undefined' && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-          if (isMobile) {
-            setBackgroundNotice(
-              'Hardware video processor requires desktop WebAssembly. Local blur filter applied.',
-            );
-          } else {
-            setBackgroundNotice('Background effect could not be activated on this camera.');
-          }
-          setTimeout(() => setBackgroundNotice(null), 5000);
+          flashNotice('Background effect could not be activated on this camera. Check that your camera is on and try again.');
         }
+      } else {
+        flashNotice('Join the call first, then choose a background.');
       }
     },
     [callObject, selectedBgPreset, syncDailyTracks],
@@ -1671,7 +1683,6 @@ export default function PatientConsultationPage() {
   }
 
   const currentBgPreset = VIRTUAL_BACKGROUND_PRESETS.find((p) => p.id === selectedBgPreset);
-  const activeBgSource = customBgImage || currentBgPreset?.previewUrl;
 
   // Timer display color based on warning state
   const timerColor = timerWarning === 'critical_1min' ? '#EF4444' : timerWarning === 'warning_5min' ? '#F59E0B' : '#FAF6EE';
@@ -2210,9 +2221,6 @@ export default function PatientConsultationPage() {
                 }
           }
         >
-          {activeEffect === 'virtual-image' && activeBgSource && !isVideoMuted && (
-            <img src={activeBgSource} alt="Virtual BG" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'cover', zIndex: 1 }} />
-          )}
           <video
             ref={localVideoRef}
             autoPlay
@@ -2226,9 +2234,6 @@ export default function PatientConsultationPage() {
               transform: 'scaleX(-1)',
               display: !isVideoMuted && hasLocalVideo ? 'block' : 'none',
               zIndex: 2,
-              filter: activeEffect === 'blur-light' ? 'blur(6px)' : activeEffect === 'blur-heavy' ? 'blur(16px)' : 'none',
-              transition: 'filter 0.3s ease',
-              opacity: activeEffect === 'virtual-image' ? 0.92 : 1,
             }}
           />
 
