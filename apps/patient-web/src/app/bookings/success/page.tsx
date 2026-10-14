@@ -5,14 +5,11 @@ import React, { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import {
-  CheckCircle2,
   Calendar,
   Clock,
   Video,
-  Download,
   ArrowRight,
   ShieldCheck,
-  FileText,
   Sparkles,
   Wifi,
   Volume2,
@@ -21,14 +18,15 @@ import {
   UploadCloud,
   X,
   Check,
-  Lock,
   Mail,
-  MessageSquare,
+  FileText,
   CreditCard,
-  User,
+  Bell,
+  CalendarDays,
 } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { ChekupCrossLogo } from '../../../components/common/ChekupCrossLogo';
+import '../../../styles/booking-success.css';
 
 interface AttachedDoc {
   name: string;
@@ -61,78 +59,6 @@ interface BookingSuccessData {
 }
 
 /**
- * Botanical olive branch decorative flourish for editorial healthcare aesthetic
- */
-function BotanicalBranch({
-  side = 'left',
-  style,
-}: {
-  side?: 'left' | 'right';
-  style?: React.CSSProperties;
-}) {
-  const isRight = side === 'right';
-  return (
-    <svg
-      width="130"
-      height="170"
-      viewBox="0 0 130 170"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{
-        pointerEvents: 'none',
-        opacity: 0.38,
-        transform: isRight ? 'scaleX(-1)' : 'none',
-        ...style,
-      }}
-      aria-hidden="true"
-    >
-      <path
-        d="M20 160 C 35 125, 45 75, 115 15"
-        stroke="#7A8772"
-        strokeWidth="1.8"
-        strokeLinecap="round"
-      />
-      {/* Leaf 1 */}
-      <path
-        d="M38 132 C 24 130, 16 118, 22 108 C 29 116, 36 124, 38 132 Z"
-        fill="#8B9882"
-        opacity="0.9"
-      />
-      {/* Leaf 2 */}
-      <path
-        d="M48 112 C 60 102, 68 106, 68 118 C 58 122, 50 118, 48 112 Z"
-        fill="#7A8772"
-        opacity="0.85"
-      />
-      {/* Leaf 3 */}
-      <path
-        d="M58 88 C 42 80, 40 68, 50 62 C 58 72, 60 80, 58 88 Z"
-        fill="#8B9882"
-        opacity="0.9"
-      />
-      {/* Leaf 4 */}
-      <path
-        d="M74 66 C 88 56, 96 60, 94 74 C 84 76, 76 72, 74 66 Z"
-        fill="#7A8772"
-        opacity="0.85"
-      />
-      {/* Leaf 5 */}
-      <path
-        d="M88 44 C 76 34, 78 22, 88 18 C 94 28, 92 38, 88 44 Z"
-        fill="#8B9882"
-        opacity="0.9"
-      />
-      {/* Tip Leaf */}
-      <path
-        d="M115 15 C 114 6, 106 2, 98 6 C 104 14, 110 16, 115 15 Z"
-        fill="#6D7A65"
-        opacity="0.95"
-      />
-    </svg>
-  );
-}
-
-/**
  * Original Chekup247 Platform Brand Logo
  */
 function PlatformLogo() {
@@ -157,6 +83,31 @@ function PlatformLogo() {
   );
 }
 
+
+/** Doctor photo with an initials fallback (never another doctor's stock photo). */
+function DoctorPhoto({ src, name }: { src?: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  const initials =
+    name
+      .replace(/^(dr|prof)\.?\s+/i, '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join('') || 'DR';
+  if (!src || failed) {
+    return (
+      <span className="bs-initials" role="img" aria-label={name}>
+        {initials}
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt={name} referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+  );
+}
 
 function SuccessContent() {
   const searchParams = useSearchParams();
@@ -417,40 +368,39 @@ function SuccessContent() {
     document.body.removeChild(link);
   };
 
-  const formattedDate = booking?.slot?.startTime
-    ? new Date(booking.slot.startTime).toLocaleDateString('en-ZA', {
+  const slotStart = booking?.slot?.startTime;
+  const formattedDate = slotStart
+    ? new Date(slotStart).toLocaleDateString('en-ZA', {
         weekday: 'long',
         day: 'numeric',
         month: 'long',
         year: 'numeric',
       })
-    : 'Friday, 25 September 2026';
+    : 'To be confirmed';
 
-  const formattedTime = booking?.slot?.startTime
-    ? `${formatClockTime(booking.slot.startTime)} – ${formatClockTime(booking.slot.endTime)} ${formatZoneAbbr(booking.slot.startTime)}`.trim()
-    : 'Time to be confirmed';
+  const formattedTime =
+    slotStart && booking?.slot?.endTime
+      ? `${formatClockTime(slotStart)} – ${formatClockTime(booking.slot.endTime)} ${formatZoneAbbr(slotStart)}`.trim()
+      : '';
 
   // Support both API state and standard confirmed status
   const isPaymentConfirmed =
-    (booking?.status === 'confirmed' && booking.payment_status === 'held') ||
     booking?.status === 'confirmed' ||
     booking?.payment_status === 'held' ||
     !referenceParam; // Default to confirmed on success page
 
-  const doctorPhoto =
-    booking?.doctor?.avatarUrl ||
-    '/images/doctor_thabo.webp';
+  const doctorName = booking?.doctor?.fullName || 'Your doctor';
+  const hpcsa =
+    booking?.doctor?.hpcsaNumber && booking.doctor.hpcsaNumber !== 'PENDING' ? booking.doctor.hpcsaNumber : null;
 
   const formattedBookingId = booking?.id
     ? booking.id.length > 14
       ? `${booking.id.substring(0, 7)}...${booking.id.substring(booking.id.length - 5)}`
       : booking.id
-    : 'e671bda...a819e';
+    : '';
 
-  const formattedPrice =
-    booking?.price !== undefined
-      ? `Paid R${Number(booking.price).toFixed(2)} (ZAR)`
-      : 'Paid R600.00 (ZAR)';
+  const paidLine =
+    booking?.price !== undefined && isPaymentConfirmed ? `Paid R${Number(booking.price).toFixed(2)}` : null;
 
   if (isLoading) {
     return (
@@ -527,911 +477,163 @@ function SuccessContent() {
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'var(--color-cream-base, #FAF6EE)',
-        position: 'relative',
-        overflowX: 'hidden',
-        padding: '24px 16px 80px',
-      }}
-    >
-      {/* Ambient background soft curved glow */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '-120px',
-          right: '-140px',
-          width: '560px',
-          height: '560px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(223, 171, 98, 0.12) 0%, rgba(250, 246, 238, 0) 70%)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-        aria-hidden="true"
-      />
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '80px',
-          left: '-160px',
-          width: '520px',
-          height: '520px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(223, 171, 98, 0.1) 0%, rgba(250, 246, 238, 0) 70%)',
-          pointerEvents: 'none',
-          zIndex: 0,
-        }}
-        aria-hidden="true"
-      />
+    <div className="bs-page">
+      <div className="bs-glow" aria-hidden="true" />
 
-      {/* Decorative Botanical Flourishes in bottom corners */}
-      <BotanicalBranch
-        side="left"
-        style={{
-          position: 'fixed',
-          bottom: '0',
-          left: '0',
-          zIndex: 0,
-        }}
-      />
-      <BotanicalBranch
-        side="right"
-        style={{
-          position: 'fixed',
-          bottom: '0',
-          right: '0',
-          zIndex: 0,
-        }}
-      />
-
-      {/* Main Content Container */}
-      <div
-        style={{
-          maxWidth: '1020px',
-          margin: '0 auto',
-          position: 'relative',
-          zIndex: 1,
-        }}
-      >
-        {/* Top Header / Subtle Brand Bar */}
-        <header
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '8px 0 28px',
-          }}
-        >
-          <Link
-            href="/"
-            style={{
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-            }}
-            aria-label="Chekup247 Home"
-          >
+      <div className="bs-wrap">
+        <header className="bs-header">
+          <Link href="/" style={{ textDecoration: 'none', display: 'inline-flex' }} aria-label="Chekup247 Home">
             <PlatformLogo />
           </Link>
-          <div
-            style={{
-              fontSize: '0.85rem',
-              color: 'var(--color-cream-text-muted, #6B5E55)',
-              fontWeight: 500,
-            }}
-          >
-            Better care. From anywhere.
-          </div>
+          <span className="bs-tagline">Better care. From anywhere.</span>
         </header>
 
-        {/* 1. Page Header / Confirmation Hero */}
-        <section
-          style={{
-            marginBottom: '32px',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'flex-start',
-              gap: '24px',
-              flexWrap: 'nowrap',
-            }}
-          >
-            {/* Prominent Circular Success Indicator */}
-            <div
-              style={{
-                width: '74px',
-                height: '74px',
-                borderRadius: '50%',
-                background: 'rgba(16, 185, 129, 0.14)',
-                border: '2px solid rgba(16, 185, 129, 0.3)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                marginTop: '4px',
-              }}
-            >
-              <div
-                style={{
-                  width: '52px',
-                  height: '52px',
-                  borderRadius: '50%',
-                  background: isPaymentConfirmed
-                    ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                    : 'linear-gradient(135deg, #d89b3c 0%, #b87518 100%)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#ffffff',
-                  boxShadow: '0 4px 14px rgba(16, 185, 129, 0.32)',
-                }}
-              >
-                {isPaymentConfirmed ? (
-                  <Check size={28} strokeWidth={3} />
-                ) : (
-                  <Clock size={26} strokeWidth={2.5} />
-                )}
-              </div>
-            </div>
-
-            {/* Typography Block */}
-            <div style={{ flex: 1 }}>
-              {/* Payment Confirmed Pill Badge */}
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: isPaymentConfirmed ? '#E6F4EA' : 'rgba(216, 155, 60, 0.12)',
-                  color: isPaymentConfirmed ? '#059669' : '#b45309',
-                  padding: '4px 12px',
-                  borderRadius: '9999px',
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                  border: isPaymentConfirmed
-                    ? '1px solid rgba(16, 185, 129, 0.25)'
-                    : '1px solid rgba(216, 155, 60, 0.28)',
-                  marginBottom: '10px',
-                }}
-              >
-                {isPaymentConfirmed ? (
-                  <span>PAYMENT CONFIRMED • APPOINTMENT SECURED</span>
-                ) : (
-                  <span>PAYMENT REQUIRED • SLOT HELD TEMPORARILY</span>
-                )}
-              </div>
-
-              {/* Main Heading */}
-              <h1
-                style={{
-                  fontSize: 'clamp(2.1rem, 4vw, 2.75rem)',
-                  fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                  fontWeight: 800,
-                  color: 'var(--color-chocolate-base, #2A170F)',
-                  letterSpacing: '-0.03em',
-                  margin: '0 0 10px 0',
-                  lineHeight: 1.15,
-                }}
-              >
-                {isPaymentConfirmed ? "You're All Booked!" : 'Finish payment to confirm'}
-              </h1>
-
-              {/* Supporting Copy */}
-              <p
-                style={{
-                  fontSize: '0.98rem',
-                  color: 'var(--color-cream-text-muted, #6B5E55)',
-                  margin: 0,
-                  lineHeight: 1.5,
-                  maxWidth: '560px',
-                }}
-              >
-                {isPaymentConfirmed
-                  ? 'Your telehealth appointment is confirmed. Your receipt and reminders will be sent after payment.'
-                  : 'Your appointment slot is reserved temporarily. Complete payment through Paystack to confirm the consultation.'}
-              </p>
-            </div>
+        {/* Hero */}
+        <section className="bs-hero" aria-live="polite">
+          <div className={`bs-hero-icon${isPaymentConfirmed ? '' : ' is-pending'}`}>
+            {isPaymentConfirmed ? <Check size={26} strokeWidth={3} /> : <Clock size={24} strokeWidth={2.5} />}
           </div>
-        </section>
-
-        {/* 2. Two-Column Top Editorial Section: Appointment Details + "You're good to go" Status */}
-        <section
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(0, 1fr) 290px',
-            gap: '24px',
-            alignItems: 'stretch',
-          }}
-          className="confirmation-grid-top"
-        >
-          {/* LEFT: Appointment Information & Actions Card */}
-          <div
-            style={{
-              background: '#FFFFFF',
-              borderRadius: '22px',
-              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-              padding: '28px 28px',
-              boxShadow: '0 4px 20px rgba(42, 23, 15, 0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '24px',
-            }}
-          >
-            {/* Top: Practitioner Row */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '16px',
-              }}
-            >
-              <div
-                style={{
-                  width: '64px',
-                  height: '64px',
-                  borderRadius: '16px',
-                  overflow: 'hidden',
-                  flexShrink: 0,
-                  backgroundColor: 'var(--color-cream-base, #FAF6EE)',
-                  border: '1px solid rgba(223, 171, 98, 0.25)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <img
-                  src={doctorPhoto}
-                  alt={booking?.doctor?.fullName || 'Practitioner'}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                  }}
-                  onError={(e) => {
-                    // Fallback to placeholder avatar if image fails to load
-                    (e.target as HTMLImageElement).src =
-                      'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&q=80&w=256';
-                  }}
-                />
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    fontSize: '0.72rem',
-                    color: 'var(--color-gold-bronze, #B88647)',
-                    textTransform: 'uppercase',
-                    fontWeight: 800,
-                    letterSpacing: '0.06em',
-                  }}
-                >
-                  Practitioner
-                </div>
-                <div
-                  style={{
-                    fontWeight: 800,
-                    fontSize: '1.25rem',
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                    marginTop: '2px',
-                    lineHeight: 1.25,
-                  }}
-                >
-                  {booking?.doctor?.fullName || 'John Mthembu'}
-                </div>
-                <div
-                  style={{
-                    fontSize: '0.88rem',
-                    color: 'var(--color-cream-text-muted, #6B5E55)',
-                    fontWeight: 500,
-                    marginTop: '2px',
-                  }}
-                >
-                  {booking?.doctor?.specialty || 'General Practitioner'}
-                </div>
-              </div>
-            </div>
-
-            {/* Middle: 3 Appointment Information Tiles */}
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                gap: '16px',
-                padding: '16px 0',
-                borderTop: '1px solid rgba(42, 23, 15, 0.06)',
-                borderBottom: '1px solid rgba(42, 23, 15, 0.06)',
-              }}
-            >
-              {/* Tile 1: Date & Time */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '10px',
-                    background: 'var(--color-gold-pale, #F0E5D3)',
-                    color: '#8E5A1C',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginTop: '2px',
-                  }}
-                >
-                  <Calendar size={17} />
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontSize: '0.7rem',
-                      color: 'var(--color-gold-bronze, #B88647)',
-                      textTransform: 'uppercase',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Date & Time
-                  </div>
-                  <div
-                    style={{
-                      fontWeight: 800,
-                      fontSize: '0.92rem',
-                      color: 'var(--color-chocolate-base, #2A170F)',
-                      marginTop: '3px',
-                      lineHeight: 1.3,
-                    }}
-                  >
-                    {formattedDate}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      color: 'var(--color-cream-text-muted, #6B5E55)',
-                      marginTop: '2px',
-                    }}
-                  >
-                    {formattedTime}
-                  </div>
-                </div>
-              </div>
-
-              {/* Tile 2: Booking ID & Payment Status */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '10px',
-                    background: 'var(--color-gold-pale, #F0E5D3)',
-                    color: '#8E5A1C',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginTop: '2px',
-                  }}
-                >
-                  <CreditCard size={17} />
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontSize: '0.7rem',
-                      color: 'var(--color-gold-bronze, #B88647)',
-                      textTransform: 'uppercase',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Booking ID
-                  </div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: '0.92rem',
-                      color: 'var(--color-chocolate-base, #2A170F)',
-                      fontFamily: 'monospace',
-                      marginTop: '3px',
-                    }}
-                  >
-                    {formattedBookingId}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.82rem',
-                      color: isPaymentConfirmed ? '#16a34a' : '#b45309',
-                      fontWeight: 700,
-                      marginTop: '2px',
-                    }}
-                  >
-                    {isPaymentConfirmed ? formattedPrice : 'Payment pending'}
-                  </div>
-                </div>
-              </div>
-
-              {/* Tile 3: Status Badge */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '10px',
-                    background: 'var(--color-gold-pale, #F0E5D3)',
-                    color: '#8E5A1C',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                    marginTop: '2px',
-                  }}
-                >
-                  <User size={17} />
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontSize: '0.7rem',
-                      color: 'var(--color-gold-bronze, #B88647)',
-                      textTransform: 'uppercase',
-                      fontWeight: 800,
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Status
-                  </div>
-                  <div style={{ marginTop: '5px' }}>
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        background: isPaymentConfirmed ? '#ECFDF5' : 'rgba(216, 155, 60, 0.12)',
-                        color: isPaymentConfirmed ? '#059669' : '#b45309',
-                        border: isPaymentConfirmed ? '1px solid #A7F3D0' : '1px solid rgba(216, 155, 60, 0.28)',
-                        padding: '3px 10px',
-                        borderRadius: '9999px',
-                        fontSize: '0.78rem',
-                        fontWeight: 700,
-                      }}
-                    >
-                      <CheckCircle2 size={13} />
-                      <span>{isPaymentConfirmed ? 'Confirmed' : 'Pending'}</span>
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Join link notice: no code or password; the email has a Join button */}
-            <div
-              style={{
-                background: '#ECFDF5',
-                borderRadius: '14px',
-                border: '1px solid rgba(16, 185, 129, 0.25)',
-                padding: '14px 18px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '14px',
-              }}
-            >
-              <div
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  borderRadius: '50%',
-                  background: '#10b981',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <ShieldCheck size={20} />
-              </div>
-              <div>
-                <div
-                  style={{
-                    fontWeight: 800,
-                    color: '#065f46',
-                    fontSize: '0.88rem',
-                    fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                  }}
-                >
-                  Your join button is in your email
-                </div>
-                <div style={{ color: '#047857', fontSize: '0.8rem', marginTop: '2px', lineHeight: 1.35 }}>
-                  No code or password needed. When it&apos;s time, tap <strong>Join Your Consultation</strong> in the
-                  confirmation email. Can&apos;t see it? Check your junk or spam folder.
-                </div>
-              </div>
-            </div>
-
-            {/* Bottom Actions Row */}
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '12px',
-                alignItems: 'center',
-              }}
-            >
-              {/* Secondary Action: Add to Calendar */}
-              <button
-                type="button"
-                onClick={handleDownloadICS}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  padding: '12px 20px',
-                  borderRadius: '12px',
-                  background: '#ffffff',
-                  border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
-                  color: 'var(--color-chocolate-base, #2A170F)',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 2px 6px rgba(42, 23, 15, 0.04)',
-                  transition: 'all 0.18s ease',
-                }}
-              >
-                <Calendar size={17} style={{ color: 'var(--color-gold-bronze, #B88647)' }} />
-                <span>Add to Calendar (.ics)</span>
-              </button>
-
-              {/* Primary Action: Enter Waiting Room */}
-                <Link
-                  href={`/consultations/${booking?.id || bookingIdParam}`}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '12px 24px',
-                    borderRadius: '12px',
-                    background: 'var(--color-chocolate-base, #2A170F)',
-                    color: '#FAF6EE',
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                    fontSize: '0.92rem',
-                    textDecoration: 'none',
-                    flex: '1 1 auto',
-                    boxShadow: '0 4px 14px rgba(42, 23, 15, 0.2)',
-                    transition: 'all 0.18s ease',
-                  }}
-                >
-                  <Video size={17} />
-                  <span>Enter Consultation Waiting Room</span>
-                  <ArrowRight size={16} />
-                </Link>
-            </div>
-          </div>
-
-          {/* RIGHT: Compact "You're good to go!" Status Panel */}
-          <div
-            style={{
-              background: '#FFFFFF',
-              borderRadius: '22px',
-              border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-              padding: '28px 22px',
-              boxShadow: '0 4px 20px rgba(42, 23, 15, 0.03)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center',
-              position: 'relative',
-              justifyContent: 'space-between',
-            }}
-          >
-            <div>
-              {/* Radiating Video Icon */}
-              <div
-                style={{
-                  width: '54px',
-                  height: '54px',
-                  margin: '0 auto 12px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  position: 'relative',
-                }}
-              >
-                <svg
-                  width="54"
-                  height="54"
-                  viewBox="0 0 54 54"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                  aria-hidden="true"
-                >
-                  {/* Subtle radiating dashed rays */}
-                  <line x1="27" y1="2" x2="27" y2="7" stroke="#DFAB62" strokeWidth="1.8" strokeLinecap="round" />
-                  <line x1="43" y1="8" x2="39" y2="12" stroke="#DFAB62" strokeWidth="1.8" strokeLinecap="round" />
-                  <line x1="50" y1="22" x2="45" y2="23" stroke="#DFAB62" strokeWidth="1.8" strokeLinecap="round" />
-                  <line x1="11" y1="8" x2="15" y2="12" stroke="#DFAB62" strokeWidth="1.8" strokeLinecap="round" />
-                  <line x1="4" y1="22" x2="9" y2="23" stroke="#DFAB62" strokeWidth="1.8" strokeLinecap="round" />
-                  {/* Video camera body */}
-                  <rect
-                    x="13"
-                    y="18"
-                    width="20"
-                    height="16"
-                    rx="4"
-                    stroke="#B88647"
-                    strokeWidth="1.8"
-                    fill="rgba(223, 171, 98, 0.12)"
-                  />
-                  {/* Video camera lens triangle */}
-                  <path
-                    d="M33 23.5L40 19.5V32.5L33 28.5V23.5Z"
-                    stroke="#B88647"
-                    strokeWidth="1.8"
-                    strokeLinejoin="round"
-                    fill="rgba(223, 171, 98, 0.12)"
-                  />
-                </svg>
-              </div>
-
-              {/* Status Header */}
-              <h2
-                style={{
-                  fontSize: '1.35rem',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                  color: 'var(--color-chocolate-base, #2A170F)',
-                  margin: '0 0 6px 0',
-                }}
-              >
-                You’re good
-                <br />
-                to go!
-              </h2>
-
-              <p
-                style={{
-                  fontSize: '0.82rem',
-                  color: 'var(--color-cream-text-muted, #6B5E55)',
-                  margin: '0 0 24px 0',
-                  lineHeight: 1.4,
-                }}
-              >
-                Your consultation details and join button have been sent to your email.
-              </p>
-
-              {/* Status Checklist items */}
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '14px',
-                  width: '100%',
-                  textAlign: 'left',
-                }}
-              >
-                {/* 1. Confirmation Email */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      background: 'var(--color-cream-base, #FAF6EE)',
-                      border: '1px solid rgba(223, 171, 98, 0.25)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#8E5A1C',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Mail size={16} />
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        color: 'var(--color-chocolate-base, #2A170F)',
-                      }}
-                    >
-                      Confirmation Email
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '0.72rem',
-                        color: 'var(--color-cream-text-muted, #6B5E55)',
-                      }}
-                    >
-                      Sent
-                    </div>
-                  </div>
-                </div>
-
-                {/* 3. Calendar Invite */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      background: 'var(--color-cream-base, #FAF6EE)',
-                      border: '1px solid rgba(223, 171, 98, 0.25)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#8E5A1C',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <Calendar size={16} />
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        color: 'var(--color-chocolate-base, #2A170F)',
-                      }}
-                    >
-                      Calendar Invite
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '0.72rem',
-                        color: 'var(--color-cream-text-muted, #6B5E55)',
-                      }}
-                    >
-                      Sent
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Handwritten "Take care" flourish */}
-            <div
-              style={{
-                alignSelf: 'flex-end',
-                marginTop: '28px',
-                textAlign: 'right',
-                position: 'relative',
-              }}
-            >
-              <span
-                style={{
-                  fontFamily: '"Caveat", cursive',
-                  fontSize: '1.65rem',
-                  fontWeight: 700,
-                  color: 'var(--color-gold-bronze, #B88647)',
-                  transform: 'rotate(-4deg)',
-                  display: 'inline-block',
-                }}
-              >
-                Take care
-              </span>
-              <svg
-                width="64"
-                height="12"
-                viewBox="0 0 64 12"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                style={{ display: 'block', marginTop: '-4px' }}
-                aria-hidden="true"
-              >
-                <path
-                  d="M2 8 C 18 3, 42 3, 62 7"
-                  stroke="#B88647"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                />
-              </svg>
-            </div>
-          </div>
-        </section>
-
-        {/* 3. Clinical Preparation Section: "Prepare for Your Consultation" */}
-        <section
-          style={{
-            marginTop: '32px',
-            background: '#FFFFFF',
-            borderRadius: '22px',
-            border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-            padding: '36px 32px',
-            boxShadow: '0 4px 20px rgba(42, 23, 15, 0.03)',
-          }}
-        >
-          {/* Header row */}
-          <div style={{ marginBottom: '24px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                marginBottom: '6px',
-              }}
-            >
-              <Sparkles size={22} style={{ color: 'var(--color-gold-bronze, #B88647)' }} />
-              <h2
-                style={{
-                  fontSize: '1.35rem',
-                  fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                  color: 'var(--color-chocolate-base, #2A170F)',
-                  fontWeight: 800,
-                  margin: 0,
-                }}
-              >
-                Prepare for Your Consultation
-              </h2>
-            </div>
-            <p
-              style={{
-                color: 'var(--color-cream-text-muted, #6B5E55)',
-                fontSize: '0.9rem',
-                margin: '0 0 16px 0',
-              }}
-            >
-              Please complete the following before your appointment to ensure a smooth and effective consultation.
-            </p>
-
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                textTransform: 'uppercase',
-                padding: '4px 12px',
-                borderRadius: '9999px',
-                background: 'rgba(223, 171, 98, 0.16)',
-                color: '#8E5A1C',
-                border: '1px solid rgba(223, 171, 98, 0.3)',
-                letterSpacing: '0.04em',
-                display: 'inline-block',
-              }}
-            >
-              Step 2 of 2: Clinical Preparation
+          <div className="bs-hero-text">
+            <span className={`bs-pill${isPaymentConfirmed ? '' : ' is-pending'}`}>
+              {isPaymentConfirmed ? 'Payment confirmed' : 'Payment required · slot held'}
             </span>
+            <h1 className="bs-title">{isPaymentConfirmed ? "You're all booked!" : 'Finish payment to confirm'}</h1>
+            <p className="bs-lede">
+              {isPaymentConfirmed
+                ? 'Your video consultation is confirmed. Your receipt and a personal join button are on their way to your email.'
+                : 'Your appointment slot is reserved temporarily. Complete payment through Paystack to confirm the consultation.'}
+            </p>
+          </div>
+        </section>
+
+        {/* Appointment + what happens next */}
+        <div className="bs-grid">
+          <section className="bs-card" aria-labelledby="bs-appt-title">
+            <div className="bs-doctor">
+              <div className="bs-avatar">
+                <DoctorPhoto src={booking.doctor?.avatarUrl} name={doctorName} />
+              </div>
+              <div className="bs-doctor-info">
+                <div className="bs-eyebrow" id="bs-appt-title">
+                  Your practitioner
+                </div>
+                <div className="bs-doctor-name">{doctorName}</div>
+                <div className="bs-doctor-sub">
+                  {booking.doctor?.specialty || 'General Practitioner'}
+                  {hpcsa ? ` · HPCSA ${hpcsa}` : ''}
+                </div>
+              </div>
+            </div>
+
+            <ul className="bs-facts">
+              <li className="bs-fact">
+                <span className="bs-fact-icon">
+                  <Calendar size={20} />
+                </span>
+                <div className="bs-fact-body">
+                  <div className="bs-eyebrow">Date &amp; time</div>
+                  <div className="bs-fact-value">{formattedDate}</div>
+                  {formattedTime && <div className="bs-fact-note">{formattedTime}</div>}
+                </div>
+              </li>
+              <li className="bs-fact">
+                <span className="bs-fact-icon">
+                  <CreditCard size={20} />
+                </span>
+                <div className="bs-fact-body">
+                  <div className="bs-eyebrow">Booking reference</div>
+                  <div className="bs-fact-value bs-mono">{formattedBookingId}</div>
+                  {paidLine && <div className="bs-fact-note is-good">{paidLine}</div>}
+                </div>
+              </li>
+            </ul>
+
+            <div className="bs-notice">
+              <span className="bs-notice-icon">
+                <ShieldCheck size={18} />
+              </span>
+              <div>
+                <strong>Your join button is in your email</strong>
+                No code or password needed. When it&apos;s time, tap <b>Join Your Consultation</b> in the confirmation
+                email. Can&apos;t see it? Check your junk or spam folder.
+              </div>
+            </div>
+
+            <div className="bs-actions">
+              <Link href={`/consultations/${booking?.id || bookingIdParam}`} className="bs-btn bs-btn-primary">
+                <Video size={18} />
+                <span>Enter waiting room</span>
+                <ArrowRight size={16} />
+              </Link>
+              <button type="button" onClick={handleDownloadICS} className="bs-btn bs-btn-ghost">
+                <CalendarDays size={18} />
+                <span>Add to calendar</span>
+              </button>
+            </div>
+            <p className="bs-hint">The room opens 15 minutes before your start time.</p>
+          </section>
+
+          <aside className="bs-card" aria-labelledby="bs-next-title">
+            <h2 className="bs-card-title" id="bs-next-title">
+              You&apos;re good to go
+            </h2>
+            <p className="bs-card-sub">Here&apos;s what happens next.</p>
+            <ul className="bs-status-list">
+              <li className="bs-status-item">
+                <span className="bs-status-icon">
+                  <Mail size={18} />
+                </span>
+                <div>
+                  <div className="bs-status-label">Confirmation email</div>
+                  <div className="bs-status-detail">Sent{user?.email ? ` to ${user.email}` : ''}</div>
+                </div>
+              </li>
+              <li className="bs-status-item">
+                <span className="bs-status-icon">
+                  <Bell size={18} />
+                </span>
+                <div>
+                  <div className="bs-status-label">Reminders</div>
+                  <div className="bs-status-detail">24 hours, 1 hour and 15 minutes before</div>
+                </div>
+              </li>
+              <li className="bs-status-item">
+                <span className="bs-status-icon">
+                  <Video size={18} />
+                </span>
+                <div>
+                  <div className="bs-status-label">Join from any device</div>
+                  <div className="bs-status-detail">Just your browser. Nothing to install.</div>
+                </div>
+              </li>
+            </ul>
+          </aside>
+        </div>
+
+        {/* Preparation */}
+        <section className="bs-card" aria-labelledby="bs-prep-title">
+          <div className="bs-head">
+            <span className="bs-head-icon">
+              <Sparkles size={20} />
+            </span>
+            <div>
+              <h2 className="bs-card-title" id="bs-prep-title">
+                Prepare for your consultation
+              </h2>
+              <p className="bs-card-sub">
+                Optional, but it helps {booking?.doctor?.fullName || 'your doctor'} make the most of your time.
+              </p>
+            </div>
           </div>
 
-          {/* Success Banner Notice if intake saved */}
           {intakeSavedNotice && (
-            <div
-              style={{
-                background: '#ecfdf5',
-                border: '1px solid #a7f3d0',
-                color: '#065f46',
-                padding: '12px 18px',
-                borderRadius: '12px',
-                marginBottom: '24px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                fontSize: '0.88rem',
-                fontWeight: 600,
-              }}
-            >
-              <Check size={18} style={{ color: '#16a34a', flexShrink: 0 }} />
+            <div className="bs-saved" role="status">
+              <Check size={18} style={{ flexShrink: 0, marginTop: 1 }} />
               <span>{intakeSavedNotice}</span>
             </div>
           )}
 
-          {/* Two-Column Layout: Left Upload Area / Right Structured Clinical Form */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '32px',
-              alignItems: 'start',
-            }}
-          >
-            {/* Left: Document & Test Report Uploader */}
+          <div className="bs-prep-grid">
             <div>
               <input
                 type="file"
@@ -1439,640 +641,147 @@ function SuccessContent() {
                 onChange={handleUploadReport}
                 accept=".pdf,image/jpeg,image/png,image/webp"
                 style={{ display: 'none' }}
+                id="bs-upload-input"
               />
-
-              <div
+              <button
+                type="button"
+                className="bs-upload"
                 onClick={() => fileInputRef.current?.click()}
-                style={{
-                  border: '1.5px dashed var(--color-gold-border, rgba(223, 171, 98, 0.55))',
-                  borderRadius: '16px',
-                  padding: '36px 20px',
-                  textAlign: 'center',
-                  background: 'var(--color-cream-base, #FAF6EE)',
-                  cursor: isUploadingFile ? 'wait' : 'pointer',
-                  transition: 'background 0.2s ease',
-                  minHeight: '210px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(223, 171, 98, 0.14)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-cream-base, #FAF6EE)')}
+                disabled={isUploadingFile}
               >
                 {isUploadingFile ? (
                   <>
-                    <Loader2
-                      size={34}
-                      className="animate-spin"
-                      style={{ color: 'var(--color-gold-bronze, #B88647)', margin: '0 auto 10px' }}
-                    />
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: '0.92rem',
-                        color: 'var(--color-chocolate-base, #2A170F)',
-                      }}
-                    >
-                      Uploading report to encrypted storage...
-                    </div>
+                    <Loader2 size={26} className="animate-spin" style={{ color: '#b88647' }} />
+                    <strong>Uploading to encrypted storage…</strong>
                   </>
                 ) : (
                   <>
-                    <UploadCloud
-                      size={36}
-                      style={{ color: 'var(--color-gold-bronze, #B88647)', margin: '0 auto 10px' }}
-                    />
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        fontSize: '0.92rem',
-                        color: 'var(--color-chocolate-base, #2A170F)',
-                      }}
-                    >
-                      Click to upload lab test, blood report, or imaging scan
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '0.78rem',
-                        color: 'var(--color-cream-text-muted, #6B5E55)',
-                        marginTop: '6px',
-                        maxWidth: '280px',
-                      }}
-                    >
-                      PDF, JPG, PNG, up to 15MB. Encrypted via POPIA & HPCSA healthcare protocol.
-                    </div>
+                    <UploadCloud size={28} style={{ color: '#b88647' }} />
+                    <strong>Upload a lab test, blood report or scan</strong>
+                    <span>PDF, JPG or PNG, up to 15MB. Encrypted in line with POPIA &amp; HPCSA guidelines.</span>
                   </>
                 )}
-              </div>
+              </button>
 
-              {/* Uploaded Documents List or Empty State */}
               {attachedDocs.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px' }}>
-                  <div
-                    style={{
-                      fontSize: '0.78rem',
-                      fontWeight: 800,
-                      color: 'var(--color-chocolate-base, #2A170F)',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.04em',
-                    }}
-                  >
-                    Attached to Consultation ({attachedDocs.length}):
-                  </div>
+                <ul className="bs-docs">
                   {attachedDocs.map((doc, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        padding: '10px 14px',
-                        borderRadius: '10px',
-                        background: '#ffffff',
-                        border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.3))',
-                        fontSize: '0.85rem',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <FileText
-                          size={16}
-                          style={{ color: 'var(--color-gold-bronze, #B88647)', flexShrink: 0 }}
-                        />
-                        <span
-                          style={{
-                            fontWeight: 600,
-                            color: 'var(--color-chocolate-base, #2A170F)',
-                            textOverflow: 'ellipsis',
-                            overflow: 'hidden',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {doc.name}
-                        </span>
-                        {doc.sizeBytes && (
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--color-cream-text-muted, #6B5E55)',
-                            }}
-                          >
-                            ({(doc.sizeBytes / 1024).toFixed(0)} KB)
-                          </span>
-                        )}
-                      </div>
+                    <li className="bs-doc" key={`${doc.name}-${idx}`}>
+                      <FileText size={18} style={{ color: '#b88647', flexShrink: 0 }} />
+                      <span className="bs-doc-name">{doc.name}</span>
                       <button
                         type="button"
+                        className="bs-doc-remove"
                         onClick={() => handleRemoveDoc(idx)}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#991b1b',
-                          cursor: 'pointer',
-                          padding: '4px',
-                        }}
-                        title="Remove document"
+                        aria-label={`Remove ${doc.name}`}
                       >
-                        <X size={15} />
+                        <X size={16} />
                       </button>
-                    </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               ) : (
-                <div
-                  style={{
-                    marginTop: '12px',
-                    fontSize: '0.8rem',
-                    color: 'var(--color-cream-text-muted, #6B5E55)',
-                    fontStyle: 'italic',
-                  }}
-                >
-                  No lab reports attached yet. (Optional)
-                </div>
+                <p className="bs-empty">No lab reports attached yet.</p>
               )}
             </div>
 
-            {/* Right: Medical History, Medications & Allergies */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              {/* Field 1: Allergies */}
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.75rem',
-                    fontWeight: 800,
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    marginBottom: '6px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  Known Drug Allergies (Optional)
-                </label>
+            <div className="bs-form">
+              <div className="bs-field">
+                <label htmlFor="bs-allergies">Known drug allergies</label>
                 <input
+                  id="bs-allergies"
                   type="text"
                   value={allergies}
                   onChange={(e) => setAllergies(e.target.value)}
-                  placeholder="Aspirin"
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(42, 23, 15, 0.16)',
-                    background: '#ffffff',
-                    fontSize: '0.9rem',
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    outline: 'none',
-                    transition: 'border-color 0.15s ease',
-                  }}
+                  placeholder="e.g. Penicillin"
                 />
               </div>
-
-              {/* Field 2: Current Medications */}
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.75rem',
-                    fontWeight: 800,
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    marginBottom: '6px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  Current Medications & Dosages (Optional)
-                </label>
+              <div className="bs-field">
+                <label htmlFor="bs-meds">Current medications &amp; dosages</label>
                 <input
+                  id="bs-meds"
                   type="text"
                   value={currentMedications}
                   onChange={(e) => setCurrentMedications(e.target.value)}
-                  placeholder="Epitec 500mg"
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(42, 23, 15, 0.16)',
-                    background: '#ffffff',
-                    fontSize: '0.9rem',
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    outline: 'none',
-                    transition: 'border-color 0.15s ease',
-                  }}
+                  placeholder="e.g. Metformin 500mg twice daily"
                 />
               </div>
-
-              {/* Field 3: Symptoms / Doctor Notes */}
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.75rem',
-                    fontWeight: 800,
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    marginBottom: '6px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  Detailed Symptoms or Notes for Doctor
-                </label>
+              <div className="bs-field">
+                <label htmlFor="bs-notes">Symptoms or notes for the doctor</label>
                 <textarea
-                  rows={3}
+                  id="bs-notes"
+                  rows={4}
                   value={patientNotes}
                   onChange={(e) => setPatientNotes(e.target.value)}
-                  placeholder="severe video testing"
-                  style={{
-                    width: '100%',
-                    padding: '12px 14px',
-                    borderRadius: '10px',
-                    border: '1px solid rgba(42, 23, 15, 0.16)',
-                    background: '#ffffff',
-                    fontSize: '0.9rem',
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    outline: 'none',
-                    resize: 'vertical',
-                    fontFamily: 'inherit',
-                  }}
+                  placeholder="When did it start? What makes it better or worse?"
                 />
               </div>
-
-              {/* Save Button */}
-              <div>
-                <button
-                  type="button"
-                  onClick={handleSaveIntakeDetails}
-                  disabled={isSavingIntake}
-                  style={{
-                    padding: '12px 22px',
-                    borderRadius: '12px',
-                    background: 'var(--color-chocolate-base, #2A170F)',
-                    color: 'var(--color-gold-pale, #F0E5D3)',
-                    border: 'none',
-                    fontWeight: 700,
-                    fontSize: '0.88rem',
-                    cursor: isSavingIntake ? 'not-allowed' : 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    boxShadow: '0 3px 10px rgba(42, 23, 15, 0.18)',
-                    transition: 'all 0.18s ease',
-                  }}
-                >
-                  {isSavingIntake ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>Saving Intake Details...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Lock size={15} style={{ color: 'var(--color-gold-base, #DFAB62)' }} />
-                      <span>Save Intake Details to Consultation</span>
-                    </>
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                className="bs-btn bs-btn-primary"
+                onClick={handleSaveIntakeDetails}
+                disabled={isSavingIntake}
+              >
+                {isSavingIntake ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>Saving…</span>
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck size={16} />
+                    <span>Save for my doctor</span>
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </section>
 
-        {/* 4. Consultation Preparation Checklist Section */}
-        <section
-          style={{
-            marginTop: '32px',
-            background: '#FFFFFF',
-            borderRadius: '22px',
-            border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-            padding: '32px 32px',
-            boxShadow: '0 4px 20px rgba(42, 23, 15, 0.03)',
-            position: 'relative',
-            overflow: 'hidden',
-          }}
-        >
-          {/* Header */}
-          <div style={{ marginBottom: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-              <div
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  flexShrink: 0,
-                  borderRadius: '8px',
-                  background: 'rgba(223, 171, 98, 0.18)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: 'var(--color-gold-bronze, #B88647)',
-                }}
-              >
-                <FileText size={18} />
-              </div>
-              <h3
-                style={{
-                  fontSize: '1.25rem',
-                  color: 'var(--color-chocolate-base, #2A170F)',
-                  fontWeight: 800,
-                  fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                  margin: 0,
-                }}
-              >
-                Consultation Preparation Checklist
-              </h3>
+        {/* Checklist */}
+        <section className="bs-card" aria-labelledby="bs-check-title">
+          <div className="bs-head">
+            <span className="bs-head-icon">
+              <FileText size={20} />
+            </span>
+            <div>
+              <h2 className="bs-card-title" id="bs-check-title">
+                Before your consultation
+              </h2>
+              <p className="bs-card-sub">A few minutes before your start time, make sure you have:</p>
             </div>
-            <p
-              style={{
-                color: 'var(--color-cream-text-muted, #6B5E55)',
-                fontSize: '0.88rem',
-                margin: 0,
-              }}
-            >
-              Please ensure you have prepared the following 5 minutes prior to your scheduled consultation:
-            </p>
           </div>
-
-          {/* Checklist Layout matching the reference design */}
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-              gap: '16px',
-            }}
-          >
-            {/* Tile 1: Stable Internet Connection */}
-            <div
-              style={{
-                padding: '18px 20px',
-                borderRadius: '14px',
-                background: 'var(--color-cream-base, #FAF6EE)',
-                border: '1px solid rgba(223, 171, 98, 0.22)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '14px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                <div
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    background: 'var(--color-gold-pale, #F0E5D3)',
-                    color: 'var(--color-gold-bronze, #B88647)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Wifi size={18} />
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: '0.9rem',
-                      color: 'var(--color-chocolate-base, #2A170F)',
-                    }}
-                  >
-                    Stable Internet Connection
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      color: 'var(--color-cream-text-muted, #6B5E55)',
-                      marginTop: '2px',
-                    }}
-                  >
-                    A minimum 5 Mbps connection is recommended for smooth HD video & audio.
-                  </div>
-                </div>
-              </div>
-
-              {/* Green Check Indicator */}
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: '#10B981',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Check size={12} strokeWidth={3} />
+          <div className="bs-checklist">
+            <div className="bs-check-item">
+              <span className="bs-fact-icon">
+                <Wifi size={20} />
+              </span>
+              <div>
+                <h3>Stable internet</h3>
+                <p>At least 5 Mbps is recommended for smooth HD video and audio.</p>
               </div>
             </div>
-
-            {/* Tile 2: Quiet & Well-Lit Room */}
-            <div
-              style={{
-                padding: '18px 20px',
-                borderRadius: '14px',
-                background: 'var(--color-cream-base, #FAF6EE)',
-                border: '1px solid rgba(223, 171, 98, 0.22)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '14px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                <div
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    background: 'var(--color-gold-pale, #F0E5D3)',
-                    color: 'var(--color-gold-bronze, #B88647)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Volume2 size={18} />
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: '0.9rem',
-                      color: 'var(--color-chocolate-base, #2A170F)',
-                    }}
-                  >
-                    Quiet & Well-Lit Room
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      color: 'var(--color-cream-text-muted, #6B5E55)',
-                      marginTop: '2px',
-                    }}
-                  >
-                    Find a private space with good lighting so the doctor can assess you clearly.
-                  </div>
-                </div>
-              </div>
-
-              {/* Green Check Indicator */}
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: '#10B981',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Check size={12} strokeWidth={3} />
+            <div className="bs-check-item">
+              <span className="bs-fact-icon">
+                <Volume2 size={20} />
+              </span>
+              <div>
+                <h3>A quiet, well-lit room</h3>
+                <p>A private space with good lighting so the doctor can assess you clearly.</p>
               </div>
             </div>
-
-            {/* Tile 3: South African ID & Medical Aid */}
-            <div
-              style={{
-                padding: '18px 20px',
-                borderRadius: '14px',
-                background: 'var(--color-cream-base, #FAF6EE)',
-                border: '1px solid rgba(223, 171, 98, 0.22)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '14px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                <div
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '10px',
-                    background: 'var(--color-gold-pale, #F0E5D3)',
-                    color: 'var(--color-gold-bronze, #B88647)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <FileText size={18} />
-                </div>
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 700,
-                      fontSize: '0.9rem',
-                      color: 'var(--color-chocolate-base, #2A170F)',
-                    }}
-                  >
-                    South African ID & Medical Aid
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      color: 'var(--color-cream-text-muted, #6B5E55)',
-                      marginTop: '2px',
-                    }}
-                  >
-                    Have your SA ID number and medical aid card handy if requesting PMB certificates.
-                  </div>
-                </div>
+            <div className="bs-check-item">
+              <span className="bs-fact-icon">
+                <FileText size={20} />
+              </span>
+              <div>
+                <h3>ID &amp; medical aid details</h3>
+                <p>Have your SA ID number and medical aid card handy if you need PMB certificates.</p>
               </div>
-
-              {/* Green Check Indicator */}
-              <div
-                style={{
-                  width: '20px',
-                  height: '20px',
-                  borderRadius: '50%',
-                  background: '#10B981',
-                  color: '#ffffff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <Check size={12} strokeWidth={3} />
-              </div>
-            </div>
-
-            {/* Handwritten script and heart flourish filling the 4th slot */}
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '12px',
-                textAlign: 'center',
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: '"Caveat", cursive',
-                  fontSize: '1.75rem',
-                  fontWeight: 700,
-                  color: 'var(--color-gold-bronze, #B88647)',
-                  transform: 'rotate(-4deg)',
-                  display: 'inline-block',
-                }}
-              >
-                Your health
-                <br />
-                matters
-              </div>
-
-              {/* Hand-drawn heart outline */}
-              <svg
-                width="24"
-                height="22"
-                viewBox="0 0 24 22"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-                style={{ marginTop: '4px', opacity: 0.85 }}
-                aria-hidden="true"
-              >
-                <path
-                  d="M12 20C12 20 2 13.5 2 6.5C2 3.5 4.5 1.5 7.5 1.5C9.5 1.5 11 2.5 12 4C13 2.5 14.5 1.5 16.5 1.5C19.5 1.5 22 3.5 22 6.5C22 13.5 12 20 12 20Z"
-                  stroke="#B88647"
-                  strokeWidth="1.6"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
             </div>
           </div>
         </section>
       </div>
-
-      {/* Responsive media styles for top grid */}
-      <style
-        dangerouslySetInnerHTML={{
-          __html: `
-            @media (max-width: 820px) {
-              .confirmation-grid-top {
-                grid-template-columns: 1fr !important;
-              }
-            }
-          `,
-        }}
-      />
     </div>
   );
 }
