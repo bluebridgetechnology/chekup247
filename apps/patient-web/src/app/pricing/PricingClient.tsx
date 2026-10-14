@@ -1,5 +1,7 @@
 'use client';
 
+import { BookingLink } from '../../components/BookingLink';
+import { SHOW_DOCTOR_DIRECTORY } from '../../lib/featureFlags';
 import React from 'react';
 import Link from 'next/link';
 import { Breadcrumbs } from '../../components/Breadcrumbs';
@@ -150,13 +152,13 @@ export default function PricingClient() {
                 </ul>
               </div>
 
-              <Link
+              <BookingLink
                 href="/doctors?specialty=General+Practitioner"
                 className="btn-primary touch-target"
                 style={{ width: '100%', justifyContent: 'center' }}
               >
                 Book GP Consultation
-              </Link>
+              </BookingLink>
             </div>
 
             {/* Specialist Card */}
@@ -211,13 +213,15 @@ export default function PricingClient() {
                 </ul>
               </div>
 
-              <Link
-                href="/doctors"
-                className="btn-secondary touch-target"
-                style={{ width: '100%', justifyContent: 'center' }}
-              >
-                Browse Specialists
-              </Link>
+              {SHOW_DOCTOR_DIRECTORY && (
+                <Link
+                  href="/doctors"
+                  className="btn-secondary touch-target"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                >
+                  Browse Specialists
+                </Link>
+              )}
             </div>
           </div>
 

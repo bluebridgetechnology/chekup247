@@ -1,5 +1,6 @@
 'use client';
 
+import { BookingLink } from './BookingLink';
 import React from 'react';
 import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
@@ -24,14 +25,14 @@ export function FinalCtaSection() {
 
           {/* Right Action */}
           <div className="final-cta-action">
-            <Link href="/doctors" className="final-cta-btn">
+            <BookingLink href="/doctors" className="final-cta-btn">
               <span>Get Started Now</span>
               <SolarIcon
                 name="arrow-right-linear"
                 size={16}
                 color="var(--color-chocolate-base)"
               />
-            </Link>
+            </BookingLink>
           </div>
 
           {/* Decorative Abstract Gold Healthcare Lobe on Far Right */}

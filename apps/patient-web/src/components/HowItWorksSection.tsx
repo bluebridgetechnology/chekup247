@@ -1,5 +1,6 @@
 'use client';
 
+import { BookingLink } from './BookingLink';
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -128,7 +129,7 @@ export function HowItWorksSection() {
 
             {/* CTA Button */}
             <div style={{ marginTop: '38px' }}>
-              <Link
+              <BookingLink
                 href="/register"
                 className="how-it-works-cta-btn"
                 style={{
@@ -149,7 +150,7 @@ export function HowItWorksSection() {
               >
                 <span>Get Started Now</span>
                 <SolarIcon name="arrow-right-linear" size={16} color="var(--color-chocolate-base)" />
-              </Link>
+              </BookingLink>
             </div>
           </div>
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DOCTOR_DIRECTORY } from '../../lib/featureFlags';
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -642,27 +643,29 @@ export default function AboutClient() {
               passion for making quality care accessible to all South Africans.
             </p>
 
-            <Link
-              href="/doctors"
-              style={{
-                fontFamily: 'var(--font-sans)',
-                backgroundColor: 'var(--color-chocolate-base)',
-                color: 'var(--color-white)',
-                fontWeight: 600,
-                fontSize: 'var(--text-sm)',
-                padding: '11px 24px',
-                borderRadius: 'var(--radius-full)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                boxShadow: 'var(--shadow-sm)',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <span>Meet Our Team</span>
-              <SolarIcon name="arrow-right-linear" size={16} color="var(--color-white)" />
-            </Link>
+            {SHOW_DOCTOR_DIRECTORY && (
+              <Link
+                href="/doctors"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  backgroundColor: 'var(--color-chocolate-base)',
+                  color: 'var(--color-white)',
+                  fontWeight: 600,
+                  fontSize: 'var(--text-sm)',
+                  padding: '11px 24px',
+                  borderRadius: 'var(--radius-full)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <span>Meet Our Team</span>
+                <SolarIcon name="arrow-right-linear" size={16} color="var(--color-white)" />
+              </Link>
+            )}
           </div>
 
           {/* Column 3: Quote Card */}
@@ -798,27 +801,29 @@ export default function AboutClient() {
               peri-urban, and rural communities across all 9 provinces.
             </p>
 
-            <Link
-              href="/doctors"
-              style={{
-                fontFamily: 'var(--font-sans)',
-                backgroundColor: 'var(--color-white)',
-                color: 'var(--color-chocolate-base)',
-                border: '1px solid var(--border-color)',
-                fontWeight: 600,
-                fontSize: 'var(--text-sm)',
-                padding: '10px 22px',
-                borderRadius: 'var(--radius-full)',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 'var(--space-2)',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              <span>View All Provinces</span>
-              <SolarIcon name="arrow-right-linear" size={15} color="var(--color-chocolate-base)" />
-            </Link>
+            {SHOW_DOCTOR_DIRECTORY && (
+              <Link
+                href="/doctors"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  backgroundColor: 'var(--color-white)',
+                  color: 'var(--color-chocolate-base)',
+                  border: '1px solid var(--border-color)',
+                  fontWeight: 600,
+                  fontSize: 'var(--text-sm)',
+                  padding: '10px 22px',
+                  borderRadius: 'var(--radius-full)',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <span>View All Provinces</span>
+                <SolarIcon name="arrow-right-linear" size={15} color="var(--color-chocolate-base)" />
+              </Link>
+            )}
           </div>
 
           {/* Right Column: 9 Province Pills Grid */}
