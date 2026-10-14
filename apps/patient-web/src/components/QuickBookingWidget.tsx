@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { SolarIcon } from './SolarIcon';
 import { useAuth } from '../context/AuthContext';
 import { formatClockTime, formatZoneAbbr, getViewerTimeZone, localDateKey } from '../lib/time';
-import { OPEN_QUICK_BOOK_EVENT, QUICK_BOOK_PARAM } from '../lib/quickBook';
+import { OPEN_QUICK_BOOK_EVENT, QUICK_BOOK_PARAM, QUICK_BOOK_SLOT_VALUE } from '../lib/quickBook';
 import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../lib/bookingWindow';
 import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../lib/pricing';
 
@@ -360,8 +360,17 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
     window.addEventListener(OPEN_QUICK_BOOK_EVENT, open);
     try {
       const url = new URL(window.location.href);
-      if (url.searchParams.get(QUICK_BOOK_PARAM)) {
+      const qb = url.searchParams.get(QUICK_BOOK_PARAM);
+      if (qb) {
         open();
+        if (qb === QUICK_BOOK_SLOT_VALUE) {
+          // jump to the time step: earliest-available GP, same consultation type as before
+          setSpecialty(SPECIALTY_OPTIONS[0]);
+          setChosenDoctorId(null);
+          if (url.searchParams.get('type') === 'audio') setConsultationType('audio');
+          setStep('slot');
+          url.searchParams.delete('type');
+        }
         url.searchParams.delete(QUICK_BOOK_PARAM);
         window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
       }

@@ -33,7 +33,7 @@ import { toastSuccess, toastError } from '../../../lib/toast';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
 import { QUICK_BOOK_ONLY, SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../../../lib/featureFlags';
-import { QUICK_BOOK_URL } from '../../../lib/quickBook';
+import { quickBookSlotUrl } from '../../../lib/quickBook';
 import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../../../lib/bookingWindow';
 import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../../../lib/pricing';
 
@@ -903,7 +903,7 @@ function CheckoutContent() {
               </div>
             </div>
             <Link
-              href={QUICK_BOOK_ONLY ? QUICK_BOOK_URL : `/doctors/${doctor?.slug || doctorIdParam}`}
+              href={QUICK_BOOK_ONLY ? quickBookSlotUrl(typeParam) : `/doctors/${doctor?.slug || doctorIdParam}`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
