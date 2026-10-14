@@ -1,6 +1,6 @@
 'use client';
 
-import { SHOW_DIRECT_BOOKING_CTAS, SHOW_DOCTOR_DIRECTORY } from '../../lib/featureFlags';
+import { SHOW_DIRECT_BOOKING_CTAS, SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../../lib/featureFlags';
 import { openQuickBook } from '../../lib/quickBook';
 import React, { useState, useEffect, useMemo } from 'react';
 import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
@@ -2149,25 +2149,27 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
             <p style={{ fontSize: '0.9rem', color: '#6B5E55', lineHeight: 1.5, margin: '0 0 24px 0' }}>
               Log in to your Chekup247 account to access your scheduled video consultations, health records, clinical notes, and digital prescriptions.
             </p>
-            <Link
-              href="/login"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: '#EDD5B3',
-                color: '#2A170F',
-                fontSize: '0.9rem',
-                fontWeight: 700,
-                padding: '12px 28px',
-                borderRadius: '24px',
-                textDecoration: 'none',
-                boxShadow: '0 2px 10px rgba(223, 171, 98, 0.3)',
-              }}
-            >
-              <span>Sign In to Chekup247</span>
-              <SolarIcon name="arrow-right-linear" size={15} color="#2A170F" />
-            </Link>
+            {SHOW_PATIENT_AUTH && (
+              <Link
+                href="/login"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#EDD5B3',
+                  color: '#2A170F',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  padding: '12px 28px',
+                  borderRadius: '24px',
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 10px rgba(223, 171, 98, 0.3)',
+                }}
+              >
+                <span>Sign In to Chekup247</span>
+                <SolarIcon name="arrow-right-linear" size={15} color="#2A170F" />
+              </Link>
+            )}
           </div>
         ) : isLoading ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '12px 0' }}>

@@ -14,3 +14,9 @@ export const SHOW_DIRECT_BOOKING_CTAS = !QUICK_BOOK_ONLY;
 
 /** Public doctor directory (/doctors), doctor profile pages and the portal's "Find a Doctor". */
 export const SHOW_DOCTOR_DIRECTORY = !QUICK_BOOK_ONLY;
+
+/** Patient sign-in / registration (and password reset). Hidden while Quick Book is the only way in. */
+export const SHOW_PATIENT_AUTH = !QUICK_BOOK_ONLY;
+
+/** Where signed-out patients are sent when a portal page needs a login. */
+export const PATIENT_LOGIN_PATH = SHOW_PATIENT_AUTH ? '/login' : '/';
