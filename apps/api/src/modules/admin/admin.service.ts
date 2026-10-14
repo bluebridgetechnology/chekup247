@@ -46,7 +46,7 @@ import {
   NotificationDeliveryStatus,
 } from '../../database/patient/entities';
 import { resolveMinimumBillableMinutes } from '../doctors/consultation-fee';
-import { resolveBookingLeadMinutes } from '../bookings/booking.constants';
+import { resolveBookingLeadMinutes, resolveSlotHoldMinutes } from '../bookings/booking.constants';
 import { TokenService } from '../auth/token.service';
 import { AuditService, AuditLogsFilterQuery } from '../audit/audit.service';
 import { ReviewsService } from '../reviews/reviews.service';
@@ -171,6 +171,7 @@ export class AdminService implements OnModuleInit {
       standard_consultation_rate: Number(settings.standard_consultation_rate ?? 850.00),
       minimum_billable_minutes: resolveMinimumBillableMinutes(settings.minimum_billable_minutes),
       booking_lead_minutes: resolveBookingLeadMinutes(settings.booking_lead_minutes),
+      slot_hold_minutes: resolveSlotHoldMinutes(settings.slot_hold_minutes),
       late_cancellation_deduction_percent: Number(settings.late_cancellation_deduction_percent),
       no_show_grace_minutes: Number(settings.no_show_grace_minutes),
       default_slot_duration_minutes: Number(settings.default_slot_duration_minutes),
@@ -193,6 +194,7 @@ export class AdminService implements OnModuleInit {
       standard_consultation_rate?: number;
       minimum_billable_minutes?: number;
       booking_lead_minutes?: number;
+      slot_hold_minutes?: number;
       late_cancellation_deduction_percent?: number;
       no_show_grace_minutes?: number;
       default_slot_duration_minutes?: number;
@@ -229,6 +231,13 @@ export class AdminService implements OnModuleInit {
         throw new BadRequestException('Booking lead time must be between 0 and 240 minutes');
       }
       settings.booking_lead_minutes = Math.round(lead);
+    }
+    if (dto.slot_hold_minutes !== undefined) {
+      const hold = Number(dto.slot_hold_minutes);
+      if (!Number.isFinite(hold) || hold < 1 || hold > 60) {
+        throw new BadRequestException('Slot hold time must be between 1 and 60 minutes');
+      }
+      settings.slot_hold_minutes = Math.round(hold);
     }
     if (dto.late_cancellation_deduction_percent !== undefined) {
       settings.late_cancellation_deduction_percent = Number(dto.late_cancellation_deduction_percent);

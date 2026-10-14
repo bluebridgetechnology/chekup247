@@ -34,6 +34,8 @@ import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
 import { QUICK_BOOK_ONLY, SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../../../lib/featureFlags';
 import { quickBookSlotUrl } from '../../../lib/quickBook';
+import { clearHold, holdForSlot } from '../../../lib/slotHold';
+import { SlotHoldCountdown } from '../../../components/SlotHoldCountdown';
 import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../../../lib/bookingWindow';
 import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../../../lib/pricing';
 
@@ -354,11 +356,23 @@ function CheckoutContent() {
     const t = window.setInterval(() => setNowTick(Date.now()), 15000);
     return () => window.clearInterval(t);
   }, []);
-  const isPastSlot = Boolean(slot && slot.startTime && !isSlotBookable(slot.startTime, DEFAULT_BOOKING_LEAD_MINUTES, nowTick));
+  // A live hold (taken when the patient reached checkout) keeps the time theirs until it ends, even
+  // past the usual cutoff. Without one, the normal lead-time rule applies.
+  const hold = useMemo(
+    () => (slot ? holdForSlot(slot.id, nowTick) : null),
+    [slot, nowTick],
+  );
+  const holdLive = Boolean(hold?.live);
+  const slotStarted = Boolean(slot?.startTime && new Date(slot.startTime).getTime() <= nowTick);
+  const isPastSlot = Boolean(
+    slot &&
+      slot.startTime &&
+      (holdLive ? slotStarted : !isSlotBookable(slot.startTime, DEFAULT_BOOKING_LEAD_MINUTES, nowTick)),
+  );
   const minutesToClose = slot?.startTime
     ? Math.ceil((new Date(slot.startTime).getTime() - DEFAULT_BOOKING_LEAD_MINUTES * 60000 - nowTick) / 60000)
     : null;
-  const closingSoon = !isPastSlot && minutesToClose !== null && minutesToClose <= 10;
+  const closingSoon = !isPastSlot && !holdLive && minutesToClose !== null && minutesToClose <= 10;
 
   // Format date and time (en-ZA locale)
   const formattedDate = useMemo(() => {
@@ -482,6 +496,7 @@ function CheckoutContent() {
           reasonCategory: 'consultation',
           consultationMode: typeParam,
           attachments: uploadedAttachments,
+          holdToken: holdForSlot(slot.id)?.token,
         }),
       });
 
@@ -494,6 +509,7 @@ function CheckoutContent() {
       }
 
       const createdBookingId = bookingData.id;
+      clearHold();
 
       // 3. Initiate Payment (BE-502)
       setProcessingStatus('Connecting to Paystack secure checkout...');
@@ -852,6 +868,10 @@ function CheckoutContent() {
               <div style={{ fontSize: '0.875rem', marginTop: '2px' }}>{errorMessage}</div>
             </div>
           </div>
+        )}
+
+        {holdLive && hold && (
+          <SlotHoldCountdown expiresAt={hold.expiresAt} onExpire={() => setNowTick(Date.now())} />
         )}
 
         {closingSoon && (

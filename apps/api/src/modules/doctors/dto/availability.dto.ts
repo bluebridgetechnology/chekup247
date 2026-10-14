@@ -75,6 +75,11 @@ export class GetAvailabilityQueryDto {
   @IsOptional()
   @IsString()
   endDate?: string;
+
+  /** The viewer's own slot-hold token, so their held time still shows as theirs. */
+  @IsOptional()
+  @IsString()
+  holdToken?: string;
 }
 
 export class CreateBlackoutDto {

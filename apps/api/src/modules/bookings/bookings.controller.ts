@@ -4,17 +4,64 @@ import {
   Post,
   Body,
   Param,
+  Query,
+  Req,
+  Delete,
+  HttpException,
   UseGuards,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
 import { BookingsService, CreateBookingDto } from './bookings.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { CurrentUser } from '../../common/decorators/auth.decorators';
+import { CurrentUser, Public } from '../../common/decorators/auth.decorators';
+
+/** Hold requests allowed per client IP per minute (anti-hoarding; single API instance). */
+const HOLD_REQUESTS_PER_MINUTE = 10;
+const holdRequestLog = new Map<string, number[]>();
+
+function allowHoldRequest(key: string, now: number = Date.now()): boolean {
+  const recent = (holdRequestLog.get(key) || []).filter((t) => now - t < 60000);
+  if (recent.length >= HOLD_REQUESTS_PER_MINUTE) {
+    holdRequestLog.set(key, recent);
+    return false;
+  }
+  recent.push(now);
+  holdRequestLog.set(key, recent);
+  if (holdRequestLog.size > 5000) {
+    for (const [k, v] of holdRequestLog) if (v.every((t) => now - t >= 60000)) holdRequestLog.delete(k);
+  }
+  return true;
+}
 
 @Controller('bookings')
 export class BookingsController {
   constructor(private readonly bookingsService: BookingsService) {}
+
+  /**
+   * Reserve a time while the patient checks out (guests included). Returns a token the client sends
+   * back when booking. Holds expire on their own; see booking.constants.ts.
+   */
+  @Public()
+  @Post('holds')
+  @HttpCode(HttpStatus.CREATED)
+  holdSlot(@Body() dto: { slotId?: string; holdToken?: string }, @Req() req: any) {
+    if (!dto?.slotId || typeof dto.slotId !== 'string') {
+      throw new HttpException('slotId is required', HttpStatus.BAD_REQUEST);
+    }
+    const ip = String(req?.ip || req?.headers?.['x-forwarded-for'] || 'unknown');
+    if (!allowHoldRequest(ip)) {
+      throw new HttpException('Too many requests. Please wait a moment.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    return this.bookingsService.holdSlot(dto.slotId, dto.holdToken);
+  }
+
+  /** Release a hold early. Only the holder's token works. */
+  @Public()
+  @Delete('holds/:slotId')
+  releaseHold(@Param('slotId') slotId: string, @Query('token') token: string) {
+    return this.bookingsService.releaseHold(slotId, token);
+  }
 
   /**
    * BE-501: Booking Creation Saga Orchestrator.

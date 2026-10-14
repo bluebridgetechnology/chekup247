@@ -8,6 +8,8 @@ import {
   ForbiddenException,
   Logger,
   Optional,
+  OnModuleInit,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
 import { Repository, DataSource, In } from 'typeorm';
@@ -30,9 +32,16 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ReminderScheduler } from '../queues/reminder.scheduler';
 import { QUEUES } from '../queues/queue.constants';
 import {
+  ORPHAN_SLOT_GRACE_MS,
+  PENDING_PAYMENT_TTL_MINUTES,
+  hasLiveHold,
+  isHeldByOther,
   isSlotBookable,
+  isValidHoldToken,
   resolveBookingLeadMinutes,
+  resolveSlotHoldMinutes,
 } from './booking.constants';
+import { randomBytes } from 'crypto';
 
 export interface CreateBookingDto {
   slotId: string;
@@ -41,6 +50,15 @@ export interface CreateBookingDto {
   consultationMode?: 'video' | 'audio' | 'in_clinic';
   attachments?: { name: string; url: string; fileType: string; sizeBytes?: number }[];
   doctorId?: string;
+  /** Token from POST /bookings/holds; keeps the time reserved while the patient checks out. */
+  holdToken?: string;
+}
+
+export interface SlotHoldResult {
+  holdToken: string;
+  slotId: string;
+  expiresAt: string;
+  holdMinutes: number;
 }
 
 export interface StitchedBookingResponse extends Booking {
@@ -70,8 +88,9 @@ export interface StitchedBookingResponse extends Booking {
 }
 
 @Injectable()
-export class BookingsService {
+export class BookingsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(BookingsService.name);
+  private reconcileTimer: NodeJS.Timeout | null = null;
 
   constructor(
     @InjectRepository(Booking, 'patient')
@@ -108,6 +127,111 @@ export class BookingsService {
       this.logger.warn(`Could not load booking lead minutes: ${err?.message}`);
       return resolveBookingLeadMinutes(undefined);
     }
+  }
+
+  /** Unpaid bookings and stray slot flags are cleaned up every few minutes (see reconcileDatabaseDrift). */
+  onModuleInit() {
+    if (process.env.NODE_ENV === 'test' || process.env.DISABLE_RECONCILE_TIMER === 'true') return;
+    this.reconcileTimer = setInterval(() => {
+      this.reconcileDatabaseDrift().catch((err: any) =>
+        this.logger.warn(`Scheduled reconciliation failed: ${err?.message}`),
+      );
+    }, 5 * 60 * 1000);
+    this.reconcileTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.reconcileTimer) clearInterval(this.reconcileTimer);
+  }
+
+  /** Minutes a time is held once the patient reaches checkout (admin Platform Setting). */
+  private async getSlotHoldMinutes(): Promise<number> {
+    try {
+      const settings = await this.platformSettingRepository?.findOne({ where: {} });
+      return resolveSlotHoldMinutes(settings?.slot_hold_minutes);
+    } catch (err: any) {
+      this.logger.warn(`Could not load slot hold minutes: ${err?.message}`);
+      return resolveSlotHoldMinutes(undefined);
+    }
+  }
+
+  /**
+   * Reserve a time for a patient who is about to check out. While the hold is live the time is hidden
+   * from everyone else and the lead-time cutoff does not apply to the holder. The hold never extends
+   * past the slot's start. A client holds one time at a time: holding another releases the first.
+   */
+  async holdSlot(slotId: string, existingToken?: string): Promise<SlotHoldResult> {
+    const token = isValidHoldToken(existingToken) ? existingToken : randomBytes(24).toString('base64url');
+    const holdMinutes = await this.getSlotHoldMinutes();
+    const leadMinutes = await this.getBookingLeadMinutes();
+
+    const runner = this.operationalDataSource.createQueryRunner();
+    await runner.connect();
+    await runner.startTransaction();
+    try {
+      const slot = await runner.manager
+        .createQueryBuilder(AvailabilitySlot, 'slot')
+        .setLock('pessimistic_write')
+        .where('slot.id = :slotId', { slotId })
+        .getOne();
+
+      if (!slot) throw new NotFoundException('This time is no longer available. Please pick another time.');
+      if (slot.is_booked || slot.is_locked) {
+        throw new ConflictException('This time has just been taken. Please pick another time.');
+      }
+      if (isHeldByOther(slot, token)) {
+        throw new ConflictException('Someone else is booking this time right now. Please pick another time.');
+      }
+
+      const now = Date.now();
+      const alreadyMine = hasLiveHold(slot, now) && slot.hold_token === token;
+      if (!alreadyMine && !isSlotBookable(slot.start_time, leadMinutes, now)) {
+        throw new BadRequestException(
+          `This time is no longer available: bookings close ${leadMinutes} minutes before the start. Please pick another time.`,
+        );
+      }
+
+      // Drop this client's previous hold on any other time
+      await runner.manager
+        .createQueryBuilder()
+        .update(AvailabilitySlot)
+        .set({ hold_token: null, hold_expires_at: null })
+        .where('hold_token = :token AND id != :id', { token, id: slot.id })
+        .execute();
+
+      // A repeat request keeps the original expiry (no endless extension)
+      if (!alreadyMine) {
+        const expires = Math.min(now + holdMinutes * 60 * 1000, new Date(slot.start_time).getTime());
+        slot.hold_token = token;
+        slot.hold_expires_at = new Date(expires);
+        await runner.manager.save(slot);
+      }
+      await runner.commitTransaction();
+
+      return {
+        holdToken: token,
+        slotId: slot.id,
+        expiresAt: new Date(slot.hold_expires_at as Date).toISOString(),
+        holdMinutes,
+      };
+    } catch (err) {
+      await runner.rollbackTransaction();
+      throw err;
+    } finally {
+      await runner.release();
+    }
+  }
+
+  /** Release a hold early (e.g. the patient picked a different time). Only the holder's token works. */
+  async releaseHold(slotId: string, token: string): Promise<{ released: boolean }> {
+    if (!isValidHoldToken(token)) return { released: false };
+    const result = await this.slotRepository
+      .createQueryBuilder()
+      .update(AvailabilitySlot)
+      .set({ hold_token: null, hold_expires_at: null })
+      .where('id = :slotId AND hold_token = :token', { slotId, token })
+      .execute();
+    return { released: (result.affected ?? 0) > 0 };
   }
 
   /**
@@ -203,11 +327,24 @@ export class BookingsService {
           throw new ConflictException('This appointment slot is currently locked');
         }
 
-        // A slot closes for booking `lead` minutes before it starts.
+        // Someone else is checking out this time
+        const holderToken = isValidHoldToken(dto.holdToken) ? dto.holdToken : undefined;
+        if (isHeldByOther(lockedSlot, holderToken)) {
+          throw new ConflictException('Someone else is booking this time right now. Please pick another time.');
+        }
+
+        // A slot closes for booking `lead` minutes before it starts, unless this patient holds it:
+        // a live hold made while the time was open lasts its full duration (but never past the start).
         const leadMinutes = await this.getBookingLeadMinutes();
-        if (!isSlotBookable(lockedSlot.start_time, leadMinutes)) {
+        const holdsIt = hasLiveHold(lockedSlot) && lockedSlot.hold_token === holderToken;
+        const stillOpen = holdsIt
+          ? new Date(lockedSlot.start_time).getTime() > Date.now()
+          : isSlotBookable(lockedSlot.start_time, leadMinutes);
+        if (!stillOpen) {
           throw new BadRequestException(
-            `This time is no longer available: bookings close ${leadMinutes} minutes before the start. Please pick another time.`,
+            holdsIt
+              ? 'This time has already started. Please pick another time.'
+              : `This time is no longer available: bookings close ${leadMinutes} minutes before the start. Please pick another time.`,
           );
         }
 
@@ -221,8 +358,10 @@ export class BookingsService {
           throw new NotFoundException('Doctor profile associated with this slot was not found');
         }
 
-        // Mark slot as booked on VPS
+        // Mark slot as booked on VPS (the hold, if any, has done its job)
         lockedSlot.is_booked = true;
+        lockedSlot.hold_token = null;
+        lockedSlot.hold_expires_at = null;
         await vpsQueryRunner.manager.save(lockedSlot);
       }
 
@@ -861,12 +1000,14 @@ export class BookingsService {
       }
 
       const now = Date.now();
-      const thirtyMinutesAgo = now - 30 * 60 * 1000;
+      const pendingCutoff = now - PENDING_PAYMENT_TTL_MINUTES * 60 * 1000;
 
       for (const slot of bookedSlots) {
         const booking = slotBookingMap.get(slot.id);
 
         if (!booking) {
+          // A booking may be mid-creation (slot flagged, row not yet written): leave very recent slots alone
+          if (now - new Date(slot.updated_at).getTime() < ORPHAN_SLOT_GRACE_MS) continue;
           // Orphaned slot with no booking in RDS!
           this.logger.warn(`[Reconciliation] Orphaned slot detected: id=${slot.id}. Releasing slot.`);
           slot.is_booked = false;
@@ -875,9 +1016,9 @@ export class BookingsService {
         } else if (
           booking.status === BookingStatus.PENDING &&
           booking.payment_status === PaymentStatus.UNPAID &&
-          new Date(booking.created_at).getTime() < thirtyMinutesAgo
+          new Date(booking.created_at).getTime() < pendingCutoff
         ) {
-          // Expired pending booking older than 30 mins without payment!
+          // Unpaid pending booking older than the payment window
           this.logger.warn(
             `[Reconciliation] Expired pending booking detected: id=${booking.id}, slotId=${slot.id}. Cancelling.`,
           );

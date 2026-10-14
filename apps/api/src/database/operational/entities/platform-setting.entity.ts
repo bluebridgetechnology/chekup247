@@ -21,6 +21,10 @@ export class PlatformSetting {
   @Column({ type: 'int', default: 15 })
   booking_lead_minutes: number;
 
+  /** A time is held for the patient this many minutes once they reach checkout. */
+  @Column({ type: 'int', default: 10 })
+  slot_hold_minutes: number;
+
   /** Sessions shorter than this are billed as if they were this long (0 = no minimum). */
   @Column({ type: 'int', default: 30 })
   minimum_billable_minutes: number;
