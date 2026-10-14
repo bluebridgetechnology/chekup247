@@ -349,10 +349,10 @@ describe('BookingsService (Saga & Cross-DB)', () => {
       expect(res.id).toBe('booking-1');
     });
 
-    it('should reject rescheduling to a slot with less than 15 minutes remaining', async () => {
+    it('should reject rescheduling to a slot starting in less than 15 minutes', async () => {
       const oldFutureDate = new Date(Date.now() + 48 * 60 * 60 * 1000);
-      const almostOverStart = new Date(Date.now() - 20 * 60 * 1000); // started 20 min ago
-      const almostOverEnd = new Date(Date.now() + 5 * 60 * 1000); // 5 min left
+      const almostOverStart = new Date(Date.now() + 10 * 60 * 1000); // starts in 10 min
+      const almostOverEnd = new Date(Date.now() + 40 * 60 * 1000);
 
       const booking = {
         id: 'booking-1',
@@ -391,17 +391,17 @@ describe('BookingsService (Saga & Cross-DB)', () => {
           newSlotId: 'new-slot-2',
           reason: 'Shift clash',
         }),
-      ).rejects.toThrow('less than 15 minutes remaining');
+      ).rejects.toThrow('starting in less than 15 minutes');
     });
   });
 
-  describe('slot bookability (minimum remaining time)', () => {
-    it('should allow booking a started slot that still has enough time remaining', async () => {
+  describe('slot bookability (booking lead time)', () => {
+    it('should allow booking a slot that starts after the lead time', async () => {
       const slot = {
         id: 'slot-started',
         doctor_id: 'doc-1',
-        start_time: new Date(Date.now() - 1 * 60 * 1000), // started 1 min ago
-        end_time: new Date(Date.now() + 29 * 60 * 1000), // 29 min left
+        start_time: new Date(Date.now() + 20 * 60 * 1000), // starts in 20 min
+        end_time: new Date(Date.now() + 50 * 60 * 1000),
         is_booked: false,
         is_locked: false,
       };
@@ -427,12 +427,12 @@ describe('BookingsService (Saga & Cross-DB)', () => {
       expect(result.status).toBe(BookingStatus.PENDING);
     });
 
-    it('should reject booking a slot with less than 15 minutes remaining', async () => {
+    it('should reject booking a slot that starts within the lead time, even if it has time left', async () => {
       const slot = {
         id: 'slot-expiring',
         doctor_id: 'doc-1',
-        start_time: new Date(Date.now() - 25 * 60 * 1000), // started 25 min ago
-        end_time: new Date(Date.now() + 5 * 60 * 1000), // 5 min left
+        start_time: new Date(Date.now() - 2 * 60 * 1000), // started 2 min ago
+        end_time: new Date(Date.now() + 58 * 60 * 1000), // a long slot with 58 min left
         is_booked: false,
         is_locked: false,
       };
@@ -447,7 +447,7 @@ describe('BookingsService (Saga & Cross-DB)', () => {
 
       await expect(
         service.createBookingSaga('patient-1', { slotId: 'slot-expiring' }),
-      ).rejects.toThrow('no longer has the minimum 15 minutes remaining');
+      ).rejects.toThrow('bookings close 15 minutes before the start');
     });
   });
 

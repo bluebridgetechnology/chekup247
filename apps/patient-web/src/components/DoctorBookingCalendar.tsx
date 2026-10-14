@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
 import { priceForDuration } from '../lib/pricing';
+import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../lib/bookingWindow';
 import { formatClockTime, formatZoneAbbr } from '../lib/time';
 
 export interface AvailabilitySlotDto {
@@ -63,6 +64,7 @@ function formatDurationSubtext(durationMinutes?: number): string {
 
 export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBookingCalendarProps) {
   const [slots, setSlots] = useState<AvailabilitySlotDto[]>(initialSlots);
+  const [leadMinutes, setLeadMinutes] = useState(DEFAULT_BOOKING_LEAD_MINUTES);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<AvailabilitySlotDto | null>(null);
   const [userTimeZone, setUserTimeZone] = useState<string>('Africa/Johannesburg');
@@ -114,6 +116,7 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
           const data = await res.json();
           if (isMounted && data.slots && Array.isArray(data.slots)) {
             setSlots(data.slots);
+            if (data.bookingLeadMinutes != null) setLeadMinutes(Number(data.bookingLeadMinutes));
           }
         }
       } catch {
@@ -132,17 +135,13 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
 
   // Generate effective slots (live or dynamic deterministic fallback)
   const effectiveSlots = useMemo(() => {
-    // Keep slots with at least the minimum bookable time remaining.
-    // Must match backend SLOT_BOOKING_MIN_REMAINING_MINUTES (booking.constants.ts):
-    // a started slot (e.g. 18:00-18:30 at 18:01) is still bookable.
-    const MIN_REMAINING_MS = 15 * 60 * 1000;
+    // Only times that start at least the booking lead time from now (see lib/bookingWindow.ts).
     if (slots) {
-      const nowMs = Date.now();
-      return slots.filter((s) => new Date(s.endTime).getTime() - nowMs >= MIN_REMAINING_MS);
+      return slots.filter((s) => isSlotBookable(s.startTime, leadMinutes));
     }
 
     return [];
-  }, [slots]);
+  }, [slots, leadMinutes]);
 
   // Map slots by date string YYYY-MM-DD
   const daysWithSlots = useMemo(() => {

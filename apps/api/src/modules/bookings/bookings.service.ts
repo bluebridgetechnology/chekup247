@@ -30,8 +30,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { ReminderScheduler } from '../queues/reminder.scheduler';
 import { QUEUES } from '../queues/queue.constants';
 import {
-  SLOT_BOOKING_MIN_REMAINING_MINUTES,
   isSlotBookable,
+  resolveBookingLeadMinutes,
 } from './booking.constants';
 
 export interface CreateBookingDto {
@@ -98,6 +98,17 @@ export class BookingsService {
     @Optional()
     private readonly reminderScheduler?: ReminderScheduler,
   ) {}
+
+  /** Minutes before the start at which a slot closes for booking (admin Platform Setting). */
+  private async getBookingLeadMinutes(): Promise<number> {
+    try {
+      const settings = await this.platformSettingRepository?.findOne({ where: {} });
+      return resolveBookingLeadMinutes(settings?.booking_lead_minutes);
+    } catch (err: any) {
+      this.logger.warn(`Could not load booking lead minutes: ${err?.message}`);
+      return resolveBookingLeadMinutes(undefined);
+    }
+  }
 
   /**
    * Creates a booking by executing the distributed booking Saga.
@@ -192,11 +203,11 @@ export class BookingsService {
           throw new ConflictException('This appointment slot is currently locked');
         }
 
-        // Slot stays bookable while enough consultation time remains
-        // (e.g. a 30-min 18:00-18:30 slot is still bookable at 18:01).
-        if (!isSlotBookable(lockedSlot.end_time)) {
+        // A slot closes for booking `lead` minutes before it starts.
+        const leadMinutes = await this.getBookingLeadMinutes();
+        if (!isSlotBookable(lockedSlot.start_time, leadMinutes)) {
           throw new BadRequestException(
-            `This slot no longer has the minimum ${SLOT_BOOKING_MIN_REMAINING_MINUTES} minutes remaining and can no longer be booked`,
+            `This time is no longer available: bookings close ${leadMinutes} minutes before the start. Please pick another time.`,
           );
         }
 
@@ -678,9 +689,10 @@ export class BookingsService {
       throw new ConflictException('Selected replacement slot is no longer available');
     }
 
-    if (!isSlotBookable(newSlot.end_time, now)) {
+    const rescheduleLead = await this.getBookingLeadMinutes();
+    if (!isSlotBookable(newSlot.start_time, rescheduleLead, now)) {
       throw new BadRequestException(
-        `Cannot reschedule to a slot with less than ${SLOT_BOOKING_MIN_REMAINING_MINUTES} minutes remaining`,
+        `Cannot reschedule to a slot starting in less than ${rescheduleLead} minutes`,
       );
     }
 

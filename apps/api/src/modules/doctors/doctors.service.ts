@@ -46,8 +46,8 @@ import { isValidTimeZone, zonedWallTimeToUtc } from '../../common/utils/zoned-ti
 import { DirectorySyncService } from './directory-sync.service';
 import { AvailabilitySyncService } from './availability-sync.service';
 import {
-  SLOT_BOOKING_MIN_REMAINING_MS,
   isSlotBookable,
+  resolveBookingLeadMinutes,
 } from '../bookings/booking.constants';
 
 export interface PaginatedDoctorsResult {
@@ -441,6 +441,17 @@ export class DoctorsService implements OnModuleInit {
       this.logger.warn(`Could not fetch platform consultation rate: ${err?.message}`);
     }
     return DEFAULT_PLATFORM_CONSULTATION_RATE;
+  }
+
+  /** Slots close for booking this many minutes before they start (admin Platform Setting). */
+  async getBookingLeadMinutes(): Promise<number> {
+    try {
+      const settings = await this.platformSettingRepository.findOne({ where: {} });
+      return resolveBookingLeadMinutes(settings?.booking_lead_minutes);
+    } catch (err: any) {
+      this.logger.warn(`Could not fetch booking lead minutes: ${err?.message}`);
+    }
+    return resolveBookingLeadMinutes(undefined);
   }
 
   /** Sessions shorter than this many minutes are billed as this long (admin Platform Setting). */
@@ -1062,11 +1073,9 @@ export class DoctorsService implements OnModuleInit {
     }
 
     const now = new Date();
-    // Slots stay bookable while enough consultation time remains, so the
-    // cutoff is based on end_time, not start_time. When no explicit startDate
-    // is given, look back a day so already-started but still bookable slots
-    // are included (the end_time cutoff below filters out the rest).
-    const bookableCutoff = new Date(now.getTime() + SLOT_BOOKING_MIN_REMAINING_MS);
+    // A slot is bookable only while it starts at least `bookingLeadMinutes` from now.
+    const bookingLeadMinutes = await this.getBookingLeadMinutes();
+    const bookableCutoff = new Date(now.getTime() + bookingLeadMinutes * 60 * 1000);
     const startDate = query.startDate
       ? new Date(query.startDate)
       : new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -1098,7 +1107,7 @@ export class DoctorsService implements OnModuleInit {
     const slots = rawSlots.filter((slot) => {
       const sStart = new Date(slot.start_time).getTime();
       const sEnd = new Date(slot.end_time).getTime();
-      if (!isSlotBookable(sEnd)) {
+      if (!isSlotBookable(sStart, bookingLeadMinutes)) {
         return false;
       }
       return !blackouts.some((b) => {
@@ -1149,6 +1158,7 @@ export class DoctorsService implements OnModuleInit {
       consultationRate,
       rateBlockMinutes: PRICING_BLOCK_MINUTES,
       minimumBillableMinutes,
+      bookingLeadMinutes,
       feeSource,
       totalSlots: formattedSlots.length,
       startDate: startDate.toISOString(),

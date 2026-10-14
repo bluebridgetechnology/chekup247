@@ -7,6 +7,7 @@ import { SolarIcon } from './SolarIcon';
 import { useAuth } from '../context/AuthContext';
 import { formatClockTime, formatZoneAbbr, getViewerTimeZone, localDateKey } from '../lib/time';
 import { OPEN_QUICK_BOOK_EVENT, QUICK_BOOK_PARAM } from '../lib/quickBook';
+import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../lib/bookingWindow';
 import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../lib/pricing';
 
 interface LiveSlot {
@@ -145,6 +146,10 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [apiRate, setApiRate] = useState<number | null>(null);
   const [minBillable, setMinBillable] = useState<number | undefined>(undefined);
+  // Slots close for booking this many minutes before they start (admin Platform Setting)
+  const [leadMinutes, setLeadMinutes] = useState(DEFAULT_BOOKING_LEAD_MINUTES);
+  // Ticks while the widget is open so expired times drop off without a reload
+  const [nowTick, setNowTick] = useState(() => Date.now());
   const [selectedDayKey, setSelectedDayKey] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<LiveSlot | null>(null);
   const [viewerTz, setViewerTz] = useState<string>('Africa/Johannesburg');
@@ -228,6 +233,8 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
         if (Array.isArray(data.slots)) setSlots(data.slots);
         if (Number(data.consultationRate) > 0) setApiRate(Number(data.consultationRate));
         if (data.minimumBillableMinutes != null) setMinBillable(Number(data.minimumBillableMinutes));
+        if (data.bookingLeadMinutes != null) setLeadMinutes(Number(data.bookingLeadMinutes));
+        setNowTick(Date.now());
       })
       .catch(() => {})
       .finally(() => alive && setSlotsLoading(false));
@@ -236,20 +243,44 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
     };
   }, [isOpen, doctor.id, API_BASE]);
 
-  // Bookable slots only (same 15-minute rule as the API), grouped by the viewer's local date
+  // Re-check the clock every 20 seconds while open, and re-fetch availability when the patient
+  // reaches the review step, so they never find out at payment that a time is gone.
+  useEffect(() => {
+    if (!isOpen) return;
+    setNowTick(Date.now());
+    const t = window.setInterval(() => setNowTick(Date.now()), 20000);
+    return () => window.clearInterval(t);
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || step !== 'review') return;
+    let alive = true;
+    fetch(`${API_BASE}/doctors/${encodeURIComponent(doctor.id)}/availability`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!alive || !data || !Array.isArray(data.slots)) return;
+        setSlots(data.slots);
+        if (data.bookingLeadMinutes != null) setLeadMinutes(Number(data.bookingLeadMinutes));
+        setNowTick(Date.now());
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [isOpen, step, doctor.id, API_BASE]);
+
+  // Bookable slots only (same lead-time rule as the API), grouped by the viewer's local date
   const slotsByDay = useMemo(() => {
-    const MIN_REMAINING_MS = 15 * 60 * 1000;
-    const now = Date.now();
     const map = new Map<string, LiveSlot[]>();
     for (const sl of slots) {
-      if (sl.isLocked || new Date(sl.endTime).getTime() - now < MIN_REMAINING_MS) continue;
+      if (sl.isLocked || !isSlotBookable(sl.startTime, leadMinutes, nowTick)) continue;
       const key = localDateKey(new Date(sl.startTime));
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(sl);
     }
     map.forEach((list) => list.sort((x, y) => +new Date(x.startTime) - +new Date(y.startTime)));
     return map;
-  }, [slots]);
+  }, [slots, leadMinutes, nowTick]);
 
   const days = useMemo(() => {
     const todayKey = localDateKey(new Date());
@@ -285,6 +316,19 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
   useEffect(() => {
     if (selectedSlot && !slots.some((s) => s.id === selectedSlot.id)) setSelectedSlot(null);
   }, [slots, selectedSlot]);
+
+  // A chosen time that closes (or is taken) while the patient fills in details sends them back now,
+  // with a clear message, instead of failing at payment.
+  useEffect(() => {
+    if (!selectedSlot) return;
+    if (!isSlotBookable(selectedSlot.startTime, leadMinutes, nowTick)) setSelectedSlot(null);
+  }, [selectedSlot, leadMinutes, nowTick]);
+
+  useEffect(() => {
+    if (!isOpen || selectedSlot || (step !== 'details' && step !== 'review')) return;
+    setStep('slot');
+    setFormError('That time is no longer available. Please pick another time.');
+  }, [isOpen, selectedSlot, step]);
 
   const daySlots = slotsByDay.get(selectedDayKey) || [];
   const groups = DAY_PARTS.map((part) => ({
@@ -394,6 +438,10 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
     if (!selectedSlot) {
       setFormError('Please choose an available time first.');
       return goTo('slot');
+    }
+    if (!isSlotBookable(selectedSlot.startTime, leadMinutes)) {
+      setSelectedSlot(null);
+      return;
     }
     setIsSubmitting(true);
     setFormError(null);
