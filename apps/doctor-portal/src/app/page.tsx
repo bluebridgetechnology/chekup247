@@ -124,7 +124,7 @@ export default function DoctorDashboardPage() {
     const nowMs = Date.now();
     return appointments
       .filter((b) => {
-        if (b.status === 'cancelled' || b.status === 'completed') return false;
+        if (b.status === 'cancelled' || b.status === 'completed' || b.status === 'no_show') return false;
         const startMs = b.slot?.startTime ? new Date(b.slot.startTime).getTime() : 0;
         return startMs > nowMs - 30 * 60 * 1000;
       })
@@ -860,13 +860,21 @@ export default function DoctorDashboardPage() {
                         : '--:--';
                       const status: string = apt.status || 'confirmed';
                       const startMs = apt.slot?.startTime ? new Date(apt.slot.startTime).getTime() : 0;
-                      const isLive = status !== 'completed' && startMs - now <= 10 * 60 * 1000 && now - startMs <= 45 * 60 * 1000;
+                      const endMs = apt.slot?.endTime ? new Date(apt.slot.endTime).getTime() : startMs + 30 * 60 * 1000;
+                      const isClosed = status === 'completed' || status === 'no_show';
+                      // Time is over but nobody pressed End: it is not "upcoming", the server closes it out shortly.
+                      const isElapsed = !isClosed && startMs > 0 && now > endMs;
+                      const isLive = !isClosed && !isElapsed && startMs - now <= 15 * 60 * 1000;
 
                       const statusStyle =
                         status === 'completed'
                           ? { bg: '#ECFDF5', fg: '#047857', label: 'Completed' }
+                          : status === 'no_show'
+                          ? { bg: '#FEF2F2', fg: '#B91C1C', label: 'Missed' }
+                          : isElapsed
+                          ? { bg: '#F3F4F6', fg: '#4B5563', label: 'Ended' }
                           : isLive
-                          ? { bg: '#EFF6FF', fg: '#1D4ED8', label: 'In Progress' }
+                          ? { bg: '#EFF6FF', fg: '#1D4ED8', label: startMs > now ? 'Starting Soon' : 'In Progress' }
                           : { bg: '#FEF3E2', fg: '#B45309', label: 'Upcoming' };
 
                       return (
@@ -920,7 +928,7 @@ export default function DoctorDashboardPage() {
                               flexShrink: 0,
                             }}
                           >
-                            <span className="dash-apt-link-label">{status === 'completed' ? 'View Notes' : 'View Details'}</span>
+                            <span className="dash-apt-link-label">{isClosed || isElapsed ? 'View Notes' : 'View Details'}</span>
                             <SolarIcon name="alt-arrow-right-linear" size={13} color="var(--color-cream-text-muted, #6B5E55)" />
                           </Link>
                         </div>

@@ -390,8 +390,8 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
         });
       });
 
-      it('never applies to the doctor', async () => {
-        mockConsultationRepo.findOne.mockResolvedValue(room());
+      it('never applies to the doctor (a call under way can carry on past the booked time)', async () => {
+        mockConsultationRepo.findOne.mockResolvedValue(room({ started_at: new Date(Date.now() - 40 * 60000) }));
         mockSlotRepo.findOne.mockResolvedValue(slot(-45));
         await expect(service.joinConsultation('booking-1', 'doctor', 'Dr')).resolves.toBeDefined();
       });
@@ -432,6 +432,73 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       mockBookingRepo.findOne.mockResolvedValue(mockBooking);
       await expect(service.endConsultation('booking-1', caller)).rejects.toThrow('Only the consulting doctor');
       expect(mockBooking.status).toBe(BookingStatus.CONFIRMED);
+    });
+
+    describe('time already over', () => {
+      it('tells the doctor plainly when a never-started consultation has expired', async () => {
+        mockConsultationRepo.findOne.mockResolvedValue({
+          id: 'c1',
+          booking_id: 'booking-1',
+          started_at: null,
+          ended_at: null,
+          booking: { id: 'booking-1', slot_id: 'slot-1', status: BookingStatus.CONFIRMED },
+        });
+        mockSlotRepo.findOne.mockResolvedValue({
+          id: 'slot-1',
+          start_time: new Date(Date.now() - 4 * 3600e3),
+          end_time: new Date(Date.now() - 3.5 * 3600e3),
+        });
+        await expect(service.joinConsultation('booking-1', 'doctor', 'Dr')).rejects.toMatchObject({
+          response: expect.objectContaining({ code: 'EXPIRED' }),
+        });
+      });
+
+      const hoursAgo = (h: number) => new Date(Date.now() - h * 3600 * 1000);
+      const overdueSlot = { id: 'slot-1', start_time: hoursAgo(3.5), end_time: hoursAgo(3) };
+
+      it('refuses to create a Daily room for a past appointment with a clear EXPIRED error', async () => {
+        mockConsultationRepo.findOne.mockResolvedValue(null);
+        mockBookingRepo.findOne.mockResolvedValue({ id: 'booking-1', slot_id: 'slot-1' });
+        mockSlotRepo.findOne.mockResolvedValue(overdueSlot);
+        mockDailyService.createRoom.mockClear();
+        await expect(service.provisionRoom('booking-1')).rejects.toMatchObject({
+          response: expect.objectContaining({ code: 'EXPIRED' }),
+        });
+        expect(mockDailyService.createRoom).not.toHaveBeenCalled();
+      });
+
+      it('sweep completes a held-but-never-ended consultation and queues never-started ones for no-show review', async () => {
+        const held: any = { id: 'b-held', status: BookingStatus.CONFIRMED, slot_id: 'slot-1', doctor_id: 'doc-1', patient_id: 'p-1' };
+        const missed: any = { id: 'b-missed', status: BookingStatus.CONFIRMED, slot_id: 'slot-1', doctor_id: 'doc-1', patient_id: 'p-2' };
+        const fresh: any = { id: 'b-fresh', status: BookingStatus.CONFIRMED, slot_id: 'slot-2', doctor_id: 'doc-1', patient_id: 'p-3' };
+        (mockBookingRepo as any).find = jest.fn().mockResolvedValue([held, missed, fresh]);
+        (mockSlotRepo as any).find = jest.fn().mockResolvedValue([
+          overdueSlot,
+          { id: 'slot-2', start_time: new Date(Date.now() + 3600e3), end_time: new Date(Date.now() + 5400e3) },
+        ]);
+        mockExtensionRepo.find.mockResolvedValue([]);
+        mockConsultationRepo.findOne.mockImplementation(({ where }: any) =>
+          Promise.resolve(
+            where.booking_id === 'b-held'
+              ? { id: 'c-held', booking_id: 'b-held', started_at: hoursAgo(3.4), ended_at: null }
+              : null,
+          ),
+        );
+        mockBookingRepo.findOne.mockImplementation(({ where }: any) => Promise.resolve(where.id === 'b-held' ? held : null));
+        mockNoShowQueue.add.mockClear();
+
+        const result = await service.finalizeOverdueConsultations();
+
+        expect(result).toEqual({ completed: 1, noShows: 1 });
+        expect(held.status).toBe(BookingStatus.COMPLETED);
+        expect(missed.status).toBe(BookingStatus.CONFIRMED); // resolved by the no-show job, not here
+        expect(fresh.status).toBe(BookingStatus.CONFIRMED);
+        expect(mockNoShowQueue.add).toHaveBeenCalledWith(
+          'check-no-show',
+          { bookingId: 'b-missed' },
+          expect.any(Object),
+        );
+      });
     });
 
     it('should securely save doctor clinical notes (BE-605)', async () => {

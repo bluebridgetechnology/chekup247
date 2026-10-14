@@ -175,6 +175,14 @@ describe('NappiImporterService (Integration)', () => {
   ];
 
   beforeAll(async () => {
+    // This suite TRUNCATEs nappi_products/nappi_prices. Never let it run against a real server's
+    // database (e.g. `npm test` on the VPS with production env vars would wipe the NAPPI catalogue).
+    const host = process.env.OPERATIONAL_DB_HOST || 'localhost';
+    if (!['localhost', '127.0.0.1', '::1'].includes(host)) {
+      throw new Error(
+        `Refusing to run the NAPPI importer integration test against non-local database host "${host}"`,
+      );
+    }
     service = new NappiImporterService();
     const pool = await service.getPool();
 
