@@ -1,5 +1,6 @@
 'use client';
 
+import { BookingLink } from './BookingLink';
 import { SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
 import React from 'react';
 import Link from 'next/link';
@@ -128,8 +129,9 @@ export function SpecialtiesSection() {
         {/* 6-Column Open Editorial Specialties Grid */}
         <div className="specialties-grid">
           {HOMEPAGE_SPECIALTIES.map((item) => (
-            <Link
+            <BookingLink
               key={item.id}
+              block
               href={`/doctors?specialty=${encodeURIComponent(item.name)}`}
               className="specialty-item"
             >
@@ -147,7 +149,7 @@ export function SpecialtiesSection() {
 
               {/* Short Description */}
               <p className="specialty-desc">{item.description}</p>
-            </Link>
+            </BookingLink>
           ))}
         </div>
 

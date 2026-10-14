@@ -1,5 +1,7 @@
 'use client';
 
+import { BookingLink } from '../../components/BookingLink';
+import { QUICK_BOOK_ONLY } from '../../lib/featureFlags';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -363,9 +365,9 @@ export default function HowItWorksClient() {
                 </div>
 
                 <div style={{ marginTop: 'var(--space-6)' }}>
-                  <Link
+                  <BookingLink
                     href="/doctors"
-                    aria-label="Browse doctors and choose a time slot"
+                    aria-label={QUICK_BOOK_ONLY ? 'Open Quick Book to choose a time' : 'Browse doctors and choose a time slot'}
                     style={{
                       width: '36px',
                       height: '36px',
@@ -381,7 +383,7 @@ export default function HowItWorksClient() {
                     }}
                   >
                     <SolarIcon name="arrow-right-linear" size={16} color="var(--color-gold-bronze)" />
-                  </Link>
+                  </BookingLink>
                 </div>
               </div>
 
@@ -621,9 +623,9 @@ export default function HowItWorksClient() {
                 </div>
 
                 <div style={{ marginTop: 'var(--space-6)' }}>
-                  <Link
+                  <BookingLink
                     href="/register"
-                    aria-label="Register to receive e-prescriptions"
+                    aria-label={QUICK_BOOK_ONLY ? 'Book a consultation to receive e-prescriptions' : 'Register to receive e-prescriptions'}
                     style={{
                       width: '36px',
                       height: '36px',
@@ -639,7 +641,7 @@ export default function HowItWorksClient() {
                     }}
                   >
                     <SolarIcon name="arrow-right-linear" size={16} color="var(--color-gold-bronze)" />
-                  </Link>
+                  </BookingLink>
                 </div>
               </div>
             </div>
@@ -1298,7 +1300,7 @@ export default function HowItWorksClient() {
                   flexWrap: 'wrap',
                 }}
               >
-                <Link
+                <BookingLink
                   href="/doctors"
                   style={{
                     fontFamily: 'var(--font-sans)',
@@ -1316,9 +1318,9 @@ export default function HowItWorksClient() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <span>Find a Doctor Now</span>
+                  <span>{QUICK_BOOK_ONLY ? 'Book Now' : 'Find a Doctor Now'}</span>
                   <SolarIcon name="arrow-right-linear" size={16} color="var(--color-white)" />
-                </Link>
+                </BookingLink>
 
                 <Link
                   href="/pricing"

@@ -1,5 +1,6 @@
 'use client';
 
+import { BookingLink } from '../../components/BookingLink';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
@@ -118,7 +119,7 @@ export default function PatientWalletPage() {
               </p>
             </div>
 
-            <Link
+            <BookingLink
               href="/doctors"
               style={{
                 display: 'inline-flex',
@@ -136,7 +137,7 @@ export default function PatientWalletPage() {
             >
               <span>Book with Credits</span>
               <ChevronRight size={16} />
-            </Link>
+            </BookingLink>
           </div>
         </div>
       </div>
