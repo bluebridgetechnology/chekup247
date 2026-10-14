@@ -37,6 +37,7 @@ interface PlatformSettingsData {
   minimum_billable_minutes?: number;
   booking_lead_minutes?: number;
   slot_hold_minutes?: number;
+  join_grace_minutes?: number;
   commission_percent: number;
   late_cancellation_deduction_percent: number;
   no_show_grace_minutes: number;
@@ -65,6 +66,7 @@ export default function AdminSettingsPage() {
     minimum_billable_minutes: 30,
     booking_lead_minutes: 15,
     slot_hold_minutes: 10,
+    join_grace_minutes: 10,
     commission_percent: 15,
     late_cancellation_deduction_percent: 30,
     no_show_grace_minutes: 10,
@@ -130,6 +132,7 @@ export default function AdminSettingsPage() {
             minimum_billable_minutes: Number(data.minimum_billable_minutes ?? 30),
             booking_lead_minutes: Number(data.booking_lead_minutes ?? 15),
             slot_hold_minutes: Number(data.slot_hold_minutes ?? 10),
+            join_grace_minutes: Number(data.join_grace_minutes ?? 10),
             commission_percent: Number(data.commission_percent ?? 15),
             late_cancellation_deduction_percent: Number(data.late_cancellation_deduction_percent ?? 30),
             no_show_grace_minutes: Number(data.no_show_grace_minutes ?? 10),
@@ -180,6 +183,7 @@ export default function AdminSettingsPage() {
           minimum_billable_minutes: Number(settings.minimum_billable_minutes ?? 30),
           booking_lead_minutes: Number(settings.booking_lead_minutes ?? 15),
           slot_hold_minutes: Number(settings.slot_hold_minutes ?? 10),
+          join_grace_minutes: Number(settings.join_grace_minutes ?? 10),
           commission_percent: Number(settings.commission_percent),
           late_cancellation_deduction_percent: Number(settings.late_cancellation_deduction_percent),
           no_show_grace_minutes: Number(settings.no_show_grace_minutes),
@@ -205,6 +209,7 @@ export default function AdminSettingsPage() {
         minimum_billable_minutes: Number(updated.minimum_billable_minutes ?? prev.minimum_billable_minutes ?? 30),
         booking_lead_minutes: Number(updated.booking_lead_minutes ?? prev.booking_lead_minutes ?? 15),
         slot_hold_minutes: Number(updated.slot_hold_minutes ?? prev.slot_hold_minutes ?? 10),
+        join_grace_minutes: Number(updated.join_grace_minutes ?? prev.join_grace_minutes ?? 10),
         commission_percent: Number(updated.commission_percent),
         late_cancellation_deduction_percent: Number(updated.late_cancellation_deduction_percent),
         no_show_grace_minutes: Number(updated.no_show_grace_minutes),
@@ -1453,6 +1458,49 @@ export default function AdminSettingsPage() {
                   />
                   <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
                     Once a patient reaches checkout, their chosen time is reserved for this long: other patients can&apos;t take it and the booking lead time doesn&apos;t cut it off. A hold never lasts past the slot&apos;s start.
+                  </div>
+                </div>
+
+                {/* Rejoin grace */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#201712' }}>
+                      Rejoin Grace After Booked Time (minutes)
+                    </label>
+                    <span
+                      style={{
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        color: '#18A875',
+                        background: '#EDFDF5',
+                        padding: '2px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid #BBF7D0',
+                      }}
+                    >
+                      {Number(settings.join_grace_minutes ?? 10)} min
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="60"
+                    step="1"
+                    value={settings.join_grace_minutes ?? 10}
+                    onChange={(e) => setSettings({ ...settings, join_grace_minutes: Number(e.target.value) })}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid #D1C7BD',
+                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      background: '#FFFFFF',
+                      marginBottom: '6px',
+                    }}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
+                    The patient&apos;s room opens 15 minutes before the start and closes when the booked time is over. A consultation that is already under way can still be rejoined for this many minutes afterwards, so a dropped connection or the payment step of an in-call extension doesn&apos;t lock the patient out. It never applies to a consultation that hasn&apos;t started or has ended.
                   </div>
                 </div>
 

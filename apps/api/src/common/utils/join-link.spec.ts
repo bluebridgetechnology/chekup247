@@ -1,6 +1,6 @@
 import * as jwt from 'jsonwebtoken';
 import { envConfig } from '../../config/env.config';
-import { buildJoinUrl, signJoinLinkToken, verifyJoinLinkToken } from './join-link';
+import { buildJoinUrl, patientJoinWindow, signJoinLinkToken, verifyJoinLinkToken } from './join-link';
 
 describe('join link tokens', () => {
   it('round-trips a booking and patient', () => {
@@ -27,5 +27,20 @@ describe('join link tokens', () => {
   it('builds a url on the patient site', () => {
     const url = buildJoinUrl('b', 'p');
     expect(url.startsWith(`${envConfig.PATIENT_WEB_URL.replace(/\/+$/, '')}/join/`)).toBe(true);
+  });
+});
+
+describe('patientJoinWindow', () => {
+  const start = new Date('2026-10-14T18:00:00Z');
+  const end = new Date('2026-10-14T18:30:00Z');
+  it('opens 15 minutes before the start and closes at the end', () => {
+    const w = patientJoinWindow(start, end);
+    expect(w.opensAt.toISOString()).toBe('2026-10-14T17:45:00.000Z');
+    expect(w.closesAt.toISOString()).toBe('2026-10-14T18:30:00.000Z');
+  });
+  it('adds paid extensions; grace only when the consultation is in progress', () => {
+    expect(patientJoinWindow(start, end, 15).closesAt.toISOString()).toBe('2026-10-14T18:45:00.000Z');
+    expect(patientJoinWindow(start, end, 0, 10, false).closesAt.toISOString()).toBe('2026-10-14T18:30:00.000Z');
+    expect(patientJoinWindow(start, end, 15, 10, true).closesAt.toISOString()).toBe('2026-10-14T18:55:00.000Z');
   });
 });

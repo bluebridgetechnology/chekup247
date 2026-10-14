@@ -373,7 +373,7 @@ export class BrevoEmailProvider {
               </div>
               <p style="color: #475569; font-size: 14px;">${
                 joinUrl
-                  ? 'When it is time, just tap the button below to join your video consultation. There is no password or code to enter. The button opens 15 minutes before your start time and works until your booked time is over. Please test your camera and microphone a few minutes before.'
+                  ? 'When it is time, just tap the button below to join your video consultation. There is no password or code to enter. The button opens 15 minutes before your start time and works until your booked time is over (you can rejoin for a few minutes after if your call is in progress). Please test your camera and microphone a few minutes before.'
                   : 'Please test your camera and microphone 5 minutes prior to your appointment time. Consultations take place directly in your web browser.'
               }</p>
               <div style="text-align: center;">

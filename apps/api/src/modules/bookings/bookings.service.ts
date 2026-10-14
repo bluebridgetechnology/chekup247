@@ -42,6 +42,7 @@ import {
   isSlotBookable,
   isValidHoldToken,
   resolveBookingLeadMinutes,
+  resolveJoinGraceMinutes,
   resolveSlotHoldMinutes,
 } from './booking.constants';
 import { randomBytes } from 'crypto';
@@ -153,6 +154,17 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     if (this.reconcileTimer) clearInterval(this.reconcileTimer);
+  }
+
+  /** Minutes a patient can rejoin a consultation under way after the booked time (admin Platform Setting). */
+  private async getJoinGraceMinutes(): Promise<number> {
+    try {
+      const settings = await this.platformSettingRepository?.findOne({ where: {} });
+      return resolveJoinGraceMinutes(settings?.join_grace_minutes);
+    } catch (err: any) {
+      this.logger.warn(`Could not load join grace minutes: ${err?.message}`);
+      return resolveJoinGraceMinutes(undefined);
+    }
   }
 
   /** Minutes a time is held once the patient reaches checkout (admin Platform Setting). */
@@ -286,6 +298,8 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
         slot.start_time,
         slot.end_time,
         extras.reduce((sum, e) => sum + e.duration_minutes, 0),
+        await this.getJoinGraceMinutes(),
+        Boolean(consultation?.started_at),
       );
       if (now < opensAt.getTime()) {
         throw new BadRequestException({

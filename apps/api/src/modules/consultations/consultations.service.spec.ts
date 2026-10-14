@@ -370,6 +370,26 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
         await expect(service.joinConsultation('booking-1', 'patient', 'Pat')).resolves.toBeDefined();
       });
 
+      it('grace: a call under way can be rejoined for 10 minutes after the booked end (e.g. after paying for an extension)', async () => {
+        mockSlotRepo.findOne.mockResolvedValue(slot(-35)); // ended 5 min ago
+        mockConsultationRepo.findOne.mockResolvedValue(room({ started_at: new Date() }));
+        await expect(service.joinConsultation('booking-1', 'patient', 'Pat')).resolves.toBeDefined();
+
+        mockSlotRepo.findOne.mockResolvedValue(slot(-45)); // 15 min ago: past the grace
+        mockConsultationRepo.findOne.mockResolvedValue(room({ started_at: new Date() }));
+        await expect(service.joinConsultation('booking-1', 'patient', 'Pat')).rejects.toMatchObject({
+          response: expect.objectContaining({ code: 'EXPIRED' }),
+        });
+      });
+
+      it('grace never applies to a consultation that has not started', async () => {
+        mockSlotRepo.findOne.mockResolvedValue(slot(-35));
+        mockConsultationRepo.findOne.mockResolvedValue(room({ started_at: null }));
+        await expect(service.joinConsultation('booking-1', 'patient', 'Pat')).rejects.toMatchObject({
+          response: expect.objectContaining({ code: 'EXPIRED' }),
+        });
+      });
+
       it('never applies to the doctor', async () => {
         mockConsultationRepo.findOne.mockResolvedValue(room());
         mockSlotRepo.findOne.mockResolvedValue(slot(-45));

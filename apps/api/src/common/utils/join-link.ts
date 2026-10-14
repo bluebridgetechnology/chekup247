@@ -46,9 +46,14 @@ export function patientJoinWindow(
   slotStart: Date | string,
   slotEnd: Date | string,
   paidExtraMinutes = 0,
+  /** Rejoin grace (minutes), applied only while the consultation is under way (started, not ended). */
+  graceMinutes = 0,
+  inProgress = false,
 ): { opensAt: Date; closesAt: Date } {
   return {
     opensAt: new Date(new Date(slotStart).getTime() - JOIN_OPENS_BEFORE_MS),
-    closesAt: new Date(new Date(slotEnd).getTime() + paidExtraMinutes * 60 * 1000),
+    closesAt: new Date(
+      new Date(slotEnd).getTime() + (paidExtraMinutes + (inProgress ? graceMinutes : 0)) * 60 * 1000,
+    ),
   };
 }

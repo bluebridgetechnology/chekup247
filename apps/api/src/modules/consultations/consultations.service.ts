@@ -28,7 +28,8 @@ import {
   PatientMedicalProfile,
   PatientDocument,
 } from '../../database/patient/entities';
-import { AvailabilitySlot, DoctorProfile, User } from '../../database/operational/entities';
+import { AvailabilitySlot, DoctorProfile, User, PlatformSetting } from '../../database/operational/entities';
+import { resolveJoinGraceMinutes } from '../bookings/booking.constants';
 import { envConfig } from '../../config/env.config';
 import { JOIN_OPENS_BEFORE_MINUTES, patientJoinWindow } from '../../common/utils/join-link';
 import { DailyService } from './daily.service';
@@ -73,6 +74,9 @@ export class ConsultationsService {
     private readonly notificationsService?: NotificationsService,
     @Optional()
     private readonly patientDemoSeederService?: PatientDemoSeederService,
+    @Optional()
+    @InjectRepository(PlatformSetting, 'operational')
+    private readonly platformSettingRepository?: Repository<PlatformSetting>,
   ) {}
 
   /**
@@ -1091,10 +1095,19 @@ export class ConsultationsService {
     const extras = await this.extensionRepository.find({
       where: { consultation_id: consultation.id, status: ExtensionStatus.PAID },
     });
+    let graceMinutes = resolveJoinGraceMinutes(undefined);
+    try {
+      const settings = await this.platformSettingRepository?.findOne({ where: {} });
+      graceMinutes = resolveJoinGraceMinutes(settings?.join_grace_minutes);
+    } catch (err: any) {
+      this.logger.warn(`Could not load join grace minutes: ${err?.message}`);
+    }
     const { opensAt, closesAt } = patientJoinWindow(
       slot.start_time,
       slot.end_time,
       extras.reduce((sum, e) => sum + e.duration_minutes, 0),
+      graceMinutes,
+      Boolean(consultation.started_at && !consultation.ended_at),
     );
     const now = Date.now();
     if (now < opensAt.getTime()) {

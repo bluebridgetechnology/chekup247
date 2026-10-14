@@ -649,6 +649,24 @@ describe('BookingsService (Saga & Cross-DB)', () => {
       });
     });
 
+    it('lets a patient rejoin a call under way for the grace period after the booked end, but not a call that never started', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking());
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(-35)); // ended 5 min ago
+      mockConsultationRepository.findOne.mockResolvedValue({ id: 'c1', started_at: new Date(), ended_at: null });
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).resolves.toBeDefined();
+
+      mockConsultationRepository.findOne.mockResolvedValue({ id: 'c1', started_at: null, ended_at: null });
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'EXPIRED' }),
+      });
+
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(-45)); // ended 15 min ago: past the 10 min grace
+      mockConsultationRepository.findOne.mockResolvedValue({ id: 'c1', started_at: new Date(), ended_at: null });
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'EXPIRED' }),
+      });
+    });
+
     it('is closed once the consultation has ended, even inside the booked time', async () => {
       mockBookingRepository.findOne.mockResolvedValue(mkBooking());
       mockSlotRepository.findOne.mockResolvedValue(slotAt(-5));
