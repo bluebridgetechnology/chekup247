@@ -227,6 +227,7 @@ export class AdminController {
       standard_consultation_rate?: number;
       minimum_billable_minutes?: number;
       booking_lead_minutes?: number;
+      slot_hold_minutes?: number;
       late_cancellation_deduction_percent?: number;
       no_show_grace_minutes?: number;
       default_slot_duration_minutes?: number;

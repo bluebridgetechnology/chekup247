@@ -44,6 +44,13 @@ export class AvailabilitySlot {
   @Column({ type: 'boolean', default: false })
   is_locked: boolean;
 
+  /** Anonymous token of the patient currently checking out this time (see booking.constants.ts). */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  hold_token: string | null;
+
+  @Column({ type: 'timestamp with time zone', nullable: true })
+  hold_expires_at: Date | null;
+
   @CreateDateColumn({ type: 'timestamp with time zone' })
   created_at: Date;
 

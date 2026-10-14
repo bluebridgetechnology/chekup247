@@ -36,6 +36,7 @@ interface PlatformSettingsData {
   standard_consultation_rate?: number;
   minimum_billable_minutes?: number;
   booking_lead_minutes?: number;
+  slot_hold_minutes?: number;
   commission_percent: number;
   late_cancellation_deduction_percent: number;
   no_show_grace_minutes: number;
@@ -63,6 +64,7 @@ export default function AdminSettingsPage() {
     standard_consultation_rate: 850,
     minimum_billable_minutes: 30,
     booking_lead_minutes: 15,
+    slot_hold_minutes: 10,
     commission_percent: 15,
     late_cancellation_deduction_percent: 30,
     no_show_grace_minutes: 10,
@@ -127,6 +129,7 @@ export default function AdminSettingsPage() {
             standard_consultation_rate: data.standard_consultation_rate ? Number(data.standard_consultation_rate) : 850,
             minimum_billable_minutes: Number(data.minimum_billable_minutes ?? 30),
             booking_lead_minutes: Number(data.booking_lead_minutes ?? 15),
+            slot_hold_minutes: Number(data.slot_hold_minutes ?? 10),
             commission_percent: Number(data.commission_percent ?? 15),
             late_cancellation_deduction_percent: Number(data.late_cancellation_deduction_percent ?? 30),
             no_show_grace_minutes: Number(data.no_show_grace_minutes ?? 10),
@@ -176,6 +179,7 @@ export default function AdminSettingsPage() {
           standard_consultation_rate: Number(settings.standard_consultation_rate ?? 850),
           minimum_billable_minutes: Number(settings.minimum_billable_minutes ?? 30),
           booking_lead_minutes: Number(settings.booking_lead_minutes ?? 15),
+          slot_hold_minutes: Number(settings.slot_hold_minutes ?? 10),
           commission_percent: Number(settings.commission_percent),
           late_cancellation_deduction_percent: Number(settings.late_cancellation_deduction_percent),
           no_show_grace_minutes: Number(settings.no_show_grace_minutes),
@@ -200,6 +204,7 @@ export default function AdminSettingsPage() {
         standard_consultation_rate: updated.standard_consultation_rate ? Number(updated.standard_consultation_rate) : prev.standard_consultation_rate,
         minimum_billable_minutes: Number(updated.minimum_billable_minutes ?? prev.minimum_billable_minutes ?? 30),
         booking_lead_minutes: Number(updated.booking_lead_minutes ?? prev.booking_lead_minutes ?? 15),
+        slot_hold_minutes: Number(updated.slot_hold_minutes ?? prev.slot_hold_minutes ?? 10),
         commission_percent: Number(updated.commission_percent),
         late_cancellation_deduction_percent: Number(updated.late_cancellation_deduction_percent),
         no_show_grace_minutes: Number(updated.no_show_grace_minutes),
@@ -1405,6 +1410,49 @@ export default function AdminSettingsPage() {
                   />
                   <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
                     A time closes for booking this many minutes before it starts (e.g. with 15, the 5:40 PM slot disappears at 5:25 PM). Set to 0 to allow booking right up to the start.
+                  </div>
+                </div>
+
+                {/* Slot hold time */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#201712' }}>
+                      Slot Hold Time at Checkout (minutes)
+                    </label>
+                    <span
+                      style={{
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        color: '#18A875',
+                        background: '#EDFDF5',
+                        padding: '2px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid #BBF7D0',
+                      }}
+                    >
+                      {Number(settings.slot_hold_minutes ?? 10)} min
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="60"
+                    step="1"
+                    value={settings.slot_hold_minutes ?? 10}
+                    onChange={(e) => setSettings({ ...settings, slot_hold_minutes: Number(e.target.value) })}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid #D1C7BD',
+                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      background: '#FFFFFF',
+                      marginBottom: '6px',
+                    }}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
+                    Once a patient reaches checkout, their chosen time is reserved for this long: other patients can&apos;t take it and the booking lead time doesn&apos;t cut it off. A hold never lasts past the slot&apos;s start.
                   </div>
                 </div>
 

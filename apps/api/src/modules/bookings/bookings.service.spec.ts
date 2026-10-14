@@ -451,10 +451,132 @@ describe('BookingsService (Saga & Cross-DB)', () => {
     });
   });
 
+  describe('slot holds', () => {
+    const TOKEN = 'a'.repeat(32);
+    const OTHER = 'b'.repeat(32);
+    const mkSlot = (over: any = {}) => ({
+      id: 'slot-1',
+      doctor_id: 'doc-1',
+      start_time: new Date(Date.now() + 60 * 60 * 1000),
+      end_time: new Date(Date.now() + 90 * 60 * 1000),
+      is_booked: false,
+      is_locked: false,
+      hold_token: null,
+      hold_expires_at: null,
+      ...over,
+    });
+    const lockQb = (slot: any) => ({
+      setLock: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      getOne: jest.fn().mockResolvedValue(slot),
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue({ affected: 0 }),
+    });
+
+    it('holds an open slot for the configured minutes and returns a token', async () => {
+      const slot = mkSlot();
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(lockQb(slot));
+      mockPlatformSettingRepository.findOne.mockResolvedValue({ slot_hold_minutes: 10, booking_lead_minutes: 15 });
+      const res = await service.holdSlot('slot-1');
+      expect(res.holdToken).toMatch(/^[A-Za-z0-9_-]{16,64}$/);
+      expect(res.holdMinutes).toBe(10);
+      const msFromNow = new Date(res.expiresAt).getTime() - Date.now();
+      expect(msFromNow).toBeGreaterThan(9 * 60 * 1000);
+      expect(msFromNow).toBeLessThanOrEqual(10 * 60 * 1000);
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(expect.objectContaining({ hold_token: res.holdToken }));
+    });
+
+    it('never holds past the slot start', async () => {
+      const slot = mkSlot({ start_time: new Date(Date.now() + 16 * 60 * 1000), end_time: new Date(Date.now() + 46 * 60 * 1000) });
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(lockQb(slot));
+      mockPlatformSettingRepository.findOne.mockResolvedValue({ slot_hold_minutes: 30, booking_lead_minutes: 15 });
+      const res = await service.holdSlot('slot-1');
+      expect(new Date(res.expiresAt).getTime()).toBeLessThanOrEqual(new Date(slot.start_time).getTime());
+    });
+
+    it('rejects a slot held by someone else', async () => {
+      const slot = mkSlot({ hold_token: OTHER, hold_expires_at: new Date(Date.now() + 5 * 60 * 1000) });
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(lockQb(slot));
+      await expect(service.holdSlot('slot-1', TOKEN)).rejects.toThrow('Someone else is booking this time');
+    });
+
+    it('lets the same client re-request its own hold without extending it', async () => {
+      const expiry = new Date(Date.now() + 4 * 60 * 1000);
+      const slot = mkSlot({ hold_token: TOKEN, hold_expires_at: expiry });
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(lockQb(slot));
+      const res = await service.holdSlot('slot-1', TOKEN);
+      expect(res.expiresAt).toBe(expiry.toISOString());
+    });
+
+    it('takes over an expired hold', async () => {
+      const slot = mkSlot({ hold_token: OTHER, hold_expires_at: new Date(Date.now() - 1000) });
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(lockQb(slot));
+      mockPlatformSettingRepository.findOne.mockResolvedValue({ slot_hold_minutes: 10, booking_lead_minutes: 15 });
+      const res = await service.holdSlot('slot-1', TOKEN);
+      expect(res.holdToken).toBe(TOKEN);
+    });
+
+    it('rejects booked slots and slots inside the lead time', async () => {
+      mockPlatformSettingRepository.findOne.mockResolvedValue({ slot_hold_minutes: 10, booking_lead_minutes: 15 });
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(lockQb(mkSlot({ is_booked: true })));
+      await expect(service.holdSlot('slot-1')).rejects.toThrow('just been taken');
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(
+        lockQb(mkSlot({ start_time: new Date(Date.now() + 5 * 60 * 1000) })),
+      );
+      await expect(service.holdSlot('slot-1')).rejects.toThrow('bookings close 15 minutes before the start');
+    });
+
+    it('booking is rejected when another patient holds the slot', async () => {
+      const slot = mkSlot({ hold_token: OTHER, hold_expires_at: new Date(Date.now() + 5 * 60 * 1000) });
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(lockQb(slot));
+      await expect(
+        service.createBookingSaga('patient-1', { slotId: 'slot-1', holdToken: TOKEN }),
+      ).rejects.toThrow('Someone else is booking this time');
+    });
+
+    it('the holder can still book after the lead-time cutoff passed, until the hold expires', async () => {
+      // starts in 8 min: inside the 15-min lead, but this patient holds it
+      const slot = mkSlot({
+        start_time: new Date(Date.now() + 8 * 60 * 1000),
+        end_time: new Date(Date.now() + 38 * 60 * 1000),
+        hold_token: TOKEN,
+        hold_expires_at: new Date(Date.now() + 5 * 60 * 1000),
+      });
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(lockQb(slot));
+      mockQueryRunner.manager.findOne.mockResolvedValue({ id: 'doc-1', rate_per_hour: 850, user: { full_name: 'Dr X' } });
+      mockQueryRunner.manager.save.mockImplementation((s: any) => Promise.resolve(s));
+      mockPlatformSettingRepository.findOne.mockResolvedValue({ booking_lead_minutes: 15, standard_consultation_rate: 850, commission_percent: 15 });
+      const res = await service.createBookingSaga('patient-1', { slotId: 'slot-1', holdToken: TOKEN });
+      expect(res.status).toBe(BookingStatus.PENDING);
+      expect(mockQueryRunner.manager.save).toHaveBeenCalledWith(
+        expect.objectContaining({ is_booked: true, hold_token: null, hold_expires_at: null }),
+      );
+    });
+
+    it('without a hold, the same slot is rejected by the lead-time rule', async () => {
+      const slot = mkSlot({ start_time: new Date(Date.now() + 8 * 60 * 1000), end_time: new Date(Date.now() + 38 * 60 * 1000) });
+      mockQueryRunner.manager.createQueryBuilder.mockReturnValue(lockQb(slot));
+      mockPlatformSettingRepository.findOne.mockResolvedValue({ booking_lead_minutes: 15 });
+      await expect(service.createBookingSaga('patient-1', { slotId: 'slot-1' })).rejects.toThrow(
+        'bookings close 15 minutes before the start',
+      );
+    });
+  });
+
+  describe('reconciliation grace', () => {
+    it('does not release a very recent booked slot that has no booking yet (mid-saga)', async () => {
+      mockSlotRepository.find.mockResolvedValue([{ id: 'fresh', is_booked: true, updated_at: new Date() }]);
+      mockBookingRepository.find.mockResolvedValue([]);
+      const res = await service.reconcileDatabaseDrift();
+      expect(res.orphaned_slots_fixed).toBe(0);
+    });
+  });
+
   describe('reconcileDatabaseDrift', () => {
     it('should detect orphaned slots and release them', async () => {
       mockSlotRepository.find.mockResolvedValue([
-        { id: 'orphaned-slot-1', is_booked: true },
+        { id: 'orphaned-slot-1', is_booked: true, updated_at: new Date(Date.now() - 10 * 60 * 1000) },
       ]);
       mockBookingRepository.find.mockResolvedValue([]); // No booking exists in RDS
 

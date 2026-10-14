@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatClockTime, formatZoneAbbr, getViewerTimeZone, localDateKey } from '../lib/time';
 import { OPEN_QUICK_BOOK_EVENT, QUICK_BOOK_PARAM, QUICK_BOOK_SLOT_VALUE } from '../lib/quickBook';
 import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../lib/bookingWindow';
+import { holdQuery, requestHold } from '../lib/slotHold';
 import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../lib/pricing';
 
 interface LiveSlot {
@@ -226,7 +227,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
     if (!isOpen) return;
     let alive = true;
     setSlotsLoading(true);
-    fetch(`${API_BASE}/doctors/${encodeURIComponent(doctor.id)}/availability`)
+    fetch(`${API_BASE}/doctors/${encodeURIComponent(doctor.id)}/availability${holdQuery()}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!alive || !data) return;
@@ -255,7 +256,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
   useEffect(() => {
     if (!isOpen || step !== 'review') return;
     let alive = true;
-    fetch(`${API_BASE}/doctors/${encodeURIComponent(doctor.id)}/availability`)
+    fetch(`${API_BASE}/doctors/${encodeURIComponent(doctor.id)}/availability${holdQuery()}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (!alive || !data || !Array.isArray(data.slots)) return;
@@ -493,6 +494,16 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
         );
       } catch {
         // ignore
+      }
+
+      // Reserve the time so it can't close or be taken while the patient pays
+      const held = await requestHold(API_BASE, slotId);
+      if (held.status === 'rejected') {
+        setSelectedSlot(null);
+        setIsSubmitting(false);
+        setStep('slot');
+        setFormError(held.message);
+        return;
       }
 
       setIsOpen(false);

@@ -46,6 +46,7 @@ import { isValidTimeZone, zonedWallTimeToUtc } from '../../common/utils/zoned-ti
 import { DirectorySyncService } from './directory-sync.service';
 import { AvailabilitySyncService } from './availability-sync.service';
 import {
+  isHeldByOther,
   isSlotBookable,
   resolveBookingLeadMinutes,
 } from '../bookings/booking.constants';
@@ -1107,6 +1108,10 @@ export class DoctorsService implements OnModuleInit {
     const slots = rawSlots.filter((slot) => {
       const sStart = new Date(slot.start_time).getTime();
       const sEnd = new Date(slot.end_time).getTime();
+      // Hidden while another patient is checking out this time. The holder keeps seeing their own.
+      if (isHeldByOther(slot, query.holdToken)) {
+        return false;
+      }
       if (!isSlotBookable(sStart, bookingLeadMinutes)) {
         return false;
       }
