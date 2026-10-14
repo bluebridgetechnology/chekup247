@@ -1,5 +1,7 @@
 'use client';
 
+import { QUICK_BOOK_ONLY, SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
+import { openQuickBook } from '../lib/quickBook';
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -219,19 +221,21 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
             )}
           </Link>
 
-          <Link
-            href="/doctors"
-            onClick={onClose}
-            style={{
-              color: pathname.startsWith('/doctors') ? 'var(--color-gold-base, #DFAB62)' : 'rgba(255, 255, 255, 0.9)',
-              fontSize: '0.95rem',
-              fontWeight: pathname.startsWith('/doctors') ? 600 : 500,
-              textDecoration: 'none',
-              padding: '4px 0',
-            }}
-          >
-            Find a Doctor
-          </Link>
+          {SHOW_DOCTOR_DIRECTORY && (
+            <Link
+              href="/doctors"
+              onClick={onClose}
+              style={{
+                color: pathname.startsWith('/doctors') ? 'var(--color-gold-base, #DFAB62)' : 'rgba(255, 255, 255, 0.9)',
+                fontSize: '0.95rem',
+                fontWeight: pathname.startsWith('/doctors') ? 600 : 500,
+                textDecoration: 'none',
+                padding: '4px 0',
+              }}
+            >
+              Find a Doctor
+            </Link>
+          )}
 
           <Link
             href="/how-it-works"
@@ -255,6 +259,35 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                 My Healthcare
               </div>
 
+              {QUICK_BOOK_ONLY ? (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  openQuickBook();
+                }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  alignSelf: 'flex-start',
+                  padding: '9px 16px',
+                  borderRadius: '9999px',
+                  background: 'var(--color-gold-primary, #DFAB62)',
+                  color: 'var(--color-chocolate-base, #2A170F)',
+                  fontSize: '0.9rem',
+                  fontWeight: 700,
+                  textDecoration: 'none',
+                  margin: '4px 0 6px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <SolarIcon name="bolt-circle-bold" size={17} color="#2A170F" />
+                <span>Quick Book</span>
+              </button>
+              ) : (
               <Link
                 href="/appointments?view=find-doctor"
                 onClick={onClose}
@@ -276,6 +309,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                 <SolarIcon name="bolt-circle-bold" size={17} color="#2A170F" />
                 <span>Quick Book</span>
               </Link>
+              )}
               <Link
                 href="/appointments"
                 onClick={onClose}

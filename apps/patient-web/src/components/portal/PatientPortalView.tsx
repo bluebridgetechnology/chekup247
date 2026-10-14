@@ -1,6 +1,7 @@
 'use client';
 
-import { SHOW_DIRECT_BOOKING_CTAS } from '../../lib/featureFlags';
+import { SHOW_DIRECT_BOOKING_CTAS, SHOW_DOCTOR_DIRECTORY } from '../../lib/featureFlags';
+import { openQuickBook } from '../../lib/quickBook';
 import React, { useState, useEffect, useMemo } from 'react';
 import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import Link from 'next/link';
@@ -18,10 +19,18 @@ import { formatDoctorName } from '../../lib/doctorName';
 
 function SearchParamListener({ onChangeView }: { onChangeView: (v: string) => void }) {
   const searchParams = useSearchParams();
-  const view = searchParams?.get('view') || 'appointments';
+  const rawView = searchParams?.get('view') || 'appointments';
+  // Quick-Book-only mode: the portal's doctor finder is hidden, so any link to it opens
+  // Quick Book and keeps the patient on their appointments.
+  const redirectToQuickBook = !SHOW_DOCTOR_DIRECTORY && (rawView === 'find-doctor' || rawView === 'search');
+  const view = redirectToQuickBook ? 'appointments' : rawView;
   useEffect(() => {
+    if (redirectToQuickBook) {
+      openQuickBook();
+      window.history.replaceState(null, '', '/appointments');
+    }
     onChangeView(view);
-  }, [view, onChangeView]);
+  }, [view, redirectToQuickBook, onChangeView]);
   return null;
 }
 
@@ -438,7 +447,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
 
               <div style={{ display: 'flex', gap: '8px', paddingTop: '12px', borderTop: '1px solid #F4EBE1' }}>
                 <Link
-                  href={doc.slug ? `/doctors/${doc.slug}` : '/appointments?view=find-doctor'}
+                  href={SHOW_DOCTOR_DIRECTORY && doc.slug ? `/doctors/${doc.slug}` : '/appointments?view=find-doctor'}
                   style={{
                     flex: 1,
                     display: 'inline-flex',
@@ -2463,7 +2472,7 @@ export function PatientPortalView({ initialView = 'appointments' }: { initialVie
                       </Link>
                     ) : (
                       <Link
-                        href={booking.doctor?.id ? `/doctors/${booking.doctor.id}` : '/appointments?view=find-doctor'}
+                        href={SHOW_DOCTOR_DIRECTORY && booking.doctor?.id ? `/doctors/${booking.doctor.id}` : '/appointments?view=find-doctor'}
                         className="appt-btn appt-btn-soft portal-book-again-btn"
                       >
                         <SolarIcon name="calendar-add-linear" size={16} color="#2A170F" />

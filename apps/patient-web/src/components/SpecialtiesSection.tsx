@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
 import React from 'react';
 import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
@@ -151,12 +152,14 @@ export function SpecialtiesSection() {
         </div>
 
         {/* Explore All Specialties CTA */}
-        <div className="specialties-cta-wrap">
-          <Link href="/doctors" className="specialties-view-more-btn">
-            <span>Explore All Specialties</span>
-            <SolarIcon name="arrow-right-linear" size={16} color="currentColor" />
-          </Link>
-        </div>
+        {SHOW_DOCTOR_DIRECTORY && (
+          <div className="specialties-cta-wrap">
+            <Link href="/doctors" className="specialties-view-more-btn">
+              <span>Explore All Specialties</span>
+              <SolarIcon name="arrow-right-linear" size={16} color="currentColor" />
+            </Link>
+          </div>
+        )}
       </div>
     </section>
   );

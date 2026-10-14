@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
 import React from 'react';
 import { HeroSection } from '../components/HeroSection';
 import { WhyChooseSection } from '../components/WhyChooseSection';
@@ -31,7 +32,7 @@ export default function HomeClient() {
       <TrustSection />
 
       {/* 6. TOP VERIFIED PRACTITIONERS */}
-      <FeaturedDoctorsSection />
+      {SHOW_DOCTOR_DIRECTORY && <FeaturedDoctorsSection />}
 
       {/* 7. VERIFIED PATIENT TESTIMONIALS */}
       <TestimonialsSection />

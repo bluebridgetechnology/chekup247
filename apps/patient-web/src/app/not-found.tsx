@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
 import React from 'react';
 import Link from 'next/link';
 import { Video, Home, Search, HelpCircle, ArrowLeft } from 'lucide-react';
@@ -74,10 +75,12 @@ export default function NotFound() {
             <Home size={18} />
             <span>Return to Homepage</span>
           </Link>
-          <Link href="/doctors" className="btn-secondary touch-target">
-            <Search size={18} />
-            <span>Find a Doctor</span>
-          </Link>
+          {SHOW_DOCTOR_DIRECTORY && (
+            <Link href="/doctors" className="btn-secondary touch-target">
+              <Search size={18} />
+              <span>Find a Doctor</span>
+            </Link>
+          )}
           <Link href="/faq" className="btn-secondary touch-target">
             <HelpCircle size={18} />
             <span>Help Center</span>

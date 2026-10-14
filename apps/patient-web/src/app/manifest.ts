@@ -1,3 +1,5 @@
+import { SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
+import { QUICK_BOOK_URL } from '../lib/quickBook';
 import type { MetadataRoute } from 'next';
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -42,7 +44,7 @@ export default function manifest(): MetadataRoute.Manifest {
         name: 'Book a Doctor',
         short_name: 'Book Doctor',
         description: 'Find verified doctors and schedule an online consultation',
-        url: '/doctors',
+        url: SHOW_DOCTOR_DIRECTORY ? '/doctors' : QUICK_BOOK_URL,
         icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }],
       },
       {

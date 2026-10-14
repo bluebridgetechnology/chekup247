@@ -1,3 +1,4 @@
+import { SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
 import { MetadataRoute } from 'next';
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -12,12 +13,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'daily',
       priority: 1.0,
     },
-    {
-      url: `${baseUrl}/doctors`,
-      lastModified: now,
-      changeFrequency: 'daily',
-      priority: 0.9,
-    },
+    ...(SHOW_DOCTOR_DIRECTORY
+      ? [
+          {
+            url: `${baseUrl}/doctors`,
+            lastModified: now,
+            changeFrequency: 'daily' as const,
+            priority: 0.9,
+          },
+        ]
+      : []),
     {
       url: `${baseUrl}/how-it-works`,
       lastModified: now,

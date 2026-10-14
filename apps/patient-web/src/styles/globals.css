@@ -5708,3 +5708,13 @@ details summary::-webkit-details-marker {
     max-width: none;
   }
 }
+
+
+/* Header actions can render as <button> (Quick-Book-only mode) */
+button.nav-getstarted-btn,
+button.nav-mobile-getstarted,
+button.nav-quick-book-btn {
+  border: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
