@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DOCTOR_DIRECTORY } from '../../lib/featureFlags';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -23,7 +24,9 @@ const SIDEBAR_GROUPS: SidebarGroup[] = [
     groupTitle: 'MAIN',
     items: [
       { label: 'My Appointments', href: '/appointments', iconName: 'calendar-linear', key: 'appointments' },
-      { label: 'Find a Doctor', href: '/appointments?view=find-doctor', iconName: 'magnifer-linear', key: 'find-doctor' },
+      ...(SHOW_DOCTOR_DIRECTORY
+        ? [{ label: 'Find a Doctor', href: '/appointments?view=find-doctor', iconName: 'magnifer-linear', key: 'find-doctor' }]
+        : []),
       { label: 'My Doctors', href: '/appointments?view=doctors', iconName: 'solar:stethoscope-outline', key: 'my-doctors' },
     ],
   },

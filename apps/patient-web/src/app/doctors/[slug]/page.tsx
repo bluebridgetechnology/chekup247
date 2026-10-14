@@ -1,6 +1,8 @@
 import React from 'react';
 import { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
+import { SHOW_DOCTOR_DIRECTORY } from '../../../lib/featureFlags';
+import { QUICK_BOOK_URL } from '../../../lib/quickBook';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { DoctorBookingCalendar } from '../../../components/DoctorBookingCalendar';
 import { DoctorProfileContent } from '../../../components/DoctorProfileContent';
@@ -76,6 +78,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function DoctorProfilePage({ params }: PageProps) {
+  // Quick-Book-only mode: profile pages (and their booking calendar) are hidden
+  if (!SHOW_DOCTOR_DIRECTORY) redirect(QUICK_BOOK_URL);
+
   const resolvedParams = await params;
   const doctor = await getDoctorData(resolvedParams.slug);
 

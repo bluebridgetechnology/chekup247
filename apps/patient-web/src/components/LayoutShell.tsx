@@ -6,6 +6,7 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { QuickBookingWidget } from './QuickBookingWidget';
 import { useAuth } from '../context/AuthContext';
+import { QUICK_BOOK_ONLY } from '../lib/featureFlags';
 
 interface LayoutShellProps {
   children: React.ReactNode;
@@ -28,8 +29,17 @@ export function LayoutShell({ children }: LayoutShellProps) {
     pathname === '/login' ||
     pathname === '/register';
 
+  // Quick-Book-only mode: signed-in users open the widget from header / portal buttons
+  // (no floating trigger for them), including on the portal routes that skip the public shell.
+  const headlessQuickBook = QUICK_BOOK_ONLY && !isLoading && isAuthenticated;
+
   if (isExcludedRoute) {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        {headlessQuickBook && <QuickBookingWidget showTrigger={false} />}
+      </>
+    );
   }
 
   return (
@@ -41,6 +51,7 @@ export function LayoutShell({ children }: LayoutShellProps) {
       <Footer />
       {/* Floating Quick Book is for visitors only; signed-in users get a header button instead */}
       {!isLoading && !isAuthenticated && <QuickBookingWidget />}
+      {headlessQuickBook && <QuickBookingWidget showTrigger={false} />}
     </>
   );
 }

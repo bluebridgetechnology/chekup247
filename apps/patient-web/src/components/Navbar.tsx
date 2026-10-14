@@ -8,6 +8,8 @@ import { MobileDrawer } from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
 import { getDoctorRegisterUrl, getDoctorLoginUrl } from '../lib/urls';
+import { QUICK_BOOK_ONLY, SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
+import { openQuickBook } from '../lib/quickBook';
 
 /**
  * Precision Chekup247 Brand Medical Cross Mark
@@ -70,7 +72,7 @@ interface NavItem {
 
 const NAV_LINKS: NavItem[] = [
   { label: 'Home', href: '/' },
-  { label: 'Find a Doctor', href: '/doctors' },
+  ...(SHOW_DOCTOR_DIRECTORY ? [{ label: 'Find a Doctor', href: '/doctors' }] : []),
   { label: 'How It Works', href: '/how-it-works' },
 ];
 
@@ -324,10 +326,17 @@ export function Navbar() {
             {isAuthenticated && user ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }} className="auth-actions">
                 {/* Quick Book: a plain button for signed-in users (the floating widget is visitors-only) */}
-                <Link href="/appointments?view=find-doctor" className="nav-quick-book-btn">
-                  <SolarIcon name="bolt-circle-bold" size={17} color="currentColor" />
-                  <span>Quick Book</span>
-                </Link>
+                {QUICK_BOOK_ONLY ? (
+                  <button type="button" onClick={openQuickBook} className="nav-quick-book-btn">
+                    <SolarIcon name="bolt-circle-bold" size={17} color="currentColor" />
+                    <span>Quick Book</span>
+                  </button>
+                ) : (
+                  <Link href="/appointments?view=find-doctor" className="nav-quick-book-btn">
+                    <SolarIcon name="bolt-circle-bold" size={17} color="currentColor" />
+                    <span>Quick Book</span>
+                  </Link>
+                )}
 
                 {/* Notifications (self-contained dropdown) */}
                 <NotificationBell variant="navbar" />
@@ -501,15 +510,27 @@ export function Navbar() {
                   <Link href="/login" className="nav-login-link">
                     Patient login
                   </Link>
-                  <Link href="/register" className="nav-getstarted-btn" title="Create your Chekup247 account">
-                    Get Started
-                  </Link>
+                  {QUICK_BOOK_ONLY ? (
+                    <button type="button" onClick={openQuickBook} className="nav-getstarted-btn" title="Book a consultation">
+                      Get Started
+                    </button>
+                  ) : (
+                    <Link href="/register" className="nav-getstarted-btn" title="Create your Chekup247 account">
+                      Get Started
+                    </Link>
+                  )}
                 </div>
 
                 {/* Phone/tablet: a single clear action; Log in and For Doctors live in the menu */}
-                <Link href="/register" className="nav-mobile-getstarted" title="Create your Chekup247 account">
-                  Get Started
-                </Link>
+                {QUICK_BOOK_ONLY ? (
+                  <button type="button" onClick={openQuickBook} className="nav-mobile-getstarted" title="Book a consultation">
+                    Get Started
+                  </button>
+                ) : (
+                  <Link href="/register" className="nav-mobile-getstarted" title="Create your Chekup247 account">
+                    Get Started
+                  </Link>
+                )}
               </>
             )}
 

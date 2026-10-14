@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import DoctorsClient from './DoctorsClient';
+import { SHOW_DOCTOR_DIRECTORY } from '../../lib/featureFlags';
+import { QUICK_BOOK_URL } from '../../lib/quickBook';
 
 export const metadata: Metadata = {
   title: 'Find a Verified Doctor Online — HPCSA GPs & Specialists | ChekUp247',
@@ -38,6 +41,9 @@ const itemListJsonLd = {
 };
 
 export default function DoctorsPage() {
+  // Quick-Book-only mode: the directory is hidden; send visitors to Quick Book
+  if (!SHOW_DOCTOR_DIRECTORY) redirect(QUICK_BOOK_URL);
+
   return (
     <>
       <script

@@ -32,6 +32,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { toastSuccess, toastError } from '../../../lib/toast';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
+import { SHOW_DOCTOR_DIRECTORY } from '../../../lib/featureFlags';
 
 interface DoctorDetail {
   id: string;
@@ -751,11 +752,15 @@ function CheckoutContent() {
       >
         <div className="container checkout-header" style={{ maxWidth: '1140px' }}>
           <Breadcrumbs
-            items={[
-              { label: 'Find a Doctor', href: '/doctors' },
-              { label: doctor?.fullName || 'Doctor Profile', href: `/doctors/${doctor?.slug || doctorIdParam}` },
-              { label: 'Review & Pay' },
-            ]}
+            items={
+              SHOW_DOCTOR_DIRECTORY
+                ? [
+                    { label: 'Find a Doctor', href: '/doctors' },
+                    { label: doctor?.fullName || 'Doctor Profile', href: `/doctors/${doctor?.slug || doctorIdParam}` },
+                    { label: 'Review & Pay' },
+                  ]
+                : [{ label: 'Home', href: '/' }, { label: 'Review & Pay' }]
+            }
           />
           <div
             style={{

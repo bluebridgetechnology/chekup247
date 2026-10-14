@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { SolarIcon } from './SolarIcon';
 import { useAuth } from '../context/AuthContext';
 import { formatClockTime, formatZoneAbbr, getViewerTimeZone, localDateKey } from '../lib/time';
+import { OPEN_QUICK_BOOK_EVENT, QUICK_BOOK_PARAM } from '../lib/quickBook';
 
 interface LiveSlot {
   id: string;
@@ -83,7 +84,12 @@ interface ChatStep {
   step: 'specialty' | 'doctor' | 'type' | 'slot' | 'patient_info' | 'ready';
 }
 
-export function QuickBookingWidget() {
+interface QuickBookingWidgetProps {
+  /** Show the floating button. Signed-in users get a header button instead, so they use `false`. */
+  showTrigger?: boolean;
+}
+
+export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetProps = {}) {
   const router = useRouter();
   const { user, isAuthenticated, expressPatient } = useAuth();
   const rawApiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -192,6 +198,27 @@ export function QuickBookingWidget() {
       }, 100);
     }
   }, [currentStep, isOpen]);
+
+  // Open from anywhere: header / drawer / portal buttons fire an event, and old
+  // booking links redirect to /?quickbook=1
+  useEffect(() => {
+    const open = () => {
+      setIsOpen(true);
+      setFormError(null);
+    };
+    window.addEventListener(OPEN_QUICK_BOOK_EVENT, open);
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get(QUICK_BOOK_PARAM)) {
+        open();
+        url.searchParams.delete(QUICK_BOOK_PARAM);
+        window.history.replaceState(null, '', url.pathname + (url.search || '') + url.hash);
+      }
+    } catch {
+      // ignore
+    }
+    return () => window.removeEventListener(OPEN_QUICK_BOOK_EVENT, open);
+  }, []);
 
   // Close when clicking outside
   useEffect(() => {
@@ -431,105 +458,107 @@ export function QuickBookingWidget() {
         FLOATING TRIGGER BUTTON (Light / Inversed Color Palette)
         ========================================================================
       */}
+      {showTrigger && (
       <button
-        id="quick-booking-trigger"
-        onClick={() => {
-          setIsOpen((prev) => !prev);
-          setFormError(null);
-        }}
-        aria-label={isOpen ? 'Close Quick Booking' : 'Open Conversational Quick Booking'}
-        aria-expanded={isOpen}
-        style={{
-          position: 'fixed',
-          bottom: '24px',
-          right: '24px',
-          zIndex: 9999,
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '10px',
-          backgroundColor: '#FFFFFF',
-          color: 'var(--color-chocolate-base, #2A170F)',
-          border: '1.5px solid var(--color-gold-base, #DFAB62)',
-          borderRadius: '9999px',
-          padding: isOpen ? '10px 18px' : '9px 18px 9px 12px',
-          boxShadow: '0 10px 30px rgba(42, 23, 15, 0.12), 0 2px 8px rgba(223, 171, 98, 0.25)',
-          cursor: 'pointer',
-          fontFamily: 'var(--font-sans, sans-serif)',
-          transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
-          lineHeight: 1,
-        }}
-        className="quick-booking-trigger-btn"
-      >
-        {isOpen ? (
-          <>
-            <SolarIcon name="close-circle-bold" size={20} color="var(--color-chocolate-base, #2A170F)" />
-            <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
-              Close
-            </span>
-          </>
-        ) : (
-          <>
-            {/* Glowing Gold Icon Circle */}
-            <div
-              style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--color-gold-primary, #DFAB62)',
-                color: 'var(--color-chocolate-base, #2A170F)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-                boxShadow: '0 2px 8px rgba(223, 171, 98, 0.45)',
-              }}
-              aria-hidden="true"
-            >
-              <SolarIcon name="bolt-circle-bold" size={20} color="#2A170F" />
-            </div>
-
-            {/* Inversed Light Text */}
-            <div style={{ textAlign: 'left' }}>
+          id="quick-booking-trigger"
+          onClick={() => {
+            setIsOpen((prev) => !prev);
+            setFormError(null);
+          }}
+          aria-label={isOpen ? 'Close Quick Booking' : 'Open Conversational Quick Booking'}
+          aria-expanded={isOpen}
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 9999,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '10px',
+            backgroundColor: '#FFFFFF',
+            color: 'var(--color-chocolate-base, #2A170F)',
+            border: '1.5px solid var(--color-gold-base, #DFAB62)',
+            borderRadius: '9999px',
+            padding: isOpen ? '10px 18px' : '9px 18px 9px 12px',
+            boxShadow: '0 10px 30px rgba(42, 23, 15, 0.12), 0 2px 8px rgba(223, 171, 98, 0.25)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-sans, sans-serif)',
+            transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+            lineHeight: 1,
+          }}
+          className="quick-booking-trigger-btn"
+        >
+          {isOpen ? (
+            <>
+              <SolarIcon name="close-circle-bold" size={20} color="var(--color-chocolate-base, #2A170F)" />
+              <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
+                Close
+              </span>
+            </>
+          ) : (
+            <>
+              {/* Glowing Gold Icon Circle */}
               <div
                 style={{
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--color-gold-primary, #DFAB62)',
                   color: 'var(--color-chocolate-base, #2A170F)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                  boxShadow: '0 2px 8px rgba(223, 171, 98, 0.45)',
                 }}
+                aria-hidden="true"
               >
-                <span>Quick Book</span>
-                <span
+                <SolarIcon name="bolt-circle-bold" size={20} color="#2A170F" />
+              </div>
+  
+              {/* Inversed Light Text */}
+              <div style={{ textAlign: 'left' }}>
+                <div
                   style={{
-                    backgroundColor: 'rgba(223, 171, 98, 0.18)',
-                    color: '#8C601E',
-                    fontSize: '0.6875rem',
+                    fontSize: '0.875rem',
                     fontWeight: 700,
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
+                    color: 'var(--color-chocolate-base, #2A170F)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
                   }}
                 >
-                  Instant
-                </span>
+                  <span>Quick Book</span>
+                  <span
+                    style={{
+                      backgroundColor: 'rgba(223, 171, 98, 0.18)',
+                      color: '#8C601E',
+                      fontSize: '0.6875rem',
+                      fontWeight: 700,
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                    }}
+                  >
+                    Instant
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontSize: '0.71875rem',
+                    color: 'var(--color-chocolate-muted, #6B5E55)',
+                    fontWeight: 500,
+                    marginTop: '2px',
+                  }}
+                >
+                  No sign-up required
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: '0.71875rem',
-                  color: 'var(--color-chocolate-muted, #6B5E55)',
-                  fontWeight: 500,
-                  marginTop: '2px',
-                }}
-              >
-                No sign-up required
-              </div>
-            </div>
-          </>
-        )}
-      </button>
+            </>
+          )}
+        </button>
+      )}
 
       {/* 
         ========================================================================

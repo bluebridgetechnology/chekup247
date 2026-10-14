@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -61,11 +62,13 @@ export function Footer({ compact = false }: FooterProps) {
                   Home
                 </Link>
               </li>
+              {SHOW_DOCTOR_DIRECTORY && (
               <li>
-                <Link href="/doctors" className="footer-nav-link">
-                  Services
-                </Link>
-              </li>
+                  <Link href="/doctors" className="footer-nav-link">
+                    Services
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link href="/how-it-works" className="footer-nav-link">
                   How It Works
