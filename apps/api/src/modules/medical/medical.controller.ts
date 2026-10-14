@@ -46,6 +46,13 @@ export class MedicalController {
     });
   }
 
+  /** Whether medication search is using the full NAPPI catalogue or the built-in sample list. */
+  @Public()
+  @Get('medications/status')
+  medicationCatalogueStatus() {
+    return this.medicalService.getCatalogueStatus();
+  }
+
   /**
    * Synchronize / query WHO ICD API for specific term
    */

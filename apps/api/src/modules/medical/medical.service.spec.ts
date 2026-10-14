@@ -169,6 +169,41 @@ describe('MedicalService (Unit)', () => {
     expect(results[0].is_active).toBe(true);
   });
 
+  it('retries without trigram matching when the fuzzy query fails (pg_trgm missing), instead of failing the search', async () => {
+    const qb = mockNappiProductRepo.createQueryBuilder();
+    qb.getMany
+      .mockRejectedValueOnce(new Error('operator does not exist: text % unknown'))
+      .mockImplementationOnce(async () => [sampleNappiProduct]);
+    const results = await service.searchMedications('propranolol', 10);
+    expect(results[0].nappi_code).toBe('080824002');
+    // second attempt used plain ILIKE conditions only
+    const lastWhere = qb.andWhere.mock.calls.map((c: any[]) => String(c[0])).filter((w: string) => w.includes('ILIKE')).pop();
+    expect(lastWhere).not.toContain('%  :clean');
+    expect(lastWhere).not.toContain('p.product_name % :clean');
+  });
+
+  it('falls back to the built-in list if the catalogue query keeps failing', async () => {
+    const qb = mockNappiProductRepo.createQueryBuilder();
+    qb.getMany.mockRejectedValue(new Error('boom'));
+    const results = await service.searchMedications('amox', 10);
+    expect(results.length).toBeGreaterThan(0);
+    expect(results.some((r: any) => /amox/i.test(r.name))).toBe(true);
+  });
+
+  it('matches generic names too, so "amoxicillin" can find brand products', async () => {
+    const qb = mockNappiProductRepo.createQueryBuilder();
+    await service.searchMedications('amoxicillin', 10);
+    const wheres = qb.andWhere.mock.calls.map((c: any[]) => String(c[0])).join(' ');
+    expect(wheres).toContain('p.atc_mims_desc ILIKE');
+    expect(wheres).toContain('p.who_atc_desc ILIKE');
+  });
+
+  it('reports whether the full catalogue is loaded', async () => {
+    await expect(service.getCatalogueStatus()).resolves.toEqual({ source: 'nappi', products: 740000 });
+    mockNappiProductRepo.count.mockResolvedValue(0);
+    await expect(service.getCatalogueStatus()).resolves.toEqual({ source: 'sample', products: 0 });
+  });
+
   it('should lookup medicine by exact NAPPI code', async () => {
     const results = await service.searchMedications('080824002', 1);
     expect(results.length).toBe(1);

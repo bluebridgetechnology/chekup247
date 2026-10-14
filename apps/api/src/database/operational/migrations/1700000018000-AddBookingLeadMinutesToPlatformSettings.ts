@@ -1,9 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddBookingLeadMinutesToPlatformSettings1700000007000
+export class AddBookingLeadMinutesToPlatformSettings1700000018000
   implements MigrationInterface
 {
-  name = 'AddBookingLeadMinutesToPlatformSettings1700000007000';
+  name = 'AddBookingLeadMinutesToPlatformSettings1700000018000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
