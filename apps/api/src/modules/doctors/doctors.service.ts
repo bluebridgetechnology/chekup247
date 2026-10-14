@@ -36,8 +36,11 @@ import {
   DEFAULT_PLATFORM_CONSULTATION_RATE,
   PRICING_BLOCK_MINUTES,
   priceForDuration,
+  resolveMinimumBillableMinutes,
   resolveConsultationRate,
 } from './consultation-fee';
+import { randomBytes } from 'crypto';
+import { envConfig } from '../../config/env.config';
 import { TokenService } from '../auth/token.service';
 import { isValidTimeZone, zonedWallTimeToUtc } from '../../common/utils/zoned-time';
 import { DirectorySyncService } from './directory-sync.service';
@@ -53,6 +56,18 @@ export interface PaginatedDoctorsResult {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+/** "Dr Solly Motuba" -> "dr-solly-motuba" */
+export function slugifyDoctorName(name: string): string {
+  return (
+    name
+      .normalize('NFKD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '') || 'doctor'
+  );
 }
 
 @Injectable()
@@ -98,33 +113,36 @@ export class DoctorsService implements OnModuleInit {
    * Seed or verify the default verified test doctor account
    */
   async ensureTestDoctorAccount(): Promise<{ email: string; message: string; doctorProfile: DoctorProfile }> {
-    const testDoctorEmail = 'doctor@chekup247.com';
+    const testDoctorEmail = envConfig.DEFAULT_DOCTOR_EMAIL.trim().toLowerCase();
+    const doctorName = envConfig.DEFAULT_DOCTOR_NAME.trim();
+    const doctorSlug = slugifyDoctorName(doctorName);
+    const configuredPassword = envConfig.DEFAULT_DOCTOR_PASSWORD;
+
     let user = await this.userRepository.findOne({
       where: { email: testDoctorEmail },
     });
 
-    const passwordHash = await this.tokenService.hashPassword('DoctorChekup2026!');
-
     if (!user) {
+      // Never ship a known password for a real address: use the configured one, else a random
+      // one the doctor replaces through "forgot password".
+      const initialPassword = configuredPassword || randomBytes(24).toString('base64url');
       user = this.userRepository.create({
         email: testDoctorEmail,
-        password_hash: passwordHash,
-        full_name: 'Dr. Thabo Molefe',
-        phone: '+27 11 784 2100',
+        password_hash: await this.tokenService.hashPassword(initialPassword),
+        full_name: doctorName,
         role: UserRole.DOCTOR,
         status: UserStatus.ACTIVE,
         is_email_verified: true,
         email_verified_at: new Date(),
-        avatar_url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80',
       });
       user = await this.userRepository.save(user);
-      this.logger.log(`Created default test doctor account: ${testDoctorEmail}`);
+      this.logger.log(`Created default doctor account: ${testDoctorEmail}`);
     } else {
       user.role = UserRole.DOCTOR;
       user.status = UserStatus.ACTIVE;
-      user.password_hash = passwordHash;
-      if (!user.avatar_url) {
-        user.avatar_url = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80';
+      user.full_name = doctorName;
+      if (configuredPassword) {
+        user.password_hash = await this.tokenService.hashPassword(configuredPassword);
       }
       user = await this.userRepository.save(user);
     }
@@ -134,40 +152,32 @@ export class DoctorsService implements OnModuleInit {
     });
 
     if (!profile) {
+      // Only what is certain: no invented ratings, reviews, facility or bio. The doctor completes
+      // the rest (HPCSA number, photo, bio) in the doctor portal.
       profile = this.doctorRepository.create({
         user_id: user.id,
-        hpcsa_number: 'MP 0689432',
-        slug: 'dr-thabo-molefe',
+        hpcsa_number: 'PENDING',
+        slug: doctorSlug,
         specialty: 'General Practitioner',
-        rate_per_hour: 850.0,
-        rating_avg: 4.95,
-        reviews_count: 58,
-        experience_years: 12,
+        rate_per_hour: DEFAULT_PLATFORM_CONSULTATION_RATE,
         consultation_types: [
           'Video Telehealth Consultation',
           'Acute Infection Care',
           'Chronic Script Renewal',
           'Wellness',
         ],
-        facility_name: 'Netcare Sunninghill Hospital Suites',
-        facility_address: 'Cnr Witkoppen & Nanyuki Rd, Sunninghill, Sandton, 2157',
-        photo_url: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80',
-        bio: 'Dr. Thabo Molefe is a compassionate General Practitioner with over 12 years of clinical practice across Gauteng. Specializes in acute infections, metabolic conditions, and preventative care.',
         verification_status: VerificationStatus.VERIFIED,
         verification_source: VerificationSource.PLATFORM,
-        documents_url: ['https://example.com/hpcsa-cert.pdf'],
+        documents_url: [],
       });
       profile = await this.doctorRepository.save(profile);
-      this.logger.log(`Created verified test doctor profile for ${testDoctorEmail}`);
+      this.logger.log(`Created verified default doctor profile for ${testDoctorEmail}`);
     } else {
       profile.verification_status = VerificationStatus.VERIFIED;
-      profile.slug = profile.slug || 'dr-thabo-molefe';
-      profile.specialty = 'General Practitioner';
-      profile.experience_years = profile.experience_years || 12;
+      profile.slug = doctorSlug;
+      profile.specialty = profile.specialty || 'General Practitioner';
       if (user.avatar_url && profile.photo_url !== user.avatar_url) {
         profile.photo_url = user.avatar_url;
-      } else if (!profile.photo_url) {
-        profile.photo_url = 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=400&q=80';
       }
       profile.consultation_types = profile.consultation_types?.length
         ? profile.consultation_types
@@ -276,9 +286,10 @@ export class DoctorsService implements OnModuleInit {
     }
 
     const platformRate = await this.getPlatformConsultationRate();
+    const minBillable = await this.getMinimumBillableMinutes();
 
     return {
-      doctors: doctors.map((d) => this.withConsultationRate(d, platformRate)) as any,
+      doctors: doctors.map((d) => this.withConsultationRate(d, platformRate, minBillable)) as any,
       total,
       page,
       limit,
@@ -381,7 +392,11 @@ export class DoctorsService implements OnModuleInit {
     ];
 
     return {
-      ...this.withConsultationRate(doctor, await this.getPlatformConsultationRate()),
+      ...this.withConsultationRate(
+        doctor,
+        await this.getPlatformConsultationRate(),
+        await this.getMinimumBillableMinutes(),
+      ),
       available_slots: slots.length > 0 ? slots : this.generateDefaultSlots(),
       recent_reviews: mockReviews,
     };
@@ -428,13 +443,27 @@ export class DoctorsService implements OnModuleInit {
     return DEFAULT_PLATFORM_CONSULTATION_RATE;
   }
 
+  /** Sessions shorter than this many minutes are billed as this long (admin Platform Setting). */
+  async getMinimumBillableMinutes(): Promise<number> {
+    try {
+      const settings = await this.platformSettingRepository.findOne({ where: {} });
+      return resolveMinimumBillableMinutes(settings?.minimum_billable_minutes);
+    } catch (err: any) {
+      this.logger.warn(`Could not fetch minimum billable minutes: ${err?.message}`);
+    }
+    return resolveMinimumBillableMinutes(undefined);
+  }
+
   /**
    * Adds the rate patients actually pay (per 30 minutes) to a doctor payload.
    * Total price for a session = consultation_rate x length / 30 (see priceForDuration).
    */
-  withConsultationRate<T extends DoctorProfile>(doctor: T, platformRate: number) {
+  withConsultationRate<T extends DoctorProfile>(doctor: T, platformRate: number, minimumBillableMinutes?: number) {
     const { rate, source } = resolveConsultationRate(doctor, platformRate);
-    return { ...doctor, consultation_rate: rate, rate_block_minutes: PRICING_BLOCK_MINUTES, fee_source: source };
+    return { ...doctor, consultation_rate: rate, rate_block_minutes: PRICING_BLOCK_MINUTES,
+      minimum_billable_minutes: resolveMinimumBillableMinutes(minimumBillableMinutes),
+      fee_source: source,
+    };
   }
 
   async getDoctorById(id: string): Promise<DoctorProfile | null> {
@@ -1083,6 +1112,7 @@ export class DoctorsService implements OnModuleInit {
       doctor,
       await this.getPlatformConsultationRate(),
     );
+    const minimumBillableMinutes = await this.getMinimumBillableMinutes();
 
     // Group by YYYY-MM-DD
     const groupedByDate: Record<string, any[]> = {};
@@ -1100,7 +1130,7 @@ export class DoctorsService implements OnModuleInit {
         date: dateStr,
         durationMinutes,
         // total price for THIS slot: rate per 30 minutes x its length
-        price: priceForDuration(consultationRate, durationMinutes),
+        price: priceForDuration(consultationRate, durationMinutes, minimumBillableMinutes),
         source: s.source,
         isLocked: s.is_locked,
       };
@@ -1118,6 +1148,7 @@ export class DoctorsService implements OnModuleInit {
       ratePerHour: Number(doctor.rate_per_hour),
       consultationRate,
       rateBlockMinutes: PRICING_BLOCK_MINUTES,
+      minimumBillableMinutes,
       feeSource,
       totalSlots: formattedSlots.length,
       startDate: startDate.toISOString(),

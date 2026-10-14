@@ -12,6 +12,13 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().default(4000),
 
+  // Default (MVP) doctor seeded on startup. Quick Book is pinned to this doctor.
+  DEFAULT_DOCTOR_EMAIL: z.string().default('motubas@gmail.com'),
+  DEFAULT_DOCTOR_NAME: z.string().default('Dr Solly Motuba'),
+  // Optional. When set, the default doctor's password is set to this on every start.
+  // When unset, a random password is generated for a NEW account only (use "forgot password").
+  DEFAULT_DOCTOR_PASSWORD: z.string().optional(),
+
   // Operational Database (VPS / Local)
   OPERATIONAL_DB_HOST: z.string().default('127.0.0.1'),
   OPERATIONAL_DB_PORT: z.coerce.number().default(5434),

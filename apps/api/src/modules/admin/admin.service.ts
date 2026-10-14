@@ -45,6 +45,7 @@ import {
   Notification,
   NotificationDeliveryStatus,
 } from '../../database/patient/entities';
+import { resolveMinimumBillableMinutes } from '../doctors/consultation-fee';
 import { TokenService } from '../auth/token.service';
 import { AuditService, AuditLogsFilterQuery } from '../audit/audit.service';
 import { ReviewsService } from '../reviews/reviews.service';
@@ -167,6 +168,7 @@ export class AdminService implements OnModuleInit {
       id: settings.id,
       commission_percent: Number(settings.commission_percent),
       standard_consultation_rate: Number(settings.standard_consultation_rate ?? 850.00),
+      minimum_billable_minutes: resolveMinimumBillableMinutes(settings.minimum_billable_minutes),
       late_cancellation_deduction_percent: Number(settings.late_cancellation_deduction_percent),
       no_show_grace_minutes: Number(settings.no_show_grace_minutes),
       default_slot_duration_minutes: Number(settings.default_slot_duration_minutes),
@@ -187,6 +189,7 @@ export class AdminService implements OnModuleInit {
     dto: {
       commission_percent?: number;
       standard_consultation_rate?: number;
+      minimum_billable_minutes?: number;
       late_cancellation_deduction_percent?: number;
       no_show_grace_minutes?: number;
       default_slot_duration_minutes?: number;
@@ -209,6 +212,13 @@ export class AdminService implements OnModuleInit {
     }
     if (dto.standard_consultation_rate !== undefined) {
       settings.standard_consultation_rate = Number(dto.standard_consultation_rate);
+    }
+    if (dto.minimum_billable_minutes !== undefined) {
+      const minutes = Number(dto.minimum_billable_minutes);
+      if (!Number.isFinite(minutes) || minutes < 0 || minutes > 240) {
+        throw new BadRequestException('Minimum billable minutes must be between 0 and 240');
+      }
+      settings.minimum_billable_minutes = Math.round(minutes);
     }
     if (dto.late_cancellation_deduction_percent !== undefined) {
       settings.late_cancellation_deduction_percent = Number(dto.late_cancellation_deduction_percent);

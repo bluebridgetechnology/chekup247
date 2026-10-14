@@ -242,7 +242,7 @@ export function DoctorBookingCalendar({ doctor, initialSlots = [] }: DoctorBooki
 
   // price = rate per 30 minutes x the length of the selected slot
   const ratePer30 = Number(doctor.consultation_rate || doctor.rate_per_hour || 850);
-  const doctorName = doctor.user?.full_name || 'Dr. Thabo Molefe';
+  const doctorName = doctor.user?.full_name || 'Your doctor';
   const activeDuration = selectedSlot?.durationMinutes || defaultDuration;
   const fee = priceForDuration(ratePer30, activeDuration).toFixed(2);
 

@@ -34,18 +34,18 @@ interface QuickDoctor {
   image: string;
 }
 
-/** Default MVP test doctor (doctor@chekup247.com); the widget is pinned to this slug. */
-const MVP_DOCTOR_SLUG = 'dr-thabo-molefe';
+/** Default MVP doctor; the widget is pinned to this slug (the API derives it from DEFAULT_DOCTOR_NAME). */
+const MVP_DOCTOR_SLUG = 'dr-solly-motuba';
 /** While true, Quick Book offers only the MVP doctor. Set to false when more doctors/specialities open. */
 const PIN_MVP_DOCTOR = true;
 
 const FALLBACK_DOCTOR: QuickDoctor = {
   id: 'doc-1',
-  name: 'Dr. Thabo Molefe',
+  name: 'Dr Solly Motuba',
   specialty: 'General Practitioner',
   rate: null,
-  rating: 4.95,
-  reviewsCount: 38,
+  rating: 0,
+  reviewsCount: 0,
   duration: 30,
   offersVideo: true,
   offersAudio: true,
@@ -144,6 +144,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
   const [slots, setSlots] = useState<LiveSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
   const [apiRate, setApiRate] = useState<number | null>(null);
+  const [minBillable, setMinBillable] = useState<number | undefined>(undefined);
   const [selectedDayKey, setSelectedDayKey] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<LiveSlot | null>(null);
   const [viewerTz, setViewerTz] = useState<string>('Africa/Johannesburg');
@@ -182,7 +183,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
           specialty: d.specialty || 'General Practitioner',
           // per 30 minutes: the admin's platform rate for LocumStaff doctors, the doctor's own rate otherwise
           rate: Number(d.consultation_rate || d.rate_per_hour || d.ratePerHour) || null,
-          rating: Number(d.rating_avg || d.rating) || FALLBACK_DOCTOR.rating,
+          rating: Number(d.rating_avg || d.rating) || 0,
           reviewsCount: Number(d.reviews_count || d.reviewsCount) || undefined,
           duration: Number(d.consultation_duration || d.duration) || FALLBACK_DOCTOR.duration,
           offersVideo: d.offers_video !== false,
@@ -193,7 +194,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
         if (PIN_MVP_DOCTOR) {
           const pick =
             mapped.find((d) => d.slug === MVP_DOCTOR_SLUG) ||
-            mapped.find((d) => d.name.toLowerCase().includes('molefe') || d.id === 'doc-1' || d.specialty === 'General Practitioner');
+            mapped.find((d) => d.name.toLowerCase().includes('motuba') || d.id === 'doc-1' || d.specialty === 'General Practitioner');
           if (pick) setDoctors([pick]);
         } else {
           setDoctors(mapped);
@@ -226,6 +227,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
         if (!alive || !data) return;
         if (Array.isArray(data.slots)) setSlots(data.slots);
         if (Number(data.consultationRate) > 0) setApiRate(Number(data.consultationRate));
+        if (data.minimumBillableMinutes != null) setMinBillable(Number(data.minimumBillableMinutes));
       })
       .catch(() => {})
       .finally(() => alive && setSlotsLoading(false));
@@ -302,7 +304,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
   const mixedLengths = lengths.length > 1;
   // rate per 30 minutes (the API's value wins over the directory's)
   const rate = apiRate ?? doctor.rate;
-  const slotPrice = (sl: LiveSlot) => sl.price ?? (rate ? priceForDuration(rate, slotLength(sl)) : null);
+  const slotPrice = (sl: LiveSlot) => sl.price ?? (rate ? priceForDuration(rate, slotLength(sl), minBillable) : null);
   const selectedDay = days.find((d) => d.key === localDateKey(new Date(selectedSlot?.startTime || ''))) || null;
 
   // ---------------------------------------------------------------- open / close
@@ -631,9 +633,11 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                             <div className="qb-doctor-name">{d.name}</div>
                             <div className="qb-muted">{d.specialty}</div>
                             <div className="qb-doctor-meta">
-                              <span className="qb-rating">
-                                <SolarIcon name="star-bold" size={13} color="#DFAB62" /> {d.rating.toFixed(1)}
-                              </span>
+                              {d.rating > 0 ? (
+                                <span className="qb-rating">
+                                  <SolarIcon name="star-bold" size={13} color="#DFAB62" /> {d.rating.toFixed(1)}
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                           <div className="qb-fee">
@@ -657,10 +661,12 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                       <div className="qb-doctor-name">{doctor.name}</div>
                       <div className="qb-muted">{doctor.specialty}</div>
                       <div className="qb-doctor-meta">
-                        <span className="qb-rating">
-                          <SolarIcon name="star-bold" size={13} color="#DFAB62" /> {doctor.rating.toFixed(1)}
-                          {doctor.reviewsCount ? <span className="qb-muted"> ({doctor.reviewsCount})</span> : null}
-                        </span>
+                        {doctor.rating > 0 ? (
+                          <span className="qb-rating">
+                            <SolarIcon name="star-bold" size={13} color="#DFAB62" /> {doctor.rating.toFixed(1)}
+                            {doctor.reviewsCount ? <span className="qb-muted"> ({doctor.reviewsCount})</span> : null}
+                          </span>
+                        ) : null}
                         <span className="qb-verified">
                           <SolarIcon name="verified-check-bold" size={13} color="#15803D" /> HPCSA verified
                         </span>
@@ -721,7 +727,12 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                       {rate && (
                         <li>
                           <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> {formatRand(rate)} per {PRICING_BLOCK_MINUTES} minutes
-                          {lengths.some((l) => l !== PRICING_BLOCK_MINUTES) ? ': longer sessions cost in proportion' : ''}
+                          {lengths.some((l) => l > PRICING_BLOCK_MINUTES) ? ': longer sessions cost in proportion' : ''}
+                        </li>
+                      )}
+                      {rate && minBillable != null && minBillable > 0 && lengths.some((l) => l < minBillable) && (
+                        <li>
+                          <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> Shorter slots are charged as {formatDuration(minBillable)}
                         </li>
                       )}
                       <li>

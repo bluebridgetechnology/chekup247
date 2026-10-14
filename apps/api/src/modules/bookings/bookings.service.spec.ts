@@ -166,7 +166,7 @@ describe('BookingsService (Saga & Cross-DB)', () => {
         hpcsa_number: 'MP0123456',
         user: { full_name: 'Dr. Thabo Molefe', email: 'thabo@example.com' },
       };
-      for (const [minutes, expected] of [[30, 850], [60, 1700], [45, 1275]] as const) {
+      for (const [minutes, expected] of [[15, 850], [30, 850], [60, 1700], [45, 1275]] as const) {
         const slot = makeSlot(minutes);
         mockQueryRunner.manager.createQueryBuilder.mockReturnValue({
           setLock: jest.fn().mockReturnThis(),

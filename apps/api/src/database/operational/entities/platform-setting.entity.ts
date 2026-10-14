@@ -17,6 +17,10 @@ export class PlatformSetting {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 850.00 })
   standard_consultation_rate: number;
 
+  /** Sessions shorter than this are billed as if they were this long (0 = no minimum). */
+  @Column({ type: 'int', default: 30 })
+  minimum_billable_minutes: number;
+
   @Column({ type: 'decimal', precision: 5, scale: 2, default: 30.0 })
   late_cancellation_deduction_percent: number;
 
