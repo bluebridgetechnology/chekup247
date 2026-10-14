@@ -207,7 +207,9 @@ function DoctorLoginContent() {
       </div>
 
       {/* RIGHT COLUMN: Clean Warm Cream Form Panel */}
-      <div className="auth-form-pane">
+      <div className="auth-form-pane auth-form-pane--login">
+        {/* Faded stethoscope watermark (mobile only; desktop has the dark visual pane) */}
+        <SolarIcon name="stethoscope-bold" size={340} className="auth-watermark" />
         <div className="auth-form-wrapper">
           {/* Mobile-Only Header */}
           <div
@@ -256,7 +258,7 @@ function DoctorLoginContent() {
                 border: '1px solid rgba(223, 171, 98, 0.25)',
                 fontSize: '0.74rem',
                 fontWeight: 700,
-                marginBottom: '32px',
+                marginBottom: '20px',
               }}
             >
               <SolarIcon name="stethoscope-linear" size={14} color="var(--color-chocolate-base)" />
@@ -496,18 +498,18 @@ function DoctorLoginContent() {
                   className="btn-primary"
                   style={{
                     width: '100%',
-                    height: '44px',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
-                    borderRadius: '10px',
-                    boxShadow: '0 2px 6px rgba(42, 23, 15, 0.08)',
+                    height: '52px',
+                    fontSize: '0.95rem',
+                    fontWeight: 700,
+                    borderRadius: 'var(--radius-full, 9999px)',
+                    boxShadow: '0 4px 14px rgba(223, 171, 98, 0.3)',
                   }}
                 >
                   {loading ? (
-                    <span>Signing In...</span>
+                    <span>Signing in...</span>
                   ) : (
                     <>
-                      <span>Sign In to Practice Suite</span>
+                      <span>Sign in</span>
                       <SolarIcon name="arrow-right-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />
                     </>
                   )}
@@ -515,11 +517,13 @@ function DoctorLoginContent() {
               </form>
 
               {/* Registration Link */}
-              <div style={{ marginTop: '24px', textAlign: 'center', fontSize: '0.85rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                New medical practitioner?{' '}
+              <div style={{ marginTop: '28px', paddingTop: '20px', borderTop: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.22))', textAlign: 'center', fontSize: '0.875rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
+                New medical practitioner?
                 <Link
                   href="/register"
                   style={{
+                    display: 'block',
+                    marginTop: '6px',
                     color: 'var(--color-chocolate-base, #2A170F)',
                     fontWeight: 700,
                     textDecoration: 'underline',
