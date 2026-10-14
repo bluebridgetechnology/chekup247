@@ -32,6 +32,8 @@ interface QuickDoctor {
 
 /** Default MVP test doctor (doctor@chekup247.com); the widget is pinned to this slug. */
 const MVP_DOCTOR_SLUG = 'dr-thabo-molefe';
+/** While true, Quick Book offers only the MVP doctor. Set to false when more doctors/specialities open. */
+const PIN_MVP_DOCTOR = true;
 
 const FALLBACK_DOCTOR: QuickDoctor = {
   id: 'doc-1',
@@ -46,6 +48,30 @@ const FALLBACK_DOCTOR: QuickDoctor = {
   image: '/images/doctor_thabo.jpg',
 };
 
+interface SpecialtyOption {
+  id: string;
+  label: string;
+  /** Matched against the doctor's specialty; 'All' means the earliest available GP. */
+  specialty: string;
+  hint: string;
+  icon: string;
+  /** MVP gating: only Earliest Available GP is open. Flip the others to true as specialities launch. */
+  isMvpVisible: boolean;
+}
+
+const SPECIALTY_OPTIONS: SpecialtyOption[] = [
+  { id: 'all', label: '⚡ Earliest Available GP (Fastest)', specialty: 'All', hint: 'Matched with the first free verified GP', icon: 'bolt-circle-bold', isMvpVisible: true },
+  { id: 'gp', label: '🩺 General Practitioner', specialty: 'General Practitioner', hint: 'Choose your GP', icon: 'stethoscope-bold', isMvpVisible: false },
+  { id: 'dentist', label: '🦷 Dentist', specialty: 'Dentist', hint: 'Dental advice and care', icon: 'smile-circle-bold', isMvpVisible: false },
+  { id: 'psychologist', label: '🧠 Psychologist', specialty: 'Psychologist', hint: 'Talk therapy and support', icon: 'heart-pulse-bold', isMvpVisible: false },
+  { id: 'podiatrist', label: '🦶 Podiatrist', specialty: 'Podiatrist', hint: 'Foot and ankle care', icon: 'shield-check-bold', isMvpVisible: false },
+  { id: 'dermatologist', label: '🧴 Dermatologist', specialty: 'Dermatologist', hint: 'Skin, hair and nails', icon: 'waterdrops-bold', isMvpVisible: false },
+  { id: 'pediatrician', label: '👶 Paediatrician', specialty: 'Paediatrician', hint: 'Care for children', icon: 'user-bold', isMvpVisible: false },
+  { id: 'physician', label: '🩺 Physician', specialty: 'Physician', hint: 'Adult internal medicine', icon: 'stethoscope-bold', isMvpVisible: false },
+  { id: 'gynaecology', label: '🌸 Obstetrics & Gynaecology', specialty: 'Obstetrics & Gynaecology', hint: "Women's health", icon: 'heart-bold', isMvpVisible: false },
+  { id: 'dietician', label: '🥗 Dietician', specialty: 'Dietician', hint: 'Nutrition and diet plans', icon: 'leaf-bold', isMvpVisible: false },
+];
+
 const COMMON_REASONS = [
   'Flu, Cold or Cough',
   'Prescription Refill',
@@ -55,11 +81,12 @@ const COMMON_REASONS = [
   'Medical Sick Note',
 ];
 
-type Step = 'consult' | 'slot' | 'details' | 'review';
+type Step = 'specialty' | 'consult' | 'slot' | 'details' | 'review';
 type ConsultType = 'video' | 'audio';
 
 const STEPS: { id: Step; label: string }[] = [
-  { id: 'consult', label: 'Consultation' },
+  { id: 'specialty', label: 'Type of care' },
+  { id: 'consult', label: 'Your consultation' },
   { id: 'slot', label: 'Choose a time' },
   { id: 'details', label: 'Your details' },
   { id: 'review', label: 'Review & pay' },
@@ -85,10 +112,29 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
   const API_BASE = rawApiBase.endsWith('/api/v1') ? rawApiBase : `${rawApiBase.replace(/\/+$/, '')}/api/v1`;
 
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState<Step>('consult');
+  const [step, setStep] = useState<Step>('specialty');
 
+  // Directory of bookable doctors. While the MVP pins one doctor this holds just that doctor;
+  // once other specialities open up it holds everyone and the specialty filter narrows it.
   const [doctors, setDoctors] = useState<QuickDoctor[]>([FALLBACK_DOCTOR]);
-  const doctor = doctors[0] ?? FALLBACK_DOCTOR;
+  const [specialty, setSpecialty] = useState<SpecialtyOption | null>(null);
+  const [chosenDoctorId, setChosenDoctorId] = useState<string | null>(null);
+
+  const matchingDoctors = useMemo(() => {
+    if (!specialty || specialty.specialty === 'All') return doctors;
+    // spelling-tolerant (Paediatrician / Pediatrician, Gynaecology / Gynecology)
+    const norm = (v: string) => v.toLowerCase().replace(/ae/g, 'e');
+    return doctors.filter((d) => norm(d.specialty).includes(norm(specialty.specialty)));
+  }, [doctors, specialty]);
+  // 'Earliest available' auto-picks the first doctor; other specialities let the patient choose
+  const doctor =
+    matchingDoctors.find((d) => d.id === chosenDoctorId) ??
+    (!specialty || specialty.specialty === 'All' || matchingDoctors.length === 1 ? matchingDoctors[0] : undefined) ??
+    doctors[0] ??
+    FALLBACK_DOCTOR;
+  const needsDoctorChoice = !!specialty && specialty.specialty !== 'All' && matchingDoctors.length > 1;
+  const noDoctors = !!specialty && specialty.specialty !== 'All' && matchingDoctors.length === 0;
+  const doctorChosen = !noDoctors && (!needsDoctorChoice || matchingDoctors.some((d) => d.id === chosenDoctorId));
   const [consultationType, setConsultationType] = useState<ConsultType>('video');
 
   const [slots, setSlots] = useState<LiveSlot[]>([]);
@@ -137,10 +183,15 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
           offersAudio: d.offers_audio !== false,
           image: d.user?.avatar_url || d.photo_url || FALLBACK_DOCTOR.image,
         }));
-        const pick =
-          mapped.find((d) => d.slug === MVP_DOCTOR_SLUG) ||
-          mapped.find((d) => d.name.toLowerCase().includes('molefe') || d.id === 'doc-1' || d.specialty === 'General Practitioner');
-        if (alive && pick) setDoctors([pick]);
+        if (!alive || mapped.length === 0) return;
+        if (PIN_MVP_DOCTOR) {
+          const pick =
+            mapped.find((d) => d.slug === MVP_DOCTOR_SLUG) ||
+            mapped.find((d) => d.name.toLowerCase().includes('molefe') || d.id === 'doc-1' || d.specialty === 'General Practitioner');
+          if (pick) setDoctors([pick]);
+        } else {
+          setDoctors(mapped);
+        }
       } catch {
         // keep the fallback doctor
       }
@@ -293,7 +344,16 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
 
   const handleRestart = () => {
     setSelectedSlot(null);
+    setSpecialty(null);
+    setChosenDoctorId(null);
     setConsultationType('video');
+    goTo('specialty');
+  };
+
+  const handleSelectSpecialty = (opt: SpecialtyOption) => {
+    setSpecialty(opt);
+    setChosenDoctorId(null);
+    setSelectedSlot(null);
     goTo('consult');
   };
 
@@ -387,7 +447,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
   const primary = (() => {
     switch (step) {
       case 'consult':
-        return { label: 'Choose a time', onClick: () => goTo('slot'), disabled: false };
+        return { label: 'Choose a time', onClick: () => goTo('slot'), disabled: !doctorChosen };
       case 'slot':
         return { label: 'Continue', onClick: () => goTo('details'), disabled: !selectedSlot };
       case 'details':
@@ -484,70 +544,152 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
               </div>
             )}
 
-            {/* ---------------- Step 1: consultation ---------------- */}
+            {/* ---------------- Step 1: type of care ---------------- */}
+            {step === 'specialty' && (
+              <div className="qb-stack">
+                <div className="qb-welcome">
+                  <strong>Hello! 👋 What kind of care do you need today?</strong>
+                  <span className="qb-muted">Pick one and we&apos;ll take care of the rest. It takes about a minute.</span>
+                </div>
+                <div className="qb-care">
+                  {SPECIALTY_OPTIONS.filter((o) => o.isMvpVisible).map((o, i) => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      className={`qb-care-option${i === 0 ? ' is-primary' : ''}`}
+                      onClick={() => handleSelectSpecialty(o)}
+                    >
+                      <span className="qb-care-icon" aria-hidden="true">
+                        <SolarIcon name={o.icon} size={20} color="#2A170F" />
+                      </span>
+                      <span className="qb-care-text">
+                        <span className="qb-care-label">{o.label}</span>
+                        <span className="qb-muted">{o.hint}</span>
+                      </span>
+                      <SolarIcon name="arrow-right-linear" size={16} color="#8C601E" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ---------------- Step 2: your consultation ---------------- */}
             {step === 'consult' && (
               <div className="qb-stack">
-                <div className="qb-doctor">
-                  <div className="qb-avatar">
-                    <Image src={doctor.image} alt={doctor.name} fill style={{ objectFit: 'cover' }} sizes="56px" />
+                {specialty && (
+                  <div className="qb-chosen">
+                    <span>{specialty.label}</span>
+                    <button type="button" className="qb-link-btn" onClick={() => goTo('specialty')}>
+                      Change
+                    </button>
                   </div>
-                  <div className="qb-doctor-info">
-                    <div className="qb-doctor-name">{doctor.name}</div>
-                    <div className="qb-muted">{doctor.specialty}</div>
-                    <div className="qb-doctor-meta">
-                      <span className="qb-rating">
-                        <SolarIcon name="star-bold" size={13} color="#DFAB62" /> {doctor.rating.toFixed(1)}
-                        {doctor.reviewsCount ? <span className="qb-muted"> ({doctor.reviewsCount})</span> : null}
-                      </span>
-                      <span className="qb-verified">
-                        <SolarIcon name="verified-check-bold" size={13} color="#15803D" /> HPCSA verified
-                      </span>
+                )}
+
+                {noDoctors ? (
+                  <div className="qb-empty">
+                    <strong>No doctors available for this speciality yet</strong>
+                    <span className="qb-muted">Please choose another type of care.</span>
+                  </div>
+                ) : needsDoctorChoice ? (
+                  <>
+                    <div className="qb-section-title">Choose your doctor</div>
+                    <div className="qb-doctor-list" role="radiogroup" aria-label="Doctor">
+                      {matchingDoctors.map((d) => (
+                        <button
+                          key={d.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={chosenDoctorId === d.id}
+                          className={`qb-doctor qb-doctor-pick${chosenDoctorId === d.id ? ' is-selected' : ''}`}
+                          onClick={() => setChosenDoctorId(d.id)}
+                        >
+                          <div className="qb-avatar">
+                            <Image src={d.image} alt={d.name} fill style={{ objectFit: 'cover' }} sizes="56px" />
+                          </div>
+                          <div className="qb-doctor-info">
+                            <div className="qb-doctor-name">{d.name}</div>
+                            <div className="qb-muted">{d.specialty}</div>
+                            <div className="qb-doctor-meta">
+                              <span className="qb-rating">
+                                <SolarIcon name="star-bold" size={13} color="#DFAB62" /> {d.rating.toFixed(1)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="qb-fee">
+                            <strong>R{d.rate}</strong>
+                            <span className="qb-muted">/ session</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="qb-doctor">
+                    <div className="qb-avatar">
+                      <Image src={doctor.image} alt={doctor.name} fill style={{ objectFit: 'cover' }} sizes="56px" />
+                    </div>
+                    <div className="qb-doctor-info">
+                      <div className="qb-doctor-name">{doctor.name}</div>
+                      <div className="qb-muted">{doctor.specialty}</div>
+                      <div className="qb-doctor-meta">
+                        <span className="qb-rating">
+                          <SolarIcon name="star-bold" size={13} color="#DFAB62" /> {doctor.rating.toFixed(1)}
+                          {doctor.reviewsCount ? <span className="qb-muted"> ({doctor.reviewsCount})</span> : null}
+                        </span>
+                        <span className="qb-verified">
+                          <SolarIcon name="verified-check-bold" size={13} color="#15803D" /> HPCSA verified
+                        </span>
+                      </div>
+                    </div>
+                    <div className="qb-fee">
+                      <strong>R{doctor.rate}</strong>
+                      <span className="qb-muted">/ session</span>
                     </div>
                   </div>
-                  <div className="qb-fee">
-                    <strong>R{doctor.rate}</strong>
-                    <span className="qb-muted">/ session</span>
-                  </div>
-                </div>
+                )}
 
-                <div className="qb-section-title">How would you like to consult?</div>
-                <div className="qb-options" role="radiogroup" aria-label="Consultation type">
-                  {canVideo && (
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={consultationType === 'video'}
-                      className={`qb-option${consultationType === 'video' ? ' is-selected' : ''}`}
-                      onClick={() => setConsultationType('video')}
-                    >
-                      <SolarIcon name="videocamera-record-bold" size={22} />
-                      <span className="qb-option-title">Video call</span>
-                      <span className="qb-muted">Face to face, from any device</span>
-                    </button>
-                  )}
-                  {canAudio && (
-                    <button
-                      type="button"
-                      role="radio"
-                      aria-checked={consultationType === 'audio'}
-                      className={`qb-option${consultationType === 'audio' ? ' is-selected' : ''}`}
-                      onClick={() => setConsultationType('audio')}
-                    >
-                      <SolarIcon name="phone-calling-bold" size={22} />
-                      <span className="qb-option-title">Audio call</span>
-                      <span className="qb-muted">Voice only, low data</span>
-                    </button>
-                  )}
-                </div>
+                {!noDoctors && (
+                  <>
+                    <div className="qb-section-title">How would you like to consult?</div>
+                    <div className="qb-options" role="radiogroup" aria-label="Consultation type">
+                      {canVideo && (
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={consultationType === 'video'}
+                          className={`qb-option${consultationType === 'video' ? ' is-selected' : ''}`}
+                          onClick={() => setConsultationType('video')}
+                        >
+                          <SolarIcon name="videocamera-record-bold" size={22} />
+                          <span className="qb-option-title">Video call</span>
+                          <span className="qb-muted">Face to face, from any device</span>
+                        </button>
+                      )}
+                      {canAudio && (
+                        <button
+                          type="button"
+                          role="radio"
+                          aria-checked={consultationType === 'audio'}
+                          className={`qb-option${consultationType === 'audio' ? ' is-selected' : ''}`}
+                          onClick={() => setConsultationType('audio')}
+                        >
+                          <SolarIcon name="phone-calling-bold" size={22} />
+                          <span className="qb-option-title">Audio call</span>
+                          <span className="qb-muted">Voice only, low data</span>
+                        </button>
+                      )}
+                    </div>
 
-                <ul className="qb-assure">
-                  <li>
-                    <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> {doctor.duration || 30}-minute private consultation
-                  </li>
-                  <li>
-                    <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> No account needed. Your link arrives by email and SMS
-                  </li>
-                </ul>
+                    <ul className="qb-assure">
+                      <li>
+                        <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> {doctor.duration || 30}-minute private consultation
+                      </li>
+                      <li>
+                        <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> No account needed. Your link arrives by email and SMS
+                      </li>
+                    </ul>
+                  </>
+                )}
               </div>
             )}
 
@@ -712,6 +854,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
             {step === 'review' && (
               <div className="qb-stack">
                 <div className="qb-summary">
+                  {specialty && <SummaryRow label="Care" value={specialty.label} onEdit={() => goTo('specialty')} />}
                   <SummaryRow label="Doctor" value={`${doctor.name} · ${doctor.specialty}`} onEdit={() => goTo('consult')} />
                   <SummaryRow label="Type" value={consultationType === 'audio' ? 'Audio call' : 'Video call'} onEdit={() => goTo('consult')} />
                   <SummaryRow
@@ -735,6 +878,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
           </div>
 
           {/* Footer */}
+          {step !== 'specialty' && (
           <div className="qb-footer">
             {step === 'slot' && selectedSlot && (
               <div className="qb-footer-note">
@@ -748,6 +892,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
               {step !== 'review' && <SolarIcon name="arrow-right-linear" size={16} color="currentColor" />}
             </button>
           </div>
+          )}
         </div>
       )}
     </>

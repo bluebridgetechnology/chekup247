@@ -767,6 +767,95 @@ details summary::-webkit-details-marker {
   letter-spacing: 0.01em;
 }
 
+/* step 1: type of care */
+.qb-welcome {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+.qb-care {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.qb-care-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px;
+  text-align: left;
+  border: 1.5px solid rgba(42, 23, 15, 0.14);
+  border-radius: 14px;
+  background: #fff;
+  color: var(--color-chocolate-base, #2A170F);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.qb-care-option:hover {
+  border-color: var(--color-gold-base, #DFAB62);
+  box-shadow: 0 0 0 3px rgba(223, 171, 98, 0.18);
+}
+.qb-care-option:active {
+  transform: scale(0.995);
+}
+.qb-care-option.is-primary {
+  background: #fff8ea;
+  border-color: var(--color-gold-base, #DFAB62);
+}
+.qb-care-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--color-gold-primary, #DFAB62);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.qb-care-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.qb-care-label {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.qb-chosen {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #fff8ea;
+  border: 1px solid rgba(223, 171, 98, 0.45);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+.qb-doctor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.qb-doctor-pick {
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  color: var(--color-chocolate-base, #2A170F);
+  cursor: pointer;
+}
+.qb-doctor-pick.is-selected {
+  border-color: var(--color-gold-base, #DFAB62);
+  background: #fff8ea;
+  box-shadow: 0 0 0 3px rgba(223, 171, 98, 0.22);
+}
+
 /* step 1 */
 .qb-doctor {
   display: flex;
