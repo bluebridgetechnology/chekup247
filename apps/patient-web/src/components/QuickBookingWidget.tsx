@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import { SolarIcon } from './SolarIcon';
 import { useAuth } from '../context/AuthContext';
 import { formatClockTime, formatZoneAbbr, getViewerTimeZone, localDateKey } from '../lib/time';
@@ -51,7 +50,7 @@ const FALLBACK_DOCTOR: QuickDoctor = {
   duration: 30,
   offersVideo: true,
   offersAudio: true,
-  image: '/images/doctor_thabo.jpg',
+  image: '',
 };
 
 interface SpecialtyOption {
@@ -109,6 +108,42 @@ const MAX_DAYS = 7;
 interface QuickBookingWidgetProps {
   /** Show the floating button. Signed-in users get a header button instead, so they use `false`. */
   showTrigger?: boolean;
+}
+
+/**
+ * Doctor photo. A plain <img> (not next/image) because the photo can be hosted anywhere (storage bucket,
+ * uploaded avatar) and next/image refuses hosts it hasn't been told about, leaving a broken image.
+ * If the photo is missing or fails to load, show the doctor's initials instead.
+ */
+function DoctorAvatar({ src, name }: { src?: string | null; name: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  const initials =
+    name
+      .replace(/^(dr|prof)\.?\s+/i, '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join('') || 'DR';
+  if (!src || failed) {
+    return (
+      <span className="qb-avatar-initials" role="img" aria-label={name}>
+        {initials}
+      </span>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={src}
+      alt={name}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+    />
+  );
 }
 
 export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetProps = {}) {
@@ -700,7 +735,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                           onClick={() => setChosenDoctorId(d.id)}
                         >
                           <div className="qb-avatar">
-                            <Image src={d.image} alt={d.name} fill style={{ objectFit: 'cover' }} sizes="56px" />
+                            <DoctorAvatar src={d.image} name={d.name} />
                           </div>
                           <div className="qb-doctor-info">
                             <div className="qb-doctor-name">{d.name}</div>
@@ -728,7 +763,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                 ) : (
                   <div className="qb-doctor">
                     <div className="qb-avatar">
-                      <Image src={doctor.image} alt={doctor.name} fill style={{ objectFit: 'cover' }} sizes="56px" />
+                      <DoctorAvatar src={doctor.image} name={doctor.name} />
                     </div>
                     <div className="qb-doctor-info">
                       <div className="qb-doctor-name">{doctor.name}</div>
