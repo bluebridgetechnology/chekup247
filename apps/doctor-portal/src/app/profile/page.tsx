@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
 import { SolarIcon } from '../../components/common/SolarIcon';
+import '../../styles/profile.css';
 
 const AVAILABLE_SPECIALTIES = [
   'General Practitioner',
@@ -54,6 +55,7 @@ export default function DoctorProfilePage() {
 
   // Avatar state
   const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [avatarFailed, setAvatarFailed] = useState<boolean>(false);
 
   // Clinical specialty & rates
   const [specialty, setSpecialty] = useState('');
@@ -71,54 +73,26 @@ export default function DoctorProfilePage() {
   const [isDraggingSignature, setIsDraggingSignature] = useState(false);
 
   // Regulatory Documents & ID
-  const [idDocument, setIdDocument] = useState<UploadedDocument | null>({
-    id: 'doc-id-1',
-    name: 'South_African_National_ID.pdf',
-    type: 'id_document',
-    title: 'National Identity Document / Smart ID Card',
-    url: '#',
-    uploadedAt: '12 Jan 2026',
-    status: 'verified',
-  });
-
-  const [hpcsaCertificate, setHpcsaCertificate] = useState<UploadedDocument | null>({
-    id: 'doc-hpcsa-1',
-    name: 'HPCSA_Annual_Practicing_Certificate_2026.pdf',
-    type: 'hpcsa_certificate',
-    title: 'HPCSA Annual Practicing Certificate (2026/2027)',
-    url: '#',
-    uploadedAt: '15 Jan 2026',
-    status: 'verified',
-  });
-
-  const [additionalDocs, setAdditionalDocs] = useState<UploadedDocument[]>([
-    {
-      id: 'doc-med-1',
-      name: 'MBChB_Degree_Certificate.pdf',
-      type: 'medical_degree',
-      title: 'Bachelor of Medicine & Surgery (MBChB)',
-      url: '#',
-      uploadedAt: '10 Jan 2026',
-      status: 'verified',
-    },
-  ]);
+  const [idDocument, setIdDocument] = useState<UploadedDocument | null>(null);
+  const [hpcsaCertificate, setHpcsaCertificate] = useState<UploadedDocument | null>(null);
+  const [additionalDocs, setAdditionalDocs] = useState<UploadedDocument[]>([]);
 
   const [newCertTitle, setNewCertTitle] = useState('');
   const [showAddCertModal, setShowAddCertModal] = useState(false);
 
   // Physical Practice Address
-  const [practiceName, setPracticeName] = useState('Sandton Mediclinic Suites');
-  const [streetAddress, setStreetAddress] = useState('165 Rivonia Road, Suite 402');
-  const [suburbCity, setSuburbCity] = useState('Morningside, Sandton');
-  const [postalCode, setPostalCode] = useState('2196');
+  const [practiceName, setPracticeName] = useState('');
+  const [streetAddress, setStreetAddress] = useState('');
+  const [suburbCity, setSuburbCity] = useState('');
+  const [postalCode, setPostalCode] = useState('');
   const [province, setProvince] = useState('Gauteng');
 
   // Banking details for EFT Settlements
   const [accountHolder, setAccountHolder] = useState('');
-  const [bankName, setBankName] = useState('First National Bank (FNB)');
-  const [accountNumber, setAccountNumber] = useState('62891048291');
+  const [bankName, setBankName] = useState('');
+  const [accountNumber, setAccountNumber] = useState('');
   const [accountType, setAccountType] = useState('Cheque / Current');
-  const [branchCode, setBranchCode] = useState('250655');
+  const [branchCode, setBranchCode] = useState('');
 
   const [saving, setSaving] = useState(false);
 
@@ -139,8 +113,8 @@ export default function DoctorProfilePage() {
   const [customExpertiseInput, setCustomExpertiseInput] = useState('');
 
   // Experience & Board certification credentials
-  const [experienceYears, setExperienceYears] = useState<number>(12);
-  const [isBoardCertified, setIsBoardCertified] = useState<boolean>(true);
+  const [experienceYears, setExperienceYears] = useState<number>(0);
+  const [isBoardCertified, setIsBoardCertified] = useState<boolean>(false);
   const [boardCertificationTitle, setBoardCertificationTitle] = useState('Board Certified');
 
   useEffect(() => {
@@ -240,7 +214,7 @@ export default function DoctorProfilePage() {
   };
 
   const handleCopyHpcsa = () => {
-    const regNum = profile?.hpcsaNumber || 'MP 0089432';
+    const regNum = profile?.hpcsaNumber || '';
     navigator.clipboard.writeText(regNum);
     setCopiedHpcsa(true);
     setTimeout(() => setCopiedHpcsa(false), 2000);
@@ -486,1914 +460,568 @@ export default function DoctorProfilePage() {
   const ext20Min = (hourlyRateNum / 3).toFixed(2);
   const ext30Min = (hourlyRateNum / 2).toFixed(2);
 
-  return (
-    <div className="profile-page">
-      {/* Top Header Row with Page Title, Quick Status, and Top-Right Save Changes Button */}
-      <div
-        className="profile-head"
-        style={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          gap: '20px',
-          marginBottom: '24px',
-        }}
-      >
-        <div style={{ flex: 1, minWidth: '260px' }}>
-          <div className="page-eyebrow">
-            <SolarIcon name="shield-check-bold" size={14} color="var(--color-gold-bronze)" />
-            <span>Clinical Identity &amp; Governance</span>
-          </div>
-          <h1 className="page-title">My Profile</h1>
-          <p className="page-subtitle">
-            Manage your clinical credentials, consultation billing rates, practice rooms, and payout banking details.
-          </p>
-        </div>
+  const initials =
+    (doctor.fullName || 'Dr')
+      .replace(/^(dr|prof)\.?\s+/i, '')
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((p) => p[0]?.toUpperCase())
+      .join('') || 'DR';
+  const hpcsaNumber = profile?.hpcsaNumber || '';
+  const hasPracticeAddress = Boolean(practiceName.trim() || streetAddress.trim());
 
-        {/* Top-Right Action Group */}
-        <div
-          className="profile-head-actions"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            flexShrink: 0,
-            alignSelf: 'flex-start',
-          }}
-        >
-          {/* Quick Availability Badge */}
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: 'var(--radius-full)',
-              backgroundColor: isOnHoliday ? 'var(--color-warning-bg)' : 'var(--color-success-bg)',
-              border: `1.5px solid ${isOnHoliday ? 'var(--color-warning)' : 'var(--color-success)'}`,
-              fontSize: 'var(--text-xs)',
-              fontWeight: 700,
-              color: isOnHoliday ? '#92400e' : '#065f46',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <span
-              style={{
-                width: '7px',
-                height: '7px',
-                borderRadius: '50%',
-                backgroundColor: isOnHoliday ? 'var(--color-warning)' : 'var(--color-success)',
-              }}
-            />
-            <span>{isOnHoliday ? 'Holiday Mode (Paused)' : 'Accepting Appointments'}</span>
-          </div>
+  const TABS: { key: ProfileTab; label: string; icon: string }[] = [
+    { key: 'clinical', label: 'Clinical', icon: 'stethoscope-linear' },
+    { key: 'availability', label: 'Availability', icon: 'calendar-linear' },
+    { key: 'practice', label: 'Credentials', icon: 'document-text-linear' },
+    { key: 'payouts', label: 'Payouts', icon: 'wallet-linear' },
+  ];
 
-          <button
-            type="button"
-            onClick={() => handleSubmit()}
-            disabled={saving}
-            className="btn-primary"
-            style={{ padding: '9px 22px', fontSize: 'var(--text-sm)', whiteSpace: 'nowrap' }}
-          >
-            <SolarIcon name="check-circle-bold" size={16} color="var(--color-chocolate-base)" />
-            <span>{saving ? 'Saving...' : 'Save Changes'}</span>
-          </button>
+  const renderDocSlot = (
+    title: string,
+    doc: UploadedDocument | null,
+    onUpload: (e: React.ChangeEvent<HTMLInputElement>) => void,
+    onRemove: () => void,
+  ) => (
+    <div className={`pf-doc${doc ? '' : ' pf-doc--empty'}`}>
+      <span className="pf-card-icon">
+        <SolarIcon name="document-text-linear" size={20} color="var(--color-gold-bronze)" />
+      </span>
+      <div className="pf-doc-text">
+        <div className="pf-doc-title">{title}</div>
+        <div className="pf-doc-sub">
+          {doc ? `${doc.name} · ${doc.uploadedAt}` : 'Not uploaded yet'}
         </div>
+        {doc && (
+          <span
+            className={`pf-pill ${doc.status === 'verified' ? 'pf-pill--ok' : doc.status === 'rejected' ? 'pf-pill--warn' : 'pf-pill--neutral'}`}
+            style={{ marginTop: 6 }}
+          >
+            {doc.status === 'verified' ? 'Verified' : doc.status === 'rejected' ? 'Rejected' : 'Pending review'}
+          </span>
+        )}
       </div>
+      <div className="pf-doc-actions">
+        <label className="pf-icon-btn" title={doc ? 'Replace' : 'Upload'} aria-label={doc ? `Replace ${title}` : `Upload ${title}`}>
+          <SolarIcon name="upload-linear" size={18} color="var(--color-chocolate-base)" />
+          <input type="file" accept=".pdf,image/*" onChange={onUpload} />
+        </label>
+        {doc && (
+          <button type="button" className="pf-icon-btn" onClick={onRemove} aria-label={`Remove ${title}`} title="Remove">
+            <SolarIcon name="trash-bin-trash-linear" size={18} color="#b91c1c" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
 
-      {/* Identity & Compliance Stepper Card */}
-      <div
-        className="portal-card"
-        style={{
-          marginBottom: '24px',
-          padding: '24px',
-          backgroundColor: 'var(--color-cream-surface)',
-          border: '1.5px solid var(--color-gold-border)',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '18px',
-            paddingBottom: '20px',
-            borderBottom: '1px solid var(--color-gold-border)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-            {/* Avatar Image with Upload/Change Action */}
-            <div style={{ position: 'relative', width: '68px', height: '68px', flexShrink: 0 }}>
-              {avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt={doctor.fullName || 'Doctor profile'}
-                  style={{
-                    width: '68px',
-                    height: '68px',
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '2.5px solid var(--color-gold-base)',
-                    display: 'block',
-                  }}
-                />
-              ) : (
-                <div
-                  aria-label={doctor.fullName || 'Doctor profile'}
-                  style={{
-                    width: '68px',
-                    height: '68px',
-                    borderRadius: '50%',
-                    background: 'var(--color-gold-pale, #F0E5D3)',
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    border: '2.5px solid var(--color-gold-base)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 800,
-                    fontSize: '1.2rem',
-                  }}
-                >
-                  {(doctor.fullName || 'Doctor')
-                    .split(/\s+/)
-                    .filter(Boolean)
-                    .slice(0, 2)
-                    .map((part) => part[0])
-                    .join('')
-                    .toUpperCase()}
-                </div>
-              )}
-              <label
-                style={{
-                  position: 'absolute',
-                  bottom: '-2px',
-                  right: '-2px',
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--color-gold-primary)',
-                  border: '2px solid var(--color-cream-surface)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  boxShadow: '0 1px 4px rgba(0,0,0,0.15)',
+  return (
+    <form className="pf" onSubmit={handleSubmit}>
+      {/* ───────────── Identity ───────────── */}
+      <section className="pf-identity" aria-label="Profile summary">
+        <div className="pf-identity-top">
+          <div className="pf-avatar">
+            {avatarUrl && !avatarFailed ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                className="pf-avatar-img"
+                src={avatarUrl}
+                alt={doctor.fullName || 'Doctor profile'}
+                onError={() => setAvatarFailed(true)}
+              />
+            ) : (
+              <span className="pf-avatar-fallback" role="img" aria-label={doctor.fullName || 'Doctor'}>
+                {initials}
+              </span>
+            )}
+            <label className="pf-avatar-btn" title="Change profile photo">
+              <SolarIcon name="camera-minimalistic-bold" size={14} color="var(--color-chocolate-base)" />
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  setAvatarFailed(false);
+                  handleAvatarChange(e);
                 }}
-                title="Upload / Change Profile Photo"
-              >
-                <SolarIcon name="camera-minimalistic-bold" size={13} color="var(--color-chocolate-base)" />
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAvatarChange}
-                  style={{ display: 'none' }}
-                />
-              </label>
-            </div>
-
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px', marginBottom: '4px' }}>
-                <h2
-                  style={{
-                    fontFamily: 'var(--font-heading)',
-                    fontSize: 'var(--text-xl)',
-                    fontWeight: 700,
-                    color: 'var(--color-chocolate-base)',
-                    margin: 0,
-                  }}
-                >
-                  {doctor.fullName}
-                </h2>
-
-                {isVerified ? (
-                  <span className="badge-success" style={{ gap: '4px' }}>
-                    <SolarIcon name="shield-check-bold" size={13} color="#059669" />
-                    <span>HPCSA VERIFIED</span>
-                  </span>
-                ) : (
-                  <span className="badge-warning" style={{ gap: '4px' }}>
-                    <SolarIcon name="shield-warning-bold" size={13} color="#b45309" />
-                    <span>AUDIT IN REVIEW</span>
-                  </span>
-                )}
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                  gap: '8px',
-                  color: 'var(--color-cream-text-muted)',
-                  fontSize: 'var(--text-xs)',
-                }}
-              >
-                <span>{doctor.email}</span>
-                <span>•</span>
-                <button
-                  type="button"
-                  onClick={handleCopyHpcsa}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    background: 'none',
-                    border: 'none',
-                    padding: 0,
-                    color: 'var(--color-chocolate-base)',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    fontSize: 'inherit',
-                  }}
-                  title="Click to copy HPCSA number"
-                >
-                  <span>HPCSA: {profile?.hpcsaNumber || 'MP 0089432'}</span>
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+          <div className="pf-who">
+            <h1 className="pf-name">{doctor.fullName}</h1>
+            <div className="pf-meta">
+              <span className="pf-spec">{specialty || 'General Practitioner'}</span>
+              {hpcsaNumber && (
+                <button type="button" className="pf-chip-btn" onClick={handleCopyHpcsa} title="Copy HPCSA number">
+                  <span>HPCSA {hpcsaNumber}</span>
                   <SolarIcon
                     name={copiedHpcsa ? 'check-circle-bold' : 'copy-linear'}
-                    size={12}
+                    size={13}
                     color={copiedHpcsa ? 'var(--color-success)' : 'var(--color-gold-bronze)'}
                   />
                 </button>
-                <span>•</span>
-                <span style={{ color: 'var(--color-gold-bronze)', fontWeight: 600 }}>
-                  {specialty || 'General Practitioner'}
-                </span>
-              </div>
+              )}
+            </div>
+            <div className="pf-meta" style={{ marginTop: 2, overflowWrap: 'anywhere' }}>
+              <span>{doctor.email}</span>
             </div>
           </div>
+        </div>
 
-          {/* LocumStaff SSO Badge (ONLY show if verificationSource === 'locumstaff') */}
+        <div className="pf-badges">
+          {isVerified ? (
+            <span className="pf-pill pf-pill--ok">
+              <SolarIcon name="shield-check-bold" size={13} color="#059669" /> HPCSA verified
+            </span>
+          ) : (
+            <span className="pf-pill pf-pill--warn">
+              <SolarIcon name="shield-warning-bold" size={13} color="#b45309" /> Verification in review
+            </span>
+          )}
+          <span className={`pf-pill ${isOnHoliday ? 'pf-pill--warn' : 'pf-pill--ok'}`}>
+            <span className="dot" /> {isOnHoliday ? 'On holiday (paused)' : 'Accepting appointments'}
+          </span>
           {profile?.verificationSource === 'locumstaff' && (
-            <div>
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '6px 12px',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'var(--color-cream-base)',
-                  border: '1px solid var(--color-gold-border)',
-                  color: 'var(--color-chocolate-base)',
-                  fontSize: 'var(--text-xs)',
-                  fontWeight: 600,
-                }}
-              >
-                <SolarIcon name="link-bold" size={12} color="var(--color-gold-bronze)" />
-                <span>LocumStaff SSO Synchronized</span>
-              </span>
-            </div>
+            <span className="pf-pill pf-pill--neutral">
+              <SolarIcon name="link-bold" size={12} color="var(--color-gold-bronze)" /> LocumStaff linked
+            </span>
           )}
         </div>
 
-        {/* Credential Compliance Stepper */}
-        <div style={{ paddingTop: '18px' }}>
-          <div
-            style={{
-              fontSize: 'var(--text-xs)',
-              fontWeight: 700,
-              color: 'var(--color-gold-bronze)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.06em',
-              marginBottom: '12px',
-            }}
+        {(() => {
+          const checks = [
+            { label: 'Profile', ok: true, hint: 'Email verified' },
+            { label: 'HPCSA register', ok: isVerified, hint: isVerified ? 'Credentials validated' : 'Audit in progress' },
+            { label: 'Telehealth', ok: isVerified && !isOnHoliday, hint: isVerified && !isOnHoliday ? 'Live on patient search' : isOnHoliday ? 'Paused (holiday mode)' : 'Not visible to patients yet' },
+          ];
+          const done = checks.filter((c) => c.ok).length;
+          return (
+            <div className="pf-progress" aria-label={`Credential status: ${done} of ${checks.length} complete`}>
+              <div className="pf-progress-head">
+                <span className="pf-progress-label">Credential status</span>
+                <span className="pf-progress-count">{done}/{checks.length}</span>
+              </div>
+              <div className="pf-progress-bar" aria-hidden="true">
+                {checks.map((c) => (
+                  <span key={c.label} className={c.ok ? 'is-done' : ''} />
+                ))}
+              </div>
+              <div className="pf-progress-items">
+                {checks.map((c) => (
+                  <span key={c.label} className={`pf-progress-item${c.ok ? '' : ' is-pending'}`} title={c.hint}>
+                    <SolarIcon name={c.ok ? 'check-circle-bold' : 'danger-triangle-linear'} size={14} />
+                    {c.label}
+                    {!c.ok && <em>· {c.hint}</em>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+      </section>
+
+      {/* ───────────── Tabs ───────────── */}
+      <div className="pf-tabs" role="tablist" aria-label="Profile sections">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === t.key}
+            className="pf-tab"
+            onClick={() => setActiveTab(t.key)}
           >
-            Credential Compliance Status
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: '12px' }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--color-cream-base)',
-                border: '1px solid var(--color-gold-border)',
-              }}
-            >
-              <div
-                style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--color-success-bg)',
-                  border: '1.5px solid var(--color-success)',
-                  color: '#059669',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  flexShrink: 0,
-                }}
-              >
-                ✓
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                  Profile Completed
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--color-cream-text-muted)' }}>Email verified &amp; active</div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--color-cream-base)',
-                border: '1px solid var(--color-gold-border)',
-              }}
-            >
-              <div
-                style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '50%',
-                  backgroundColor: isVerified ? 'var(--color-success-bg)' : 'var(--color-warning-bg)',
-                  border: `1.5px solid ${isVerified ? 'var(--color-success)' : 'var(--color-warning)'}`,
-                  color: isVerified ? '#059669' : '#b45309',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  flexShrink: 0,
-                }}
-              >
-                {isVerified ? '✓' : '2'}
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                  HPCSA Register Audit
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--color-cream-text-muted)' }}>
-                  {isVerified ? 'Credentials validated' : 'Audit under review'}
-                </div>
-              </div>
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                padding: '10px 14px',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--color-cream-base)',
-                border: '1px solid var(--color-gold-border)',
-              }}
-            >
-              <div
-                style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '50%',
-                  backgroundColor: isVerified ? 'var(--color-success-bg)' : 'var(--color-cream-surface)',
-                  border: `1.5px solid ${isVerified ? 'var(--color-success)' : 'var(--color-gold-border)'}`,
-                  color: isVerified ? '#059669' : 'var(--color-cream-text-muted)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.7rem',
-                  fontWeight: 800,
-                  flexShrink: 0,
-                }}
-              >
-                {isVerified ? '✓' : '3'}
-              </div>
-              <div>
-                <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                  Telehealth Activation
-                </div>
-                <div style={{ fontSize: '0.7rem', color: 'var(--color-cream-text-muted)' }}>
-                  {isVerified ? 'Live on patient search' : 'Unpublished until verified'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+            <SolarIcon name={t.icon} size={17} color="var(--color-chocolate-base)" />
+            <span>{t.label}</span>
+          </button>
+        ))}
       </div>
 
-      {/* Tab Navigation Strip */}
-      <div className="profile-tab-group">
-        <button
-          type="button"
-          onClick={() => setActiveTab('clinical')}
-          className={`profile-tab-btn ${activeTab === 'clinical' ? 'active' : ''}`}
-        >
-          <SolarIcon
-            name="stethoscope-bold"
-            size={16}
-            color={activeTab === 'clinical' ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
-          />
-          <span>Clinical Profile</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('availability')}
-          className={`profile-tab-btn ${activeTab === 'availability' ? 'active' : ''}`}
-        >
-          <SolarIcon
-            name="calendar-minimalistic-bold"
-            size={16}
-            color={activeTab === 'availability' ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
-          />
-          <span>Availability &amp; Services</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('practice')}
-          className={`profile-tab-btn ${activeTab === 'practice' ? 'active' : ''}`}
-        >
-          <SolarIcon
-            name="document-text-bold"
-            size={16}
-            color={activeTab === 'practice' ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
-          />
-          <span>Credentials &amp; Documents</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('payouts')}
-          className={`profile-tab-btn ${activeTab === 'payouts' ? 'active' : ''}`}
-        >
-          <SolarIcon
-            name="wallet-money-bold"
-            size={16}
-            color={activeTab === 'payouts' ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
-          />
-          <span>Payouts &amp; Banking</span>
-        </button>
-      </div>
-
-      {/* Main Settings Form */}
-      <form onSubmit={handleSubmit}>
-        {/* ====================================================================
-            TAB 1: CLINICAL PROFILE
-            ==================================================================== */}
-        {activeTab === 'clinical' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Primary Specialty & Hourly Rates Card */}
-            <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: '1.5px solid var(--color-gold-border)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-                <div
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    flexShrink: 0,
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--color-gold-pale)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <SolarIcon name="stethoscope-bold" size={17} color="var(--color-chocolate-base)" />
-                </div>
-                <div>
-                  <h2 className="section-title">Specialty &amp; Consultation Rates</h2>
-                  <p className="section-subtitle">
-                    Rates and disciplines displayed to patients booking consultations
-                  </p>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '20px', marginBottom: '20px' }}>
-                <div>
-                  <label className="portal-label">Primary Specialty</label>
-                  <select
-                    value={specialty}
-                    onChange={(e) => setSpecialty(e.target.value)}
-                    className="portal-select"
-                    required
-                  >
-                    {!AVAILABLE_SPECIALTIES.includes(specialty) && specialty && (
-                      <option value={specialty}>{specialty}</option>
-                    )}
-                    {AVAILABLE_SPECIALTIES.map((spec) => (
-                      <option key={spec} value={spec}>
-                        {spec}
-                      </option>
-                    ))}
-                  </select>
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', marginTop: '4px', display: 'block' }}>
-                    Main discipline featured on patient search cards
-                  </span>
-                </div>
-
-                <div>
-                  <label className="portal-label">Consultation Rate (Platform Standardized)</label>
-                  <div
-                    style={{
-                      padding: '12px 16px',
-                      borderRadius: '12px',
-                      backgroundColor: 'rgba(223, 171, 98, 0.1)',
-                      border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.35))',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      minHeight: '44px',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <SolarIcon name="lock-keyhole-linear" size={17} color="var(--color-gold-bronze, #B88647)" />
-                      <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: 'var(--color-chocolate-base, #2A170F)' }}>
-                        Platform Consultation Rate: R {profile?.consultationRate ?? (ratePerHour || '850')} per 30 minutes (longer sessions are charged in proportion)
-                      </span>
-                    </div>
-                    <span
-                      style={{
-                        padding: '3px 8px',
-                        borderRadius: '9999px',
-                        backgroundColor: 'var(--color-gold-pale, #F0E5D3)',
-                        color: 'var(--color-chocolate-base, #2A170F)',
-                        fontSize: '0.7rem',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em',
-                      }}
-                    >
-                      Locked
-                    </span>
-                  </div>
-                  <p
-                    style={{
-                      fontSize: 'var(--text-xs)',
-                      color: 'var(--color-cream-text-muted, #6B5E55)',
-                      marginTop: '6px',
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    Consultation fees are standardized platform-wide by ChekUp247 administration. Rates cannot be individually adjusted.
-                  </p>
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginTop: '6px',
-                      fontSize: 'var(--text-xs)',
-                    }}
-                  >
-                    <span style={{ color: 'var(--color-cream-text-muted)' }}>Net 85% practitioner split:</span>
-                    <strong style={{ color: 'var(--color-chocolate-base)' }}>R{netTakeHome}/session</strong>
-                  </div>
-                </div>
-              </div>
-
-              {/* In-call Extension Pro-rata Breakdown */}
-              <div
-                style={{
-                  padding: '14px 18px',
-                  borderRadius: 'var(--radius-lg)',
-                  backgroundColor: 'var(--color-cream-base)',
-                  border: '1px solid var(--color-gold-border)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                  <SolarIcon name="info-circle-linear" size={15} color="var(--color-gold-bronze)" />
-                  <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                    Live In-Call Time Extension Rates
-                  </span>
-                </div>
-                <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', margin: '0 0 10px' }}>
-                  When extending active telehealth consultations, the patient is billed pro-rata from this hourly rate:
-                </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
-                  <div
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--color-cream-surface)',
-                      border: '1px solid var(--color-gold-border)',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.7rem', color: 'var(--color-cream-text-muted)', fontWeight: 600 }}>+10 min</div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>R{ext10Min}</div>
-                  </div>
-                  <div
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--color-cream-surface)',
-                      border: '1px solid var(--color-gold-border)',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.7rem', color: 'var(--color-cream-text-muted)', fontWeight: 600 }}>+20 min</div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>R{ext20Min}</div>
-                  </div>
-                  <div
-                    style={{
-                      padding: '8px 12px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--color-cream-surface)',
-                      border: '1px solid var(--color-gold-border)',
-                      textAlign: 'center',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.7rem', color: 'var(--color-cream-text-muted)', fontWeight: 600 }}>+30 min</div>
-                    <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>R{ext30Min}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Secondary Specialties Chips */}
-            <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: '1.5px solid var(--color-gold-border)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label className="portal-label" style={{ margin: 0 }}>
-                  Secondary Specialties &amp; Sub-disciplines
-                </label>
-                <span className="badge-gold">
-                  {secondarySpecialties.length} selected
-                </span>
-              </div>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', margin: '0 0 14px' }}>
-                Select secondary areas or sub-disciplines you are credentialed to consult on:
-              </p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                {AVAILABLE_SPECIALTIES.filter((s) => s !== specialty).map((spec) => {
-                  const isSelected = secondarySpecialties.includes(spec);
-                  return (
-                    <button
-                      key={spec}
-                      type="button"
-                      onClick={() => toggleSecondarySpecialty(spec)}
-                      className={`specialty-chip ${isSelected ? 'active' : ''}`}
-                    >
-                      <SolarIcon
-                        name={isSelected ? 'check-circle-bold' : 'add-circle-linear'}
-                        size={14}
-                        color={isSelected ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
-                      />
-                      <span>{spec}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Clinical Experience & Board Certification */}
-            <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: '1.5px solid var(--color-gold-border)',
-              }}
-            >
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '20px', marginBottom: '20px' }}>
-                <div>
-                  <label className="portal-label">Years of Clinical Experience</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="60"
-                    value={experienceYears}
-                    onChange={(e) => setExperienceYears(Math.max(0, parseInt(e.target.value) || 0))}
-                    className="portal-input"
-                    required
-                  />
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', marginTop: '4px', display: 'block' }}>
-                    Displays on profile as: <strong>{experienceYears}+ Years Experience</strong>
-                  </span>
-                </div>
-
-                <div>
-                  <label className="portal-label">Board Certification &amp; Credentials</label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: 'var(--text-sm)', fontWeight: 600, color: 'var(--color-chocolate-base)' }}>
-                      <input
-                        type="checkbox"
-                        checked={isBoardCertified}
-                        onChange={(e) => setIsBoardCertified(e.target.checked)}
-                        style={{ width: '16px', height: '16px', accentColor: 'var(--color-gold-base)', cursor: 'pointer' }}
-                      />
-                      <span>Show Board Certified Badge</span>
-                    </label>
-                  </div>
-                  {isBoardCertified && (
-                    <input
-                      type="text"
-                      value={boardCertificationTitle}
-                      onChange={(e) => setBoardCertificationTitle(e.target.value)}
-                      placeholder="e.g. Board Certified"
-                      className="portal-input"
-                      style={{ marginTop: '4px', fontSize: 'var(--text-sm)' }}
-                    />
-                  )}
-                </div>
-              </div>
-
+      {/* ───────────── Clinical ───────────── */}
+      {activeTab === 'clinical' && (
+        <div className="pf-panel">
+          <section className="pf-card">
+            <div className="pf-card-head">
+              <span className="pf-card-icon"><SolarIcon name="stethoscope-linear" size={20} color="var(--color-gold-bronze)" /></span>
               <div>
-                <label className="portal-label">Clinical Biography &amp; Practice Summary</label>
-                <textarea
-                  rows={4}
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Detail your clinical background, medical education, training, and consultation approach..."
-                  className="portal-textarea"
+                <h2 className="pf-card-title">Specialty &amp; rate</h2>
+                <p className="pf-card-sub">What patients see on your search card.</p>
+              </div>
+            </div>
+            <div className="pf-grid pf-grid--2">
+              <div className="pf-field">
+                <label className="pf-label" htmlFor="pf-specialty">Primary specialty</label>
+                <select id="pf-specialty" className="pf-select" value={specialty} onChange={(e) => setSpecialty(e.target.value)} required>
+                  {!AVAILABLE_SPECIALTIES.includes(specialty) && specialty && <option value={specialty}>{specialty}</option>}
+                  {AVAILABLE_SPECIALTIES.map((spec) => (
+                    <option key={spec} value={spec}>{spec}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="pf-field">
+                <span className="pf-label">Consultation rate</span>
+                <div className="pf-locked">
+                  <SolarIcon name="lock-keyhole-linear" size={18} color="var(--color-gold-bronze)" />
+                  <div>
+                    <strong>R{profile?.consultationRate ?? (ratePerHour || '850')} per 30 min</strong>
+                    <small>Set by ChekUp247 · you keep R{netTakeHome}/hr (85%)</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="pf-field">
+              <span className="pf-label">In-call extension rates <span>(pro-rata)</span></span>
+              <div className="pf-rate-grid">
+                <div className="pf-rate"><small>+10 min</small><strong>R{ext10Min}</strong></div>
+                <div className="pf-rate"><small>+20 min</small><strong>R{ext20Min}</strong></div>
+                <div className="pf-rate"><small>+30 min</small><strong>R{ext30Min}</strong></div>
+              </div>
+            </div>
+          </section>
+
+          <section className="pf-card">
+            <div className="pf-card-head">
+              <span className="pf-card-icon"><SolarIcon name="case-round-linear" size={20} color="var(--color-gold-bronze)" /></span>
+              <div>
+                <h2 className="pf-card-title">About you</h2>
+                <p className="pf-card-sub">Experience, certification and a short biography.</p>
+              </div>
+            </div>
+            <div className="pf-grid pf-grid--2">
+              <div className="pf-field">
+                <label className="pf-label" htmlFor="pf-years">Years of clinical experience</label>
+                <input
+                  id="pf-years"
+                  className="pf-input"
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={experienceYears}
+                  onChange={(e) => setExperienceYears(Math.max(0, parseInt(e.target.value) || 0))}
+                />
+              </div>
+              <div className="pf-field">
+                <label className="pf-label" htmlFor="pf-board">Board certification</label>
+                <input
+                  id="pf-board"
+                  className="pf-input"
+                  type="text"
+                  value={boardCertificationTitle}
+                  onChange={(e) => setBoardCertificationTitle(e.target.value)}
+                  placeholder="e.g. Board Certified"
+                  disabled={!isBoardCertified}
                 />
               </div>
             </div>
-
-            {/* Areas of Expertise & Clinical Focus */}
-            <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: '1.5px solid var(--color-gold-border)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label className="portal-label" style={{ margin: 0 }}>
-                  Areas of Expertise &amp; Clinical Focus
-                </label>
-                <span className="badge-gold">
-                  {selectedExpertise.length} Selected
-                </span>
+            <div className="pf-row">
+              <div className="pf-row-text">
+                <div className="pf-row-title">Board certified</div>
+                <div className="pf-row-desc">Shows a certification badge on your public profile.</div>
               </div>
-              <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', margin: '0 0 14px' }}>
-                Conditions, therapies, and clinical areas highlighted on your public profile:
-              </p>
+              <button type="button" role="switch" aria-checked={isBoardCertified} aria-label="Board certified" className="pf-switch" onClick={() => setIsBoardCertified(!isBoardCertified)} />
+            </div>
+            <div className="pf-field">
+              <label className="pf-label" htmlFor="pf-bio">Biography</label>
+              <textarea
+                id="pf-bio"
+                className="pf-textarea"
+                value={bio}
+                onChange={(e) => setBio(e.target.value)}
+                placeholder="Your background, training and consultation approach…"
+              />
+            </div>
+          </section>
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '18px' }}>
-                {Array.from(new Set([...PRESET_EXPERTISE_OPTIONS, ...selectedExpertise])).map((tag) => {
-                  const isSelected = selectedExpertise.includes(tag);
-                  const isCustom = !PRESET_EXPERTISE_OPTIONS.includes(tag);
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleExpertise(tag)}
-                      className={`specialty-chip ${isSelected ? 'active' : ''}`}
-                    >
-                      <SolarIcon
-                        name={isSelected ? 'check-circle-bold' : 'add-circle-linear'}
-                        size={14}
-                        color={isSelected ? 'var(--color-chocolate-base)' : 'var(--color-gold-bronze)'}
-                      />
-                      <span>{tag}</span>
-                      {isCustom && (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedExpertise((prev) => prev.filter((t) => t !== tag));
-                          }}
-                          style={{
-                            marginLeft: '4px',
-                            fontSize: '0.75rem',
-                            opacity: 0.7,
-                            cursor: 'pointer',
-                          }}
-                          title="Remove custom tag"
-                        >
-                          ✕
-                        </span>
-                      )}
-                    </button>
-                  );
-                })}
+          <section className="pf-card">
+            <div className="pf-card-head">
+              <span className="pf-card-icon"><SolarIcon name="check-circle-bold" size={20} color="var(--color-gold-bronze)" /></span>
+              <div>
+                <h2 className="pf-card-title">Specialties &amp; focus areas</h2>
+                <p className="pf-card-sub">Tap to select everything you cover.</p>
               </div>
-
-              {/* Add Custom Tag Bar */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  paddingTop: '14px',
-                  borderTop: '1px solid var(--color-gold-border)',
-                }}
-              >
+            </div>
+            <div className="pf-field">
+              <span className="pf-label">Additional specialties</span>
+              <div className="pf-chips">
+                {AVAILABLE_SPECIALTIES.filter((s) => s !== specialty).map((spec) => (
+                  <button key={spec} type="button" className="pf-chip" aria-pressed={secondarySpecialties.includes(spec)} onClick={() => toggleSecondarySpecialty(spec)}>
+                    {spec}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="pf-field">
+              <span className="pf-label">Areas of expertise</span>
+              <div className="pf-chips">
+                {[...PRESET_EXPERTISE_OPTIONS, ...selectedExpertise.filter((t) => !PRESET_EXPERTISE_OPTIONS.includes(t))].map((tag) => (
+                  <button key={tag} type="button" className="pf-chip" aria-pressed={selectedExpertise.includes(tag)} onClick={() => toggleExpertise(tag)}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              <div className="pf-inline-add">
                 <input
+                  className="pf-input"
                   type="text"
                   value={customExpertiseInput}
                   onChange={(e) => setCustomExpertiseInput(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleAddCustomExpertise(e);
-                    }
+                    if (e.key === 'Enter') handleAddCustomExpertise(e as unknown as React.FormEvent);
                   }}
-                  placeholder="Add custom clinical focus (e.g. Travel Medicine, ADHD in Adults)..."
-                  className="portal-input"
-                  style={{ flex: 1, padding: '8px 12px', fontSize: 'var(--text-sm)' }}
+                  placeholder="Add your own…"
+                  aria-label="Add a custom area of expertise"
                 />
-                <button
-                  type="button"
-                  onClick={handleAddCustomExpertise}
-                  disabled={!customExpertiseInput.trim()}
-                  className="btn-secondary"
-                  style={{ padding: '8px 16px', fontSize: 'var(--text-sm)' }}
-                >
-                  <SolarIcon name="add-circle-bold" size={15} color="var(--color-chocolate-base)" />
-                  <span>Add Focus Area</span>
+                <button type="button" className="pf-btn" onClick={(e) => handleAddCustomExpertise(e as unknown as React.FormEvent)}>
+                  Add
                 </button>
               </div>
             </div>
-          </div>
-        )}
+          </section>
+        </div>
+      )}
 
-        {/* ====================================================================
-            TAB 2: AVAILABILITY & SERVICES
-            ==================================================================== */}
-        {activeTab === 'availability' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Holiday Mode Management Card */}
-            <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: `1.5px solid ${isOnHoliday ? 'var(--color-warning)' : 'var(--color-gold-border)'}`,
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '16px',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '14px' }}>
-                  <div
-                    style={{
-                      width: '42px',
-                      height: '42px',
-                      borderRadius: 'var(--radius-lg)',
-                      backgroundColor: isOnHoliday ? 'var(--color-warning-bg)' : 'var(--color-success-bg)',
-                      border: `1px solid ${isOnHoliday ? 'var(--color-warning)' : 'var(--color-success)'}`,
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <SolarIcon
-                      name={isOnHoliday ? 'calendar-minimalistic-bold' : 'sun-2-bold'}
-                      size={22}
-                      color={isOnHoliday ? '#b45309' : '#059669'}
-                    />
-                  </div>
-
-                  <div style={{ minWidth: 0, flex: '1 1 0' }}>
-                    <div className="profile-holiday-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <h2 className="section-title">Holiday Mode &amp; Practice Availability</h2>
-                      <span
-                        className={isOnHoliday ? 'badge-warning' : 'badge-success'}
-                        style={{ fontSize: '0.7rem' }}
-                      >
-                        {isOnHoliday ? 'PAUSED / ON LEAVE' : 'ACTIVE & ACCEPTING APPOINTMENTS'}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', margin: 0, maxWidth: '640px', lineHeight: 1.5 }}>
-                      {isOnHoliday
-                        ? 'Your public calendar slots are hidden. Patients cannot book new consultations while Holiday Mode is on. Any previously confirmed consultations remain active.'
-                        : 'Your calendar slots and instant consultations are live. Enable Holiday Mode when going on leave to automatically pause patient slot discovery.'}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={handleToggleHoliday}
-                  disabled={togglingHoliday}
-                  className={isOnHoliday ? 'btn-secondary' : 'btn-primary'}
-                  style={{ padding: '9px 18px', fontSize: 'var(--text-sm)' }}
-                >
-                  <SolarIcon
-                    name={isOnHoliday ? 'play-bold' : 'pause-circle-bold'}
-                    size={16}
-                    color="var(--color-chocolate-base)"
-                  />
-                  <span>
-                    {togglingHoliday
-                      ? 'Updating...'
-                      : isOnHoliday
-                      ? 'Resume Practice Slots'
-                      : 'Turn On Holiday Mode'}
-                  </span>
-                </button>
+      {/* ───────────── Availability ───────────── */}
+      {activeTab === 'availability' && (
+        <div className="pf-panel">
+          <section className="pf-card">
+            <div className="pf-card-head">
+              <span className="pf-card-icon"><SolarIcon name="sun-fog-linear" size={20} color="var(--color-gold-bronze)" /></span>
+              <div>
+                <h2 className="pf-card-title">Holiday mode</h2>
+                <p className="pf-card-sub">
+                  {isOnHoliday
+                    ? 'Your slots are hidden and patients cannot book new consultations. Confirmed bookings stay active.'
+                    : 'Your slots are live. Turn this on when you are away to pause new bookings.'}
+                </p>
               </div>
             </div>
-
-            {/* Telehealth Services Toggle Cards */}
-            <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: '1.5px solid var(--color-gold-border)',
-              }}
+            <button
+              type="button"
+              onClick={handleToggleHoliday}
+              disabled={togglingHoliday}
+              className={isOnHoliday ? 'btn-primary' : 'pf-btn'}
+              style={{ width: '100%', minHeight: 48 }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-                <div
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    flexShrink: 0,
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--color-gold-pale)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <SolarIcon name="videocamera-bold" size={17} color="var(--color-chocolate-base)" />
-                </div>
-                <div>
-                  <h2 className="section-title">Consultation Channels &amp; Modes</h2>
-                  <p className="section-subtitle">
-                    Select which communication channels patients can select when booking
-                  </p>
-                </div>
-              </div>
+              <SolarIcon name={isOnHoliday ? 'play-bold' : 'pause-circle-bold'} size={17} color="var(--color-chocolate-base)" />
+              <span>{togglingHoliday ? 'Updating…' : isOnHoliday ? 'Resume bookings' : 'Turn on holiday mode'}</span>
+            </button>
+          </section>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {[
-                  {
-                    label: 'Video Consultation',
-                    description: 'Patients book HD video calls — recommended primary telehealth mode',
-                    icon: 'videocamera-record-bold',
-                    value: offersVideo,
-                    onChange: setOffersVideo,
-                  },
-                  {
-                    label: 'In-Clinic Visit',
-                    description: 'Allow patients to book in-person consultations at your practice rooms (address is only shown after confirmation)',
-                    icon: 'hospital-bold',
-                    value: offersInClinic,
-                    onChange: setOffersInClinic,
-                  },
-                  {
-                    label: 'Audio Consultation',
-                    description: 'Patients can book audio-only phone calls (no camera required)',
-                    icon: 'phone-calling-bold',
-                    value: offersAudio,
-                    onChange: setOffersAudio,
-                  },
-                  {
-                    label: 'Accepts Medical Aid',
-                    description: 'Show "Medical Aid Accepted" badge on your public doctor profile',
-                    icon: 'card-bold',
-                    value: acceptsMedicalAid,
-                    onChange: setAcceptsMedicalAid,
-                  },
-                ].map(({ label, description, icon, value, onChange }) => (
-                  <div
-                    key={label}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '16px',
-                      padding: '14px 18px',
-                      borderRadius: 'var(--radius-lg)',
-                      backgroundColor: value ? 'var(--color-cream-base)' : 'var(--color-cream-surface)',
-                      border: `1.5px solid ${value ? 'var(--color-gold-base)' : 'var(--color-gold-border)'}`,
-                      transition: 'border-color 0.2s ease, background-color 0.2s ease',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                      <div
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: value ? 'var(--color-gold-pale)' : 'var(--color-cream-base)',
-                          border: '1px solid var(--color-gold-border)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <SolarIcon
-                          name={icon}
-                          size={18}
-                          color={value ? 'var(--color-chocolate-base)' : 'var(--color-cream-text-muted)'}
-                        />
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-chocolate-base)', marginBottom: '2px' }}>
-                          {label}
-                        </div>
-                        <div style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)' }}>
-                          {description}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Accessible Micro-Switch */}
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={value}
-                      onClick={() => onChange(!value)}
-                      className="profile-switch"
-                      style={{
-                        backgroundColor: value ? 'var(--color-gold-base)' : 'var(--color-cream-text-muted)',
-                      }}
-                      title={`Toggle ${label}`}
-                    >
-                      <span className="profile-switch-thumb" />
-                    </button>
-                  </div>
-                ))}
+          <section className="pf-card">
+            <div className="pf-card-head">
+              <span className="pf-card-icon"><SolarIcon name="videocamera-record-linear" size={20} color="var(--color-gold-bronze)" /></span>
+              <div>
+                <h2 className="pf-card-title">Consultation types</h2>
+                <p className="pf-card-sub">Choose at least one way patients can see you.</p>
               </div>
             </div>
+            <div className="pf-rows">
+              {[
+                { label: 'Video consultation', description: 'HD video calls — the recommended mode.', icon: 'videocamera-record-bold', value: offersVideo, set: setOffersVideo },
+                { label: 'Audio consultation', description: 'Phone-style calls, no camera needed.', icon: 'phone-calling-bold', value: offersAudio, set: setOffersAudio },
+                { label: 'In-clinic visit', description: 'In-person at your rooms. Address shown only after confirmation.', icon: 'hospital-bold', value: offersInClinic, set: setOffersInClinic },
+                { label: 'Accepts medical aid', description: 'Shows a “Medical aid accepted” badge on your profile.', icon: 'card-bold', value: acceptsMedicalAid, set: setAcceptsMedicalAid },
+              ].map(({ label, description, icon, value, set }) => (
+                <div className="pf-row" key={label}>
+                  <span className="pf-card-icon"><SolarIcon name={icon} size={19} color="var(--color-gold-bronze)" /></span>
+                  <div className="pf-row-text">
+                    <div className="pf-row-title">{label}</div>
+                    <div className="pf-row-desc">{description}</div>
+                  </div>
+                  <button type="button" role="switch" aria-checked={value} aria-label={label} className="pf-switch" onClick={() => set(!value)} />
+                </div>
+              ))}
+            </div>
+          </section>
 
-            {/* Physical Practice Address & Rooms Card */}
-            <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: '1.5px solid var(--color-gold-border)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-                <div
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    flexShrink: 0,
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--color-gold-pale)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <SolarIcon name="map-point-bold" size={17} color="var(--color-chocolate-base)" />
-                </div>
-                <div>
-                  <h2 className="section-title">Physical Practice Address &amp; Rooms</h2>
-                  <p className="section-subtitle">
-                    Confidential rooms address. Disclosed to patients when an In-Clinic Visit is confirmed.
-                  </p>
-                </div>
-              </div>
-
-              {!offersInClinic && (
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--color-cream-base)',
-                    border: '1px solid var(--color-gold-border)',
-                    marginBottom: '16px',
-                    fontSize: 'var(--text-xs)',
-                    color: 'var(--color-cream-text-muted)',
-                  }}
-                >
-                  <SolarIcon name="info-circle-linear" size={15} color="var(--color-gold-bronze)" />
-                  <span>
-                    Note: Enable <strong>In-Clinic Visit</strong> in Consultation Channels above to activate patient bookings at these rooms.
-                  </span>
-                </div>
-              )}
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '16px', marginBottom: '16px' }}>
-                <div>
-                  <label className="portal-label">Practice / Rooms Name</label>
-                  <input
-                    type="text"
-                    value={practiceName}
-                    onChange={(e) => setPracticeName(e.target.value)}
-                    placeholder="e.g. Sandton Mediclinic Suites"
-                    className="portal-input"
-                  />
-                </div>
-                <div>
-                  <label className="portal-label">Street Address</label>
-                  <input
-                    type="text"
-                    value={streetAddress}
-                    onChange={(e) => setStreetAddress(e.target.value)}
-                    placeholder="e.g. 165 Rivonia Road, Suite 402"
-                    className="portal-input"
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '14px' }}>
-                <div>
-                  <label className="portal-label">Suburb &amp; City</label>
-                  <input
-                    type="text"
-                    value={suburbCity}
-                    onChange={(e) => setSuburbCity(e.target.value)}
-                    placeholder="e.g. Morningside, Sandton"
-                    className="portal-input"
-                  />
-                </div>
-                <div>
-                  <label className="portal-label">Postal Code</label>
-                  <input
-                    type="text"
-                    value={postalCode}
-                    onChange={(e) => setPostalCode(e.target.value)}
-                    placeholder="e.g. 2196"
-                    className="portal-input"
-                  />
-                </div>
-                <div>
-                  <label className="portal-label">Province</label>
-                  <select
-                    value={province}
-                    onChange={(e) => setProvince(e.target.value)}
-                    className="portal-select"
-                  >
-                    <option value="Gauteng">Gauteng</option>
-                    <option value="Western Cape">Western Cape</option>
-                    <option value="KwaZulu-Natal">KwaZulu-Natal</option>
-                    <option value="Eastern Cape">Eastern Cape</option>
-                    <option value="Free State">Free State</option>
-                    <option value="Limpopo">Limpopo</option>
-                    <option value="Mpumalanga">Mpumalanga</option>
-                    <option value="North West">North West</option>
-                    <option value="Northern Cape">Northern Cape</option>
-                  </select>
-                </div>
+          <section className="pf-card">
+            <div className="pf-card-head">
+              <span className="pf-card-icon"><SolarIcon name="hospital-linear" size={20} color="var(--color-gold-bronze)" /></span>
+              <div>
+                <h2 className="pf-card-title">Practice address</h2>
+                <p className="pf-card-sub">
+                  {offersInClinic ? 'Used for in-clinic bookings.' : 'Only needed if you offer in-clinic visits.'}
+                </p>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* ====================================================================
-            TAB 3: CREDENTIALS & DOCUMENTS
-            ==================================================================== */}
-        {activeTab === 'practice' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* Government ID & Regulatory Certificates Card */}
-            <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: '1.5px solid var(--color-gold-border)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-                <div
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    flexShrink: 0,
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--color-gold-pale)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <SolarIcon name="diploma-bold" size={17} color="var(--color-chocolate-base)" />
-                </div>
-                <div>
-                  <h2 className="section-title">Government-Issued ID &amp; Medical Certificates</h2>
-                  <p className="section-subtitle">
-                    Upload official identification and HPCSA compliance documents for statutory governance
-                  </p>
-                </div>
+            <div className="pf-grid pf-grid--2">
+              <div className="pf-field" style={{ gridColumn: '1 / -1' }}>
+                <label className="pf-label" htmlFor="pf-practice">Practice name</label>
+                <input id="pf-practice" className="pf-input" type="text" value={practiceName} onChange={(e) => setPracticeName(e.target.value)} placeholder="e.g. Sandton Mediclinic Suites" />
               </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(320px, 100%), 1fr))', gap: '18px', marginBottom: '20px' }}>
-                {/* 1. Government-Issued ID */}
-                <div
-                  style={{
-                    padding: '18px',
-                    borderRadius: 'var(--radius-lg)',
-                    backgroundColor: 'var(--color-cream-base)',
-                    border: '1.5px solid var(--color-gold-border)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                        National ID or Passport
-                      </span>
-                      {idDocument ? (
-                        <span className="badge-success" style={{ fontSize: '0.7rem' }}>
-                          <SolarIcon name="check-circle-bold" size={12} color="#059669" />
-                          VERIFIED
-                        </span>
-                      ) : (
-                        <span className="badge-warning" style={{ fontSize: '0.7rem' }}>
-                          REQUIRED
-                        </span>
-                      )}
-                    </div>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', margin: '0 0 12px' }}>
-                      South African Smart ID Card (both sides) or valid Passport.
-                    </p>
-
-                    {idDocument ? (
-                      <div
-                        style={{
-                          padding: '12px 14px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: 'var(--color-cream-surface)',
-                          border: '1px solid var(--color-gold-border)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '10px',
-                          marginBottom: '12px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                          <SolarIcon name="document-text-bold" size={20} color="var(--color-gold-bronze)" />
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {idDocument.name}
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--color-cream-text-muted)' }}>
-                              Uploaded: {idDocument.uploadedAt}
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setIdDocument(null)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#dc2626',
-                            fontSize: 'var(--text-xs)',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                          }}
-                          title="Remove document"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ marginBottom: '12px' }}>
-                        <label
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            padding: '16px',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1.5px dashed var(--color-gold-border)',
-                            backgroundColor: 'var(--color-cream-surface)',
-                            cursor: 'pointer',
-                            textAlign: 'center',
-                          }}
-                        >
-                          <SolarIcon name="cloud-upload-bold" size={22} color="var(--color-gold-bronze)" />
-                          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                            Upload National ID / Passport
-                          </span>
-                          <span style={{ fontSize: '0.68rem', color: 'var(--color-cream-text-muted)' }}>
-                            PDF, PNG or JPG (max 10MB)
-                          </span>
-                          <input type="file" accept=".pdf,image/*" onChange={handleIdFileUpload} style={{ display: 'none' }} />
-                        </label>
-                      </div>
-                    )}
-                  </div>
-
-                  {idDocument && (
-                    <label className="btn-ghost" style={{ padding: '6px 12px', fontSize: 'var(--text-xs)', alignSelf: 'flex-start', cursor: 'pointer' }}>
-                      <SolarIcon name="restart-linear" size={14} />
-                      <span>Replace ID Document</span>
-                      <input type="file" accept=".pdf,image/*" onChange={handleIdFileUpload} style={{ display: 'none' }} />
-                    </label>
-                  )}
-                </div>
-
-                {/* 2. HPCSA Annual Practicing Certificate */}
-                <div
-                  style={{
-                    padding: '18px',
-                    borderRadius: 'var(--radius-lg)',
-                    backgroundColor: 'var(--color-cream-base)',
-                    border: '1.5px solid var(--color-gold-border)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                  }}
-                >
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                        HPCSA Practicing Certificate
-                      </span>
-                      {hpcsaCertificate ? (
-                        <span className="badge-success" style={{ fontSize: '0.7rem' }}>
-                          <SolarIcon name="shield-check-bold" size={12} color="#059669" />
-                          VALIDATED
-                        </span>
-                      ) : (
-                        <span className="badge-warning" style={{ fontSize: '0.7rem' }}>
-                          REQUIRED
-                        </span>
-                      )}
-                    </div>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', margin: '0 0 12px' }}>
-                      Current annual HPCSA registration card or practicing receipt (e.g. {profile?.hpcsaNumber || 'MP 0089432'}).
-                    </p>
-
-                    {hpcsaCertificate ? (
-                      <div
-                        style={{
-                          padding: '12px 14px',
-                          borderRadius: 'var(--radius-md)',
-                          backgroundColor: 'var(--color-cream-surface)',
-                          border: '1px solid var(--color-gold-border)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '10px',
-                          marginBottom: '12px',
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                          <SolarIcon name="diploma-bold" size={20} color="var(--color-gold-bronze)" />
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {hpcsaCertificate.name}
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--color-cream-text-muted)' }}>
-                              Uploaded: {hpcsaCertificate.uploadedAt}
-                            </div>
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => setHpcsaCertificate(null)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#dc2626',
-                            fontSize: 'var(--text-xs)',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                          }}
-                          title="Remove certificate"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ marginBottom: '12px' }}>
-                        <label
-                          style={{
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            padding: '16px',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1.5px dashed var(--color-gold-border)',
-                            backgroundColor: 'var(--color-cream-surface)',
-                            cursor: 'pointer',
-                            textAlign: 'center',
-                          }}
-                        >
-                          <SolarIcon name="cloud-upload-bold" size={22} color="var(--color-gold-bronze)" />
-                          <span style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                            Upload HPCSA Practicing Card
-                          </span>
-                          <span style={{ fontSize: '0.68rem', color: 'var(--color-cream-text-muted)' }}>
-                            PDF, PNG or JPG (max 10MB)
-                          </span>
-                          <input type="file" accept=".pdf,image/*" onChange={handleHpcsaFileUpload} style={{ display: 'none' }} />
-                        </label>
-                      </div>
-                    )}
-                  </div>
-
-                  {hpcsaCertificate && (
-                    <label className="btn-ghost" style={{ padding: '6px 12px', fontSize: 'var(--text-xs)', alignSelf: 'flex-start', cursor: 'pointer' }}>
-                      <SolarIcon name="restart-linear" size={14} />
-                      <span>Replace HPCSA Document</span>
-                      <input type="file" accept=".pdf,image/*" onChange={handleHpcsaFileUpload} style={{ display: 'none' }} />
-                    </label>
-                  )}
-                </div>
+              <div className="pf-field" style={{ gridColumn: '1 / -1' }}>
+                <label className="pf-label" htmlFor="pf-street">Street address</label>
+                <input id="pf-street" className="pf-input" type="text" value={streetAddress} onChange={(e) => setStreetAddress(e.target.value)} placeholder="e.g. 165 Rivonia Road, Suite 402" />
               </div>
+              <div className="pf-field">
+                <label className="pf-label" htmlFor="pf-suburb">Suburb &amp; city</label>
+                <input id="pf-suburb" className="pf-input" type="text" value={suburbCity} onChange={(e) => setSuburbCity(e.target.value)} placeholder="e.g. Morningside, Sandton" />
+              </div>
+              <div className="pf-field">
+                <label className="pf-label" htmlFor="pf-postal">Postal code</label>
+                <input id="pf-postal" className="pf-input" type="text" inputMode="numeric" value={postalCode} onChange={(e) => setPostalCode(e.target.value)} placeholder="e.g. 2196" />
+              </div>
+              <div className="pf-field" style={{ gridColumn: '1 / -1' }}>
+                <label className="pf-label" htmlFor="pf-province">Province</label>
+                <select id="pf-province" className="pf-select" value={province} onChange={(e) => setProvince(e.target.value)}>
+                  {['Gauteng', 'Western Cape', 'KwaZulu-Natal', 'Eastern Cape', 'Free State', 'Limpopo', 'Mpumalanga', 'North West', 'Northern Cape'].map((p) => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
 
-              {/* 3. Additional Qualifications / Degrees List */}
-              <div
-                style={{
-                  padding: '18px',
-                  borderRadius: 'var(--radius-lg)',
-                  backgroundColor: 'var(--color-cream-base)',
-                  border: '1.5px solid var(--color-gold-border)',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <div>
-                    <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                      Medical Degrees &amp; Specialist Fellowships
-                    </span>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', margin: '2px 0 0' }}>
-                      MBChB degree certificate, board certifications, and specialist fellowships.
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowAddCertModal(!showAddCertModal)}
-                    className="btn-secondary"
-                    style={{ padding: '6px 14px', fontSize: 'var(--text-xs)' }}
-                  >
-                    <SolarIcon name="add-circle-bold" size={14} color="var(--color-chocolate-base)" />
-                    <span>Upload Certificate</span>
+      {/* ───────────── Credentials ───────────── */}
+      {activeTab === 'practice' && (
+        <div className="pf-panel">
+          <section className="pf-card">
+            <div className="pf-card-head">
+              <span className="pf-card-icon"><SolarIcon name="document-text-linear" size={20} color="var(--color-gold-bronze)" /></span>
+              <div>
+                <h2 className="pf-card-title">Documents</h2>
+                <p className="pf-card-sub">ID and HPCSA papers kept on file for compliance. PDF or image, up to 10MB.</p>
+              </div>
+            </div>
+            {renderDocSlot('National ID / Passport', idDocument, handleIdFileUpload, () => setIdDocument(null))}
+            {renderDocSlot('HPCSA practising certificate', hpcsaCertificate, handleHpcsaFileUpload, () => setHpcsaCertificate(null))}
+            {additionalDocs.map((doc) => (
+              <div className="pf-doc" key={doc.id}>
+                <span className="pf-card-icon"><SolarIcon name="document-text-linear" size={20} color="var(--color-gold-bronze)" /></span>
+                <div className="pf-doc-text">
+                  <div className="pf-doc-title">{doc.title}</div>
+                  <div className="pf-doc-sub">{doc.name} · {doc.uploadedAt}</div>
+                </div>
+                <div className="pf-doc-actions">
+                  <button type="button" className="pf-icon-btn" aria-label={`Remove ${doc.title}`} onClick={() => setAdditionalDocs((prev) => prev.filter((d) => d.id !== doc.id))}>
+                    <SolarIcon name="trash-bin-trash-linear" size={18} color="#b91c1c" />
                   </button>
                 </div>
-
-                {showAddCertModal && (
-                  <div
-                    style={{
-                      padding: '14px',
-                      borderRadius: 'var(--radius-md)',
-                      backgroundColor: 'var(--color-cream-surface)',
-                      border: '1px solid var(--color-gold-border)',
-                      marginBottom: '14px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '10px',
-                    }}
-                  >
-                    <label className="portal-label" style={{ margin: 0 }}>
-                      Certificate Title or Qualification Name
-                    </label>
-                    <input
-                      type="text"
-                      value={newCertTitle}
-                      onChange={(e) => setNewCertTitle(e.target.value)}
-                      placeholder="e.g. Fellowship of the College of Physicians (FCP SA)"
-                      className="portal-input"
-                      style={{ fontSize: 'var(--text-xs)', padding: '8px 12px' }}
-                    />
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <label className="btn-primary" style={{ padding: '8px 16px', fontSize: 'var(--text-xs)', cursor: 'pointer' }}>
-                        <SolarIcon name="cloud-upload-bold" size={14} color="var(--color-chocolate-base)" />
-                        <span>Select Certificate File (.pdf, image)</span>
-                        <input type="file" accept=".pdf,image/*" onChange={handleAddCertUpload} style={{ display: 'none' }} />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setShowAddCertModal(false)}
-                        className="btn-ghost"
-                        style={{ padding: '8px 12px', fontSize: 'var(--text-xs)' }}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {additionalDocs.map((doc) => (
-                    <div
-                      key={doc.id}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        backgroundColor: 'var(--color-cream-surface)',
-                        border: '1px solid var(--color-gold-border)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '12px',
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                        <SolarIcon name="diploma-bold" size={18} color="var(--color-gold-bronze)" />
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {doc.title}
-                          </div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--color-cream-text-muted)' }}>
-                            {doc.name} • Uploaded: {doc.uploadedAt}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="badge-success" style={{ fontSize: '0.65rem' }}>
-                          ON FILE
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => setAdditionalDocs((prev) => prev.filter((d) => d.id !== doc.id))}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#dc2626',
-                            fontSize: 'var(--text-xs)',
-                            cursor: 'pointer',
-                            fontWeight: 600,
-                          }}
-                          title="Remove certificate"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
-            </div>
-
-            {/* Official HPCSA E-Prescription Signature Upload */}
-            <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: '1.5px solid var(--color-gold-border)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', marginBottom: '18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <div
-                    style={{
-                      width: '34px',
-                      height: '34px',
-                      flexShrink: 0,
-                      borderRadius: '50%',
-                      backgroundColor: 'var(--color-gold-pale)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <SolarIcon name="pen-new-square-bold" size={17} color="var(--color-chocolate-base)" />
-                  </div>
-                  <div>
-                    <h2 className="section-title">Official E-Prescription Signature Seal</h2>
-                    <p className="section-subtitle">
-                      Uploaded signature is rendered onto digital prescription PDFs &amp; HTML views (HPCSA Rule 23.3)
-                    </p>
-                  </div>
+            ))}
+            {showAddCertModal ? (
+              <div className="pf-add-panel">
+                <div className="pf-field">
+                  <label className="pf-label" htmlFor="pf-cert-title">Qualification name</label>
+                  <input id="pf-cert-title" className="pf-input" type="text" value={newCertTitle} onChange={(e) => setNewCertTitle(e.target.value)} placeholder="e.g. Fellowship of the College of Physicians" />
                 </div>
-
-                {signatureUrl ? (
-                  <span className="badge-success">
-                    <SolarIcon name="shield-check-bold" size={13} color="#059669" />
-                    <span>SIGNATURE ACTIVE</span>
-                  </span>
-                ) : (
-                  <span className="badge-warning">
-                    <SolarIcon name="danger-circle-bold" size={13} color="#b45309" />
-                    <span>SIGNATURE REQUIRED</span>
-                  </span>
-                )}
-              </div>
-
-              {signatureError && (
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--color-danger-bg)',
-                    border: '1px solid var(--color-danger)',
-                    color: '#991b1b',
-                    fontSize: 'var(--text-xs)',
-                    fontWeight: 600,
-                    marginBottom: '14px',
-                  }}
-                >
-                  {signatureError}
-                </div>
-              )}
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: signatureUrl ? '1fr 1fr' : '1fr',
-                  gap: '20px',
-                  alignItems: 'center',
-                }}
-              >
-                {/* Signature Preview */}
-                {signatureUrl && (
-                  <div
-                    style={{
-                      padding: '20px',
-                      borderRadius: 'var(--radius-lg)',
-                      background: 'repeating-conic-gradient(#f1f5f9 0% 25%, #ffffff 0% 50%) 50% / 14px 14px',
-                      border: '1.5px solid var(--color-gold-border)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      minHeight: '130px',
-                      position: 'relative',
-                    }}
-                  >
-                    <img
-                      src={signatureUrl}
-                      alt="Doctor Signature Preview"
-                      style={{
-                        maxHeight: '75px',
-                        maxWidth: '100%',
-                        objectFit: 'contain',
-                      }}
-                    />
-                    <div
-                      style={{
-                        position: 'absolute',
-                        bottom: '6px',
-                        right: '10px',
-                        fontSize: '0.68rem',
-                        color: 'var(--color-cream-text-muted)',
-                        fontWeight: 600,
-                      }}
-                    >
-                      HPCSA Rule 23.3 Compliant
-                    </div>
-                  </div>
-                )}
-
-                {/* Upload Drag & Drop Zone */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setIsDraggingSignature(true);
-                    }}
-                    onDragLeave={() => setIsDraggingSignature(false)}
-                    onDrop={handleSignatureDrop}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px',
-                      padding: '22px',
-                      borderRadius: 'var(--radius-lg)',
-                      border: `2px dashed ${isDraggingSignature ? 'var(--color-gold-base)' : 'var(--color-gold-border)'}`,
-                      backgroundColor: isDraggingSignature ? 'var(--color-gold-pale)' : 'var(--color-cream-base)',
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: 'all 0.2s ease',
-                    }}
-                  >
-                    <SolarIcon name="cloud-upload-bold" size={24} color="var(--color-gold-bronze)" />
-                    <div>
-                      <span style={{ fontSize: 'var(--text-sm)', fontWeight: 700, color: 'var(--color-chocolate-base)' }}>
-                        {signatureUrl ? 'Click or Drag to Replace Signature' : 'Upload PNG Signature File'}
-                      </span>
-                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', margin: '4px 0 0' }}>
-                        Transparent background (.png only, max 5MB).
-                      </p>
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/png"
-                      onChange={handleSignatureFileChange}
-                      style={{ display: 'none' }}
-                    />
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <label className="pf-btn" style={{ flex: '1 1 160px' }}>
+                    <SolarIcon name="upload-linear" size={17} color="var(--color-chocolate-base)" />
+                    <span>Choose file</span>
+                    <input type="file" accept=".pdf,image/*" onChange={handleAddCertUpload} />
                   </label>
-
-                  {signatureUrl && (
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                      <button
-                        type="button"
-                        onClick={handleClearSignature}
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: '#dc2626',
-                          fontSize: 'var(--text-xs)',
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          textDecoration: 'underline',
-                        }}
-                      >
-                        Remove Signature
-                      </button>
-                    </div>
-                  )}
+                  <button type="button" className="pf-btn" onClick={() => setShowAddCertModal(false)}>Cancel</button>
                 </div>
               </div>
-            </div>
-          </div>
-        )}
+            ) : (
+              <button type="button" className="pf-btn" onClick={() => setShowAddCertModal(true)}>
+                <SolarIcon name="add-circle-linear" size={18} color="var(--color-chocolate-base)" />
+                <span>Add another qualification</span>
+              </button>
+            )}
+          </section>
 
-        {/* ====================================================================
-            TAB 4: PAYOUTS & BANKING
-            ==================================================================== */}
-        {activeTab === 'payouts' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            {/* South Africa EFT Banking Card */}
+          <section className="pf-card">
+            <div className="pf-card-head">
+              <span className="pf-card-icon"><SolarIcon name="pen-new-square-linear" size={20} color="var(--color-gold-bronze)" /></span>
+              <div>
+                <h2 className="pf-card-title">E-prescription signature</h2>
+                <p className="pf-card-sub">Printed on every digital prescription you issue (HPCSA Rule 23.3).</p>
+              </div>
+            </div>
+            {signatureUrl && (
+              <div className="pf-sign">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={signatureUrl} alt="Your signature" />
+              </div>
+            )}
+            {signatureError && <div className="pf-error" role="alert">{signatureError}</div>}
             <div
-              className="portal-card"
-              style={{
-                padding: '24px',
-                backgroundColor: 'var(--color-cream-surface)',
-                border: '1.5px solid var(--color-gold-border)',
-              }}
+              className={`pf-drop${isDraggingSignature ? ' is-drag' : ''}`}
+              onDragOver={(e) => { e.preventDefault(); setIsDraggingSignature(true); }}
+              onDragLeave={() => setIsDraggingSignature(false)}
+              onDrop={handleSignatureDrop}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
-                <div
-                  style={{
-                    width: '34px',
-                    height: '34px',
-                    flexShrink: 0,
-                    borderRadius: '50%',
-                    backgroundColor: 'var(--color-gold-pale)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <SolarIcon name="card-bold" size={17} color="var(--color-chocolate-base)" />
-                </div>
-                <div>
-                  <h2 className="section-title">Payout Banking Details (South Africa EFT)</h2>
-                  <p className="section-subtitle">
-                    Automated consultation earnings settlements are transferred directly into this account
-                  </p>
-                </div>
-              </div>
+              <SolarIcon name="upload-minimalistic-linear" size={22} color="var(--color-gold-bronze)" />
+              <span>{signatureUrl ? 'Replace signature' : 'Upload signature'}</span>
+              <small>PNG with transparent background, up to 5MB</small>
+              <input type="file" accept="image/png" onChange={handleSignatureFileChange} aria-label="Upload signature PNG" />
+            </div>
+            {signatureUrl && (
+              <button type="button" className="pf-btn pf-btn--danger" onClick={handleClearSignature}>
+                <SolarIcon name="trash-bin-trash-linear" size={17} color="#b91c1c" />
+                <span>Remove signature</span>
+              </button>
+            )}
+          </section>
+        </div>
+      )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '16px', marginBottom: '16px' }}>
-                <div>
-                  <label className="portal-label">Account Holder Name</label>
-                  <input
-                    type="text"
-                    value={accountHolder}
-                    onChange={(e) => setAccountHolder(e.target.value)}
-                    placeholder="e.g. Dr T Molefe Inc."
-                    className="portal-input"
-                    required
-                  />
-                  <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', marginTop: '4px', display: 'block' }}>
-                    Registered legal name associated with the bank account
-                  </span>
-                </div>
-
-                <div>
-                  <label className="portal-label">Bank Institution</label>
-                  <select
-                    value={bankName}
-                    onChange={(e) => setBankName(e.target.value)}
-                    className="portal-select"
-                  >
-                    <option value="First National Bank (FNB)">First National Bank (FNB)</option>
-                    <option value="Standard Bank">Standard Bank</option>
-                    <option value="Nedbank">Nedbank</option>
-                    <option value="ABSA Bank">ABSA Bank</option>
-                    <option value="Capitec Bank">Capitec Bank</option>
-                    <option value="Investec Bank">Investec Bank</option>
-                    <option value="Discovery Bank">Discovery Bank</option>
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))', gap: '14px' }}>
-                <div>
-                  <label className="portal-label">Account Number</label>
-                  <input
-                    type="text"
-                    value={accountNumber}
-                    onChange={(e) => setAccountNumber(e.target.value)}
-                    placeholder="e.g. 62891048291"
-                    className="portal-input"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="portal-label">Account Type</label>
-                  <select
-                    value={accountType}
-                    onChange={(e) => setAccountType(e.target.value)}
-                    className="portal-select"
-                  >
-                    <option value="Cheque / Current">Cheque / Current</option>
-                    <option value="Savings">Savings</option>
-                    <option value="Transmission">Transmission</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="portal-label">Branch Code</label>
-                  <input
-                    type="text"
-                    value={branchCode}
-                    onChange={(e) => setBranchCode(e.target.value)}
-                    placeholder="e.g. 250655"
-                    className="portal-input"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Settlement Schedule Notice */}
-              <div
-                style={{
-                  marginTop: '20px',
-                  padding: '14px 18px',
-                  borderRadius: 'var(--radius-lg)',
-                  backgroundColor: 'var(--color-cream-base)',
-                  border: '1px solid var(--color-gold-border)',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '12px',
-                }}
-              >
-                <SolarIcon name="shield-check-bold" size={18} color="var(--color-gold-bronze)" style={{ marginTop: '2px' }} />
-                <div>
-                  <div style={{ fontSize: 'var(--text-xs)', fontWeight: 700, color: 'var(--color-chocolate-base)', marginBottom: '2px' }}>
-                    Automated Bi-Monthly EFT Settlements
-                  </div>
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', margin: 0, lineHeight: 1.5 }}>
-                    Settlements are processed on the 1st and 16th of every month. Your 85% net take-home earnings are transferred directly via South African National Payment System EFT.
-                  </p>
-                </div>
+      {/* ───────────── Payouts ───────────── */}
+      {activeTab === 'payouts' && (
+        <div className="pf-panel">
+          <section className="pf-card">
+            <div className="pf-card-head">
+              <span className="pf-card-icon"><SolarIcon name="wallet-linear" size={20} color="var(--color-gold-bronze)" /></span>
+              <div>
+                <h2 className="pf-card-title">Bank details</h2>
+                <p className="pf-card-sub">Where your earnings are paid by EFT (South African accounts).</p>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* On-Page Bottom Action Bar */}
-        <div className="profile-action-bar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
-              style={{
-                width: '8px',
-                height: '8px',
-                borderRadius: '50%',
-                backgroundColor: 'var(--color-gold-base)',
-              }}
-            />
-            <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-cream-text-muted)', fontWeight: 600 }}>
-              Tab: <strong style={{ color: 'var(--color-chocolate-base)' }}>
-                {activeTab === 'clinical' && 'Clinical Profile'}
-                {activeTab === 'availability' && 'Availability & Services'}
-                {activeTab === 'practice' && 'Credentials & Documents'}
-                {activeTab === 'payouts' && 'Payouts & Banking'}
-              </strong>
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <button
-              type="submit"
-              disabled={saving}
-              className="btn-primary"
-              style={{ padding: '10px 24px', fontSize: 'var(--text-sm)' }}
-            >
-              <SolarIcon name="check-circle-bold" size={16} color="var(--color-chocolate-base)" />
-              <span>{saving ? 'Saving Changes...' : 'Save All Changes'}</span>
-            </button>
-          </div>
+            <div className="pf-grid pf-grid--2">
+              <div className="pf-field" style={{ gridColumn: '1 / -1' }}>
+                <label className="pf-label" htmlFor="pf-holder">Account holder</label>
+                <input id="pf-holder" className="pf-input" type="text" value={accountHolder} onChange={(e) => setAccountHolder(e.target.value)} placeholder="e.g. Dr T Molefe Inc." />
+              </div>
+              <div className="pf-field">
+                <label className="pf-label" htmlFor="pf-bank">Bank</label>
+                <select id="pf-bank" className="pf-select" value={bankName} onChange={(e) => setBankName(e.target.value)}>
+                  <option value="">Select your bank</option>
+                  {['First National Bank (FNB)', 'Standard Bank', 'Nedbank', 'ABSA Bank', 'Capitec Bank', 'Investec Bank', 'Discovery Bank'].map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="pf-field">
+                <label className="pf-label" htmlFor="pf-type">Account type</label>
+                <select id="pf-type" className="pf-select" value={accountType} onChange={(e) => setAccountType(e.target.value)}>
+                  {['Cheque / Current', 'Savings', 'Transmission'].map((t) => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="pf-field">
+                <label className="pf-label" htmlFor="pf-acc">Account number</label>
+                <input id="pf-acc" className="pf-input" type="text" inputMode="numeric" value={accountNumber} onChange={(e) => setAccountNumber(e.target.value)} placeholder="e.g. 62891048291" />
+              </div>
+              <div className="pf-field">
+                <label className="pf-label" htmlFor="pf-branch">Branch code</label>
+                <input id="pf-branch" className="pf-input" type="text" inputMode="numeric" value={branchCode} onChange={(e) => setBranchCode(e.target.value)} placeholder="e.g. 250655" />
+              </div>
+            </div>
+            <div className="pf-note">
+              <SolarIcon name="info-circle-linear" size={18} color="var(--color-gold-bronze)" style={{ flexShrink: 0, marginTop: 1 }} />
+              <span>Earnings are paid out on the platform settlement schedule. Account details must match the account holder name exactly.</span>
+            </div>
+          </section>
         </div>
-      </form>
-    </div>
+      )}
+
+      {/* ───────────── Save bar ───────────── */}
+      <div className="pf-save">
+        <div className="pf-save-text">
+          <strong>{TABS.find((t) => t.key === activeTab)?.label}</strong>
+          Changes apply across all tabs when you save.
+        </div>
+        <button type="submit" className="btn-primary" disabled={saving}>
+          <SolarIcon name="check-circle-bold" size={17} color="var(--color-chocolate-base)" />
+          <span>{saving ? 'Saving…' : 'Save changes'}</span>
+        </button>
+      </div>
+    </form>
   );
 }

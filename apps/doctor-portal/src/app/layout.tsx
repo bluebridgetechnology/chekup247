@@ -144,9 +144,13 @@ function DoctorLayoutInner({ children }: { children: React.ReactNode }) {
   // Authenticated Doctor Workspace
   return (
     <div
+      className="doctor-workspace"
       style={{
+        // Pinned to the visible viewport (not 100vh) so mobile browser toolbars can never
+        // push the app, and with it the header, off screen.
+        position: 'fixed',
+        inset: 0,
         display: 'flex',
-        height: '100vh',
         width: '100%',
         maxWidth: '100%',
         overflow: 'hidden',
@@ -179,18 +183,22 @@ function DoctorLayoutInner({ children }: { children: React.ReactNode }) {
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
-          height: '100vh',
-          overflowX: 'hidden',
-          overflowY: 'auto',
+          height: '100%',
+          overflow: 'hidden',
           backgroundColor: 'var(--color-cream-base, #FAF6EE)',
         }}
       >
+        {/* Header never scrolls away: only <main> scrolls beneath it */}
         <DoctorHeader onMobileToggle={() => setMobileDrawerOpen(true)} />
         <main
           id="clinical-main-content"
           className="doctor-main-scroll"
           style={{
             flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            overscrollBehavior: 'contain',
             outline: 'none',
           }}
           tabIndex={-1}
@@ -223,6 +231,11 @@ export default function DoctorRootLayout({
         <style>{`
           :root {
             --doctor-topbar-h: 76px;
+          }
+          @media (max-width: 640px) {
+            :root {
+              --doctor-topbar-h: 56px;
+            }
           }
           @media (max-width: 900px) {
             .doctor-desktop-sidebar {
