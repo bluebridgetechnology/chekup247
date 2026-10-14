@@ -36,10 +36,28 @@ export function resolveConsultationRate(
   return { rate: platform, source: 'platform' };
 }
 
-/** Total price for a session: the per-30-minute rate x (session length / 30), to the cent. */
-export function priceForDuration(rate: number, durationMinutes: number): number {
+/** Used only if platform settings can't be read. The real value is a Platform Setting. */
+export const DEFAULT_MINIMUM_BILLABLE_MINUTES = 30;
+
+/** Normalises the admin's minimum-billable-minutes setting (0 means no minimum). */
+export function resolveMinimumBillableMinutes(value: unknown): number {
+  if (value === null || value === undefined || value === '') return DEFAULT_MINIMUM_BILLABLE_MINUTES;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : DEFAULT_MINIMUM_BILLABLE_MINUTES;
+}
+
+/**
+ * Total price for a session: the per-30-minute rate x (billable length / 30), to the cent.
+ * Sessions shorter than `minimumBillableMinutes` are charged as if they were that long.
+ */
+export function priceForDuration(
+  rate: number,
+  durationMinutes: number,
+  minimumBillableMinutes: number = DEFAULT_MINIMUM_BILLABLE_MINUTES,
+): number {
   const minutes = Number(durationMinutes) > 0 ? Number(durationMinutes) : PRICING_BLOCK_MINUTES;
-  return Math.round(Number(rate) * (minutes / PRICING_BLOCK_MINUTES) * 100) / 100;
+  const billable = Math.max(minutes, Number(minimumBillableMinutes) || 0);
+  return Math.round(Number(rate) * (billable / PRICING_BLOCK_MINUTES) * 100) / 100;
 }
 
 /** Length of a slot in whole minutes. */

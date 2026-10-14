@@ -5,9 +5,18 @@
  */
 export const PRICING_BLOCK_MINUTES = 30;
 
-export function priceForDuration(rate: number, durationMinutes: number): number {
+/** Used until the API reports the admin's "minimum billable minutes" Platform Setting. */
+export const DEFAULT_MINIMUM_BILLABLE_MINUTES = 30;
+
+/** Sessions shorter than `minimumBillableMinutes` are charged as if they were that long. */
+export function priceForDuration(
+  rate: number,
+  durationMinutes: number,
+  minimumBillableMinutes: number = DEFAULT_MINIMUM_BILLABLE_MINUTES,
+): number {
   const minutes = Number(durationMinutes) > 0 ? Number(durationMinutes) : PRICING_BLOCK_MINUTES;
-  return Math.round(Number(rate) * (minutes / PRICING_BLOCK_MINUTES) * 100) / 100;
+  const billable = Math.max(minutes, Number(minimumBillableMinutes) || 0);
+  return Math.round(Number(rate) * (billable / PRICING_BLOCK_MINUTES) * 100) / 100;
 }
 
 /** "R800" for whole amounts, "R283.33" otherwise. */

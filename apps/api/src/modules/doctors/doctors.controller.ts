@@ -68,7 +68,11 @@ export class DoctorsController {
     const profile = await this.doctorsService.getProfileByUserId(user.sub);
     // include the rate that applies to this doctor (platform rate for LocumStaff doctors)
     return profile
-      ? this.doctorsService.withConsultationRate(profile, await this.doctorsService.getPlatformConsultationRate())
+      ? this.doctorsService.withConsultationRate(
+          profile,
+          await this.doctorsService.getPlatformConsultationRate(),
+          await this.doctorsService.getMinimumBillableMinutes(),
+        )
       : profile;
   }
 

@@ -1,5 +1,10 @@
 import { VerificationSource } from '../../database/operational/entities';
-import { priceForDuration, resolveConsultationRate, slotMinutes } from './consultation-fee';
+import {
+  priceForDuration,
+  resolveConsultationRate,
+  resolveMinimumBillableMinutes,
+  slotMinutes,
+} from './consultation-fee';
 
 describe('resolveConsultationRate', () => {
   it('locum doctors always get the platform rate, whatever their stored rate', () => {
@@ -37,12 +42,35 @@ describe('priceForDuration', () => {
   it('30 minutes costs the rate', () => expect(priceForDuration(800, 30)).toBe(800));
   it('1 hour costs double', () => expect(priceForDuration(800, 60)).toBe(1600));
   it('45 minutes costs 1.5x', () => expect(priceForDuration(800, 45)).toBe(1200));
-  it('rounds to the cent', () => expect(priceForDuration(850, 10)).toBe(283.33));
+  it('charges the 30-minute minimum for shorter slots', () => {
+    expect(priceForDuration(850, 10)).toBe(850);
+    expect(priceForDuration(800, 15)).toBe(800);
+  });
+  it('minimum is configurable', () => {
+    expect(priceForDuration(800, 15, 60)).toBe(1600);
+    expect(priceForDuration(800, 60, 30)).toBe(1600);
+    expect(priceForDuration(800, 15, 0)).toBe(400);
+  });
+  it('rounds to the cent', () => expect(priceForDuration(850, 10, 0)).toBe(283.33));
   it('missing duration is treated as one 30-minute block', () => expect(priceForDuration(800, 0)).toBe(800));
 });
 
 describe('slotMinutes', () => {
   it('measures a slot in minutes', () => {
     expect(slotMinutes('2026-10-15T10:00:00Z', '2026-10-15T11:00:00Z')).toBe(60);
+  });
+});
+
+describe('resolveMinimumBillableMinutes', () => {
+  it('defaults to 30 when unset or invalid', () => {
+    expect(resolveMinimumBillableMinutes(undefined)).toBe(30);
+    expect(resolveMinimumBillableMinutes(null)).toBe(30);
+    expect(resolveMinimumBillableMinutes('abc')).toBe(30);
+    expect(resolveMinimumBillableMinutes(-5)).toBe(30);
+  });
+  it('uses the configured value, including 0', () => {
+    expect(resolveMinimumBillableMinutes(45)).toBe(45);
+    expect(resolveMinimumBillableMinutes('60')).toBe(60);
+    expect(resolveMinimumBillableMinutes(0)).toBe(0);
   });
 });

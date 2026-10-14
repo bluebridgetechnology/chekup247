@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { envConfig } from '../../config/env.config';
 import {
   Booking,
   BookingStatus,
@@ -369,8 +370,8 @@ export class PatientDemoSeederService implements OnModuleInit {
     // happened to be returned first.
     const doctorDefinitions = [
       {
-        email: 'doctor@chekup247.com',
-        name: 'Dr. Thabo Molefe',
+        email: envConfig.DEFAULT_DOCTOR_EMAIL.trim().toLowerCase(),
+        name: envConfig.DEFAULT_DOCTOR_NAME,
         specialty: 'General Practitioner & Family Health',
         hpcsa: 'MP 0689432',
         practice: 'PR 0148291',

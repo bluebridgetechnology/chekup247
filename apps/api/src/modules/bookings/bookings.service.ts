@@ -1,4 +1,4 @@
-import { priceForDuration, resolveConsultationRate, slotMinutes } from '../doctors/consultation-fee';
+import { priceForDuration, resolveConsultationRate, resolveMinimumBillableMinutes, slotMinutes } from '../doctors/consultation-fee';
 import {
   Injectable,
   NotFoundException,
@@ -231,11 +231,13 @@ export class BookingsService {
     // =========================================================================
     let standardRate = 850.0;
     let commissionPercent = 15.0;
+    let minimumBillableMinutes = resolveMinimumBillableMinutes(undefined);
     try {
       const settings = await this.platformSettingRepository?.findOne({ where: {} });
       if (settings?.standard_consultation_rate != null) {
         standardRate = Number(settings.standard_consultation_rate) || 850.0;
       }
+      minimumBillableMinutes = resolveMinimumBillableMinutes(settings?.minimum_billable_minutes);
       if (settings?.commission_percent != null) {
         commissionPercent = Number(settings.commission_percent) || 15.0;
       }
@@ -246,7 +248,11 @@ export class BookingsService {
     // Price = the doctor's rate per 30 minutes (the admin's platform rate for LocumStaff doctors,
     // the doctor's own rate otherwise) x the session length, so a 1-hour slot costs double.
     const { rate } = resolveConsultationRate(doctorProfile, standardRate);
-    const price = priceForDuration(rate, lockedSlot ? slotMinutes(lockedSlot.start_time, lockedSlot.end_time) : 30);
+    const price = priceForDuration(
+      rate,
+      lockedSlot ? slotMinutes(lockedSlot.start_time, lockedSlot.end_time) : 30,
+      minimumBillableMinutes,
+    );
     const commissionAmount = Math.round(price * (commissionPercent / 100) * 100) / 100;
 
     let createdBooking: Booking;

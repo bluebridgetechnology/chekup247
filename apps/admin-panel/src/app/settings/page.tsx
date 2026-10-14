@@ -34,6 +34,7 @@ type SettingsTab = 'gateway' | 'financial' | 'scheduling';
 
 interface PlatformSettingsData {
   standard_consultation_rate?: number;
+  minimum_billable_minutes?: number;
   commission_percent: number;
   late_cancellation_deduction_percent: number;
   no_show_grace_minutes: number;
@@ -59,6 +60,7 @@ export default function AdminSettingsPage() {
 
   const [settings, setSettings] = useState<PlatformSettingsData>({
     standard_consultation_rate: 850,
+    minimum_billable_minutes: 30,
     commission_percent: 15,
     late_cancellation_deduction_percent: 30,
     no_show_grace_minutes: 10,
@@ -121,6 +123,7 @@ export default function AdminSettingsPage() {
         if (data) {
           setSettings({
             standard_consultation_rate: data.standard_consultation_rate ? Number(data.standard_consultation_rate) : 850,
+            minimum_billable_minutes: Number(data.minimum_billable_minutes ?? 30),
             commission_percent: Number(data.commission_percent ?? 15),
             late_cancellation_deduction_percent: Number(data.late_cancellation_deduction_percent ?? 30),
             no_show_grace_minutes: Number(data.no_show_grace_minutes ?? 10),
@@ -168,6 +171,7 @@ export default function AdminSettingsPage() {
         credentials: 'include',
         body: JSON.stringify({
           standard_consultation_rate: Number(settings.standard_consultation_rate ?? 850),
+          minimum_billable_minutes: Number(settings.minimum_billable_minutes ?? 30),
           commission_percent: Number(settings.commission_percent),
           late_cancellation_deduction_percent: Number(settings.late_cancellation_deduction_percent),
           no_show_grace_minutes: Number(settings.no_show_grace_minutes),
@@ -190,6 +194,7 @@ export default function AdminSettingsPage() {
       setSettings((prev) => ({
         ...prev,
         standard_consultation_rate: updated.standard_consultation_rate ? Number(updated.standard_consultation_rate) : prev.standard_consultation_rate,
+        minimum_billable_minutes: Number(updated.minimum_billable_minutes ?? prev.minimum_billable_minutes ?? 30),
         commission_percent: Number(updated.commission_percent),
         late_cancellation_deduction_percent: Number(updated.late_cancellation_deduction_percent),
         no_show_grace_minutes: Number(updated.no_show_grace_minutes),
@@ -1309,6 +1314,49 @@ export default function AdminSettingsPage() {
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
                     Price of a 30-minute consultation, applied to every LocumStaff doctor. Longer sessions are charged in proportion (a 1-hour slot costs double). Doctors who run their own practice use their own rate.
+                  </div>
+                </div>
+
+                {/* Minimum billable minutes */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#201712' }}>
+                      Minimum Billable Minutes
+                    </label>
+                    <span
+                      style={{
+                        fontSize: '0.85rem',
+                        fontWeight: 700,
+                        color: '#18A875',
+                        background: '#EDFDF5',
+                        padding: '2px 10px',
+                        borderRadius: '6px',
+                        border: '1px solid #BBF7D0',
+                      }}
+                    >
+                      {Number(settings.minimum_billable_minutes ?? 30)} min
+                    </span>
+                  </div>
+                  <input
+                    type="number"
+                    min="0"
+                    max="240"
+                    step="5"
+                    value={settings.minimum_billable_minutes ?? 30}
+                    onChange={(e) => setSettings({ ...settings, minimum_billable_minutes: Number(e.target.value) })}
+                    style={{
+                      width: '100%',
+                      padding: '9px 12px',
+                      borderRadius: '6px',
+                      border: '1px solid #D1C7BD',
+                      fontSize: '0.9rem',
+                      fontWeight: 700,
+                      background: '#FFFFFF',
+                      marginBottom: '6px',
+                    }}
+                  />
+                  <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
+                    Slots shorter than this are charged as if they were this long (e.g. with 30, a 15-minute slot costs the same as a 30-minute one). Set to 0 for no minimum.
                   </div>
                 </div>
 

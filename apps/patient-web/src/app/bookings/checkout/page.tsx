@@ -45,6 +45,7 @@ interface DoctorDetail {
   facilityName?: string;
   facilityAddress?: string;
   slug?: string;
+  minimumBillableMinutes?: number;
 }
 
 interface SlotDetail {
@@ -222,30 +223,32 @@ function CheckoutContent() {
                 id: docData.id || doctorIdParam,
                 fullName: docData.user?.full_name || docData.fullName || 'Dr. Medical Practitioner',
                 specialty: docData.specialty || 'General Practitioner',
-                hpcsaNumber: docData.hpcsa_number || docData.hpcsaNumber || 'MP 0689432',
+                hpcsaNumber: docData.hpcsa_number || docData.hpcsaNumber || '',
                 // rate per 30 minutes: the platform rate for LocumStaff doctors, the doctor's own rate otherwise
                 ratePerHour: Number(docData.consultation_rate || docData.rate_per_hour || docData.ratePerHour) || 850.0,
                 photoUrl: docData.user?.avatar_url || docData.photo_url || docData.photoUrl || '/images/doctor_thabo.jpg',
                 facilityName: docData.facility_name || docData.facilityName || 'Medical Consulting Suites',
                 facilityAddress: docData.facility_address || docData.facilityAddress || 'South Africa',
                 slug: docData.slug || doctorIdParam,
+                minimumBillableMinutes:
+                  docData.minimum_billable_minutes != null ? Number(docData.minimum_billable_minutes) : undefined,
               };
             }
           } catch {
             // API offline
           }
 
-          if (!loadedDoc && (doctorIdParam === 'doc-1' || doctorIdParam === 'dr-thabo-molefe' || doctorIdParam.toLowerCase().includes('molefe'))) {
+          if (!loadedDoc && (doctorIdParam === 'doc-1' || doctorIdParam === 'dr-solly-motuba' || doctorIdParam.toLowerCase().includes('motuba'))) {
             loadedDoc = {
               id: doctorIdParam,
-              fullName: 'Dr. Thabo Molefe',
+              fullName: 'Dr Solly Motuba',
               specialty: 'General Practitioner',
-              hpcsaNumber: 'MP 0689432',
+              hpcsaNumber: '',
               ratePerHour: 850.0,
               photoUrl: '/images/doctor_thabo.jpg',
-              facilityName: 'Netcare Sunninghill Hospital Suites',
-              facilityAddress: 'Cnr Witkoppen & Nanyuki Rd, Sunninghill, Sandton, 2157',
-              slug: 'dr-thabo-molefe',
+              facilityName: 'Medical Consulting Suites',
+              facilityAddress: 'South Africa',
+              slug: 'dr-solly-motuba',
             };
           }
 
@@ -334,7 +337,7 @@ function CheckoutContent() {
     slot?.startTime && slot?.endTime
       ? Math.round((new Date(slot.endTime).getTime() - new Date(slot.startTime).getTime()) / 60000)
       : Number(searchParams.get('duration')) || PRICING_BLOCK_MINUTES;
-  const consultationPrice = priceForDuration(doctor?.ratePerHour || 850.0, sessionMinutes);
+  const consultationPrice = priceForDuration(doctor?.ratePerHour || 850.0, sessionMinutes, doctor?.minimumBillableMinutes);
   const maxDeductibleCredits = Math.min(walletBalance, consultationPrice);
   const creditsApplied = useWalletCredits ? maxDeductibleCredits : 0;
   const totalPayable = Math.max(0, consultationPrice - creditsApplied);
@@ -944,7 +947,7 @@ function CheckoutContent() {
                         fontWeight: 800,
                       }}
                     >
-                      {doctor?.fullName || 'Dr. Thabo Molefe'}
+                      {doctor?.fullName || 'Your doctor'}
                     </h3>
                     <div
                       style={{
@@ -966,8 +969,12 @@ function CheckoutContent() {
                         color: 'var(--color-cream-text-muted, #6B5E55)',
                       }}
                     >
-                      <span>HPCSA: {doctor?.hpcsaNumber || 'MP 0689432'}</span>
-                      <span>•</span>
+                      {doctor?.hpcsaNumber && doctor.hpcsaNumber !== 'PENDING' ? (
+                        <>
+                          <span>HPCSA: {doctor.hpcsaNumber}</span>
+                          <span>•</span>
+                        </>
+                      ) : null}
                       <span style={{ color: '#16a34a', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                         <CheckCircle2 size={13} /> Verified
                       </span>
@@ -2006,7 +2013,7 @@ function CheckoutContent() {
               />
               <div style={{ overflow: 'hidden' }}>
                 <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--color-chocolate-base, #2A170F)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
-                  {doctor?.fullName || 'Dr. Thabo Molefe'}
+                  {doctor?.fullName || 'Your doctor'}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
                   {formattedDate} • {formattedTime.split(' – ')[0]}
