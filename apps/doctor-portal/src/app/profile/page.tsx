@@ -589,24 +589,36 @@ export default function DoctorProfilePage() {
           )}
         </div>
 
-        <div className="pf-checks" aria-label="Credential status">
-          <div className="pf-check">
-            <span className="pf-check-icon"><SolarIcon name="check-circle-bold" size={16} /></span>
-            <span>Profile<small>Email verified</small></span>
-          </div>
-          <div className="pf-check">
-            <span className={`pf-check-icon${isVerified ? '' : ' pf-check-icon--pending'}`}>
-              <SolarIcon name={isVerified ? 'check-circle-bold' : 'danger-triangle-linear'} size={16} />
-            </span>
-            <span>HPCSA register<small>{isVerified ? 'Credentials validated' : 'Audit in progress'}</small></span>
-          </div>
-          <div className="pf-check">
-            <span className={`pf-check-icon${isVerified && !isOnHoliday ? '' : ' pf-check-icon--pending'}`}>
-              <SolarIcon name={isVerified && !isOnHoliday ? 'check-circle-bold' : 'danger-triangle-linear'} size={16} />
-            </span>
-            <span>Telehealth<small>{isVerified && !isOnHoliday ? 'Live on patient search' : 'Not visible to patients'}</small></span>
-          </div>
-        </div>
+        {(() => {
+          const checks = [
+            { label: 'Profile', ok: true, hint: 'Email verified' },
+            { label: 'HPCSA register', ok: isVerified, hint: isVerified ? 'Credentials validated' : 'Audit in progress' },
+            { label: 'Telehealth', ok: isVerified && !isOnHoliday, hint: isVerified && !isOnHoliday ? 'Live on patient search' : isOnHoliday ? 'Paused (holiday mode)' : 'Not visible to patients yet' },
+          ];
+          const done = checks.filter((c) => c.ok).length;
+          return (
+            <div className="pf-progress" aria-label={`Credential status: ${done} of ${checks.length} complete`}>
+              <div className="pf-progress-head">
+                <span className="pf-progress-label">Credential status</span>
+                <span className="pf-progress-count">{done}/{checks.length}</span>
+              </div>
+              <div className="pf-progress-bar" aria-hidden="true">
+                {checks.map((c) => (
+                  <span key={c.label} className={c.ok ? 'is-done' : ''} />
+                ))}
+              </div>
+              <div className="pf-progress-items">
+                {checks.map((c) => (
+                  <span key={c.label} className={`pf-progress-item${c.ok ? '' : ' is-pending'}`} title={c.hint}>
+                    <SolarIcon name={c.ok ? 'check-circle-bold' : 'danger-triangle-linear'} size={14} />
+                    {c.label}
+                    {!c.ok && <em>· {c.hint}</em>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
       </section>
 
       {/* ───────────── Tabs ───────────── */}
