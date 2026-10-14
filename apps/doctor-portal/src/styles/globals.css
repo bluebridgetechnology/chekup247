@@ -1775,6 +1775,40 @@ a {
   }
 }
 
+/* Login: faded stethoscope watermark tucked in the bottom-right corner (mobile/tablet only) */
+.auth-form-pane--login {
+  position: relative;
+  isolation: isolate;
+}
+.auth-form-pane--login .auth-form-wrapper {
+  position: relative;
+  z-index: 1;
+}
+.auth-watermark {
+  display: none;
+  position: absolute;
+  right: -70px;
+  bottom: -50px;
+  color: var(--color-gold-base, #DFAB62);
+  opacity: 0.13;
+  transform: rotate(-14deg);
+  pointer-events: none;
+  z-index: 0;
+}
+@media (max-width: 960px) {
+  .auth-watermark {
+    display: block;
+  }
+}
+@media (max-width: 640px) {
+  .auth-watermark {
+    width: 260px !important;
+    height: 260px !important;
+    right: -60px;
+    bottom: -40px;
+  }
+}
+
 .auth-form-wrapper {
   width: 100%;
   max-width: 460px;
@@ -1826,6 +1860,12 @@ a {
   font-size: 0.9375rem;
   transition: all 0.2s ease;
   outline: none;
+}
+
+@media (max-width: 640px) {
+  .auth-input {
+    font-size: 16px;
+  }
 }
 
 .auth-input:focus {
