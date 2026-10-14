@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DIRECT_BOOKING_CTAS } from '../lib/featureFlags';
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -383,10 +384,12 @@ export function FeaturedDoctorsSection() {
 
                 {/* Primary Booking Action & Secondary Arrow */}
                 <div className="doctor-booking-actions">
-                  <Link href="/doctors" className="doctor-book-btn touch-target">
-                    <span>Book Consultation</span>
-                    <SolarIcon name="calendar-linear" size={16} color="var(--color-gold-base)" />
-                  </Link>
+                  {SHOW_DIRECT_BOOKING_CTAS && (
+                    <Link href="/doctors" className="doctor-book-btn touch-target">
+                      <span>Book Consultation</span>
+                      <SolarIcon name="calendar-linear" size={16} color="var(--color-gold-base)" />
+                    </Link>
+                  )}
 
                   <Link
                     href={`/doctors`}

@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DIRECT_BOOKING_CTAS } from '../lib/featureFlags';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { SolarIcon } from './SolarIcon';
@@ -302,10 +303,12 @@ export function DoctorCard({
 
         {/* Booking Actions */}
         <div className="doctor-booking-actions" style={{ marginTop: 0 }}>
-          <Link href={profileUrl} className="doctor-book-btn touch-target">
-            <span>Book Consultation</span>
-            <SolarIcon name="calendar-linear" size={16} color="var(--color-gold-base)" />
-          </Link>
+          {SHOW_DIRECT_BOOKING_CTAS && (
+            <Link href={profileUrl} className="doctor-book-btn touch-target">
+              <span>Book Consultation</span>
+              <SolarIcon name="calendar-linear" size={16} color="var(--color-gold-base)" />
+            </Link>
+          )}
 
           <Link
             href={profileUrl}

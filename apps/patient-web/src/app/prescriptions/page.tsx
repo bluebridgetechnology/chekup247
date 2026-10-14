@@ -1,5 +1,6 @@
 'use client';
 
+import { SHOW_DIRECT_BOOKING_CTAS } from '../../lib/featureFlags';
 import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
@@ -461,24 +462,26 @@ export default function PatientPrescriptionsPage() {
                   ? 'No prescriptions matched your search. Try a different query or reset your filters.'
                   : 'You do not have any prescriptions yet. After your video consultation, your doctor will issue a digital prescription here.'}
               </p>
-              <Link
-                href="/doctors"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: '10px 20px',
-                  borderRadius: '10px',
-                  background: '#DFAB62',
-                  color: '#2A170F',
-                  fontWeight: 700,
-                  fontSize: '0.88rem',
-                  textDecoration: 'none',
-                }}
-              >
-                Book a Consultation
-                <SolarIcon name="arrow-right-linear" size={15} color="#2A170F" />
-              </Link>
+              {SHOW_DIRECT_BOOKING_CTAS && (
+                <Link
+                  href="/doctors"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    padding: '10px 20px',
+                    borderRadius: '10px',
+                    background: '#DFAB62',
+                    color: '#2A170F',
+                    fontWeight: 700,
+                    fontSize: '0.88rem',
+                    textDecoration: 'none',
+                  }}
+                >
+                  Book a Consultation
+                  <SolarIcon name="arrow-right-linear" size={15} color="#2A170F" />
+                </Link>
+              )}
             </div>
           ) : (
             <>
