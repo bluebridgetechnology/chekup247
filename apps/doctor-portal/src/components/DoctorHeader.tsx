@@ -271,8 +271,8 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
 
       {/* Right Controls */}
       <div className="doctor-topbar-controls" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-        {/* Status Dropdown */}
-        <div style={{ position: 'relative' }}>
+        {/* Status Dropdown (desktop/tablet; on phones it lives inside the profile menu) */}
+        <div className="doctor-status-wrap" style={{ position: 'relative' }}>
           <button
             onClick={() => setStatusMenuOpen(!statusMenuOpen)}
             className="doctor-status-pill"
@@ -631,6 +631,7 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
               onClick={() => setProfileMenuOpen(!profileMenuOpen)}
               className="doctor-avatar-btn"
               style={{
+                position: 'relative',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '10px',
@@ -666,6 +667,12 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                   doctorInitials
                 )}
               </div>
+              {/* Phones: availability shows as a small dot on the avatar instead of its own pill */}
+              <span
+                className="doctor-avatar-status"
+                aria-label={`Status: ${current.label}`}
+                style={{ backgroundColor: current.dot }}
+              />
               <div style={{ textAlign: 'left', display: 'none' }} className="desktop-doctor-info">
                 <div style={{ fontSize: '0.825rem', fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)', lineHeight: 1.2 }}>
                   {doctor?.fullName?.split(' ')[0] || 'Doctor'}
@@ -703,6 +710,47 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                 <div style={{ fontSize: '0.7rem', color: 'var(--color-gold-bronze, #B88647)', fontWeight: 500, marginTop: '2px' }}>
                   HPCSA: {profile?.hpcsaNumber || 'MP Verified'}
                 </div>
+              </div>
+
+              {/* Availability (phones only; desktop has the pill in the header) */}
+              <div className="doctor-menu-availability" style={{ padding: '8px 4px', borderBottom: '1px solid rgba(223, 171, 98, 0.15)' }}>
+                <div style={{ padding: '0 8px 6px', fontSize: '0.68rem', fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--color-gold-bronze, #B88647)' }}>
+                  Availability{isHoliday ? ' · on holiday' : ''}
+                </div>
+                {(['active', 'in_consultation', 'offline'] as DoctorStatus[]).map((st) => (
+                  <button
+                    key={st}
+                    type="button"
+                    onClick={async () => {
+                      await handleStatusChange(st);
+                      setProfileMenuOpen(false);
+                    }}
+                    disabled={statusSaving}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      minHeight: '40px',
+                      padding: '8px 10px',
+                      borderRadius: '10px',
+                      border: 'none',
+                      backgroundColor: status === st ? 'var(--color-gold-pale, #F0E5D3)' : 'transparent',
+                      cursor: 'pointer',
+                      fontSize: '0.85rem',
+                      textAlign: 'left',
+                      color: 'var(--color-chocolate-base, #2A170F)',
+                      fontWeight: status === st ? 700 : 500,
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: statusColors[st].dot }} />
+                      <span>{statusColors[st].label}</span>
+                    </span>
+                    {status === st && <SolarIcon name="check-circle-linear" size={15} color="var(--color-chocolate-base, #2A170F)" />}
+                  </button>
+                ))}
               </div>
 
               <div style={{ padding: '6px 0' }}>
