@@ -160,8 +160,14 @@ export class ConsultationsController {
     @Body() dto: EndConsultationDto,
     @Req() req: any,
   ) {
-    const doctorId = dto.doctorId || req?.user?.id || 'system-doctor';
-    return this.consultationsService.endConsultation(bookingId, doctorId, dto.doctorNotes);
+    // Never trust a client-supplied doctorId: the caller is whoever the JWT says they are.
+    const caller = req?.user;
+    return this.consultationsService.endConsultation(
+      bookingId,
+      caller?.id || caller?.sub,
+      dto.doctorNotes,
+      caller?.role,
+    );
   }
 
   /**

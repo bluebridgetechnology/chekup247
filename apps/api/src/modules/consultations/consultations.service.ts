@@ -338,6 +338,7 @@ export class ConsultationsService {
     bookingId: string,
     doctorId: string,
     doctorNotes?: string,
+    callerRole?: string,
   ): Promise<{
     success: boolean;
     ended_at: Date;
@@ -361,8 +362,16 @@ export class ConsultationsService {
       throw new NotFoundException(`Booking ${bookingId} not found`);
     }
 
+    // Only the booking's own doctor (or an admin) may end it. Patients can leave the
+    // room client-side, but ending the consultation is the doctor's call alone.
+    const isAdmin = callerRole === 'admin' || callerRole === 'super_admin';
+    if (!isAdmin && doctorId !== booking.doctor_id) {
+      throw new ForbiddenException('Only the consulting doctor can end this consultation');
+    }
+    const alreadyCompleted = booking.status === BookingStatus.COMPLETED;
+
     const endedAt = new Date();
-    consultation.ended_at = endedAt;
+    consultation.ended_at = consultation.ended_at || endedAt;
     if (doctorNotes) {
       consultation.doctor_notes = doctorNotes;
     }
@@ -378,7 +387,8 @@ export class ConsultationsService {
       });
     }
 
-    const effectiveDoctorId = (doctorId && doctorId !== 'system-doctor') ? doctorId : booking.doctor_id;
+    // The booking's doctor is the only doctor this consultation can belong to.
+    const effectiveDoctorId = booking.doctor_id;
 
     // Broadcast consultation ended via WebSocket
     this.consultationGateway.broadcastConsultationEnded(bookingId, endedAt, effectiveDoctorId);
@@ -387,7 +397,8 @@ export class ConsultationsService {
       `Consultation for booking ${bookingId} concluded by doctor ${effectiveDoctorId}. Status set to COMPLETED.`,
     );
 
-    if (this.notificationsService && effectiveDoctorId) {
+    // Notifications fire once, on the first completion only (leave/rejoin or repeat calls must not re-send).
+    if (this.notificationsService && effectiveDoctorId && !alreadyCompleted) {
       this.userRepository
         .findOne({ where: { id: effectiveDoctorId } })
         .then((docUser) => {
@@ -415,7 +426,7 @@ export class ConsultationsService {
 
           this.notificationsService
             ?.dispatchNotification({
-              recipientId: doctorId,
+              recipientId: effectiveDoctorId,
               title: 'Consultation Earnings Credited',
               templateId: 'doctor_earnings_credited',
               payload: {

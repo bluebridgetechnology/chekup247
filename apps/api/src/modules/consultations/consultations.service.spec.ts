@@ -406,6 +406,8 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       const mockBooking: any = {
         id: 'booking-1',
         status: BookingStatus.CONFIRMED,
+        doctor_id: 'doc-123',
+        patient_id: 'pat-1',
       };
       mockConsultationRepo.findOne.mockResolvedValue(mockCons);
       mockBookingRepo.findOne.mockResolvedValue(mockBooking);
@@ -417,6 +419,19 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       expect(result.eligible_for_prescription).toBe(true);
       expect(mockBooking.status).toBe(BookingStatus.COMPLETED);
       expect(mockBookingRepo.save).toHaveBeenCalledWith(mockBooking);
+    });
+
+    it.each(['stranger', 'pat-1'])('rejects an end request from %s (only the doctor may end)', async (caller) => {
+      const mockBooking: any = {
+        id: 'booking-1',
+        status: BookingStatus.CONFIRMED,
+        doctor_id: 'doc-123',
+        patient_id: 'pat-1',
+      };
+      mockConsultationRepo.findOne.mockResolvedValue({ id: 'c', booking_id: 'booking-1', ended_at: null });
+      mockBookingRepo.findOne.mockResolvedValue(mockBooking);
+      await expect(service.endConsultation('booking-1', caller)).rejects.toThrow('Only the consulting doctor');
+      expect(mockBooking.status).toBe(BookingStatus.CONFIRMED);
     });
 
     it('should securely save doctor clinical notes (BE-605)', async () => {
