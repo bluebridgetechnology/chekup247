@@ -32,7 +32,8 @@ import { useAuth } from '../../../context/AuthContext';
 import { toastSuccess, toastError } from '../../../lib/toast';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
-import { SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../../../lib/featureFlags';
+import { QUICK_BOOK_ONLY, SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../../../lib/featureFlags';
+import { QUICK_BOOK_URL } from '../../../lib/quickBook';
 import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../../../lib/bookingWindow';
 import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../../../lib/pricing';
 
@@ -346,7 +347,18 @@ function CheckoutContent() {
 
   // A time closes for booking `lead` minutes before it starts (lib/bookingWindow.ts; the API
   // enforces the admin's setting when the booking is made).
-  const isPastSlot = Boolean(slot && slot.startTime && !isSlotBookable(slot.startTime, DEFAULT_BOOKING_LEAD_MINUTES));
+  // `nowTick` keeps this live while the patient fills in the form, so the notice and the disabled
+  // pay buttons appear the moment the time closes instead of on the next re-render.
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    const t = window.setInterval(() => setNowTick(Date.now()), 15000);
+    return () => window.clearInterval(t);
+  }, []);
+  const isPastSlot = Boolean(slot && slot.startTime && !isSlotBookable(slot.startTime, DEFAULT_BOOKING_LEAD_MINUTES, nowTick));
+  const minutesToClose = slot?.startTime
+    ? Math.ceil((new Date(slot.startTime).getTime() - DEFAULT_BOOKING_LEAD_MINUTES * 60000 - nowTick) / 60000)
+    : null;
+  const closingSoon = !isPastSlot && minutesToClose !== null && minutesToClose <= 10;
 
   // Format date and time (en-ZA locale)
   const formattedDate = useMemo(() => {
@@ -842,6 +854,25 @@ function CheckoutContent() {
           </div>
         )}
 
+        {closingSoon && (
+          <div
+            role="status"
+            style={{
+              background: '#FFFBEB',
+              border: '1px solid #FDE68A',
+              color: '#92400E',
+              padding: '12px 18px',
+              borderRadius: '12px',
+              marginBottom: '16px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+            }}
+          >
+            Complete your booking within {Math.max(1, minutesToClose as number)} min to keep this time. It closes{' '}
+            {DEFAULT_BOOKING_LEAD_MINUTES} minutes before the consultation starts.
+          </div>
+        )}
+
         {/* Past Slot Error Alert Banner */}
         {isPastSlot && (
           <div
@@ -867,12 +898,12 @@ function CheckoutContent() {
                   This Appointment Slot Is No Longer Available
                 </div>
                 <div style={{ fontSize: '0.875rem', marginTop: '3px', color: '#7f1d1d' }}>
-                  Too little consultation time remains in this slot. Please choose another available slot on the doctor&apos;s schedule.
+                  Bookings close {DEFAULT_BOOKING_LEAD_MINUTES} minutes before a consultation starts, and this time has now closed. Please pick another time.
                 </div>
               </div>
             </div>
             <Link
-              href={`/doctors/${doctor?.slug || doctorIdParam}`}
+              href={QUICK_BOOK_ONLY ? QUICK_BOOK_URL : `/doctors/${doctor?.slug || doctorIdParam}`}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
