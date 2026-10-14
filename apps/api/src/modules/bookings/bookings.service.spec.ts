@@ -144,7 +144,41 @@ describe('BookingsService (Saga & Cross-DB)', () => {
       expect(result.id).toBe('booking-uuid-123');
       expect(result.status).toBe(BookingStatus.PENDING);
       expect(result.payment_status).toBe(PaymentStatus.UNPAID);
-      expect(result.price).toBe(850.0);
+      // 1-hour slot at R850 per 30 minutes
+      expect(result.price).toBe(1700.0);
+    });
+
+    it('charges the rate per 30 minutes in proportion to the slot length', async () => {
+      const base = Date.now() + 86400000;
+      const makeSlot = (minutes: number) => ({
+        id: 'slot-2',
+        doctor_id: 'doc-1',
+        start_time: new Date(base),
+        end_time: new Date(base + minutes * 60000),
+        is_booked: false,
+        is_locked: false,
+      });
+      const doctor = {
+        id: 'doc-1',
+        rate_per_hour: 800.0,
+        verification_source: 'locumstaff',
+        specialty: 'General Practitioner',
+        hpcsa_number: 'MP0123456',
+        user: { full_name: 'Dr. Thabo Molefe', email: 'thabo@example.com' },
+      };
+      for (const [minutes, expected] of [[30, 850], [60, 1700], [45, 1275]] as const) {
+        const slot = makeSlot(minutes);
+        mockQueryRunner.manager.createQueryBuilder.mockReturnValue({
+          setLock: jest.fn().mockReturnThis(),
+          where: jest.fn().mockReturnThis(),
+          getOne: jest.fn().mockResolvedValue(slot),
+        });
+        mockQueryRunner.manager.findOne.mockResolvedValue(doctor);
+        mockQueryRunner.manager.save.mockResolvedValue({ ...slot, is_booked: true });
+        const result = await service.createBookingSaga('patient-1', { slotId: 'slot-2' });
+        // LocumStaff doctors always use the platform rate (default 850 here), not their stored rate
+        expect(result.price).toBe(expected);
+      }
     });
 
     it('should execute compensating rollback on VPS if AWS RDS write fails', async () => {

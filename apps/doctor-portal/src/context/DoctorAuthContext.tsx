@@ -9,6 +9,8 @@ export interface DoctorProfileData {
   specialty: string;
   qualifications?: string | null;
   ratePerHour: number;
+  /** Price per 30 minutes that applies to this doctor (platform rate for LocumStaff doctors). */
+  consultationRate?: number;
   ratingAvg: number;
   bio: string;
   verificationStatus: 'pending' | 'verified' | 'rejected';
@@ -116,6 +118,7 @@ function mapDoctorProfile(raw: any): DoctorProfileData {
     qualifications: raw.qualifications || null,
     secondarySpecialties: raw.secondary_specialties || [],
     ratePerHour: Number(raw.rate_per_hour || 0),
+    consultationRate: Number(raw.consultation_rate || 0) || undefined,
     ratingAvg: Number(raw.rating_avg || 0),
     bio: raw.bio || '',
     verificationStatus: raw.verification_status,

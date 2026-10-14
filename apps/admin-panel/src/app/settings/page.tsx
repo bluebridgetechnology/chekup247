@@ -1268,7 +1268,7 @@ export default function AdminSettingsPage() {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                     <label style={{ fontSize: '0.85rem', fontWeight: 700, color: '#201712' }}>
-                      Standard Platform Consultation Rate (ZAR)
+                      Consultation Rate per 30 minutes (ZAR)
                     </label>
                     <span
                       style={{
@@ -1308,7 +1308,7 @@ export default function AdminSettingsPage() {
                     />
                   </div>
                   <div style={{ fontSize: '0.75rem', color: '#766C64', lineHeight: 1.4 }}>
-                    Universal consultation rate applied to all doctor consultations across ChekUp247. Individual doctors cannot set their own rates.
+                    Price of a 30-minute consultation, applied to every LocumStaff doctor. Longer sessions are charged in proportion (a 1-hour slot costs double). Doctors who run their own practice use their own rate.
                   </div>
                 </div>
 

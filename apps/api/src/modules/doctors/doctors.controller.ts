@@ -65,7 +65,11 @@ export class DoctorsController {
   @Roles(UserRole.DOCTOR)
   @Get('me/profile')
   async getMyProfile(@CurrentUser() user: JwtPayload) {
-    return this.doctorsService.getProfileByUserId(user.sub);
+    const profile = await this.doctorsService.getProfileByUserId(user.sub);
+    // include the rate that applies to this doctor (platform rate for LocumStaff doctors)
+    return profile
+      ? this.doctorsService.withConsultationRate(profile, await this.doctorsService.getPlatformConsultationRate())
+      : profile;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

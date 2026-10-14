@@ -7,12 +7,15 @@ import { SolarIcon } from './SolarIcon';
 import { useAuth } from '../context/AuthContext';
 import { formatClockTime, formatZoneAbbr, getViewerTimeZone, localDateKey } from '../lib/time';
 import { OPEN_QUICK_BOOK_EVENT, QUICK_BOOK_PARAM } from '../lib/quickBook';
+import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../lib/pricing';
 
 interface LiveSlot {
   id: string;
   startTime: string; // UTC ISO
   endTime: string; // UTC ISO
   durationMinutes?: number;
+  /** Total price for this slot (rate per 30 min x length), computed by the API. */
+  price?: number;
   isLocked?: boolean;
 }
 
@@ -21,7 +24,8 @@ interface QuickDoctor {
   slug?: string;
   name: string;
   specialty: string;
-  rate: number;
+  /** Price per 30 minutes (null until known). Longer sessions cost in proportion. */
+  rate: number | null;
   rating: number;
   reviewsCount?: number;
   duration?: number;
@@ -39,7 +43,7 @@ const FALLBACK_DOCTOR: QuickDoctor = {
   id: 'doc-1',
   name: 'Dr. Thabo Molefe',
   specialty: 'General Practitioner',
-  rate: 450,
+  rate: null,
   rating: 4.95,
   reviewsCount: 38,
   duration: 30,
@@ -139,6 +143,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
 
   const [slots, setSlots] = useState<LiveSlot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [apiRate, setApiRate] = useState<number | null>(null);
   const [selectedDayKey, setSelectedDayKey] = useState<string>('');
   const [selectedSlot, setSelectedSlot] = useState<LiveSlot | null>(null);
   const [viewerTz, setViewerTz] = useState<string>('Africa/Johannesburg');
@@ -175,7 +180,8 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
           slug: d.slug,
           name: d.user?.full_name || d.name || FALLBACK_DOCTOR.name,
           specialty: d.specialty || 'General Practitioner',
-          rate: Number(d.rate_per_hour || d.ratePerHour) || FALLBACK_DOCTOR.rate,
+          // per 30 minutes: the admin's platform rate for LocumStaff doctors, the doctor's own rate otherwise
+          rate: Number(d.consultation_rate || d.rate_per_hour || d.ratePerHour) || null,
           rating: Number(d.rating_avg || d.rating) || FALLBACK_DOCTOR.rating,
           reviewsCount: Number(d.reviews_count || d.reviewsCount) || undefined,
           duration: Number(d.consultation_duration || d.duration) || FALLBACK_DOCTOR.duration,
@@ -217,7 +223,9 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
     fetch(`${API_BASE}/doctors/${encodeURIComponent(doctor.id)}/availability`)
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        if (alive && data && Array.isArray(data.slots)) setSlots(data.slots);
+        if (!alive || !data) return;
+        if (Array.isArray(data.slots)) setSlots(data.slots);
+        if (Number(data.consultationRate) > 0) setApiRate(Number(data.consultationRate));
       })
       .catch(() => {})
       .finally(() => alive && setSlotsLoading(false));
@@ -283,6 +291,18 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
   })).filter((g) => g.slots.length > 0);
 
   const nextAvailable = days.length > 0 ? slotsByDay.get(days[0].key)![0] : null;
+
+  // Session lengths come from the doctor's slots, so they can differ (30 min, 1 hr, ...)
+  const slotLength = (sl: LiveSlot) => sl.durationMinutes || Math.round((+new Date(sl.endTime) - +new Date(sl.startTime)) / 60000);
+  const lengths = useMemo(() => {
+    const set = new Set<number>();
+    slotsByDay.forEach((list) => list.forEach((sl) => set.add(slotLength(sl))));
+    return Array.from(set).sort((a, b) => a - b);
+  }, [slotsByDay]);
+  const mixedLengths = lengths.length > 1;
+  // rate per 30 minutes (the API's value wins over the directory's)
+  const rate = apiRate ?? doctor.rate;
+  const slotPrice = (sl: LiveSlot) => sl.price ?? (rate ? priceForDuration(rate, slotLength(sl)) : null);
   const selectedDay = days.find((d) => d.key === localDateKey(new Date(selectedSlot?.startTime || ''))) || null;
 
   // ---------------------------------------------------------------- open / close
@@ -393,7 +413,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
       const slotId = selectedSlot.id;
       const startObj = new Date(selectedSlot.startTime);
       const endObj = new Date(selectedSlot.endTime);
-      const durationMins = selectedSlot.durationMinutes || doctor.duration || 30;
+      const durationMins = slotLength(selectedSlot);
       const dateStr = localDateKey(startObj);
 
       try {
@@ -434,7 +454,8 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
   // ---------------------------------------------------------------- derived labels
   const zoneAbbr = formatZoneAbbr(selectedSlot?.startTime || nextAvailable?.startTime);
   const zoneLabel = `${viewerTz.split('/').pop()?.replace(/_/g, ' ')}${zoneAbbr ? `, ${zoneAbbr}` : ''}`;
-  const durationMins = selectedSlot?.durationMinutes || doctor.duration || 30;
+  const durationMins = selectedSlot ? slotLength(selectedSlot) : lengths[0] || doctor.duration || PRICING_BLOCK_MINUTES;
+  const totalPrice = selectedSlot ? slotPrice(selectedSlot) : null;
   const canVideo = doctor.offersVideo !== false;
   const canAudio = doctor.offersAudio !== false;
   const selectedSlotLabel = selectedSlot
@@ -453,7 +474,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
       case 'details':
         return { label: 'Review booking', onClick: handleDetailsContinue, disabled: false };
       default:
-        return { label: isSubmitting ? 'Opening secure payment…' : `Pay R${doctor.rate} securely`, onClick: handlePay, disabled: isSubmitting };
+        return { label: isSubmitting ? 'Opening secure payment…' : totalPrice ? `Pay ${formatRand(totalPrice)} securely` : 'Continue to secure payment', onClick: handlePay, disabled: isSubmitting };
     }
   })();
 
@@ -616,8 +637,12 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                             </div>
                           </div>
                           <div className="qb-fee">
-                            <strong>R{d.rate}</strong>
-                            <span className="qb-muted">/ session</span>
+                            {d.rate ? (
+                              <>
+                                <strong>{formatRand(d.rate)}</strong>
+                                <span className="qb-muted">/ {PRICING_BLOCK_MINUTES} min</span>
+                              </>
+                            ) : null}
                           </div>
                         </button>
                       ))}
@@ -642,8 +667,12 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                       </div>
                     </div>
                     <div className="qb-fee">
-                      <strong>R{doctor.rate}</strong>
-                      <span className="qb-muted">/ session</span>
+                      {rate ? (
+                        <>
+                          <strong>{formatRand(rate)}</strong>
+                          <span className="qb-muted">/ {PRICING_BLOCK_MINUTES} min</span>
+                        </>
+                      ) : null}
                     </div>
                   </div>
                 )}
@@ -682,8 +711,19 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
 
                     <ul className="qb-assure">
                       <li>
-                        <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> {doctor.duration || 30}-minute private consultation
+                        <SolarIcon name="check-circle-bold" size={15} color="#15803D" />{' '}
+                        {lengths.length === 0
+                          ? 'Private one-to-one consultation'
+                          : mixedLengths
+                            ? `Private consultation, ${lengths[0]}–${lengths[lengths.length - 1]} minutes depending on the time you pick`
+                            : `${lengths[0]}-minute private consultation`}
                       </li>
+                      {rate && (
+                        <li>
+                          <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> {formatRand(rate)} per {PRICING_BLOCK_MINUTES} minutes
+                          {lengths.some((l) => l !== PRICING_BLOCK_MINUTES) ? ': longer sessions cost in proportion' : ''}
+                        </li>
+                      )}
                       <li>
                         <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> No account needed. Your link arrives by email and SMS
                       </li>
@@ -760,6 +800,12 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                               onClick={() => setSelectedSlot(s)}
                             >
                               {formatClockTime(s.startTime)}
+                              {mixedLengths && (
+                                <span className="qb-time-meta">
+                                  {formatDuration(slotLength(s))}
+                                  {slotPrice(s) ? ` · ${formatRand(slotPrice(s) as number)}` : ''}
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
@@ -862,13 +908,13 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                     value={`${selectedDay?.long || ''} · ${selectedSlot ? formatClockTime(selectedSlot.startTime) : ''} (${zoneLabel})`}
                     onEdit={() => goTo('slot')}
                   />
-                  <SummaryRow label="Length" value={`${durationMins} minutes`} />
+                  <SummaryRow label="Length" value={formatDuration(durationMins)} />
                   <SummaryRow label="Visit about" value={reasonShown} onEdit={() => goTo('details')} />
                   <SummaryRow label="Patient" value={`${patientName.trim()} · ${patientEmail.trim()}`} onEdit={() => goTo('details')} />
                 </div>
                 <div className="qb-total">
                   <span>Total</span>
-                  <strong>R{doctor.rate}</strong>
+                  <strong>{totalPrice ? formatRand(totalPrice) : 'Shown at checkout'}</strong>
                 </div>
                 <div className="qb-secure">
                   <SolarIcon name="lock-keyhole-linear" size={15} color="currentColor" /> Secure payment with Paystack on the next screen. Nothing is charged until you confirm there.
@@ -883,7 +929,10 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
             {step === 'slot' && selectedSlot && (
               <div className="qb-footer-note">
                 <SolarIcon name="calendar-linear" size={15} color="#8C601E" />
-                <span>{selectedSlotLabel}</span>
+                <span>
+                  {selectedSlotLabel} · {formatDuration(durationMins)}
+                  {totalPrice ? ` · ${formatRand(totalPrice)}` : ''}
+                </span>
               </div>
             )}
             <button type="button" className="qb-primary" onClick={primary.onClick} disabled={primary.disabled}>

@@ -1259,7 +1259,7 @@ export default function DoctorsClient() {
                 bio={doc.bio}
                 tags={doc.consultation_types || doc.tags}
                 experience_years={doc.experience_years}
-                rate_per_hour={Number(doc.rate_per_hour) || 750}
+                rate_per_hour={Number((doc as any).consultation_rate || doc.rate_per_hour) || 750}
                 rating_avg={Number(doc.rating_avg) || 4.8}
                 reviews_count={doc.reviews_count || 24}
                 facility_name={doc.facility_name}

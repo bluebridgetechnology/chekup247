@@ -33,6 +33,7 @@ import { toastSuccess, toastError } from '../../../lib/toast';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
 import { SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../../../lib/featureFlags';
+import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../../../lib/pricing';
 
 interface DoctorDetail {
   id: string;
@@ -222,7 +223,8 @@ function CheckoutContent() {
                 fullName: docData.user?.full_name || docData.fullName || 'Dr. Medical Practitioner',
                 specialty: docData.specialty || 'General Practitioner',
                 hpcsaNumber: docData.hpcsa_number || docData.hpcsaNumber || 'MP 0689432',
-                ratePerHour: Number(docData.rate_per_hour || docData.ratePerHour) || 850.0,
+                // rate per 30 minutes: the platform rate for LocumStaff doctors, the doctor's own rate otherwise
+                ratePerHour: Number(docData.consultation_rate || docData.rate_per_hour || docData.ratePerHour) || 850.0,
                 photoUrl: docData.user?.avatar_url || docData.photo_url || docData.photoUrl || '/images/doctor_thabo.jpg',
                 facilityName: docData.facility_name || docData.facilityName || 'Medical Consulting Suites',
                 facilityAddress: docData.facility_address || docData.facilityAddress || 'South Africa',
@@ -327,7 +329,12 @@ function CheckoutContent() {
   }, [doctorIdParam, slotIdParam, dateParam, token, API_BASE]);
 
   // Financial calculations
-  const consultationPrice = doctor?.ratePerHour || 850.0;
+  // Price = rate per 30 minutes x session length (a 1-hour slot costs double)
+  const sessionMinutes =
+    slot?.startTime && slot?.endTime
+      ? Math.round((new Date(slot.endTime).getTime() - new Date(slot.startTime).getTime()) / 60000)
+      : Number(searchParams.get('duration')) || PRICING_BLOCK_MINUTES;
+  const consultationPrice = priceForDuration(doctor?.ratePerHour || 850.0, sessionMinutes);
   const maxDeductibleCredits = Math.min(walletBalance, consultationPrice);
   const creditsApplied = useWalletCredits ? maxDeductibleCredits : 0;
   const totalPayable = Math.max(0, consultationPrice - creditsApplied);
@@ -2009,7 +2016,15 @@ function CheckoutContent() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', fontSize: '0.88rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-cream-text-muted, #6B5E55)' }}>
-                <span>Telehealth Consultation</span>
+                <span>
+                  Telehealth Consultation
+                  <span style={{ display: 'block', fontSize: '0.74rem', fontWeight: 500 }}>
+                    {formatDuration(sessionMinutes)}
+                    {sessionMinutes !== PRICING_BLOCK_MINUTES && doctor?.ratePerHour
+                      ? ` · ${formatRand(doctor.ratePerHour)} per ${PRICING_BLOCK_MINUTES} min`
+                      : ''}
+                  </span>
+                </span>
                 <span style={{ fontWeight: 700, color: 'var(--color-chocolate-base, #2A170F)' }}>
                   R{consultationPrice.toFixed(2)}
                 </span>
