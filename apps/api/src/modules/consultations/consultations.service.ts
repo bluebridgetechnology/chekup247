@@ -362,16 +362,17 @@ export class ConsultationsService {
       throw new NotFoundException(`Booking ${bookingId} not found`);
     }
 
-    // Only the booking's own doctor or patient (or an admin) may end it.
+    // Only the booking's own doctor (or an admin) may end it. Patients can leave the
+    // room client-side, but ending the consultation is the doctor's call alone.
     const isAdmin = callerRole === 'admin' || callerRole === 'super_admin';
-    if (!isAdmin && doctorId !== booking.doctor_id && doctorId !== booking.patient_id) {
-      throw new ForbiddenException('You are not a participant in this consultation');
+    if (!isAdmin && doctorId !== booking.doctor_id) {
+      throw new ForbiddenException('Only the consulting doctor can end this consultation');
     }
     const alreadyCompleted = booking.status === BookingStatus.COMPLETED;
 
     const endedAt = new Date();
     consultation.ended_at = consultation.ended_at || endedAt;
-    if (doctorNotes && (isAdmin || doctorId === booking.doctor_id)) {
+    if (doctorNotes) {
       consultation.doctor_notes = doctorNotes;
     }
     await this.consultationRepository.save(consultation);

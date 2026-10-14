@@ -177,6 +177,9 @@ export default function PatientConsultationPage() {
   const [doctorAvatarUrl, setDoctorAvatarUrl] = useState<string | null>(null);
   const [videoFitMode, setVideoFitMode] = useState<'contain' | 'cover'>('contain');
   const [isConsultationEnded, setIsConsultationEnded] = useState<boolean>(false);
+  // Patient stepped out of the room; the consultation itself is still running (only the doctor can end it).
+  const [hasLeftRoom, setHasLeftRoom] = useState<boolean>(false);
+  const leftByPatientRef = useRef<boolean>(false);
   const [finalDurationSeconds, setFinalDurationSeconds] = useState<number | null>(null);
   // Post-call review prompt
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
@@ -925,6 +928,8 @@ export default function PatientConsultationPage() {
           // Room deleted by backend or participant ejected
           dailyCall.on('left-meeting', () => {
             if (!isMounted) return;
+            // Our own deliberate "Leave" also fires this; that must not mark the consultation as ended.
+            if (leftByPatientRef.current) return;
             console.log('[Daily] left-meeting event fired (room deleted or session concluded)');
             handleEndCallRef.current();
           });
@@ -1391,23 +1396,18 @@ export default function PatientConsultationPage() {
 
   const cleanupAndEnd = handleEndCall;
 
-  const handleConfirmLeaveConsultation = useCallback(async () => {
-    // 1. Immediately kill media and switch screen to Completed (instant feedback)
-    handleEndCall();
-
-    // 2. Fire backend notification in parallel with keepalive
-    try {
-      fetch(`${API_BASE}/consultations/${bookingId}/end`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({}),
-        keepalive: true,
-      }).catch(() => {});
-    } catch {}
-  }, [handleEndCall, API_BASE, bookingId, token]);
+  // Leaving only disconnects this patient. The doctor stays in the room and the
+  // consultation keeps running; only the doctor can end it.
+  const handleConfirmLeaveConsultation = useCallback(() => {
+    leftByPatientRef.current = true;
+    terminateMedia();
+    setHasLeftRoom(true);
+    setHasLocalVideo(false);
+    setHasRemoteVideo(false);
+    setIsDoctorConnected(false);
+    setShowEndModal(false);
+    setIsEndingCall(false);
+  }, [terminateMedia]);
 
   // Active Consultation Status Polling (Safety fallback if WS or WebRTC connection dropped)
   useEffect(() => {
@@ -1544,6 +1544,22 @@ export default function PatientConsultationPage() {
   // --------------------------------------------------------------------------
   // Post-Consultation Summary Screen
   // --------------------------------------------------------------------------
+  if (hasLeftRoom && !isConsultationEnded) {
+    return (
+      <div style={{ minHeight: '100dvh', width: '100%', backgroundColor: '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', color: '#2A170F', fontFamily: 'var(--font-sans)', boxSizing: 'border-box' }}>
+        <div style={{ maxWidth: '460px', width: '100%', backgroundColor: '#FFFFFF', borderRadius: '24px', border: '1px solid rgba(223,171,98,0.3)', boxShadow: '0 24px 60px rgba(42,23,15,0.1)', padding: '32px 24px', textAlign: 'center', boxSizing: 'border-box' }}>
+          <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.4rem', fontWeight: 800, margin: '0 0 8px', letterSpacing: '-0.02em' }}>You left the consultation</h2>
+          <p style={{ color: '#6B5E55', fontSize: '0.925rem', margin: '0 0 24px', lineHeight: 1.5 }}>
+            {doctorName} is still in the session. The consultation has not ended, so you can rejoin while your appointment time is still running.
+          </p>
+          <button type="button" className="btn-primary" style={{ width: '100%' }} onClick={() => window.location.reload()}>
+            Rejoin consultation
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (isConsultationEnded) {
     return (
       <div style={{ minHeight: '100vh', width: '100vw', backgroundColor: '#FAF6EE', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', color: '#2A170F', fontFamily: 'var(--font-sans)' }}>
@@ -2472,19 +2488,14 @@ export default function PatientConsultationPage() {
             type="button"
             className="patient-end-call"
             onClick={() => {
-              // If doctor already left or disconnected, end immediately without redundant modal
-              if (!isDoctorConnected) {
-                handleConfirmLeaveConsultation();
-              } else {
-                setShowEndModal(true);
-              }
+              setShowEndModal(true);
             }}
-            title="End Consultation"
+            title="Leave consultation"
             style={{ height: '46px', padding: '0 20px', borderRadius: '9999px', border: 'none', backgroundColor: '#DC2626', color: '#FFFFFF', fontWeight: 800, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 4px 18px rgba(220,38,38,0.45)', transition: 'all 0.2s ease', marginLeft: '4px', whiteSpace: 'nowrap' }}
             onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#B91C1C')}
             onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#DC2626')}
           >
-            <PhoneOff size={18} /> <span className="end-call-label">End Call</span>
+            <PhoneOff size={18} /> <span className="end-call-label">Leave</span>
           </button>
         </div>
       </div>
@@ -2614,9 +2625,9 @@ export default function PatientConsultationPage() {
             <div style={{ width: '56px', height: '56px', borderRadius: '50%', backgroundColor: 'rgba(220,38,38,0.15)', border: '1.5px solid rgba(239,68,68,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', color: '#EF4444' }}>
               <PhoneOff size={26} />
             </div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 8px' }}>End Consultation?</h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#FFFFFF', margin: '0 0 8px' }}>Leave Consultation?</h3>
             <p style={{ fontSize: '0.875rem', color: '#D5C7B8', margin: '0 0 24px', lineHeight: 1.4 }}>
-              Are you sure you want to leave your consultation with {doctorName}?
+              {doctorName} will stay in the room and the consultation will keep running. You can rejoin while your session is open.
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button
@@ -2624,7 +2635,7 @@ export default function PatientConsultationPage() {
                 onClick={() => setShowEndModal(false)}
                 style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: 'rgba(255,255,255,0.08)', border: '1px solid rgba(223,171,98,0.25)', color: '#FAF6EE', fontWeight: 700, fontSize: '0.875rem', cursor: 'pointer' }}
               >
-                Resume Call
+                Stay in Call
               </button>
               <button
                 type="button"
@@ -2633,7 +2644,7 @@ export default function PatientConsultationPage() {
                 style={{ flex: 1, padding: '12px', borderRadius: '9999px', backgroundColor: '#DC2626', border: 'none', color: '#FFFFFF', fontWeight: 800, fontSize: '0.875rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', opacity: isEndingCall ? 0.7 : 1 }}
               >
                 {isEndingCall ? <Loader2 size={16} className="animate-spin" /> : null}
-                <span>{isEndingCall ? 'Ending...' : 'Leave Room'}</span>
+                <span>Leave Room</span>
               </button>
             </div>
           </div>
