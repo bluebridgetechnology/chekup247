@@ -406,6 +406,8 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       const mockBooking: any = {
         id: 'booking-1',
         status: BookingStatus.CONFIRMED,
+        doctor_id: 'doc-123',
+        patient_id: 'pat-1',
       };
       mockConsultationRepo.findOne.mockResolvedValue(mockCons);
       mockBookingRepo.findOne.mockResolvedValue(mockBooking);
@@ -417,6 +419,33 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       expect(result.eligible_for_prescription).toBe(true);
       expect(mockBooking.status).toBe(BookingStatus.COMPLETED);
       expect(mockBookingRepo.save).toHaveBeenCalledWith(mockBooking);
+    });
+
+    it('rejects an end request from someone who is not on the booking', async () => {
+      mockConsultationRepo.findOne.mockResolvedValue({ id: 'c', booking_id: 'booking-1', ended_at: null });
+      mockBookingRepo.findOne.mockResolvedValue({
+        id: 'booking-1',
+        status: BookingStatus.CONFIRMED,
+        doctor_id: 'doc-123',
+        patient_id: 'pat-1',
+      });
+      await expect(service.endConsultation('booking-1', 'stranger')).rejects.toThrow(
+        'not a participant',
+      );
+    });
+
+    it('never treats the patient as the doctor when the patient ends the call', async () => {
+      const mockBooking: any = {
+        id: 'booking-1',
+        status: BookingStatus.CONFIRMED,
+        doctor_id: 'doc-123',
+        patient_id: 'pat-1',
+      };
+      mockConsultationRepo.findOne.mockResolvedValue({ id: 'c', booking_id: 'booking-1', ended_at: null });
+      mockBookingRepo.findOne.mockResolvedValue(mockBooking);
+      const result = await service.endConsultation('booking-1', 'pat-1');
+      expect(result.success).toBe(true);
+      expect(mockBooking.status).toBe(BookingStatus.COMPLETED);
     });
 
     it('should securely save doctor clinical notes (BE-605)', async () => {
