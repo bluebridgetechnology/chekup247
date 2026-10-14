@@ -24,8 +24,14 @@ export class PaymentsController {
    */
   @UseGuards(JwtAuthGuard)
   @Post('initiate')
-  initiatePayment(@Body() dto: InitiatePaymentDto, @CurrentUser('id') patientId: string) {
-    return this.paymentsService.initiatePayment(dto, patientId);
+  initiatePayment(
+    @Body() dto: InitiatePaymentDto,
+    @CurrentUser('id') patientId: string,
+    @CurrentUser('scope') scope?: string,
+  ) {
+    // Guest (passwordless) sessions can't spend wallet credits: those belong to the account holder.
+    const safeDto = scope === 'guest' ? { ...dto, useWalletCredits: false } : dto;
+    return this.paymentsService.initiatePayment(safeDto, patientId);
   }
 
   /**

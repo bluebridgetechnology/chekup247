@@ -63,3 +63,16 @@ export function hasLiveHold(slot: SlotHoldFields, now: number = Date.now()): boo
 export function isHeldByOther(slot: SlotHoldFields, token: string | undefined, now: number = Date.now()): boolean {
   return hasLiveHold(slot, now) && slot.hold_token !== token;
 }
+
+/**
+ * Rejoin grace: once a consultation is under way, a patient can still (re)enter this many minutes after
+ * the booked time is over, so a dropped connection or the payment detour of an in-call extension
+ * doesn't lock them out. Never applies to a consultation that hasn't started or has ended.
+ */
+export const DEFAULT_JOIN_GRACE_MINUTES = 10;
+
+export function resolveJoinGraceMinutes(value: unknown): number {
+  if (value === null || value === undefined || value === '') return DEFAULT_JOIN_GRACE_MINUTES;
+  const n = Number(value);
+  return Number.isFinite(n) && n >= 0 ? Math.round(n) : DEFAULT_JOIN_GRACE_MINUTES;
+}

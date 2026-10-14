@@ -10,7 +10,7 @@ import {
   PatientMedicalProfile,
   PatientDocument,
 } from '../../database/patient/entities';
-import { AvailabilitySlot, DoctorProfile, User } from '../../database/operational/entities';
+import { AvailabilitySlot, DoctorProfile, User, PlatformSetting } from '../../database/operational/entities';
 import { QUEUES } from '../queues/queue.constants';
 import { PaymentsModule } from '../payments/payments.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -37,7 +37,7 @@ import { PatientDemoSeederService } from './patient-demo-seeder.service';
       'patient',
     ),
     TypeOrmModule.forFeature(
-      [AvailabilitySlot, DoctorProfile, User],
+      [AvailabilitySlot, DoctorProfile, User, PlatformSetting],
       'operational',
     ),
     BullModule.registerQueue({

@@ -56,6 +56,18 @@ export class BookingsController {
     return this.bookingsService.holdSlot(dto.slotId, dto.holdToken);
   }
 
+  /** Exchange the emailed "Join your consultation" link for a guest session limited to that booking. */
+  @Public()
+  @Post('join-link')
+  @HttpCode(HttpStatus.OK)
+  exchangeJoinLink(@Body() dto: { token?: string }, @Req() req: any) {
+    const ip = String(req?.ip || req?.headers?.['x-forwarded-for'] || 'unknown');
+    if (!allowHoldRequest(`join:${ip}`)) {
+      throw new HttpException('Too many requests. Please wait a moment.', HttpStatus.TOO_MANY_REQUESTS);
+    }
+    return this.bookingsService.exchangeJoinLink(String(dto?.token || ''));
+  }
+
   /** Release a hold early. Only the holder's token works. */
   @Public()
   @Delete('holds/:slotId')

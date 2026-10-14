@@ -8,7 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatClockTime, formatZoneAbbr, getViewerTimeZone, localDateKey } from '../lib/time';
 import { OPEN_QUICK_BOOK_EVENT, QUICK_BOOK_PARAM, QUICK_BOOK_SLOT_VALUE } from '../lib/quickBook';
 import { DEFAULT_BOOKING_LEAD_MINUTES, isSlotBookable } from '../lib/bookingWindow';
-import { holdQuery, requestHold } from '../lib/slotHold';
+import { holdQuery, releaseHold, requestHold } from '../lib/slotHold';
 import { PRICING_BLOCK_MINUTES, formatDuration, formatRand, priceForDuration } from '../lib/pricing';
 
 interface LiveSlot {
@@ -440,7 +440,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
     const phoneDigits = patientPhone.replace(/\D/g, '');
     if (!name) return setFormError('Please enter your full name.');
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return setFormError('Please enter a valid email address.');
-    if (phoneDigits.length < 7) return setFormError('Please enter a mobile number we can SMS the video link to.');
+    if (phoneDigits.length < 7) return setFormError('Please enter a mobile number the doctor can reach you on.');
     goTo('review');
   };
 
@@ -461,16 +461,31 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
       const phone = patientPhone.trim();
       const notes = customReason.trim() || reason;
 
+      const slotId = selectedSlot.id;
+
+      // Reserve the time first, so it can't close or be taken while the patient pays. This happens
+      // before the guest account is created: creating it signs the patient in, which re-mounts the
+      // page shell and would close this panel if the time had just been taken.
+      const held = await requestHold(API_BASE, slotId);
+      if (held.status === 'rejected') {
+        setSelectedSlot(null);
+        setIsSubmitting(false);
+        setStep('slot');
+        setFormError(held.message);
+        return;
+      }
+
       // Silent express account for guests
       if (!isAuthenticated) {
         try {
+          // A refusal here (e.g. the email belongs to a doctor account) must reach the patient
           await expressPatient({ full_name: name, email, phone });
-        } catch (err: any) {
-          console.warn('Express auto-provisioning note:', err);
+        } catch (err) {
+          await releaseHold(API_BASE, slotId);
+          throw err;
         }
       }
 
-      const slotId = selectedSlot.id;
       const startObj = new Date(selectedSlot.startTime);
       const endObj = new Date(selectedSlot.endTime);
       const durationMins = slotLength(selectedSlot);
@@ -494,16 +509,6 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
         );
       } catch {
         // ignore
-      }
-
-      // Reserve the time so it can't close or be taken while the patient pays
-      const held = await requestHold(API_BASE, slotId);
-      if (held.status === 'rejected') {
-        setSelectedSlot(null);
-        setIsSubmitting(false);
-        setStep('slot');
-        setFormError(held.message);
-        return;
       }
 
       setIsOpen(false);
@@ -804,7 +809,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                         </li>
                       )}
                       <li>
-                        <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> No account needed. Your link arrives by email and SMS
+                        <SolarIcon name="check-circle-bold" size={15} color="#15803D" /> No account needed. Your join button arrives by email
                       </li>
                     </ul>
                   </>
@@ -943,7 +948,7 @@ export function QuickBookingWidget({ showTrigger = true }: QuickBookingWidgetPro
                     onChange={(e) => setPatientPhone(e.target.value)}
                     placeholder="e.g. +234 801 234 5678"
                   />
-                  <span className="qb-hint">We SMS a reminder and your link.</span>
+                  <span className="qb-hint">For appointment updates. Your join button is sent to your email.</span>
                 </div>
 
                 <div className="qb-field">

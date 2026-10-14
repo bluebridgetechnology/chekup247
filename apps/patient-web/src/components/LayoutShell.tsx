@@ -26,6 +26,7 @@ export function LayoutShell({ children }: LayoutShellProps) {
     pathname.startsWith('/prescriptions') ||
     pathname.startsWith('/consultations') ||
     pathname.startsWith('/consultation') ||
+    pathname.startsWith('/join') ||
     pathname === '/login' ||
     pathname === '/register';
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { consumeNext, loginUrlFor, rememberNext, sanitizeNext } from '../lib/redirectAfterLogin';
 import { usePathname, useRouter } from 'next/navigation';
 import '../styles/globals.css';
 import { CollapsibleSidebar } from '../components/CollapsibleSidebar';
@@ -30,7 +31,10 @@ function DoctorLayoutInner({ children }: { children: React.ReactNode }) {
   // needs to submit the professional profile before entering the workspace.
   useEffect(() => {
     if (!isLoading && isAuthenticated && (pathname === '/login' || pathname === '/register')) {
-      router.replace(profile ? '/calendar' : '/onboard');
+      // Already signed in: continue to the page they were heading for, if any
+      const wanted =
+        sanitizeNext(new URLSearchParams(window.location.search).get('next')) || consumeNext();
+      router.replace(profile ? wanted || '/calendar' : '/onboard');
     }
   }, [isLoading, isAuthenticated, pathname, profile, router]);
 
@@ -47,7 +51,10 @@ function DoctorLayoutInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isLoading && !isAuthenticated && !isAuthPage) {
       if (typeof window !== 'undefined') {
-        window.location.replace('/login');
+        // Remember where they were going so login can bring them straight back
+        const here = `${window.location.pathname}${window.location.search}`;
+        rememberNext(sanitizeNext(here));
+        window.location.replace(loginUrlFor(here));
       } else {
         router.replace('/login');
       }

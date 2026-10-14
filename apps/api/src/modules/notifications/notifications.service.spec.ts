@@ -169,6 +169,46 @@ describe('NotificationsService (BE-804 to BE-809)', () => {
     });
   });
 
+  describe('patient join link in booking emails', () => {
+    it('adds a one-tap join link to patient emails but does not store it', async () => {
+      mockPreferenceRepository.findOne.mockResolvedValue({ channels: ['email'] });
+      mockUserRepository.findOne.mockResolvedValueOnce({
+        id: 'user-1',
+        email: 'patient@example.com',
+        full_name: 'Patient John',
+        role: 'patient',
+      });
+      await service.dispatchNotification({
+        recipientId: 'user-1',
+        title: 'Appointment Confirmed',
+        templateId: 'booking_confirmed',
+        payload: { bookingId: 'booking-9', appointmentDate: 'Today' },
+      });
+      const emailArgs = mockBrevoProvider.sendEmail.mock.calls.at(-1)![0];
+      expect(emailArgs.templateParams.joinUrl).toMatch(/\/join\/.+/);
+      const stored = mockNotificationRepository.create.mock.calls.map((c: any[]) => c[0]);
+      expect(stored.every((r: any) => !('joinUrl' in (r.payload || {})))).toBe(true);
+    });
+
+    it('does not add a join link for non-patients', async () => {
+      mockPreferenceRepository.findOne.mockResolvedValue({ channels: ['email'] });
+      mockUserRepository.findOne.mockResolvedValueOnce({
+        id: 'doc-1',
+        email: 'doc@example.com',
+        full_name: 'Dr X',
+        role: 'doctor',
+      });
+      await service.dispatchNotification({
+        recipientId: 'doc-1',
+        title: 'Appointment Confirmed',
+        templateId: 'booking_confirmed',
+        payload: { bookingId: 'booking-9' },
+      });
+      const emailArgs = mockBrevoProvider.sendEmail.mock.calls.at(-1)![0];
+      expect(emailArgs.templateParams.joinUrl).toBeUndefined();
+    });
+  });
+
   describe('In-App Notification Center API (BE-809)', () => {
     it('should return paginated notifications and unread count', async () => {
       const res = await service.getUserNotifications('user-1');

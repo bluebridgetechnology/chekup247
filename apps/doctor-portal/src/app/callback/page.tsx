@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef, Suspense } from 'react';
+import { consumeNext } from '../../lib/redirectAfterLogin';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { SolarIcon } from '../../components/common/SolarIcon';
@@ -84,7 +85,8 @@ function SsoCallbackContent() {
 
           toastSuccess('Signed in via LocumStaff', 'Launching your clinical dashboard.');
 
-          const destination = result?.doctorProfile || result?.user?.doctorProfile ? '/calendar' : '/onboard';
+          const hasProfile = Boolean(result?.doctorProfile || result?.user?.doctorProfile);
+          const destination = hasProfile ? consumeNext() || '/calendar' : '/onboard';
           setTimeout(() => {
             router.push(destination);
           }, 1600);

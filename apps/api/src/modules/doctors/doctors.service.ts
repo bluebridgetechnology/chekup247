@@ -607,7 +607,7 @@ export class DoctorsService implements OnModuleInit {
             documentCount: dto.documents_url?.length || 1,
             message: 'Your practitioner onboarding application has been submitted for HPCSA review.',
           },
-          deepLink: '/doctor/status',
+          deepLink: '/profile',
           forceChannels: ['email'],
         })
         .catch((err) => {

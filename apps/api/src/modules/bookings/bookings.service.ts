@@ -20,6 +20,9 @@ import {
   BookingStatus,
   PaymentStatus,
   Payment,
+  Consultation,
+  ConsultationExtension,
+  ExtensionStatus,
 } from '../../database/patient/entities';
 import {
   AvailabilitySlot,
@@ -39,9 +42,13 @@ import {
   isSlotBookable,
   isValidHoldToken,
   resolveBookingLeadMinutes,
+  resolveJoinGraceMinutes,
   resolveSlotHoldMinutes,
 } from './booking.constants';
 import { randomBytes } from 'crypto';
+import { TokenService } from '../auth/token.service';
+import { GUEST_SCOPE } from '../../common/guards/guest-scope';
+import { JOIN_OPENS_BEFORE_MINUTES, patientJoinWindow, verifyJoinLinkToken } from '../../common/utils/join-link';
 
 export interface CreateBookingDto {
   slotId: string;
@@ -97,6 +104,10 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     private readonly bookingRepository: Repository<Booking>,
     @InjectRepository(Payment, 'patient')
     private readonly paymentRepository: Repository<Payment>,
+    @InjectRepository(Consultation, 'patient')
+    private readonly consultationRepository: Repository<Consultation>,
+    @InjectRepository(ConsultationExtension, 'patient')
+    private readonly extensionRepository: Repository<ConsultationExtension>,
     @InjectRepository(AvailabilitySlot, 'operational')
     private readonly slotRepository: Repository<AvailabilitySlot>,
     @InjectRepository(DoctorProfile, 'operational')
@@ -112,6 +123,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     private readonly paymentsService: PaymentsService,
     @InjectQueue(QUEUES.BOOKING_DLQ)
     private readonly dlqQueue: Queue,
+    private readonly tokenService: TokenService,
     @Optional()
     private readonly notificationsService?: NotificationsService,
     @Optional()
@@ -142,6 +154,17 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
 
   onModuleDestroy() {
     if (this.reconcileTimer) clearInterval(this.reconcileTimer);
+  }
+
+  /** Minutes a patient can rejoin a consultation under way after the booked time (admin Platform Setting). */
+  private async getJoinGraceMinutes(): Promise<number> {
+    try {
+      const settings = await this.platformSettingRepository?.findOne({ where: {} });
+      return resolveJoinGraceMinutes(settings?.join_grace_minutes);
+    } catch (err: any) {
+      this.logger.warn(`Could not load join grace minutes: ${err?.message}`);
+      return resolveJoinGraceMinutes(undefined);
+    }
   }
 
   /** Minutes a time is held once the patient reaches checkout (admin Platform Setting). */
@@ -232,6 +255,91 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
       .where('id = :slotId AND hold_token = :token', { slotId, token })
       .execute();
     return { released: (result.affected ?? 0) > 0 };
+  }
+
+  /**
+   * Exchanges the "Join your consultation" link from a patient's email for a guest session limited to
+   * that one booking (no account, password or code). The link token only names a booking and patient;
+   * whether joining is allowed right now is decided here.
+   */
+  async exchangeJoinLink(token: string) {
+    const link = typeof token === 'string' ? verifyJoinLinkToken(token) : null;
+    if (!link) {
+      throw new BadRequestException('This link is invalid or has expired. Please use the latest email we sent you.');
+    }
+
+    const booking = await this.bookingRepository.findOne({ where: { id: link.bookingId } });
+    if (!booking || booking.patient_id !== link.patientId) {
+      throw new NotFoundException('We could not find this booking.');
+    }
+    if (booking.status === BookingStatus.CANCELLED) {
+      throw new BadRequestException('This booking was cancelled.');
+    }
+    if (booking.status === BookingStatus.PENDING) {
+      throw new BadRequestException('This booking has not been paid yet, so there is no consultation to join.');
+    }
+    if (booking.status === BookingStatus.COMPLETED || booking.status === BookingStatus.NO_SHOW) {
+      throw new BadRequestException({ message: 'This consultation has ended.', code: 'ENDED' });
+    }
+
+    const slot = await this.slotRepository.findOne({ where: { id: booking.slot_id } });
+    const now = Date.now();
+    if (slot) {
+      // The room is open from 15 minutes before the start until the booked time (plus any paid
+      // extensions) is over; a finished consultation is closed whatever the clock says.
+      const consultation = await this.consultationRepository.findOne({ where: { booking_id: booking.id } });
+      if (consultation?.ended_at) {
+        throw new BadRequestException({ message: 'This consultation has ended.', code: 'ENDED' });
+      }
+      const extras = consultation
+        ? await this.extensionRepository.find({ where: { consultation_id: consultation.id, status: ExtensionStatus.PAID } })
+        : [];
+      const { opensAt, closesAt } = patientJoinWindow(
+        slot.start_time,
+        slot.end_time,
+        extras.reduce((sum, e) => sum + e.duration_minutes, 0),
+        await this.getJoinGraceMinutes(),
+        Boolean(consultation?.started_at),
+      );
+      if (now < opensAt.getTime()) {
+        throw new BadRequestException({
+          message: `Your consultation room opens ${JOIN_OPENS_BEFORE_MINUTES} minutes before your start time.`,
+          code: 'TOO_EARLY',
+          opensAt: opensAt.toISOString(),
+          startsAt: new Date(slot.start_time).toISOString(),
+        });
+      }
+      if (now > closesAt.getTime()) {
+        throw new BadRequestException({
+          message: 'The time for this consultation has passed, so the room is closed.',
+          code: 'EXPIRED',
+        });
+      }
+    }
+
+    const user = await this.userRepository.findOne({ where: { id: booking.patient_id } });
+    if (!user) throw new NotFoundException('We could not find this booking.');
+
+    const accessToken = this.tokenService.generateAccessToken(
+      { sub: user.id, email: user.email, role: user.role, fullName: user.full_name, scope: GUEST_SCOPE, bid: booking.id },
+      { expiresIn: '6h' },
+    );
+
+    return {
+      accessToken,
+      bookingId: booking.id,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        role: user.role,
+        status: user.status,
+        phone: user.phone,
+        isEmailVerified: user.is_email_verified,
+        avatarUrl: user.avatar_url,
+        dateOfBirth: user.date_of_birth,
+      },
+    };
   }
 
   /**

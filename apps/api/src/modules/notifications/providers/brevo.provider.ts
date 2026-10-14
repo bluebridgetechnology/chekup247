@@ -277,7 +277,11 @@ export class BrevoEmailProvider {
     const appointmentDate = params.appointmentDate || 'Upcoming';
     const appointmentTime = params.appointmentTime || '';
     const portalUrl = params.portalUrl || envConfig.PATIENT_WEB_URL;
+    // Doctor-facing links go to the doctor portal (signed-out doctors are sent to login, then back)
+    const doctorUrl = (params.doctorPortalUrl || envConfig.DOCTOR_PORTAL_URL).replace(/\/+$/, '');
     const bookingId = params.bookingId || '';
+    // One-tap join link for patients (no login or code); falls back to the booking page
+    const joinUrl: string | undefined = params.joinUrl;
     const hpcsaNumber = params.hpcsaNumber || '';
     const specialty = params.specialty || 'General Practitioner';
     const amount = params.amount || '0.00';
@@ -367,10 +371,15 @@ export class BrevoEmailProvider {
                 <p style="margin: 4px 0; color: #2A170F;"><strong>Time:</strong> ${appointmentTime} (SAST)</p>
                 <p style="margin: 4px 0; color: #2A170F;"><strong>Booking Reference:</strong> <span style="font-family: monospace; font-weight: 700;">${bookingId}</span></p>
               </div>
-              <p style="color: #475569; font-size: 14px;">Please test your camera and microphone 5 minutes prior to your appointment time. Consultations take place directly in your web browser.</p>
+              <p style="color: #475569; font-size: 14px;">${
+                joinUrl
+                  ? 'When it is time, just tap the button below to join your video consultation. There is no password or code to enter. The button opens 15 minutes before your start time and works until your booked time is over (you can rejoin for a few minutes after if your call is in progress). Please test your camera and microphone a few minutes before.'
+                  : 'Please test your camera and microphone 5 minutes prior to your appointment time. Consultations take place directly in your web browser.'
+              }</p>
               <div style="text-align: center;">
-                <a href="${portalUrl}/bookings/${bookingId}" style="${buttonStyles}">View Booking & Waiting Room</a>
+                <a href="${joinUrl || `${portalUrl}/bookings/${bookingId}`}" style="${buttonStyles}">${joinUrl ? 'Join Your Consultation' : 'View Booking & Waiting Room'}</a>
               </div>
+              ${joinUrl ? '<p style="color: #94a3b8; font-size: 12px; text-align: center;">This button is personal to you. Please do not forward this email.</p>' : ''}
               ${footerHtml}
             </div>
           </div>
@@ -398,7 +407,7 @@ export class BrevoEmailProvider {
               <p style="color: #475569; font-size: 14px;">Our clinical governance team verifies all medical practitioners against the official Health Professions Council of South Africa register. Verification typically takes <strong>24 to 48 business hours</strong>.</p>
               <p style="color: #475569; font-size: 14px;">Once approved, you will receive an immediate notification to set up your consultation fees and weekly calendar slots.</p>
               <div style="text-align: center;">
-                <a href="${portalUrl}/doctor/status" style="${buttonStyles}">View Application Status</a>
+                <a href="${doctorUrl}/profile" style="${buttonStyles}">View Application Status</a>
               </div>
               ${footerHtml}
             </div>
@@ -429,7 +438,7 @@ export class BrevoEmailProvider {
                 <li>Ensure your digital signature and stamp are configured for e-prescriptions.</li>
               </ol>
               <div style="text-align: center;">
-                <a href="${portalUrl}/calendar" style="${buttonStyles}">Open Schedule & Calendar</a>
+                <a href="${doctorUrl}/calendar" style="${buttonStyles}">Open Schedule & Calendar</a>
               </div>
               ${footerHtml}
             </div>
@@ -457,7 +466,7 @@ export class BrevoEmailProvider {
               </div>
               <p style="color: #475569; font-size: 14px;">The patient's payment is held securely in platform escrow and will be released to your practitioner wallet immediately upon conclusion of the consultation.</p>
               <div style="text-align: center;">
-                <a href="${portalUrl}/doctor/consultations/${bookingId}" style="${buttonStyles}">View Triage Notes & Patient History</a>
+                <a href="${doctorUrl}/consultations/${bookingId}" style="${buttonStyles}">View Triage Notes & Patient History</a>
               </div>
               ${footerHtml}
             </div>
@@ -483,7 +492,7 @@ export class BrevoEmailProvider {
               </div>
               <p style="color: #475569; font-size: 14px;">Please click the button below right away to launch your encrypted HD video consultation.</p>
               <div style="text-align: center;">
-                <a href="${portalUrl}/consultations/${bookingId}" style="${buttonStyles}">Join Video Room Now</a>
+                <a href="${joinUrl || `${portalUrl}/consultations/${bookingId}`}" style="${buttonStyles}">Join Video Room Now</a>
               </div>
               ${footerHtml}
             </div>
@@ -616,7 +625,7 @@ export class BrevoEmailProvider {
                 <p style="margin: 4px 0; color: #2A170F;"><strong>Settlement:</strong> Available for scheduled weekly payout or instant transfer</p>
               </div>
               <div style="text-align: center;">
-                <a href="${portalUrl}/doctor/wallet" style="${buttonStyles}">View Wallet & Balance</a>
+                <a href="${doctorUrl}/earnings" style="${buttonStyles}">View Wallet & Balance</a>
               </div>
               ${footerHtml}
             </div>
@@ -643,7 +652,7 @@ export class BrevoEmailProvider {
               </div>
               <p style="color: #475569; font-size: 14px;">Depending on your bank, funds typically reflect within 1 to 2 business days.</p>
               <div style="text-align: center;">
-                <a href="${portalUrl}/doctor/payouts" style="${buttonStyles}">View Payout History</a>
+                <a href="${doctorUrl}/earnings" style="${buttonStyles}">View Payout History</a>
               </div>
               ${footerHtml}
             </div>
@@ -674,7 +683,7 @@ export class BrevoEmailProvider {
                 <p style="margin: 4px 0;"><strong>Grace Period:</strong> 10 minutes maximum after start time</p>
               </div>
               <div style="text-align: center;">
-                <a href="${portalUrl}/consultations/${bookingId}" style="${buttonStyles}">Enter Consultation Room</a>
+                <a href="${joinUrl || `${portalUrl}/consultations/${bookingId}`}" style="${buttonStyles}">Enter Consultation Room</a>
               </div>
               ${footerHtml}
             </div>
