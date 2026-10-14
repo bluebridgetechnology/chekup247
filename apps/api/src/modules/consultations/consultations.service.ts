@@ -9,10 +9,12 @@ import {
   Inject,
   forwardRef,
   Optional,
+  OnModuleInit,
+  OnModuleDestroy,
 } from '@nestjs/common';
 import { NotificationsService } from '../notifications/notifications.service';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, In } from 'typeorm';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { QUEUES } from '../queues/queue.constants';
@@ -38,8 +40,9 @@ import { PaystackService } from '../payments/paystack.service';
 import { PatientDemoSeederService } from './patient-demo-seeder.service';
 
 @Injectable()
-export class ConsultationsService {
+export class ConsultationsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ConsultationsService.name);
+  private overdueTimer: NodeJS.Timeout | null = null;
 
   constructor(
     @InjectRepository(Consultation, 'patient')
@@ -78,6 +81,96 @@ export class ConsultationsService {
     @InjectRepository(PlatformSetting, 'operational')
     private readonly platformSettingRepository?: Repository<PlatformSetting>,
   ) {}
+
+  /** Closes out consultations nobody ended (see finalizeOverdueConsultations) every few minutes. */
+  onModuleInit() {
+    if (process.env.NODE_ENV === 'test' || process.env.DISABLE_RECONCILE_TIMER === 'true') return;
+    this.overdueTimer = setInterval(() => {
+      this.finalizeOverdueConsultations().catch((err: any) =>
+        this.logger.warn(`Overdue consultation sweep failed: ${err?.message}`),
+      );
+    }, 5 * 60 * 1000);
+    this.overdueTimer.unref?.();
+  }
+
+  onModuleDestroy() {
+    if (this.overdueTimer) clearInterval(this.overdueTimer);
+  }
+
+  /**
+   * Confirmed bookings whose time (plus paid extensions and the rejoin grace) is over must not
+   * stay "upcoming" forever just because nobody pressed End:
+   *  - a consultation that was held (started, never ended) is completed exactly as if the doctor ended it;
+   *  - one that never started is handed to the existing no-show job (grace, refund rules).
+   * Only recent bookings are touched so legacy rows are never mass-processed.
+   */
+  async finalizeOverdueConsultations(): Promise<{ completed: number; noShows: number }> {
+    const now = Date.now();
+    const lookbackMs = 7 * 24 * 60 * 60 * 1000;
+    const noShowLookbackMs = 24 * 60 * 60 * 1000;
+    const bookings = await this.bookingRepository.find({
+      where: { status: BookingStatus.CONFIRMED },
+      take: 200,
+    });
+    const slotIds = bookings.map((b) => b.slot_id).filter(Boolean) as string[];
+    if (slotIds.length === 0) return { completed: 0, noShows: 0 };
+    const slots = await this.slotRepository.find({ where: { id: In(slotIds) } });
+    const slotById = new Map(slots.map((sl) => [sl.id, sl]));
+
+    let graceMinutes = resolveJoinGraceMinutes(undefined);
+    try {
+      const settings = await this.platformSettingRepository?.findOne({ where: {} });
+      graceMinutes = resolveJoinGraceMinutes(settings?.join_grace_minutes);
+    } catch {
+      // keep the default
+    }
+
+    let completed = 0;
+    let noShows = 0;
+    for (const booking of bookings) {
+      const slot = booking.slot_id ? slotById.get(booking.slot_id) : undefined;
+      if (!slot) continue;
+      const consultation = await this.consultationRepository.findOne({ where: { booking_id: booking.id } });
+      const extras = consultation
+        ? await this.extensionRepository.find({
+            where: { consultation_id: consultation.id, status: ExtensionStatus.PAID },
+          })
+        : [];
+      const { closesAt } = patientJoinWindow(
+        slot.start_time,
+        slot.end_time,
+        extras.reduce((sum, e) => sum + e.duration_minutes, 0),
+        graceMinutes,
+        true,
+      );
+      // 15 minute margin so a doctor wrapping up a call is never cut off by the sweep
+      const overdueAt = closesAt.getTime() + 15 * 60 * 1000;
+      if (now < overdueAt) continue;
+
+      try {
+        if (consultation?.started_at) {
+          if (now - new Date(slot.end_time).getTime() > lookbackMs) continue;
+          // Reuse the normal completion path (status, room cleanup, earnings + review notifications)
+          await this.endConsultation(booking.id, booking.doctor_id);
+          completed++;
+        } else {
+          if (now - new Date(slot.end_time).getTime() > noShowLookbackMs) continue;
+          await this.noShowQueue.add(
+            'check-no-show',
+            { bookingId: booking.id },
+            { jobId: `no-show-sweep-${booking.id}`, removeOnComplete: true },
+          );
+          noShows++;
+        }
+      } catch (err: any) {
+        this.logger.warn(`Could not finalize overdue booking ${booking.id}: ${err?.message}`);
+      }
+    }
+    if (completed || noShows) {
+      this.logger.log(`Overdue sweep: completed ${completed}, queued ${noShows} for no-show review`);
+    }
+    return { completed, noShows };
+  }
 
   /**
    * Retrieves consultation by booking ID.
@@ -120,6 +213,15 @@ export class ConsultationsService {
         slotStartTime = new Date(slot.start_time);
         slotEndTime = new Date(slot.end_time);
       }
+    }
+
+    // Daily rejects a room whose expiry is already in the past, so a time that is over gets a clear
+    // answer instead of a vague "room could not be created".
+    if (slotEndTime.getTime() + 15 * 60 * 1000 <= Date.now()) {
+      throw new BadRequestException({
+        message: 'The time for this appointment has passed, so a video room can no longer be opened.',
+        code: 'EXPIRED',
+      });
     }
 
     // Create Daily.co private room with slot end + 15 min buffer.
@@ -228,6 +330,19 @@ export class ConsultationsService {
     // (plus paid extensions) is over, because the doctor is no longer there after that.
     if (!isDoctor) {
       await this.assertPatientMayJoinNow(consultation);
+    } else if (!consultation.started_at) {
+      // The doctor may carry on a call that is under way, but a consultation that never started and
+      // whose time is over has no live Daily room left (it expired), so say so plainly.
+      const bookingForSlot = consultation.booking;
+      const slot = bookingForSlot?.slot_id
+        ? await this.slotRepository.findOne({ where: { id: bookingForSlot.slot_id } })
+        : null;
+      if (slot && new Date(slot.end_time).getTime() + 15 * 60 * 1000 <= Date.now()) {
+        throw new BadRequestException({
+          message: 'The time for this appointment has passed, so the room is closed.',
+          code: 'EXPIRED',
+        });
+      }
     }
     let isFirst = false;
 

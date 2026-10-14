@@ -226,6 +226,8 @@ export default function DoctorConsultationWorkspace() {
   const [isPatientVideoActive, setIsPatientVideoActive] = useState<boolean>(false);
   const [callError, setCallError] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Set when the appointment time is simply over (nothing to retry) so we show a calm "ended" screen
+  const [loadErrorExpired, setLoadErrorExpired] = useState<boolean>(false);
   // True once a Daily track is actually attached to the <video> element.
   // (Reading ref.current.srcObject during render is unreliable — it doesn't
   // trigger re-renders — so track attachment is mirrored in state.)
@@ -594,6 +596,7 @@ export default function DoctorConsultationWorkspace() {
         if (!res.ok) {
           const errData = await res.json().catch(() => null);
           if (isMounted) {
+            if (errData?.code === 'EXPIRED') setLoadErrorExpired(true);
             setLoadError(
               errData?.message ||
                 'Unable to load this consultation. It may have been cancelled or the room is not provisioned yet.',
@@ -1288,35 +1291,37 @@ export default function DoctorConsultationWorkspace() {
             margin: 0,
           }}
         >
-          Couldn&apos;t open the consultation room
+          {loadErrorExpired ? 'This appointment has ended' : 'Couldn\u2019t open the consultation room'}
         </h2>
         <p style={{ color: '#D5C7B8', fontSize: '0.95rem', maxWidth: '480px', lineHeight: 1.5, margin: 0 }}>
           {loadError}
         </p>
         <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-          <button
-            onClick={() => window.location.reload()}
-            style={{
-              padding: '10px 22px',
-              borderRadius: '9999px',
-              backgroundColor: '#DFAB62',
-              border: 'none',
-              color: '#2A170F',
-              fontWeight: 700,
-              fontSize: '0.875rem',
-              cursor: 'pointer',
-            }}
-          >
-            Retry
-          </button>
+          {!loadErrorExpired && (
+            <button
+              onClick={() => window.location.reload()}
+              style={{
+                padding: '10px 22px',
+                borderRadius: '9999px',
+                backgroundColor: '#DFAB62',
+                border: 'none',
+                color: '#2A170F',
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                cursor: 'pointer',
+              }}
+            >
+              Retry
+            </button>
+          )}
           <Link
             href="/appointments"
             style={{
               padding: '10px 22px',
               borderRadius: '9999px',
-              backgroundColor: 'transparent',
-              border: '1.5px solid rgba(223, 171, 98, 0.5)',
-              color: '#FAF6EE',
+              backgroundColor: loadErrorExpired ? '#DFAB62' : 'transparent',
+              border: loadErrorExpired ? 'none' : '1.5px solid rgba(223, 171, 98, 0.5)',
+              color: loadErrorExpired ? '#2A170F' : '#FAF6EE',
               fontWeight: 600,
               fontSize: '0.875rem',
               textDecoration: 'none',
