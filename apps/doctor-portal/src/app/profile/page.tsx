@@ -46,6 +46,147 @@ interface UploadedDocument {
   status: 'verified' | 'pending' | 'rejected';
 }
 
+
+/**
+ * Compact multi-select: one field that shows a summary ("3 selected"), with the choices in a
+ * bottom sheet on phones / dropdown on larger screens. Replaces long walls of pills.
+ */
+function MultiSelect({
+  id,
+  options,
+  selected,
+  onToggle,
+  placeholder,
+  title,
+  onAddCustom,
+  customPlaceholder,
+}: {
+  id: string;
+  options: string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+  placeholder: string;
+  title: string;
+  onAddCustom?: (value: string) => void;
+  customPlaceholder?: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [custom, setCustom] = useState('');
+  const wrapRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onDown);
+    };
+  }, [open]);
+
+  const summary =
+    selected.length === 0
+      ? placeholder
+      : selected.length <= 2
+        ? selected.join(', ')
+        : `${selected.length} selected`;
+
+  const addCustom = () => {
+    const v = custom.trim();
+    if (!v || !onAddCustom) return;
+    onAddCustom(v);
+    setCustom('');
+  };
+
+  return (
+    <div className="pf-ms" ref={wrapRef}>
+      <button
+        type="button"
+        id={id}
+        className="pf-select pf-ms-trigger"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className={selected.length === 0 ? 'pf-ms-placeholder' : 'pf-ms-summary'}>{summary}</span>
+        {selected.length > 2 && <span className="pf-ms-count">{selected.length}</span>}
+        <SolarIcon name="alt-arrow-down-linear" size={16} color="var(--color-chocolate-base)" />
+      </button>
+
+      {selected.length > 0 && (
+        <div className="pf-ms-tags" aria-label="Selected">
+          {selected.map((v) => (
+            <button key={v} type="button" className="pf-ms-tag" onClick={() => onToggle(v)} aria-label={`Remove ${v}`}>
+              <span>{v}</span>
+              <SolarIcon name="close-circle-linear" size={14} color="var(--color-gold-bronze)" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      {open && (
+        <>
+          <div className="pf-ms-backdrop" onClick={() => setOpen(false)} aria-hidden="true" />
+          <div className="pf-ms-panel" role="dialog" aria-label={title}>
+            <div className="pf-ms-panel-head">
+              <strong>{title}</strong>
+              <span>{selected.length} selected</span>
+            </div>
+            <div className="pf-ms-list" role="listbox" aria-multiselectable="true">
+              {options.map((opt) => {
+                const on = selected.includes(opt);
+                return (
+                  <button
+                    key={opt}
+                    type="button"
+                    role="option"
+                    aria-selected={on}
+                    className={`pf-ms-opt${on ? ' is-on' : ''}`}
+                    onClick={() => onToggle(opt)}
+                  >
+                    <span className="pf-ms-box" aria-hidden="true">
+                      {on && <SolarIcon name="check-circle-bold" size={18} color="var(--color-chocolate-base)" />}
+                    </span>
+                    <span>{opt}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {onAddCustom && (
+              <div className="pf-ms-add">
+                <input
+                  className="pf-input"
+                  type="text"
+                  value={custom}
+                  onChange={(e) => setCustom(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      addCustom();
+                    }
+                  }}
+                  placeholder={customPlaceholder || 'Add your own…'}
+                  aria-label={customPlaceholder || 'Add your own'}
+                />
+                <button type="button" className="pf-btn" onClick={addCustom}>Add</button>
+              </div>
+            )}
+            <button type="button" className="btn-primary pf-ms-done" onClick={() => setOpen(false)}>
+              Done
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function DoctorProfilePage() {
   const router = useRouter();
   const { doctor, profile, isAuthenticated, isLoading, updateProfile, toggleHolidayMode } = useDoctorAuth();
@@ -742,40 +883,28 @@ export default function DoctorProfilePage() {
               </div>
             </div>
             <div className="pf-field">
-              <span className="pf-label">Additional specialties</span>
-              <div className="pf-chips">
-                {AVAILABLE_SPECIALTIES.filter((s) => s !== specialty).map((spec) => (
-                  <button key={spec} type="button" className="pf-chip" aria-pressed={secondarySpecialties.includes(spec)} onClick={() => toggleSecondarySpecialty(spec)}>
-                    {spec}
-                  </button>
-                ))}
-              </div>
+              <label className="pf-label" htmlFor="pf-secondary">Additional specialties</label>
+              <MultiSelect
+                id="pf-secondary"
+                title="Additional specialties"
+                placeholder="Select specialties"
+                options={AVAILABLE_SPECIALTIES.filter((sp) => sp !== specialty)}
+                selected={secondarySpecialties}
+                onToggle={toggleSecondarySpecialty}
+              />
             </div>
             <div className="pf-field">
-              <span className="pf-label">Areas of expertise</span>
-              <div className="pf-chips">
-                {[...PRESET_EXPERTISE_OPTIONS, ...selectedExpertise.filter((t) => !PRESET_EXPERTISE_OPTIONS.includes(t))].map((tag) => (
-                  <button key={tag} type="button" className="pf-chip" aria-pressed={selectedExpertise.includes(tag)} onClick={() => toggleExpertise(tag)}>
-                    {tag}
-                  </button>
-                ))}
-              </div>
-              <div className="pf-inline-add">
-                <input
-                  className="pf-input"
-                  type="text"
-                  value={customExpertiseInput}
-                  onChange={(e) => setCustomExpertiseInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddCustomExpertise(e as unknown as React.FormEvent);
-                  }}
-                  placeholder="Add your own…"
-                  aria-label="Add a custom area of expertise"
-                />
-                <button type="button" className="pf-btn" onClick={(e) => handleAddCustomExpertise(e as unknown as React.FormEvent)}>
-                  Add
-                </button>
-              </div>
+              <label className="pf-label" htmlFor="pf-expertise">Areas of expertise</label>
+              <MultiSelect
+                id="pf-expertise"
+                title="Areas of expertise"
+                placeholder="Select areas of expertise"
+                options={[...PRESET_EXPERTISE_OPTIONS, ...selectedExpertise.filter((t) => !PRESET_EXPERTISE_OPTIONS.includes(t))]}
+                selected={selectedExpertise}
+                onToggle={toggleExpertise}
+                onAddCustom={(v) => setSelectedExpertise((prev) => (prev.includes(v) ? prev : [...prev, v]))}
+                customPlaceholder="Add your own area…"
+              />
             </div>
           </section>
         </div>

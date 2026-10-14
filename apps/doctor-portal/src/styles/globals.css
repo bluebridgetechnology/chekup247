@@ -3121,3 +3121,34 @@ a {
     white-space: nowrap !important;
   }
 }
+
+
+/* ==========================================================================
+   Availability: pill on desktop; on phones it moves into the profile menu
+   and shows as a small status dot on the avatar.
+   ========================================================================== */
+.doctor-avatar-status {
+  display: none;
+  position: absolute;
+  left: 30px;
+  bottom: 2px;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  border: 2px solid var(--color-cream-surface, #fdfbf7);
+  box-sizing: content-box;
+}
+.doctor-menu-availability {
+  display: none;
+}
+@media (max-width: 640px) {
+  .doctor-status-wrap {
+    display: none !important;
+  }
+  .doctor-avatar-status {
+    display: block;
+  }
+  .doctor-menu-availability {
+    display: block;
+  }
+}
