@@ -43,6 +43,8 @@ interface AuthContextType {
   verifyOtp: (email: string, otp: string) => Promise<any>;
   resendOtp: (email: string) => Promise<any>;
   expressPatient: (data: { full_name: string; email: string; phone: string }) => Promise<any>;
+  /** Start a session from an emailed join link (guest session limited to one booking). */
+  startGuestSession: (accessToken: string, user: UserProfile) => void;
 
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
@@ -180,6 +182,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return data;
   };
 
+  const startGuestSession = (accessToken: string, guestUser: UserProfile) => {
+    localStorage.setItem('chekup_token', accessToken);
+    setToken(accessToken);
+    setUser(guestUser);
+  };
+
   const verifyOtp = async (email: string, otp: string) => {
     const res = await fetch(`${API_BASE}/auth/verify-otp`, {
       method: 'POST',
@@ -311,6 +319,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verifyOtp,
         resendOtp,
         expressPatient,
+        startGuestSession,
         logout,
         refreshUser,
         updateProfile,

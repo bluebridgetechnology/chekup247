@@ -13,8 +13,10 @@ import {
 import {
   NotificationPreference,
   User,
+  UserRole,
   PushSubscription,
 } from '../../database/operational/entities';
+import { buildJoinUrl } from '../../common/utils/join-link';
 import { envConfig } from '../../config/env.config';
 import { BrevoEmailProvider } from './providers/brevo.provider';
 import { SmsProvider } from './providers/sms.provider';
@@ -30,6 +32,15 @@ export interface DispatchNotificationOptions {
   deepLink?: string;
   forceChannels?: string[];
 }
+
+/** Booking emails/SMS to patients that carry the one-tap join link. */
+const JOIN_LINK_TEMPLATES = new Set([
+  'booking_confirmed',
+  'appointment_reminder_24h',
+  'appointment_reminder_1h',
+  'appointment_reminder_15m',
+  'doctor_joined_room',
+]);
 
 @Injectable()
 export class NotificationsService {
@@ -129,6 +140,13 @@ export class NotificationsService {
     const user = await this.userRepository.findOne({ where: { id: recipientId } });
     const pref = await this.getUserPreferences(recipientId);
 
+    // Patient emails/SMS for a booking carry a one-tap "join your consultation" link (no login or
+    // code). The token is only used for delivery: it is not stored in the notification records.
+    const deliveryPayload: Record<string, any> =
+      user?.role === UserRole.PATIENT && payload?.bookingId && JOIN_LINK_TEMPLATES.has(templateId)
+        ? { ...payload, joinUrl: buildJoinUrl(payload.bookingId, recipientId) }
+        : payload;
+
     const activeChannels = forceChannels || pref.channels || ['email', 'whatsapp'];
     const channelsDispatched: string[] = [];
 
@@ -163,7 +181,7 @@ export class NotificationsService {
             subject: title,
             templateId,
             templateParams: {
-              ...payload,
+              ...deliveryPayload,
               patientName: user.full_name,
             },
           });
@@ -189,7 +207,7 @@ export class NotificationsService {
 
       if (ch === 'sms' && user?.phone) {
         try {
-          const smsText = this.renderSmsMessage(templateId, payload, title);
+          const smsText = this.renderSmsMessage(templateId, deliveryPayload, title);
           const smsRes = await this.smsProvider.sendSms({
             to: user.phone,
             message: smsText,
@@ -412,7 +430,7 @@ export class NotificationsService {
         return `ChekUp247: Your clinical verification code is ${payload.otp || '000000'}. Valid for 15 mins. Do not share this code.`;
 
       case 'booking_confirmed':
-        return `ChekUp247: Consultation with Dr. ${docName} confirmed for ${appDate}${appTime ? ' at ' + appTime : ''}. Details: ${portalUrl}/bookings/${bookingId}`;
+        return `ChekUp247: Consultation with Dr. ${docName} confirmed for ${appDate}${appTime ? ' at ' + appTime : ''}. Join: ${payload.joinUrl || `${portalUrl}/bookings/${bookingId}`}`;
 
       case 'doctor_application_received':
         return `ChekUp247: Dr. ${docName}, your practitioner onboarding application (HPCSA ${payload.hpcsaNumber || 'Submitted'}) has been received and is under clinical review.`;
@@ -421,7 +439,7 @@ export class NotificationsService {
         return `ChekUp247: Congratulations Dr. ${docName}! Your practitioner account is verified and approved. Set your schedule: ${portalUrl}/calendar`;
 
       case 'new_booking_doctor':
-        return `ChekUp247: New booking with ${patientName} on ${appDate} at ${appTime} (SAST). View details: ${portalUrl}/doctor/consultations/${bookingId}`;
+        return `ChekUp247: New booking with ${patientName} on ${appDate} at ${appTime} (SAST). View details: ${envConfig.DOCTOR_PORTAL_URL.replace(/\/+$/, '')}/consultations/${bookingId}`;
 
       case 'doctor_joined_room':
         return `ChekUp247: Dr. ${docName} is waiting in your video consultation room. Join now: ${portalUrl}/consultations/${bookingId}`;

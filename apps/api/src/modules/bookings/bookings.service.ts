@@ -42,6 +42,9 @@ import {
   resolveSlotHoldMinutes,
 } from './booking.constants';
 import { randomBytes } from 'crypto';
+import { TokenService } from '../auth/token.service';
+import { GUEST_SCOPE } from '../../common/guards/guest-scope';
+import { JOIN_CLOSES_AFTER_MS, JOIN_OPENS_BEFORE_MS, verifyJoinLinkToken } from '../../common/utils/join-link';
 
 export interface CreateBookingDto {
   slotId: string;
@@ -112,6 +115,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
     private readonly paymentsService: PaymentsService,
     @InjectQueue(QUEUES.BOOKING_DLQ)
     private readonly dlqQueue: Queue,
+    private readonly tokenService: TokenService,
     @Optional()
     private readonly notificationsService?: NotificationsService,
     @Optional()
@@ -232,6 +236,74 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
       .where('id = :slotId AND hold_token = :token', { slotId, token })
       .execute();
     return { released: (result.affected ?? 0) > 0 };
+  }
+
+  /**
+   * Exchanges the "Join your consultation" link from a patient's email for a guest session limited to
+   * that one booking (no account, password or code). The link token only names a booking and patient;
+   * whether joining is allowed right now is decided here.
+   */
+  async exchangeJoinLink(token: string) {
+    const link = typeof token === 'string' ? verifyJoinLinkToken(token) : null;
+    if (!link) {
+      throw new BadRequestException('This link is invalid or has expired. Please use the latest email we sent you.');
+    }
+
+    const booking = await this.bookingRepository.findOne({ where: { id: link.bookingId } });
+    if (!booking || booking.patient_id !== link.patientId) {
+      throw new NotFoundException('We could not find this booking.');
+    }
+    if (booking.status === BookingStatus.CANCELLED) {
+      throw new BadRequestException('This booking was cancelled.');
+    }
+    if (booking.status === BookingStatus.PENDING) {
+      throw new BadRequestException('This booking has not been paid yet, so there is no consultation to join.');
+    }
+
+    const slot = await this.slotRepository.findOne({ where: { id: booking.slot_id } });
+    const now = Date.now();
+    if (slot) {
+      const start = new Date(slot.start_time).getTime();
+      const end = new Date(slot.end_time).getTime();
+      if (now < start - JOIN_OPENS_BEFORE_MS) {
+        throw new BadRequestException({
+          message: 'Your consultation is not open yet. This link works from 1 hour before your start time.',
+          code: 'TOO_EARLY',
+          opensAt: new Date(start - JOIN_OPENS_BEFORE_MS).toISOString(),
+          startsAt: new Date(start).toISOString(),
+        });
+      }
+      if (now > end + JOIN_CLOSES_AFTER_MS) {
+        throw new BadRequestException({
+          message: 'This consultation window has passed.',
+          code: 'EXPIRED',
+        });
+      }
+    }
+
+    const user = await this.userRepository.findOne({ where: { id: booking.patient_id } });
+    if (!user) throw new NotFoundException('We could not find this booking.');
+
+    const accessToken = this.tokenService.generateAccessToken(
+      { sub: user.id, email: user.email, role: user.role, fullName: user.full_name, scope: GUEST_SCOPE, bid: booking.id },
+      { expiresIn: '6h' },
+    );
+
+    return {
+      accessToken,
+      bookingId: booking.id,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.full_name,
+        role: user.role,
+        status: user.status,
+        phone: user.phone,
+        isEmailVerified: user.is_email_verified,
+        avatarUrl: user.avatar_url,
+        dateOfBirth: user.date_of_birth,
+      },
+    };
   }
 
   /**

@@ -22,6 +22,7 @@ import {
 } from '../../database/operational/entities';
 import { PatientMedicalProfile } from '../../database/patient/entities';
 import { TokenService } from './token.service';
+import { GUEST_SCOPE } from '../../common/guards/guest-scope';
 import { TotpService } from './totp.service';
 import {
   RegisterPatientDto,
@@ -272,6 +273,13 @@ export class AuthService implements OnModuleInit {
 
       this.logger.log(`Express patient auto-provisioned: ${user.email}`);
     } else {
+      // Express booking must never hand out a session for an arbitrary existing account.
+      // Only patient accounts can be booked under; anything else must use its own login.
+      if (user.role !== UserRole.PATIENT || user.status !== UserStatus.ACTIVE) {
+        throw new ConflictException(
+          'This email belongs to an account that cannot book through Quick Book. Please use a different email address.',
+        );
+      }
       // If user exists, update phone or full_name if empty
       let shouldUpdate = false;
       if (!user.phone && dto.phone) {
@@ -288,12 +296,18 @@ export class AuthService implements OnModuleInit {
       this.logger.log(`Express booking linked for existing patient: ${user.email}`);
     }
 
-    const accessToken = this.tokenService.generateAccessToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      fullName: user.full_name,
-    });
+    // Express sessions come without a password, so they are "guest" sessions: they can book, pay,
+    // and join that booking's consultation, but cannot reach the rest of the account (see guest-scope.ts).
+    const accessToken = this.tokenService.generateAccessToken(
+      {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        fullName: user.full_name,
+        scope: GUEST_SCOPE,
+      },
+      { expiresIn: '24h' },
+    );
 
     return {
       accessToken,

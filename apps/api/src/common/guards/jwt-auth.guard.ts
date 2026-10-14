@@ -3,10 +3,12 @@ import {
   CanActivate,
   ExecutionContext,
   UnauthorizedException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { TokenService, JwtPayload } from '../../modules/auth/token.service';
 import { IS_PUBLIC_KEY } from '../decorators/auth.decorators';
+import { GUEST_SCOPE, guestMayAccess } from './guest-scope';
 
 @Injectable()
 export class JwtAuthGuard implements CanActivate {
@@ -34,9 +36,15 @@ export class JwtAuthGuard implements CanActivate {
 
     try {
       const payload: JwtPayload = this.tokenService.verifyAccessToken(token);
+      if (payload.scope === GUEST_SCOPE && !guestMayAccess(request.method, request.originalUrl || request.url, payload.bid)) {
+        throw new ForbiddenException(
+          'This session only covers your booking and consultation. Please log in to access this.',
+        );
+      }
       request.user = { ...payload, id: (payload as any).id || payload.sub };
       return true;
     } catch (err: any) {
+      if (err instanceof ForbiddenException) throw err;
       throw new UnauthorizedException(
         err.message || 'Invalid or expired authentication credentials',
       );

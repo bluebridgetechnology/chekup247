@@ -413,7 +413,7 @@ export class ConsultationsService {
                 amount: netAmount,
                 message: `R${netAmount} net earnings credited to your wallet for consultation #${booking.id}.`,
               },
-              deepLink: `/doctor/wallet`,
+              deepLink: `/earnings`,
             })
             .catch(() => {});
         })

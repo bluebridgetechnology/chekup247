@@ -609,7 +609,7 @@ export class PaymentsService {
             clinicalReason: booking.notes || 'General Telehealth Consultation',
             message: `New booking with ${patientName} on ${formattedDate} at ${formattedTime}.`,
           },
-          deepLink: `/doctor/consultations/${booking.id}`,
+          deepLink: `/consultations/${booking.id}`,
         });
       }
     } catch (err: any) {

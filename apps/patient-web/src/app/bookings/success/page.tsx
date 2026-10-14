@@ -161,7 +161,7 @@ function PlatformLogo() {
 function SuccessContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const { token, user, verifyOtp, resendOtp, refreshUser } = useAuth();
+  const { token, user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const bookingIdParam = searchParams.get('bookingId');
@@ -170,15 +170,6 @@ function SuccessContent() {
   const [booking, setBooking] = useState<BookingSuccessData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isVerifying, setIsVerifying] = useState<boolean>(false);
-
-  // Clinical OTP Verification State
-  const [otpValues, setOtpValues] = useState<string[]>(['', '', '', '', '', '']);
-  const [isVerifyingOtp, setIsVerifyingOtp] = useState<boolean>(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpSuccessNotice, setOtpSuccessNotice] = useState<string | null>(null);
-  const [resendCountdown, setResendCountdown] = useState<number>(0);
-  const [isResendingOtp, setIsResendingOtp] = useState<boolean>(false);
-  const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   // Phase 2 Post-payment intake state
   const [patientNotes, setPatientNotes] = useState<string>('');
@@ -190,109 +181,6 @@ function SuccessContent() {
   const [intakeSavedNotice, setIntakeSavedNotice] = useState<string | null>(null);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
-
-  // Countdown timer for OTP resend
-  useEffect(() => {
-    if (resendCountdown <= 0) return;
-    const interval = setInterval(() => {
-      setResendCountdown((prev) => (prev > 0 ? prev - 1 : 0));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [resendCountdown]);
-
-  const handleOtpChange = (index: number, value: string) => {
-    const cleanValue = value.replace(/\D/g, '');
-    const updated = [...otpValues];
-
-    if (!cleanValue) {
-      updated[index] = '';
-      setOtpValues(updated);
-      return;
-    }
-
-    if (cleanValue.length > 1) {
-      const chars = cleanValue.slice(0, 6).split('');
-      chars.forEach((c, i) => {
-        if (index + i < 6) updated[index + i] = c;
-      });
-      setOtpValues(updated);
-      const nextIdx = Math.min(index + chars.length, 5);
-      otpInputRefs.current[nextIdx]?.focus();
-      return;
-    }
-
-    updated[index] = cleanValue;
-    setOtpValues(updated);
-
-    if (index < 5 && cleanValue) {
-      otpInputRefs.current[index + 1]?.focus();
-    }
-  };
-
-  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Backspace' && !otpValues[index] && index > 0) {
-      otpInputRefs.current[index - 1]?.focus();
-    }
-  };
-
-  const handleOtpPaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (!pasted) return;
-    const updated = [...otpValues];
-    pasted.split('').forEach((ch, idx) => {
-      if (idx < 6) updated[idx] = ch;
-    });
-    setOtpValues(updated);
-    const targetIdx = Math.min(pasted.length, 5);
-    otpInputRefs.current[targetIdx]?.focus();
-  };
-
-  const handleVerifyOtpSubmit = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const code = otpValues.join('');
-    if (code.length < 6) {
-      setOtpError('Please enter the complete 6-digit verification code.');
-      return;
-    }
-
-    const emailToVerify = user?.email || searchParams.get('email');
-    if (!emailToVerify) {
-      setOtpError('Could not identify your account email. Please refresh or check your session.');
-      return;
-    }
-
-    setIsVerifyingOtp(true);
-    setOtpError(null);
-
-    try {
-      await verifyOtp(emailToVerify, code);
-      setOtpSuccessNotice('Clinical identity confirmed! Video consultation room & digital prescriptions unlocked.');
-      if (refreshUser) await refreshUser();
-    } catch (err: any) {
-      setOtpError(err.message || 'Invalid or expired code. Please try again.');
-    } finally {
-      setIsVerifyingOtp(false);
-    }
-  };
-
-  const handleResendOtpClick = async () => {
-    const emailToVerify = user?.email || searchParams.get('email');
-    if (!emailToVerify) return;
-
-    setIsResendingOtp(true);
-    setOtpError(null);
-    try {
-      await resendOtp(emailToVerify);
-      setResendCountdown(60);
-      setOtpSuccessNotice('A fresh 6-digit code has been dispatched to your email and phone.');
-      setTimeout(() => setOtpSuccessNotice(null), 5000);
-    } catch (err: any) {
-      setOtpError(err.message || 'Failed to resend code. Please try again in a moment.');
-    } finally {
-      setIsResendingOtp(false);
-    }
-  };
 
   useEffect(() => {
     let isMounted = true;
@@ -1122,283 +1010,50 @@ function SuccessContent() {
               </div>
             </div>
 
-            {/* Clinical Clearance Banner or OTP Identity Gate */}
-            {user && !user.isEmailVerified && !otpSuccessNotice ? (
-              <div
-                id="clinical-verification-gate"
-                style={{
-                  background: 'var(--color-cream-base, #FAF6EE)',
-                  borderRadius: '16px',
-                  border: '1.5px solid var(--color-gold-border, rgba(223, 171, 98, 0.45))',
-                  padding: '20px 22px',
-                  textAlign: 'left',
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    flexWrap: 'wrap',
-                    gap: '10px',
-                    marginBottom: '8px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div
-                      style={{
-                        width: '34px',
-                        height: '34px',
-                        flexShrink: 0,
-                        borderRadius: '10px',
-                        background: 'rgba(223, 171, 98, 0.25)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Lock size={18} style={{ color: 'var(--color-gold-bronze, #B88647)' }} />
-                    </div>
-                    <div>
-                      <h3
-                        style={{
-                          margin: 0,
-                          fontSize: '1rem',
-                          fontWeight: 800,
-                          color: 'var(--color-chocolate-base, #2A170F)',
-                          fontFamily: 'var(--font-heading)',
-                        }}
-                      >
-                        Clinical Identity Verification Required
-                      </h3>
-                      <p
-                        style={{
-                          margin: 0,
-                          fontSize: '0.8rem',
-                          color: 'var(--color-cream-text-muted, #6B5E55)',
-                        }}
-                      >
-                        HPCSA Telehealth Gate • Step 1 of 2
-                      </p>
-                    </div>
-                  </div>
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      padding: '3px 8px',
-                      borderRadius: '9999px',
-                      background: 'rgba(217, 119, 6, 0.12)',
-                      color: '#b45309',
-                      border: '1px solid rgba(217, 119, 6, 0.25)',
-                    }}
-                  >
-                    <AlertCircle size={12} /> Action Required
-                  </span>
-                </div>
-
-                <p
-                  style={{
-                    color: 'var(--color-chocolate-base, #2A170F)',
-                    fontSize: '0.88rem',
-                    margin: '10px 0 16px',
-                    lineHeight: 1.45,
-                  }}
-                >
-                  Enter the 6-digit verification code sent to{' '}
-                  <strong>{user?.email || 'your email'}</strong> to unlock the room.
-                </p>
-
-                {otpError && (
-                  <div
-                    style={{
-                      background: '#fef2f2',
-                      border: '1px solid #fecaca',
-                      color: '#991b1b',
-                      padding: '10px 14px',
-                      borderRadius: '10px',
-                      marginBottom: '14px',
-                      fontSize: '0.85rem',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                    }}
-                  >
-                    <AlertCircle size={15} />
-                    <span>{otpError}</span>
-                  </div>
-                )}
-
-                <form onSubmit={handleVerifyOtpSubmit}>
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '8px',
-                      justifyContent: 'center',
-                      marginBottom: '16px',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    {otpValues.map((val, idx) => (
-                      <input
-                        key={idx}
-                        ref={(el) => {
-                          otpInputRefs.current[idx] = el;
-                        }}
-                        type="text"
-                        inputMode="numeric"
-                        pattern="[0-9]*"
-                        maxLength={1}
-                        value={val}
-                        onChange={(e) => handleOtpChange(idx, e.target.value)}
-                        onKeyDown={(e) => handleOtpKeyDown(idx, e)}
-                        onPaste={handleOtpPaste}
-                        style={{
-                          width: '46px',
-                          height: '52px',
-                          borderRadius: '10px',
-                          border:
-                            '2px solid ' +
-                            (val
-                              ? 'var(--color-gold-base, #DFAB62)'
-                              : 'rgba(42, 23, 15, 0.2)'),
-                          background: '#ffffff',
-                          textAlign: 'center',
-                          fontSize: '1.4rem',
-                          fontWeight: 800,
-                          fontFamily: 'monospace',
-                          color: 'var(--color-chocolate-base, #2A170F)',
-                          outline: 'none',
-                        }}
-                      />
-                    ))}
-                  </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '12px',
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={handleResendOtpClick}
-                      disabled={isResendingOtp || resendCountdown > 0}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color:
-                          resendCountdown > 0
-                            ? '#9ca3af'
-                            : 'var(--color-gold-bronze, #B88647)',
-                        fontWeight: 700,
-                        fontSize: '0.85rem',
-                        cursor: resendCountdown > 0 ? 'not-allowed' : 'pointer',
-                        padding: 0,
-                      }}
-                    >
-                      {isResendingOtp
-                        ? 'Sending new code...'
-                        : resendCountdown > 0
-                          ? `Resend code in ${resendCountdown}s`
-                          : 'Resend 6-Digit Code'}
-                    </button>
-
-                    <button
-                      type="submit"
-                      disabled={isVerifyingOtp || otpValues.join('').length < 6}
-                      style={{
-                        padding: '10px 20px',
-                        borderRadius: '10px',
-                        background: 'var(--color-chocolate-base, #2A170F)',
-                        color: 'var(--color-gold-pale, #F0E5D3)',
-                        fontWeight: 800,
-                        fontSize: '0.88rem',
-                        border: 'none',
-                        cursor:
-                          isVerifyingOtp || otpValues.join('').length < 6
-                            ? 'not-allowed'
-                            : 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                      }}
-                    >
-                      {isVerifyingOtp ? (
-                        <>
-                          <Loader2 size={15} className="animate-spin" />
-                          <span>Verifying...</span>
-                        </>
-                      ) : (
-                        <>
-                          <ShieldCheck size={16} />
-                          <span>Verify & Unlock</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            ) : (
-              /* Clinical Clearance Granted Banner */
+            {/* Join link notice: no code or password; the email has a Join button */}
+            <div
+              style={{
+                background: '#ECFDF5',
+                borderRadius: '14px',
+                border: '1px solid rgba(16, 185, 129, 0.25)',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+              }}
+            >
               <div
                 style={{
-                  background: '#ECFDF5',
-                  borderRadius: '14px',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
-                  padding: '14px 18px',
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '50%',
+                  background: '#10b981',
+                  color: '#ffffff',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '14px',
+                  justifyContent: 'center',
+                  flexShrink: 0,
                 }}
               >
+                <ShieldCheck size={20} />
+              </div>
+              <div>
                 <div
                   style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    background: '#10b981',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
+                    fontWeight: 800,
+                    color: '#065f46',
+                    fontSize: '0.88rem',
+                    fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
                   }}
                 >
-                  <ShieldCheck size={20} />
+                  Your join button is in your email
                 </div>
-                <div>
-                  <div
-                    style={{
-                      fontWeight: 800,
-                      color: '#065f46',
-                      fontSize: '0.88rem',
-                      fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                    }}
-                  >
-                    Clinical Clearance Granted • Account Verified
-                  </div>
-                  <div
-                    style={{
-                      color: '#047857',
-                      fontSize: '0.8rem',
-                      marginTop: '2px',
-                      lineHeight: 1.35,
-                    }}
-                  >
-                    {otpSuccessNotice ||
-                      'Your identity is confirmed. Encrypted video room & digital prescriptions unlocked.'}
-                  </div>
+                <div style={{ color: '#047857', fontSize: '0.8rem', marginTop: '2px', lineHeight: 1.35 }}>
+                  No code or password needed. When it&apos;s time, tap <strong>Join Your Consultation</strong> in the
+                  confirmation email. Can&apos;t see it? Check your junk or spam folder.
                 </div>
               </div>
-            )}
+            </div>
 
             {/* Bottom Actions Row */}
             <div
@@ -1434,38 +1089,6 @@ function SuccessContent() {
               </button>
 
               {/* Primary Action: Enter Waiting Room */}
-              {user && !user.isEmailVerified && !otpSuccessNotice ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const el = document.getElementById('clinical-verification-gate');
-                    if (el) el.scrollIntoView({ behavior: 'smooth' });
-                    otpInputRefs.current[0]?.focus();
-                  }}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    padding: '12px 24px',
-                    borderRadius: '12px',
-                    background: 'var(--color-chocolate-base, #2A170F)',
-                    color: '#FAF6EE',
-                    fontWeight: 700,
-                    fontFamily: 'var(--font-heading, "Outfit", sans-serif)',
-                    fontSize: '0.92rem',
-                    border: 'none',
-                    cursor: 'pointer',
-                    flex: '1 1 auto',
-                    boxShadow: '0 4px 14px rgba(42, 23, 15, 0.2)',
-                    transition: 'all 0.18s ease',
-                  }}
-                >
-                  <Lock size={17} />
-                  <span>Verify Code to Enter Room</span>
-                  <ArrowRight size={16} />
-                </button>
-              ) : (
                 <Link
                   href={`/consultations/${booking?.id || bookingIdParam}`}
                   style={{
@@ -1490,7 +1113,6 @@ function SuccessContent() {
                   <span>Enter Consultation Waiting Room</span>
                   <ArrowRight size={16} />
                 </Link>
-              )}
             </div>
           </div>
 
@@ -1582,7 +1204,7 @@ function SuccessContent() {
                   lineHeight: 1.4,
                 }}
               >
-                Your consultation details have been sent to your email and SMS.
+                Your consultation details and join button have been sent to your email.
               </p>
 
               {/* Status Checklist items */}
@@ -1622,45 +1244,6 @@ function SuccessContent() {
                       }}
                     >
                       Confirmation Email
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '0.72rem',
-                        color: 'var(--color-cream-text-muted, #6B5E55)',
-                      }}
-                    >
-                      Sent
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2. SMS Reminder */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div
-                    style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      background: 'var(--color-cream-base, #FAF6EE)',
-                      border: '1px solid rgba(223, 171, 98, 0.25)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#8E5A1C',
-                      flexShrink: 0,
-                    }}
-                  >
-                    <MessageSquare size={16} />
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: '0.82rem',
-                        fontWeight: 700,
-                        color: 'var(--color-chocolate-base, #2A170F)',
-                      }}
-                    >
-                      SMS Reminder
                     </div>
                     <div
                       style={{

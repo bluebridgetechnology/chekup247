@@ -5,6 +5,8 @@ import { Booking, BookingStatus, PaymentStatus, Payment } from '../../database/p
 import { AvailabilitySlot, DoctorProfile, User, PlatformSetting } from '../../database/operational/entities';
 import { PaymentsService } from '../payments/payments.service';
 import { getQueueToken } from '@nestjs/bullmq';
+import { TokenService } from '../auth/token.service';
+import { signJoinLinkToken } from '../../common/utils/join-link';
 import { QUEUES } from '../queues/queue.constants';
 
 describe('BookingsService (Saga & Cross-DB)', () => {
@@ -72,6 +74,10 @@ describe('BookingsService (Saga & Cross-DB)', () => {
     addWalletCredit: jest.fn().mockResolvedValue({ id: 'credit-1', amount: 700 }),
   };
 
+  const mockTokenService = {
+    generateAccessToken: jest.fn().mockReturnValue('guest-access-token'),
+  };
+
   const mockDlqQueue = {
     add: jest.fn().mockResolvedValue({ id: 'job-1' }),
     getWaiting: jest.fn().mockResolvedValue([]),
@@ -96,6 +102,7 @@ describe('BookingsService (Saga & Cross-DB)', () => {
         { provide: 'patientDataSource', useValue: mockPatientDataSource },
         { provide: PaymentsService, useValue: mockPaymentsService },
         { provide: getQueueToken(QUEUES.BOOKING_DLQ), useValue: mockDlqQueue },
+        { provide: TokenService, useValue: mockTokenService },
       ],
     }).compile();
 
@@ -561,6 +568,73 @@ describe('BookingsService (Saga & Cross-DB)', () => {
       await expect(service.createBookingSaga('patient-1', { slotId: 'slot-1' })).rejects.toThrow(
         'bookings close 15 minutes before the start',
       );
+    });
+  });
+
+  describe('exchangeJoinLink (emailed Join button)', () => {
+    const mkBooking = (over: any = {}) => ({
+      id: 'b1',
+      patient_id: 'p1',
+      slot_id: 'slot-1',
+      status: BookingStatus.CONFIRMED,
+      ...over,
+    });
+    const slotAt = (startMin: number, lenMin = 30) => ({
+      id: 'slot-1',
+      start_time: new Date(Date.now() + startMin * 60000),
+      end_time: new Date(Date.now() + (startMin + lenMin) * 60000),
+    });
+    const user = { id: 'p1', email: 'p@example.com', full_name: 'Pat', role: 'patient', status: 'active', phone: '1' };
+
+    beforeEach(() => {
+      mockUserRepository.findOne.mockResolvedValue(user);
+    });
+
+    it('returns a guest session bound to the booking when the window is open', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking());
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(20));
+      const res = await service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'));
+      expect(res.bookingId).toBe('b1');
+      expect(res.accessToken).toBe('guest-access-token');
+      expect(mockTokenService.generateAccessToken).toHaveBeenCalledWith(
+        expect.objectContaining({ sub: 'p1', scope: 'guest', bid: 'b1' }),
+        { expiresIn: '6h' },
+      );
+    });
+
+    it('still works while the consultation is running and shortly after', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking());
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(-20));
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).resolves.toBeDefined();
+    });
+
+    it('is not open more than an hour before the start (tells the patient when)', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking());
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(180));
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'TOO_EARLY' }),
+      });
+    });
+
+    it('closes long after the consultation', async () => {
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking());
+      mockSlotRepository.findOne.mockResolvedValue(slotAt(-24 * 60));
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toMatchObject({
+        response: expect.objectContaining({ code: 'EXPIRED' }),
+      });
+    });
+
+    it('rejects invalid tokens, other patients, cancelled and unpaid bookings', async () => {
+      await expect(service.exchangeJoinLink('garbage')).rejects.toThrow('invalid or has expired');
+
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking({ patient_id: 'someone-else' }));
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toThrow('could not find');
+
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking({ status: BookingStatus.CANCELLED }));
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toThrow('cancelled');
+
+      mockBookingRepository.findOne.mockResolvedValue(mkBooking({ status: BookingStatus.PENDING }));
+      await expect(service.exchangeJoinLink(signJoinLinkToken('b1', 'p1'))).rejects.toThrow('not been paid');
     });
   });
 

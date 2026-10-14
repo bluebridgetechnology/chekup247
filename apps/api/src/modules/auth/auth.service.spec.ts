@@ -323,4 +323,52 @@ describe('AuthService & LocumStaffSsoService', () => {
       expect(() => (ssoService as any).assertEligible(baseClaims)).not.toThrow();
     });
   });
+
+  describe('expressPatient (Quick Book)', () => {
+    const dto = { full_name: 'Test Patient', email: 'Patient@Example.com', phone: '+27821234567' };
+
+    it('provisions a new patient with a narrow guest session', async () => {
+      const res = await authService.expressPatient(dto);
+      expect(res.isNew).toBe(true);
+      const payload: any = tokenService.verifyAccessToken(res.accessToken);
+      expect(payload.scope).toBe('guest');
+      expect(payload.role).toBe(UserRole.PATIENT);
+    });
+
+    it('an existing patient gets a guest session too, never a full login', async () => {
+      mockUsers.push({
+        id: 'p1',
+        email: 'patient@example.com',
+        full_name: 'Existing Patient',
+        phone: '+27820000000',
+        role: UserRole.PATIENT,
+        status: UserStatus.ACTIVE,
+      });
+      const res = await authService.expressPatient(dto);
+      expect(res.isNew).toBe(false);
+      expect((tokenService.verifyAccessToken(res.accessToken) as any).scope).toBe('guest');
+    });
+
+    it.each([UserRole.DOCTOR, UserRole.ADMIN])('refuses to issue a session for an existing %s account', async (role) => {
+      mockUsers.push({
+        id: 'x1',
+        email: 'patient@example.com',
+        full_name: 'Someone',
+        role,
+        status: UserStatus.ACTIVE,
+      });
+      await expect(authService.expressPatient(dto)).rejects.toThrow(ConflictException);
+    });
+
+    it('refuses a suspended patient account', async () => {
+      mockUsers.push({
+        id: 'p2',
+        email: 'patient@example.com',
+        full_name: 'Suspended',
+        role: UserRole.PATIENT,
+        status: UserStatus.SUSPENDED,
+      });
+      await expect(authService.expressPatient(dto)).rejects.toThrow(ConflictException);
+    });
+  });
 });

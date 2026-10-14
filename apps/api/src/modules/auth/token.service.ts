@@ -10,6 +10,10 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   fullName: string;
+  /** 'guest' = a narrow session (see common/guards/guest-scope.ts). */
+  scope?: string;
+  /** For guest sessions from a join link: the one booking it is bound to. */
+  bid?: string;
   iat?: number;
   exp?: number;
 }
@@ -33,17 +37,19 @@ export class TokenService {
     return bcrypt.compare(password, hash);
   }
 
-  generateAccessToken(payload: Omit<JwtPayload, 'iat' | 'exp'>): string {
+  generateAccessToken(payload: Omit<JwtPayload, 'iat' | 'exp'>, options?: { expiresIn?: string }): string {
     return jwt.sign(
       {
         sub: payload.sub,
         email: payload.email,
         role: payload.role,
         fullName: payload.fullName,
+        ...(payload.scope ? { scope: payload.scope } : {}),
+        ...(payload.bid ? { bid: payload.bid } : {}),
       },
       this.jwtSecret,
       {
-        expiresIn: this.jwtExpiresIn as jwt.SignOptions['expiresIn'],
+        expiresIn: (options?.expiresIn || this.jwtExpiresIn) as jwt.SignOptions['expiresIn'],
       },
     );
   }

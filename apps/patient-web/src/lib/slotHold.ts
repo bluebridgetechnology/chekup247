@@ -52,6 +52,20 @@ export function holdQuery(): string {
   return h ? `?holdToken=${encodeURIComponent(h.token)}` : '';
 }
 
+/** Give a hold back (e.g. the booking could not continue). Best effort. */
+export async function releaseHold(apiBase: string, slotId: string): Promise<void> {
+  const h = readHold();
+  if (!h || h.slotId !== slotId) return;
+  clearHold();
+  try {
+    await fetch(`${apiBase}/bookings/holds/${encodeURIComponent(slotId)}?token=${encodeURIComponent(h.token)}`, {
+      method: 'DELETE',
+    });
+  } catch {
+    // it expires on its own
+  }
+}
+
 export type HoldResult =
   | { status: 'held'; hold: StoredHold; holdMinutes: number }
   | { status: 'rejected'; message: string }

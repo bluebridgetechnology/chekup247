@@ -7,6 +7,7 @@ import { ChekupCrossLogo } from '../../components/common/ChekupCrossLogo';
 import { SolarIcon } from '../../components/common/SolarIcon';
 import { useDoctorAuth } from '../../context/DoctorAuthContext';
 import { toastSuccess, toastError, errorMessage } from '../../lib/toast';
+import { consumeNext, rememberNext, sanitizeNext } from '../../lib/redirectAfterLogin';
 
 function DoctorLoginContent() {
   const router = useRouter();
@@ -23,6 +24,12 @@ function DoctorLoginContent() {
 
   const isDevLogin = searchParams?.get('dev_login') === 'true';
   const urlError = searchParams?.get('error');
+
+  // Remember where the doctor was heading (e.g. a booking opened from an email) so both password and
+  // LocumStaff sign-in can bring them straight back after login.
+  useEffect(() => {
+    rememberNext(sanitizeNext(searchParams?.get('next')));
+  }, [searchParams]);
 
   useEffect(() => {
     if (urlError) {
@@ -55,7 +62,8 @@ function DoctorLoginContent() {
     try {
       const session = await login(email.trim(), password);
       toastSuccess('Welcome back', 'Signed in to your practice portal.');
-      router.push(session?.user?.doctorProfile ? '/calendar' : '/onboard');
+      const wanted = sanitizeNext(searchParams?.get('next')) || consumeNext();
+      router.push(session?.user?.doctorProfile ? wanted || '/calendar' : '/onboard');
     } catch (err: any) {
       const msg = errorMessage(err, 'Invalid credentials or doctor access restricted');
       setError(msg);
