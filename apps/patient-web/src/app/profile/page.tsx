@@ -1,5 +1,6 @@
 'use client';
 
+import { PATIENT_LOGIN_PATH, SHOW_PATIENT_AUTH } from '../../lib/featureFlags';
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -40,7 +41,7 @@ export default function PatientProfilePage() {
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
-      router.push('/login?redirect=/appointments');
+      router.push(SHOW_PATIENT_AUTH ? '/login?redirect=/appointments' : PATIENT_LOGIN_PATH);
     }
   }, [isLoading, isAuthenticated, router]);
 

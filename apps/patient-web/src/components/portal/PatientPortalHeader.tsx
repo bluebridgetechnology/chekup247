@@ -1,5 +1,6 @@
 'use client';
 
+import { PATIENT_LOGIN_PATH, SHOW_PATIENT_AUTH } from '../../lib/featureFlags';
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -48,7 +49,7 @@ export function PatientPortalHeader({
   const handleSignOut = async () => {
     setDropdownOpen(false);
     await logout();
-    router.push('/login');
+    router.push(PATIENT_LOGIN_PATH);
   };
 
   return (
@@ -337,26 +338,28 @@ export function PatientPortalHeader({
               )}
             </div>
           ) : (
-            <Link
-              href="/login"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                backgroundColor: '#EDD5B3',
-                color: '#2A170F',
-                fontSize: '0.84rem',
-                fontWeight: 600,
-                padding: '8px 16px',
-                borderRadius: '20px',
-                textDecoration: 'none',
-                minHeight: '38px',
-                transition: 'background-color 0.15s ease',
-              }}
-            >
-              <SolarIcon name="user-linear" size={15} color="#2A170F" />
-              <span>Sign In</span>
-            </Link>
+SHOW_PATIENT_AUTH ? (
+              <Link
+                href="/login"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: '#EDD5B3',
+                  color: '#2A170F',
+                  fontSize: '0.84rem',
+                  fontWeight: 600,
+                  padding: '8px 16px',
+                  borderRadius: '20px',
+                  textDecoration: 'none',
+                  minHeight: '38px',
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                <SolarIcon name="user-linear" size={15} color="#2A170F" />
+                <span>Sign In</span>
+              </Link>
+            ) : null
           )}
         </div>
       </div>

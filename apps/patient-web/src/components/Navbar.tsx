@@ -8,7 +8,7 @@ import { MobileDrawer } from './MobileDrawer';
 import { useAuth } from '../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
 import { getDoctorRegisterUrl, getDoctorLoginUrl } from '../lib/urls';
-import { QUICK_BOOK_ONLY, SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
+import { QUICK_BOOK_ONLY, SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../lib/featureFlags';
 import { openQuickBook } from '../lib/quickBook';
 
 /**
@@ -305,7 +305,7 @@ export function Navbar() {
                     }}
                   >
                     <SolarIcon name="stethoscope-bold" size={16} color="var(--color-gold-bronze, #B88647)" />
-                    <span>Doctor sign in</span>
+                    <span>Doctor login</span>
                   </a>
                 </div>
               )}
@@ -507,9 +507,15 @@ export function Navbar() {
               <>
                 {/* Desktop: one quiet text link + one primary action */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }} className="desktop-login-group">
-                  <Link href="/login" className="nav-login-link">
-                    Patient login
-                  </Link>
+                  {SHOW_PATIENT_AUTH ? (
+                    <Link href="/login" className="nav-login-link">
+                      Patient login
+                    </Link>
+                  ) : (
+                    <a href={getDoctorLoginUrl()} className="nav-login-link">
+                      Doctor login
+                    </a>
+                  )}
                   {QUICK_BOOK_ONLY ? (
                     <button type="button" onClick={openQuickBook} className="nav-getstarted-btn" title="Book a consultation">
                       Get Started

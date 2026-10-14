@@ -1,6 +1,6 @@
 'use client';
 
-import { QUICK_BOOK_ONLY, SHOW_DOCTOR_DIRECTORY } from '../lib/featureFlags';
+import { QUICK_BOOK_ONLY, SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../lib/featureFlags';
 import { openQuickBook } from '../lib/quickBook';
 import React from 'react';
 import Link from 'next/link';
@@ -364,6 +364,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               </Link>
             </>
           ) : (
+            SHOW_PATIENT_AUTH ? (
             <>
               {/* Divider between navigation and role-based auth sections */}
               <div style={{ height: '1px', background: 'rgba(255, 255, 255, 0.08)', margin: '8px 0' }} />
@@ -409,6 +410,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
                 </Link>
               </div>
             </>
+            ) : null
           )}
 
           {/* Doctors' sign-in / sign-up: visitors only (signed-in patients don't need it) */}
@@ -458,7 +460,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               }}
             >
               <SolarIcon name="stethoscope-bold" size={15} color="var(--color-gold-base, #DFAB62)" />
-              <span>Doctor sign in</span>
+              <span>Doctor login</span>
             </a>
           </div>
             </>
@@ -494,6 +496,38 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               <span>Sign Out</span>
             </button>
           ) : (
+            QUICK_BOOK_ONLY ? (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                openQuickBook();
+              }}
+              style={{
+                width: '100%',
+                padding: '12px 18px',
+                borderRadius: '10px',
+                backgroundColor: 'var(--color-gold-base, #DFAB62)',
+                color: 'var(--color-chocolate-base, #2A170F)',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                textDecoration: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.25)',
+                transition: 'all 0.15s ease',
+              }}
+              title="Get Started"
+            >
+              <SolarIcon name="user-plus-bold" size={16} color="var(--color-chocolate-base, #2A170F)" />
+              <span>Get Started</span>
+            </button>
+            ) : (
             <Link
               href="/register"
               onClick={onClose}
@@ -518,6 +552,7 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
               <SolarIcon name="user-plus-bold" size={16} color="var(--color-chocolate-base, #2A170F)" />
               <span>Get Started</span>
             </Link>
+            )
           )}
         </div>
       </div>

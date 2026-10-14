@@ -32,7 +32,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { toastSuccess, toastError } from '../../../lib/toast';
 import { Breadcrumbs } from '../../../components/Breadcrumbs';
 import { formatClockTime, formatZoneAbbr } from '../../../lib/time';
-import { SHOW_DOCTOR_DIRECTORY } from '../../../lib/featureFlags';
+import { SHOW_DOCTOR_DIRECTORY, SHOW_PATIENT_AUTH } from '../../../lib/featureFlags';
 
 interface DoctorDetail {
   id: string;
@@ -1371,25 +1371,27 @@ function CheckoutContent() {
                           >
                             ⚡ Express Booking • No Sign-up Required
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setAuthModalTab('login');
-                              setShowAuthModal(true);
-                            }}
-                            style={{
-                              background: 'none',
-                              border: 'none',
-                              color: 'var(--color-gold-bronze, #B88647)',
-                              fontSize: '0.8rem',
-                              fontWeight: 700,
-                              cursor: 'pointer',
-                              textDecoration: 'underline',
-                              padding: 0,
-                            }}
-                          >
-                            Already have an account? Sign In
-                          </button>
+                          {SHOW_PATIENT_AUTH && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAuthModalTab('login');
+                                setShowAuthModal(true);
+                              }}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--color-gold-bronze, #B88647)',
+                                fontSize: '0.8rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                textDecoration: 'underline',
+                                padding: 0,
+                              }}
+                            >
+                              Already have an account? Sign In
+                            </button>
+                          )}
                         </div>
                       </div>
 
@@ -2372,84 +2374,86 @@ function CheckoutContent() {
             </div>
 
             {/* Auth Tab Switcher */}
-            <div
-              style={{
-                display: 'flex',
-                background: 'var(--color-cream-base, #FAF6EE)',
-                padding: '4px',
-                borderRadius: '12px',
-                marginBottom: '20px',
-                border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
-                gap: '4px',
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthModalTab('express');
-                  setAuthModalError(null);
-                }}
+            {SHOW_PATIENT_AUTH && (
+              <div
                 style={{
-                  flex: 1,
-                  padding: '9px 6px',
-                  borderRadius: '9px',
-                  border: 'none',
-                  fontSize: '0.82rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  background: authModalTab === 'express' ? 'var(--color-chocolate-base, #2A170F)' : 'transparent',
-                  color: authModalTab === 'express' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
+                  display: 'flex',
+                  background: 'var(--color-cream-base, #FAF6EE)',
+                  padding: '4px',
+                  borderRadius: '12px',
+                  marginBottom: '20px',
+                  border: '1px solid var(--color-gold-border, rgba(223, 171, 98, 0.25))',
+                  gap: '4px',
                 }}
               >
-                ⚡ Express
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthModalTab('login');
-                  setAuthModalError(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '9px 6px',
-                  borderRadius: '9px',
-                  border: 'none',
-                  fontSize: '0.82rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  background: authModalTab === 'login' ? 'var(--color-chocolate-base, #2A170F)' : 'transparent',
-                  color: authModalTab === 'login' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Sign In
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthModalTab('register');
-                  setAuthModalError(null);
-                }}
-                style={{
-                  flex: 1,
-                  padding: '9px 6px',
-                  borderRadius: '9px',
-                  border: 'none',
-                  fontSize: '0.82rem',
-                  fontWeight: 800,
-                  cursor: 'pointer',
-                  background: authModalTab === 'register' ? 'var(--color-chocolate-base, #2A170F)' : 'transparent',
-                  color: authModalTab === 'register' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
-                  transition: 'all 0.2s ease',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                Register
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalTab('express');
+                    setAuthModalError(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '9px 6px',
+                    borderRadius: '9px',
+                    border: 'none',
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    background: authModalTab === 'express' ? 'var(--color-chocolate-base, #2A170F)' : 'transparent',
+                    color: authModalTab === 'express' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  ⚡ Express
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalTab('login');
+                    setAuthModalError(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '9px 6px',
+                    borderRadius: '9px',
+                    border: 'none',
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    background: authModalTab === 'login' ? 'var(--color-chocolate-base, #2A170F)' : 'transparent',
+                    color: authModalTab === 'login' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthModalTab('register');
+                    setAuthModalError(null);
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '9px 6px',
+                    borderRadius: '9px',
+                    border: 'none',
+                    fontSize: '0.82rem',
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    background: authModalTab === 'register' ? 'var(--color-chocolate-base, #2A170F)' : 'transparent',
+                    color: authModalTab === 'register' ? '#ffffff' : 'var(--color-chocolate-base, #2A170F)',
+                    transition: 'all 0.2s ease',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Register
+                </button>
+              </div>
+            )}
 
             {/* Error in modal */}
             {authModalError && (

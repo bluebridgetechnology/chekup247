@@ -1,5 +1,6 @@
 'use client';
 
+import { PATIENT_LOGIN_PATH, SHOW_PATIENT_AUTH } from '../../lib/featureFlags';
 import React, { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
@@ -27,7 +28,9 @@ export function PatientPortalLayout({
   useEffect(() => {
     if (requireAuth && !isLoading && !isAuthenticated) {
       const redirectTarget = pathname || '/appointments';
-      router.push(`/login?redirect=${encodeURIComponent(redirectTarget)}`);
+      router.push(
+        SHOW_PATIENT_AUTH ? `/login?redirect=${encodeURIComponent(redirectTarget)}` : PATIENT_LOGIN_PATH,
+      );
     }
   }, [requireAuth, isLoading, isAuthenticated, router, pathname]);
 
