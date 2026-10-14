@@ -27,6 +27,10 @@ import { AddAdminSubRole1700000009000 } from './migrations/1700000010000-AddAdmi
 import { AddUserTotp1700000013000 } from './migrations/1700000014000-AddUserTotp';
 import { AddDoctorNameTitleColumns1700000014000 } from './migrations/1700000015000-AddDoctorNameTitleColumns';
 import { CreateNappiTables1700000016000 } from './migrations/1700000016000-CreateNappiTables';
+import { AddMinimumBillableMinutesToPlatformSettings1700000017000 } from './migrations/1700000017000-AddMinimumBillableMinutesToPlatformSettings';
+import { AddBookingLeadMinutesToPlatformSettings1700000018000 } from './migrations/1700000018000-AddBookingLeadMinutesToPlatformSettings';
+import { AddSlotHolds1700000019000 } from './migrations/1700000019000-AddSlotHolds';
+import { AddJoinGraceMinutes1700000020000 } from './migrations/1700000020000-AddJoinGraceMinutes';
 
 export const operationalEntities = [
   User,
@@ -68,6 +72,10 @@ export const getOperationalDbConfig = (): TypeOrmModuleOptions => ({
     AddUserTotp1700000013000,
     AddDoctorNameTitleColumns1700000014000,
     CreateNappiTables1700000016000,
+    AddMinimumBillableMinutesToPlatformSettings1700000017000,
+    AddBookingLeadMinutesToPlatformSettings1700000018000,
+    AddSlotHolds1700000019000,
+    AddJoinGraceMinutes1700000020000,
   ],
   migrationsRun: false,
   synchronize: envConfig.NODE_ENV !== 'production' || envConfig.DB_SYNCHRONIZE,

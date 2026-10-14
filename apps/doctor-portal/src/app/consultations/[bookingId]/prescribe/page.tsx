@@ -159,6 +159,26 @@ const cleanDoctorName = (name?: string) => {
   return name.startsWith('Dr.') || name.startsWith('Dr ') ? name : `Dr. ${name}`;
 };
 
+const FALLBACK_MEDS: MedicationResult[] = [
+            { name: 'Amoxicillin / Clavulanic Acid 1000mg', generic_name: 'Co-Amoxiclav', nappi_code: '706035001', schedule: 'S4', dosage_form: 'Tablet', strength: '1000mg', category: 'Antibiotic', is_controlled: false },
+            { name: 'Azithromycin 500mg', generic_name: 'Azithromycin', nappi_code: '705423001', schedule: 'S4', dosage_form: 'Film-coated tablet', strength: '500mg', category: 'Antibiotic', is_controlled: false },
+            { name: 'Paracetamol 500mg', generic_name: 'Acetaminophen', nappi_code: '754123001', schedule: 'S0', dosage_form: 'Tablet', strength: '500mg', category: 'Analgesic', is_controlled: false },
+            { name: 'Ibuprofen 400mg', generic_name: 'Ibuprofen', nappi_code: '732156001', schedule: 'S2', dosage_form: 'Tablet', strength: '400mg', category: 'NSAID', is_controlled: false },
+            { name: 'Salbutamol Inhaler 100mcg', generic_name: 'Salbutamol', nappi_code: '772189001', schedule: 'S2', dosage_form: 'Aerosol Inhalation', strength: '100mcg/dose', category: 'Bronchodilator', is_controlled: false },
+            { name: 'Amlodipine 5mg', generic_name: 'Amlodipine Besylate', nappi_code: '712490001', schedule: 'S3', dosage_form: 'Tablet', strength: '5mg', category: 'Antihypertensive', is_controlled: false },
+            { name: 'Metformin 850mg', generic_name: 'Metformin HCl', nappi_code: '741289001', schedule: 'S3', dosage_form: 'Tablet', strength: '850mg', category: 'Antidiabetic', is_controlled: false },
+            { name: 'Zolpidem Hemitartrate 10mg', generic_name: 'Zolpidem', nappi_code: '789123001', schedule: 'S5', dosage_form: 'Tablet', strength: '10mg', category: 'Hypnotic', is_controlled: true },
+            { name: 'Methylphenidate HCl 10mg', generic_name: 'Methylphenidate', nappi_code: '799456001', schedule: 'S6', dosage_form: 'Tablet', strength: '10mg', category: 'CNS Stimulant', is_controlled: true },
+          ];
+
+/** Common SA medicines used only when the medication search service can't be reached. */
+function filterFallbackMeds(q: string): MedicationResult[] {
+  const v = q.trim().toLowerCase();
+  return FALLBACK_MEDS.filter(
+    (m) => m.name.toLowerCase().includes(v) || m.generic_name.toLowerCase().includes(v) || m.nappi_code.includes(v),
+  );
+}
+
 export default function EPrescriptionBuilderPage() {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -358,6 +378,21 @@ export default function EPrescriptionBuilderPage() {
     };
   }, [bookingId, token, API_BASE]);
 
+  // Is medication search using the full NAPPI catalogue, or only the built-in sample list?
+  const [catalogueSource, setCatalogueSource] = useState<'nappi' | 'sample' | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch(`${API_BASE}/medical/medications/status`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (alive && d && (d.source === 'nappi' || d.source === 'sample')) setCatalogueSource(d.source);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [API_BASE]);
+
   // Handle ICD-10 Search Typeahead
   const handleIcd10Search = (val: string) => {
     setIcd10Query(val);
@@ -429,27 +464,12 @@ export default function EPrescriptionBuilderPage() {
           const items = await res.json();
           setMedicationSearchResults(items || []);
         } else {
-          // SA Formulary fallback presets
-          const localMeds: MedicationResult[] = [
-            { name: 'Amoxicillin / Clavulanic Acid 1000mg', generic_name: 'Co-Amoxiclav', nappi_code: '706035001', schedule: 'S4', dosage_form: 'Tablet', strength: '1000mg', category: 'Antibiotic', is_controlled: false },
-            { name: 'Azithromycin 500mg', generic_name: 'Azithromycin', nappi_code: '705423001', schedule: 'S4', dosage_form: 'Film-coated tablet', strength: '500mg', category: 'Antibiotic', is_controlled: false },
-            { name: 'Paracetamol 500mg', generic_name: 'Acetaminophen', nappi_code: '754123001', schedule: 'S0', dosage_form: 'Tablet', strength: '500mg', category: 'Analgesic', is_controlled: false },
-            { name: 'Ibuprofen 400mg', generic_name: 'Ibuprofen', nappi_code: '732156001', schedule: 'S2', dosage_form: 'Tablet', strength: '400mg', category: 'NSAID', is_controlled: false },
-            { name: 'Salbutamol Inhaler 100mcg', generic_name: 'Salbutamol', nappi_code: '772189001', schedule: 'S2', dosage_form: 'Aerosol Inhalation', strength: '100mcg/dose', category: 'Bronchodilator', is_controlled: false },
-            { name: 'Amlodipine 5mg', generic_name: 'Amlodipine Besylate', nappi_code: '712490001', schedule: 'S3', dosage_form: 'Tablet', strength: '5mg', category: 'Antihypertensive', is_controlled: false },
-            { name: 'Metformin 850mg', generic_name: 'Metformin HCl', nappi_code: '741289001', schedule: 'S3', dosage_form: 'Tablet', strength: '850mg', category: 'Antidiabetic', is_controlled: false },
-            { name: 'Zolpidem Hemitartrate 10mg', generic_name: 'Zolpidem', nappi_code: '789123001', schedule: 'S5', dosage_form: 'Tablet', strength: '10mg', category: 'Hypnotic', is_controlled: true },
-            { name: 'Methylphenidate HCl 10mg', generic_name: 'Methylphenidate', nappi_code: '799456001', schedule: 'S6', dosage_form: 'Tablet', strength: '10mg', category: 'CNS Stimulant', is_controlled: true },
-          ].filter(
-            (m) =>
-              m.name.toLowerCase().includes(val.toLowerCase()) ||
-              m.generic_name.toLowerCase().includes(val.toLowerCase()) ||
-              m.nappi_code.includes(val),
-          );
-          setMedicationSearchResults(localMeds);
+          // The service didn't answer properly: fall back to a few common SA medicines
+          setMedicationSearchResults(filterFallbackMeds(val));
         }
       } catch (err) {
         console.warn('Medication search notice:', err);
+        setMedicationSearchResults(filterFallbackMeds(val));
       } finally {
         setIsSearchingMed(false);
       }
@@ -463,9 +483,10 @@ export default function EPrescriptionBuilderPage() {
           return {
             ...r,
             name: med.name,
-            nappi_code: med.nappi_code,
+            // free-text entries ("CUSTOM-FREE-TEXT") have no real NAPPI code: never put a made-up one on a prescription
+            nappi_code: med.nappi_code === 'CUSTOM-FREE-TEXT' ? '' : med.nappi_code,
             schedule_flag: med.schedule || 'S4',
-            dosage: r.dosage || `1 ${med.dosage_form.toLowerCase()}`,
+            dosage: r.dosage || `1 ${(med.dosage_form || 'tablet').toLowerCase()}`,
           };
         }
         return r;
@@ -2816,6 +2837,13 @@ export default function EPrescriptionBuilderPage() {
                       </span>
                     )}
                   </div>
+
+                  {catalogueSource === 'sample' && (
+                    <div style={{ marginTop: '6px', fontSize: '0.75rem', color: '#92400E', background: '#FFFBEB', border: '1px solid #FDE68A', borderRadius: '8px', padding: '6px 10px', lineHeight: 1.4 }}>
+                      Showing a short built-in list of common medicines. The full NAPPI catalogue hasn&apos;t been loaded yet, so
+                      some medicines won&apos;t appear. You can still type any medicine name and prescribe it.
+                    </div>
+                  )}
 
                   {/* Autocomplete dropdown */}
                   {activeSearchRowId === activeMedication.id && medicationSearchResults.length > 0 && (

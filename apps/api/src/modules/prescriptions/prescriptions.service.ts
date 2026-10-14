@@ -386,7 +386,8 @@ export class PrescriptionsService {
       const items = rawItems.map((m: any, idx: number) => ({
         id: `item-${p.id}-${idx}`,
         medication_name: m.name || m.medication_name || 'Prescribed Medication',
-        nappi_code: m.nappi_code || '700000001',
+        // never invent a NAPPI code: free-text medicines carry none (the PDF prints N/A)
+        nappi_code: m.nappi_code && m.nappi_code !== 'CUSTOM-FREE-TEXT' ? m.nappi_code : '',
         dosage: m.dosage || 'As directed',
         frequency: m.frequency || 'As directed',
         duration: m.duration || '5 days',

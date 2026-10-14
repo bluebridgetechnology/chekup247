@@ -26,6 +26,7 @@ export class MedicalService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    await this.ensureNappiSearchSupport();
     try {
       const count = await this.icd10Repository.count();
       if (count === 0) {
@@ -337,6 +338,32 @@ export class MedicalService implements OnModuleInit {
   }
 
   /**
+   * Fuzzy NAPPI search needs the pg_trgm extension. Databases created by TypeORM synchronize (as in
+   * production) don't get it, which made every catalogue search fail once the catalogue was loaded.
+   */
+  private async ensureNappiSearchSupport(): Promise<void> {
+    try {
+      await this.nappiProductRepository.query('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+      await this.nappiProductRepository.query(
+        'CREATE INDEX IF NOT EXISTS nappi_name_trgm_gin ON nappi_products USING gin (product_name gin_trgm_ops)',
+      );
+    } catch (err: any) {
+      this.logger.warn(`NAPPI search support check deferred (pg_trgm / index): ${err.message}`);
+    }
+  }
+
+  /** What the doctor's medication search is currently drawing from. */
+  async getCatalogueStatus(): Promise<{ source: 'nappi' | 'sample'; products: number }> {
+    let products = 0;
+    try {
+      products = await this.nappiProductRepository.count();
+    } catch (err: any) {
+      this.logger.debug(`nappi_products check note: ${err.message}`);
+    }
+    return { source: products > 0 ? 'nappi' : 'sample', products };
+  }
+
+  /**
    * Search MediKredit NAPPI South African medicines catalog (BE-705).
    * Queries nappi_products in Postgres using pg_trgm trigram similarity and exact code lookups.
    * Surfaces replacement products for superseded codes and respects price licensing guards.
@@ -349,6 +376,7 @@ export class MedicalService implements OnModuleInit {
       includeNonMeds?: boolean;
       schedule?: string;
     } = 20,
+    useTrigram = true,
   ): Promise<any[]> {
     const options =
       typeof optionsOrLimit === 'number'
@@ -441,28 +469,46 @@ export class MedicalService implements OnModuleInit {
         'ASC',
       );
     } else {
-      // Trigram fuzzy match + ILIKE prefix / substring
-      qb.andWhere(
-        '(p.product_name % :clean OR p.product_name ILIKE :prefix OR p.product_name ILIKE :contains)',
-        {
-          clean,
-          prefix: `${clean}%`,
-          contains: `%${clean}%`,
-        },
-      ).orderBy(
+      // Doctors search by brand OR generic name (e.g. "amoxicillin" should find Augmentin / Amoxil),
+      // so match the product name and the ATC generic descriptions. Trigram fuzziness (typos) needs the
+      // pg_trgm extension; if it is missing we degrade to plain ILIKE instead of failing the search.
+      const nameOrGeneric = [
+        'p.product_name ILIKE :prefix',
+        'p.product_name ILIKE :contains',
+        'p.atc_mims_desc ILIKE :contains',
+        'p.who_atc_desc ILIKE :contains',
+      ];
+      if (useTrigram) nameOrGeneric.unshift('p.product_name % :clean');
+      qb.andWhere(`(${nameOrGeneric.join(' OR ')})`, {
+        clean,
+        prefix: `${clean}%`,
+        contains: `%${clean}%`,
+      }).orderBy(
         `CASE
           WHEN p.product_name ILIKE :clean THEN 1
           WHEN p.product_name ILIKE :prefix THEN 2
-          WHEN p.product_name % :clean THEN 3
-          ELSE 4
+          WHEN p.product_name ILIKE :contains THEN 3
+          ${useTrigram ? 'WHEN p.product_name % :clean THEN 4' : ''}
+          ELSE 5
         END`,
         'ASC',
-      ).addOrderBy(`similarity(p.product_name, :clean)`, 'DESC');
+      );
+      if (useTrigram) qb.addOrderBy(`similarity(p.product_name, :clean)`, 'DESC');
     }
 
     qb.addOrderBy('p.product_name', 'ASC').limit(limit);
 
-    const products = await qb.getMany();
+    let products: NappiProduct[];
+    try {
+      products = await qb.getMany();
+    } catch (err: any) {
+      // Never leave the doctor with nothing: retry without trigram matching, then use the built-in list
+      this.logger.error(`NAPPI catalogue search failed for "${clean}": ${err.message}`);
+      if (useTrigram) {
+        return this.searchMedications(query, options, false);
+      }
+      return this.searchInMemoryCatalog(query, limit);
+    }
 
     if (envConfig.SHOW_NAPPI_PRICES && products.length > 0) {
       const nappiCodes = products.map((p) => p.nappi_code);

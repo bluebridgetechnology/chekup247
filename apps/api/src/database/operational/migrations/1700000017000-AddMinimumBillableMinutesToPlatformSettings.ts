@@ -1,9 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddMinimumBillableMinutesToPlatformSettings1700000006000
+export class AddMinimumBillableMinutesToPlatformSettings1700000017000
   implements MigrationInterface
 {
-  name = 'AddMinimumBillableMinutesToPlatformSettings1700000006000';
+  name = 'AddMinimumBillableMinutesToPlatformSettings1700000017000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
