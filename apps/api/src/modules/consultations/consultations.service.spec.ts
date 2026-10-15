@@ -421,6 +421,21 @@ describe('ConsultationsService & Daily.co Core (Sprint 6 & Sprint 7)', () => {
       expect(mockBookingRepo.save).toHaveBeenCalledWith(mockBooking);
     });
 
+    it('lets the real doctor end it when booking.doctor_id is their profile id and the caller is their user id', async () => {
+      const mockBooking: any = {
+        id: 'booking-1',
+        status: BookingStatus.CONFIRMED,
+        doctor_id: 'profile-9',
+        patient_id: 'pat-1',
+      };
+      mockConsultationRepo.findOne.mockResolvedValue({ id: 'c', booking_id: 'booking-1', ended_at: null });
+      mockBookingRepo.findOne.mockResolvedValue(mockBooking);
+      mockDoctorProfileRepo.findOne.mockResolvedValueOnce({ id: 'profile-9', user_id: 'user-9' });
+      const result = await service.endConsultation('booking-1', 'user-9');
+      expect(result.status).toBe(BookingStatus.COMPLETED);
+      expect(mockBooking.status).toBe(BookingStatus.COMPLETED);
+    });
+
     it.each(['stranger', 'pat-1'])('rejects an end request from %s (only the doctor may end)', async (caller) => {
       const mockBooking: any = {
         id: 'booking-1',

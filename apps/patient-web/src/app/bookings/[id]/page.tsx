@@ -72,6 +72,7 @@ export default function BookingDetailPage() {
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
   const [showVerificationModal, setShowVerificationModal] = useState<boolean>(false);
   const [existingReview, setExistingReview] = useState<any | null>(null);
+  const [reviewInitialRating, setReviewInitialRating] = useState<number>(5);
   const [refundAction, setRefundAction] = useState<'credit' | 'refund'>('credit');
   const [cancelReason, setCancelReason] = useState<string>('');
   const [isCancelling, setIsCancelling] = useState<boolean>(false);
@@ -147,6 +148,18 @@ export default function BookingDetailPage() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  // Arriving from the review email (?review=1&rating=N): open the review dialog straight away
+  useEffect(() => {
+    if (!booking || booking.status !== 'completed' || existingReview) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('review') !== '1') return;
+    const rating = Number(params.get('rating'));
+    if (rating >= 1 && rating <= 5) setReviewInitialRating(rating);
+    setShowReviewModal(true);
+    // only on first load of the booking
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [booking?.id, booking?.status]);
 
   useEffect(() => {
     let isMounted = true;
@@ -1277,6 +1290,7 @@ export default function BookingDetailPage() {
           doctorSpecialty={booking.doctor?.specialty}
           doctorAvatar={booking.doctor?.avatarUrl || undefined}
           token={token}
+          initialRating={reviewInitialRating}
           onReviewSubmitted={(saved) => {
             setExistingReview(saved);
             setShowReviewModal(false);

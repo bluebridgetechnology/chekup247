@@ -39,6 +39,9 @@ import { ConsultationGateway } from './consultation.gateway';
 import { PaystackService } from '../payments/paystack.service';
 import { PatientDemoSeederService } from './patient-demo-seeder.service';
 
+/** How long after a consultation ends the patient is asked for a review. */
+export const REVIEW_REQUEST_DELAY_MS = 60 * 60 * 1000;
+
 @Injectable()
 export class ConsultationsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ConsultationsService.name);
@@ -64,6 +67,9 @@ export class ConsultationsService implements OnModuleInit, OnModuleDestroy {
     private readonly paystackService: PaystackService,
     @InjectQueue(QUEUES.NO_SHOW)
     private readonly noShowQueue: Queue,
+    @Optional()
+    @InjectQueue(QUEUES.REMINDERS)
+    private readonly remindersQueue?: Queue,
     @Optional()
     @InjectRepository(Prescription, 'patient')
     private readonly prescriptionRepository?: Repository<Prescription>,
@@ -442,6 +448,21 @@ export class ConsultationsService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
+  /** Review emails go out about an hour after the consultation, as a durable delayed job. */
+  private async scheduleReviewRequest(bookingId: string, patientId: string, doctorName: string): Promise<void> {
+    if (!this.remindersQueue) return;
+    await this.remindersQueue.add(
+      'review_request',
+      { kind: 'review_request', bookingId, patientId, doctorName },
+      {
+        delay: REVIEW_REQUEST_DELAY_MS,
+        jobId: `review-request-${bookingId}`,
+        removeOnComplete: true,
+        removeOnFail: 50,
+      },
+    );
+  }
+
   /**
    * Ends consultation (BE-602).
    * - Updates consultation.ended_at
@@ -477,10 +498,17 @@ export class ConsultationsService implements OnModuleInit, OnModuleDestroy {
       throw new NotFoundException(`Booking ${bookingId} not found`);
     }
 
+    // booking.doctor_id is the DoctorProfile id (older rows may hold the doctor's user id), while the
+    // caller is identified by their user id: resolve both so the real doctor is recognised.
+    const doctorProfile = await this.doctorProfileRepository.findOne({ where: { id: booking.doctor_id } });
+    const doctorUserId = doctorProfile?.user_id ?? booking.doctor_id;
+
     // Only the booking's own doctor (or an admin) may end it. Patients can leave the
     // room client-side, but ending the consultation is the doctor's call alone.
     const isAdmin = callerRole === 'admin' || callerRole === 'super_admin';
-    if (!isAdmin && doctorId !== booking.doctor_id) {
+    const isBookingDoctor =
+      Boolean(doctorId) && (doctorId === doctorUserId || doctorId === booking.doctor_id);
+    if (!isAdmin && !isBookingDoctor) {
       throw new ForbiddenException('Only the consulting doctor can end this consultation');
     }
     const alreadyCompleted = booking.status === BookingStatus.COMPLETED;
@@ -503,7 +531,7 @@ export class ConsultationsService implements OnModuleInit, OnModuleDestroy {
     }
 
     // The booking's doctor is the only doctor this consultation can belong to.
-    const effectiveDoctorId = booking.doctor_id;
+    const effectiveDoctorId = doctorUserId;
 
     // Broadcast consultation ended via WebSocket
     this.consultationGateway.broadcastConsultationEnded(bookingId, endedAt, effectiveDoctorId);
@@ -519,20 +547,10 @@ export class ConsultationsService implements OnModuleInit, OnModuleDestroy {
         .then((docUser) => {
           const doctorName = docUser?.full_name || 'Practitioner';
 
-          // 1. Dispatch review_request to patient
-          this.notificationsService
-            ?.dispatchNotification({
-              recipientId: booking.patient_id,
-              title: 'How was your consultation?',
-              templateId: 'review_request',
-              payload: {
-                bookingId: booking.id,
-                doctorName,
-                message: `Thank you for consulting with Dr. ${doctorName}. How was your experience?`,
-              },
-              deepLink: `/reviews/new?bookingId=${booking.id}`,
-            })
-            .catch(() => {});
+          // 1. Ask the patient for a review an hour later (not the moment the call ends)
+          this.scheduleReviewRequest(booking.id, booking.patient_id, doctorName).catch((err: any) =>
+            this.logger.warn(`Could not schedule review request for ${booking.id}: ${err?.message}`),
+          );
 
           // 2. Dispatch doctor_earnings_credited to doctor
           const netAmount = (

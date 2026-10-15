@@ -191,6 +191,38 @@ const CORNER_STYLES: Record<string, React.CSSProperties> = {
   'top-left': { top: '56px', left: '16px' },
 };
 
+
+/**
+ * Phone layout for the post-consultation record: one column, tidy header, 2-up metrics,
+ * full-width actions and no squeezed side-by-side cards. (Desktop is unchanged.)
+ */
+const ENCOUNTER_MOBILE_CSS = `
+@media (max-width: 760px) {
+  .enc-page { padding: 14px 12px 40px !important; }
+  .enc-topbar { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; margin-bottom: 16px !important; }
+  .enc-crumbs { flex-wrap: wrap !important; gap: 8px !important; }
+  .enc-crumbs > div { flex-wrap: wrap !important; min-width: 0; }
+  .enc-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .enc-actions > * { justify-content: center !important; min-height: 46px; box-sizing: border-box; padding-left: 10px !important; padding-right: 10px !important; white-space: nowrap; }
+  .enc-hero { padding: 16px !important; flex-direction: column !important; align-items: stretch !important; gap: 16px !important; margin-bottom: 16px !important; border-radius: 18px !important; }
+  .enc-id { min-width: 0 !important; align-items: flex-start !important; }
+  .enc-id h1 { font-size: 1.25rem !important; overflow-wrap: anywhere; }
+  .enc-id span { overflow-wrap: anywhere; }
+  .enc-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; max-width: none !important; width: 100% !important; gap: 10px !important; }
+  .enc-metrics > div { padding: 10px 12px !important; min-width: 0; overflow-wrap: anywhere; }
+  .enc-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 16px !important; }
+  .enc-grid > div { gap: 16px !important; min-width: 0; }
+  .enc-grid > div > div { padding: 16px !important; border-radius: 16px !important; min-width: 0; }
+  .enc-grid > div > div > div:first-child { flex-wrap: wrap !important; gap: 6px 12px !important; }
+  .enc-grid h3 { font-size: 0.95rem !important; line-height: 1.3; }
+  .enc-grid a, .enc-grid button { max-width: 100%; }
+  .enc-grid [style*="text-align: center"], .enc-grid [style*="textAlign"] { text-align: left !important; }
+}
+@media print {
+  .enc-actions { display: none !important; }
+}
+`;
+
 export default function DoctorConsultationWorkspace() {
   const params = useParams();
   const { doctor, token } = useDoctorAuth();
@@ -247,6 +279,15 @@ export default function DoctorConsultationWorkspace() {
   const [customBgImage, setCustomBgImage] = useState<string | null>(null);
   const [showEffectsDrawer, setShowEffectsDrawer] = useState<boolean>(false);
   const [backgroundNotice, setBackgroundNotice] = useState<string | null>(null);
+  // Daily's background processor needs a desktop browser; phones can't run it
+  const [bgSupported, setBgSupported] = useState<boolean>(true);
+  useEffect(() => {
+    try {
+      setBgSupported(DailyIframe.supportedBrowser().supportsVideoProcessing !== false);
+    } catch {
+      setBgSupported(true);
+    }
+  }, []);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Timer State (starts from 0 or calculated from consultation.started_at)
@@ -1361,16 +1402,23 @@ export default function DoctorConsultationWorkspace() {
   if (isConsultationEnded) {
     return (
       <div
+        className="enc-page"
         style={{
-          minHeight: '100vh',
+          // The consultation-room layout clips overflow, so this record scrolls itself
+          height: '100dvh',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
           backgroundColor: '#FAF6EE',
           color: '#2A170F',
           padding: '24px 20px 60px',
         }}
       >
+        <style>{ENCOUNTER_MOBILE_CSS}</style>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           {/* Top Breadcrumb & Action Header */}
           <div
+            className="enc-topbar"
             style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -1380,7 +1428,7 @@ export default function DoctorConsultationWorkspace() {
               marginBottom: '24px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="enc-crumbs" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Link
                 href="/appointments"
                 style={{
@@ -1426,7 +1474,7 @@ export default function DoctorConsultationWorkspace() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="enc-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
                 type="button"
                 onClick={() => window.print()}
@@ -1473,6 +1521,7 @@ export default function DoctorConsultationWorkspace() {
 
           {/* Hero Banner with Patient & Encounter Metrics */}
           <div
+            className="enc-hero"
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '20px',
@@ -1487,7 +1536,7 @@ export default function DoctorConsultationWorkspace() {
               gap: '20px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '240px' }}>
+            <div className="enc-id" style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '240px' }}>
               <div
                 style={{
                   width: '54px',
@@ -1537,6 +1586,7 @@ export default function DoctorConsultationWorkspace() {
 
             {/* Quick Metrics Cards */}
             <div
+              className="enc-metrics"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -1605,7 +1655,7 @@ export default function DoctorConsultationWorkspace() {
                   Attending Doctor
                 </div>
                 <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2A170F', marginTop: '2px' }}>
-                  {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'Dr. Practitioner'}
+                  {doctor?.fullName ? `Dr. ${doctor.fullName.replace(/^(dr|prof)\.?\s+/i, '')}` : 'Dr. Practitioner'}
                 </div>
               </div>
             </div>
@@ -1613,6 +1663,7 @@ export default function DoctorConsultationWorkspace() {
 
           {/* Two-Column Clinical Encounter Details */}
           <div
+            className="enc-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1.1fr)',
@@ -2749,6 +2800,7 @@ export default function DoctorConsultationWorkspace() {
 
             {/* Video Stage Content: Container for Doctor and Patient Tiles */}
             <div
+              className={videoLayout === 'grid' ? 'video-grid' : ''}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -2806,6 +2858,7 @@ export default function DoctorConsultationWorkspace() {
                 {/* Doctor Video Feed */}
                 <video
                   ref={localVideoRef}
+                  className="doctor-video"
                   autoPlay
                   playsInline
                   muted
@@ -2949,6 +3002,7 @@ export default function DoctorConsultationWorkspace() {
 
                 {/* Doctor Bottom Badge */}
                 <div
+                  className={`video-badge ${videoLayout === 'pip' ? (isSwapped ? 'video-badge-main' : 'video-badge-pip') : ''}`}
                   style={{
                     position: 'absolute',
                     bottom: '6px',
@@ -2966,7 +3020,7 @@ export default function DoctorConsultationWorkspace() {
                 >
                   <div>
                     <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
-                      {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'You (Doctor)'}
+                      {doctor?.fullName ? `Dr. ${doctor.fullName.replace(/^(dr|prof)\.?\s+/i, '')}` : 'You (Doctor)'}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
                       <div style={{ fontSize: '0.62rem', color: '#DFAB62', fontWeight: 500 }}>
@@ -3047,6 +3101,7 @@ export default function DoctorConsultationWorkspace() {
                 {/* Patient Video Stream */}
                 <video
                   ref={remoteVideoRef}
+                  className="doctor-video"
                   autoPlay
                   playsInline
                   style={{
@@ -3207,6 +3262,7 @@ export default function DoctorConsultationWorkspace() {
 
                 {/* Patient Bottom Badge */}
                 <div
+                  className={`video-badge ${videoLayout === 'pip' ? (isSwapped ? 'video-badge-pip' : 'video-badge-main') : ''}`}
                   style={{
                     position: 'absolute',
                     bottom: '6px',
@@ -3641,7 +3697,7 @@ export default function DoctorConsultationWorkspace() {
                 ================================================================ */}
             {showEffectsDrawer && (
               <div
-                className="effects-drawer"
+                className={`effects-drawer${bgSupported ? '' : ' effects-unsupported'}`}
                 style={{
                   position: 'absolute',
                   bottom: '76px',
@@ -3689,6 +3745,24 @@ export default function DoctorConsultationWorkspace() {
                   </button>
                 </div>
 
+                {!bgSupported && (
+                  <div
+                    role="note"
+                    style={{
+                      marginBottom: '14px',
+                      padding: '10px 12px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(223, 171, 98, 0.12)',
+                      border: '1px solid rgba(223, 171, 98, 0.35)',
+                      color: '#F0E5D3',
+                      fontSize: '0.8rem',
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    Background blur and virtual backgrounds need a laptop or desktop browser (Chrome, Edge or Safari).
+                    Phone browsers can&apos;t run them yet.
+                  </div>
+                )}
                 <div style={{ marginBottom: '16px' }}>
                   <label
                     style={{
@@ -5360,7 +5434,7 @@ export default function DoctorConsultationWorkspace() {
                 <div>
                   <div style={{ fontSize: '0.72rem', color: '#8C7768', textTransform: 'uppercase', fontWeight: 700 }}>Doctor</div>
                   <div style={{ fontSize: '1rem', fontWeight: 800, color: '#2A170F' }}>
-                    {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'Dr. ChekUp247 Practitioner'}
+                    {doctor?.fullName ? `Dr. ${doctor.fullName.replace(/^(dr|prof)\.?\s+/i, '')}` : 'Dr. ChekUp247 Practitioner'}
                   </div>
                 </div>
                 <div>
@@ -6161,14 +6235,52 @@ export default function DoctorConsultationWorkspace() {
             display: none !important;
           }
 
+          /* Self-view / PiP: a proper portrait tile tucked under the top bar, clear of the call controls */
           .doctor-pip {
             cursor: pointer !important;
-            border-radius: 12px !important;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
-            max-width: 120px !important;
-            max-height: 160px !important;
-            bottom: 74px !important;
+            border-radius: 14px !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55) !important;
+            width: 112px !important;
+            height: 150px !important;
+            max-width: none !important;
+            max-height: none !important;
+            top: 64px !important;
+            bottom: auto !important;
             right: 10px !important;
+            left: auto !important;
+          }
+
+          /* Fill the tile (crop edges, favour faces) instead of letterboxing with black bars */
+          .doctor-video {
+            object-fit: cover !important;
+            object-position: center 30% !important;
+          }
+
+          /* Name badge: out of the PiP, and lifted above the call controls on the main tile */
+          .video-badge-pip {
+            display: none !important;
+          }
+          .video-badge-main {
+            bottom: 84px !important;
+            left: 10px !important;
+            right: auto !important;
+            max-width: calc(100% - 20px) !important;
+          }
+
+          /* Side-by-side: keep both tiles clear of the floating control bar */
+          .video-grid {
+            padding: 10px 10px 84px !important;
+            gap: 10px !important;
+            grid-template-columns: 1fr !important;
+            grid-auto-rows: 1fr !important;
+          }
+          .video-grid .video-badge {
+            bottom: 8px !important;
+          }
+
+          .effects-unsupported > div:nth-child(n + 3) {
+            opacity: 0.4;
+            pointer-events: none;
           }
 
           /* Desktop-only Call Controls Hidden on Mobile */

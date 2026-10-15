@@ -20,6 +20,9 @@ export class ReminderProcessor extends WorkerHost {
   }
 
   async process(job: Job<any, any, string>): Promise<any> {
+    if (job.name === 'review_request') {
+      return this.processReviewRequest(job);
+    }
     const { bookingId, window, patientId, slotStartTime, doctorName } = job.data;
     this.logger.log(`Processing delayed reminder job ${job.id} for booking ${bookingId} (${window})`);
 
@@ -68,5 +71,27 @@ export class ReminderProcessor extends WorkerHost {
     });
 
     return { success: true, bookingId, window };
+  }
+
+  /** "How was your consultation?" goes out about an hour after the consultation was completed. */
+  private async processReviewRequest(job: Job<any, any, string>): Promise<any> {
+    const { bookingId, patientId, doctorName } = job.data;
+    const booking = await this.bookingRepository.findOne({ where: { id: bookingId } });
+    if (!booking || booking.status !== BookingStatus.COMPLETED) {
+      this.logger.log(`Skipping review request for ${bookingId}: booking not completed`);
+      return { skipped: true, reason: 'booking_not_completed' };
+    }
+    await this.notificationsService.dispatchNotification({
+      recipientId: patientId || booking.patient_id,
+      title: 'How was your consultation?',
+      templateId: 'review_request',
+      payload: {
+        bookingId,
+        doctorName: doctorName || 'your doctor',
+        message: `Thank you for consulting with Dr. ${doctorName || 'your doctor'}. How was your experience?`,
+      },
+      deepLink: `/reviews/new?bookingId=${bookingId}`,
+    });
+    return { success: true, bookingId };
   }
 }

@@ -40,9 +40,10 @@ import { PatientDemoSeederService } from './patient-demo-seeder.service';
       [AvailabilitySlot, DoctorProfile, User, PlatformSetting],
       'operational',
     ),
-    BullModule.registerQueue({
-      name: QUEUES.NO_SHOW,
-    }),
+    BullModule.registerQueue(
+      { name: QUEUES.NO_SHOW },
+      { name: QUEUES.REMINDERS },
+    ),
     forwardRef(() => PaymentsModule),
     NotificationsModule,
     AuthModule,
