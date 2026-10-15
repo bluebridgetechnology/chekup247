@@ -34,6 +34,7 @@ const ROUTE_LABELS: Record<string, string> = {
   '/icd10': 'ICD-10 Diagnostic Coding',
   '/earnings': 'Earnings & Payouts',
   '/profile': 'My Profile',
+  '/camera-test': 'Camera Test',
 };
 
 export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
@@ -796,6 +797,28 @@ export function DoctorHeader({ onMobileToggle }: DoctorHeaderProps) {
                 >
                   <SolarIcon name="wallet-money-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
                   <span>Payouts & Statements</span>
+                </Link>
+
+                <Link
+                  href="/camera-test"
+                  onClick={() => setProfileMenuOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    fontSize: '0.85rem',
+                    color: 'var(--color-chocolate-base, #2A170F)',
+                    fontWeight: 500,
+                    textDecoration: 'none',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  onMouseEnter={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'var(--color-gold-pale, #F0E5D3)')}
+                  onMouseLeave={(e: React.MouseEvent<HTMLAnchorElement>) => (e.currentTarget.style.backgroundColor = 'transparent')}
+                >
+                  <SolarIcon name="videocamera-record-linear" size={16} color="var(--color-chocolate-base, #2A170F)" />
+                  <span>Camera Test</span>
                 </Link>
               </div>
 
