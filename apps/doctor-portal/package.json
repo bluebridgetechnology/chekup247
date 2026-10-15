@@ -4,7 +4,9 @@
   "private": true,
   "description": "ChekUp247 Doctor Portal Application",
   "scripts": {
+    "predev": "node scripts/copy-mediapipe.mjs",
     "dev": "next dev -p 3001",
+    "prebuild": "node scripts/copy-mediapipe.mjs",
     "build": "next build",
     "start": "next start -p 3001",
     "lint": "eslint ."
@@ -14,6 +16,7 @@
     "@daily-co/daily-js": "^0.69.0",
     "@iconify-json/solar": "^1.2.11",
     "@iconify/react": "^6.0.2",
+    "@mediapipe/selfie_segmentation": "^0.1.1675465747",
     "lucide-react": "^0.439.0",
     "next": "^16.0.0",
     "react": "^19.0.0",
