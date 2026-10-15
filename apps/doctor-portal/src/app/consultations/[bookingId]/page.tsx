@@ -64,7 +64,7 @@ import {
   Camera,
   Image as ImageIcon,
 } from 'lucide-react';
-import { BackgroundBlurPipeline, backgroundBlurSupported } from '../../../lib/backgroundBlur';
+import { BackgroundBlurPipeline, backgroundBlurSupported, loadBackgroundImage, type PipelineBackground } from '../../../lib/backgroundBlur';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
 import { useDoctorAuth } from '../../../context/DoctorAuthContext';
@@ -145,8 +145,8 @@ interface DiagnosisItem {
 
 /** Background blur runs on-device (MediaPipe) so it works on phones as well as laptops. */
 const BACKGROUND_EFFECTS_ENABLED = true;
-/** Virtual (image) backgrounds are the next phase; blur ships first. */
-const VIRTUAL_BACKGROUNDS_ENABLED = false;
+/** Virtual (image) backgrounds ride on the same on-device pipeline as blur. */
+const VIRTUAL_BACKGROUNDS_ENABLED = true;
 
 export type BackgroundEffectType = 'none' | 'blur-light' | 'blur-heavy' | 'virtual-image';
 
@@ -531,6 +531,8 @@ export default function DoctorConsultationWorkspace() {
   const blurPipelineRef = useRef<BackgroundBlurPipeline | null>(null);
   const bgBusyRef = useRef<boolean>(false);
   const cameraIdBeforeBlurRef = useRef<string | undefined>(undefined);
+  const customBgFileRef = useRef<File | null>(null);
+  const customBgUrlRef = useRef<string | null>(null);
 
   const stopBackgroundBlur = useCallback(
     async (restoreCamera: boolean) => {
@@ -552,17 +554,12 @@ export default function DoctorConsultationWorkspace() {
   );
 
   const applyBackgroundEffect = useCallback(
-    async (effect: BackgroundEffectType, _presetId?: string, _customImg?: string, _customBuffer?: ArrayBuffer) => {
+    async (effect: BackgroundEffectType, presetId?: string, customFile?: File) => {
       const flashNotice = (msg: string) => {
         setBackgroundNotice(msg);
         setTimeout(() => setBackgroundNotice(null), 5000);
       };
       if (bgBusyRef.current) return;
-
-      if (effect === 'virtual-image') {
-        flashNotice('Virtual backgrounds are coming soon. Background blur is available now.');
-        return;
-      }
 
       if (effect === 'none') {
         bgBusyRef.current = true;
@@ -575,42 +572,82 @@ export default function DoctorConsultationWorkspace() {
         return;
       }
 
+      // What goes behind the person: a blur, or a preset / uploaded picture.
+      const isImage = effect === 'virtual-image';
+      const chosenPreset = presetId || selectedBgPreset;
+      let imageSource: string | Blob | null = null;
+      if (isImage) {
+        imageSource =
+          chosenPreset === 'custom'
+            ? customFile || customBgFileRef.current
+            : VIRTUAL_BACKGROUND_PRESETS.find((p) => p.id === chosenPreset)?.previewUrl || null;
+        if (!imageSource) {
+          flashNotice('That background is not available. Please pick another.');
+          return;
+        }
+      }
       const strength = effect === 'blur-heavy' ? 0.85 : 0.45;
 
-      // Already running: just change the strength.
-      if (blurPipelineRef.current) {
-        blurPipelineRef.current.setStrength(strength);
-        setActiveEffect(effect);
-        return;
-      }
-
-      if (!callObject) {
-        flashNotice('Join the call first, then choose a background.');
-        return;
-      }
-      if (!backgroundBlurSupported()) {
-        flashNotice('This browser cannot blur your background. Try the latest Chrome or Safari.');
-        return;
-      }
-      if (isVideoMuted) {
-        flashNotice('Turn your camera on first, then choose a background.');
-        return;
+      if (!blurPipelineRef.current) {
+        if (!callObject) {
+          flashNotice('Join the call first, then choose a background.');
+          return;
+        }
+        if (!backgroundBlurSupported()) {
+          flashNotice('This browser cannot change your background. Try the latest Chrome or Safari.');
+          return;
+        }
+        if (isVideoMuted) {
+          flashNotice('Turn your camera on first, then choose a background.');
+          return;
+        }
       }
 
       bgBusyRef.current = true;
       try {
+        // Decode the picture first: if it fails, the camera and the current effect are left untouched.
+        let background: PipelineBackground = { kind: 'blur', strength };
+        if (imageSource) {
+          try {
+            background = { kind: 'image', image: await loadBackgroundImage(imageSource) };
+          } catch (err) {
+            console.warn('Background image could not load:', err);
+            flashNotice('Could not load that background image. Please try another.');
+            return;
+          }
+        }
+        const commit = () => {
+          if (isImage) {
+            if (customFile) {
+              if (customBgUrlRef.current) URL.revokeObjectURL(customBgUrlRef.current);
+              customBgFileRef.current = customFile;
+              customBgUrlRef.current = URL.createObjectURL(customFile);
+              setCustomBgImage(customBgUrlRef.current);
+            }
+            setSelectedBgPreset(chosenPreset);
+          }
+          setActiveEffect(effect);
+        };
+
+        // Already running: just change the backdrop, no camera or model restart.
+        if (blurPipelineRef.current) {
+          blurPipelineRef.current.setBackground(background);
+          commit();
+          return;
+        }
+
         // Which camera is Daily using right now?
         let deviceId: string | undefined;
         try {
-          const devices: any = await callObject.getInputDevices();
+          const devices: any = await callObject!.getInputDevices();
           deviceId = devices?.camera?.deviceId;
         } catch {
           deviceId = undefined;
         }
         cameraIdBeforeBlurRef.current = deviceId;
 
-        // Release Daily's camera so we can read it ourselves, then feed back the blurred track.
-        await callObject.setInputDevicesAsync({ videoSource: false });
+        // Release Daily's camera so we can read it ourselves, then feed back the processed track.
+        await callObject!.setInputDevicesAsync({ videoSource: false });
         const cam = await navigator.mediaDevices.getUserMedia({
           video: deviceId
             ? { deviceId: { ideal: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } }
@@ -620,9 +657,9 @@ export default function DoctorConsultationWorkspace() {
         const sourceTrack = cam.getVideoTracks()[0];
 
         const pipeline = new BackgroundBlurPipeline({
-          strength,
+          background,
           onSlow: () => {
-            flashNotice('Your device is too slow for background blur, so it was turned off.');
+            flashNotice('Your device is too slow for background effects, so they were turned off.');
             setActiveEffect('none');
             stopBackgroundBlur(true).catch(() => {});
           },
@@ -636,20 +673,20 @@ export default function DoctorConsultationWorkspace() {
           throw err;
         }
         blurPipelineRef.current = pipeline;
-        await callObject.setInputDevicesAsync({ videoSource: outTrack });
-        callObject.setLocalVideo(true);
-        setActiveEffect(effect);
-        syncDailyTracks(callObject);
+        await callObject!.setInputDevicesAsync({ videoSource: outTrack });
+        callObject!.setLocalVideo(true);
+        commit();
+        syncDailyTracks(callObject!);
       } catch (err: any) {
-        console.warn('Background blur could not start:', err);
+        console.warn('Background effect could not start:', err);
         await stopBackgroundBlur(true);
         setActiveEffect('none');
-        flashNotice('Could not turn on background blur on this camera.');
+        flashNotice('Could not turn on the background effect on this camera.');
       } finally {
         bgBusyRef.current = false;
       }
     },
-    [callObject, isVideoMuted, stopBackgroundBlur, syncDailyTracks],
+    [callObject, isVideoMuted, selectedBgPreset, stopBackgroundBlur, syncDailyTracks],
   );
 
   // The consultation is over: release the camera
@@ -665,25 +702,20 @@ export default function DoctorConsultationWorkspace() {
     return () => {
       blurPipelineRef.current?.stop();
       blurPipelineRef.current = null;
+      if (customBgUrlRef.current) URL.revokeObjectURL(customBgUrlRef.current);
     };
   }, []);
 
   const handleUploadCustomBg = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
+    e.target.value = ''; // lets the same photo be picked again later
     if (!file) return;
-
-    const fileReader = new FileReader();
-    fileReader.onload = async () => {
-      const buffer = fileReader.result as ArrayBuffer;
-      const urlReader = new FileReader();
-      urlReader.onload = () => {
-        const dataUrl = urlReader.result as string;
-        setCustomBgImage(dataUrl);
-        applyBackgroundEffect('virtual-image', undefined, dataUrl, buffer);
-      };
-      urlReader.readAsDataURL(file);
-    };
-    fileReader.readAsArrayBuffer(file);
+    if (!file.type.startsWith('image/') || file.size > 15 * 1024 * 1024) {
+      setBackgroundNotice('Please choose an image (JPG or PNG) under 15 MB.');
+      setTimeout(() => setBackgroundNotice(null), 5000);
+      return;
+    }
+    applyBackgroundEffect('virtual-image', 'custom', file);
   };
 
   // --------------------------------------------------------------------------
@@ -3913,26 +3945,39 @@ export default function DoctorConsultationWorkspace() {
                         display: 'flex',
                         alignItems: 'center',
                         gap: '4px',
-                        padding: 0,
+                        padding: '8px 0 8px 12px',
+                        minHeight: '36px',
                       }}
                     >
                       <ImageIcon size={13} /> <span>Upload</span>
                     </button>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                    {VIRTUAL_BACKGROUND_PRESETS.map((preset) => {
+                    {[
+                      ...(customBgImage
+                        ? [{ id: 'custom', name: 'Your image', category: 'Custom', previewUrl: customBgImage }]
+                        : []),
+                      ...VIRTUAL_BACKGROUND_PRESETS,
+                    ].map((preset) => {
                       const sel = activeEffect === 'virtual-image' && selectedBgPreset === preset.id;
                       return (
                         <div
                           key={preset.id}
-                          onClick={() => {
-                            setSelectedBgPreset(preset.id);
-                            applyBackgroundEffect('virtual-image', preset.id);
+                          role="button"
+                          tabIndex={0}
+                          aria-pressed={sel}
+                          onClick={() => applyBackgroundEffect('virtual-image', preset.id)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              applyBackgroundEffect('virtual-image', preset.id);
+                            }
                           }}
                           style={{
                             borderRadius: '12px',
                             overflow: 'hidden',
                             cursor: 'pointer',
+                            touchAction: 'manipulation',
                             position: 'relative',
                             border: sel ? '2px solid #DFAB62' : '1px solid rgba(223, 171, 98, 0.2)',
                             boxShadow: sel ? '0 0 14px rgba(223, 171, 98, 0.35)' : 'none',
@@ -6350,6 +6395,14 @@ export default function DoctorConsultationWorkspace() {
           }
           .video-grid .video-badge {
             bottom: 8px !important;
+          }
+
+          /* Blur + picture grid can be taller than the stage on a phone: let the drawer scroll */
+          .effects-drawer {
+            max-height: 58vh;
+            overflow-y: auto;
+            padding: 16px !important;
+            -webkit-overflow-scrolling: touch;
           }
 
           .effects-unsupported > div:nth-child(n + 3) {
