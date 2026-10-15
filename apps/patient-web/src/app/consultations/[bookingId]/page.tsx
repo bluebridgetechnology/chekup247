@@ -45,6 +45,7 @@ import {
   RefreshCw,
   VideoOff as VideoOffIcon,
 } from 'lucide-react';
+import { BackgroundBlurPipeline, backgroundBlurSupported } from '../../../lib/backgroundBlur';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../../context/AuthContext';
@@ -107,8 +108,10 @@ interface TimerSyncPayload {
   is1MinWarning: boolean;
 }
 
-/** Background blur / virtual backgrounds are switched off until our own phone-friendly pipeline is built. */
-const BACKGROUND_EFFECTS_ENABLED = false;
+/** Background blur runs on-device (MediaPipe) so it works on phones as well as laptops. */
+const BACKGROUND_EFFECTS_ENABLED = true;
+/** Virtual (image) backgrounds are the next phase; blur ships first. */
+const VIRTUAL_BACKGROUNDS_ENABLED = false;
 
 export type BackgroundEffectType = 'none' | 'blur-light' | 'blur-heavy' | 'virtual-image';
 
@@ -491,80 +494,147 @@ export default function PatientConsultationPage() {
   }, []);
 
   // --------------------------------------------------------------------------
-  // Apply Background Effect via Daily.co processor
+  // Background blur: on-device segmentation (works on phones), sent to Daily as a custom video track
   // --------------------------------------------------------------------------
+  const blurPipelineRef = useRef<BackgroundBlurPipeline | null>(null);
+  const bgBusyRef = useRef<boolean>(false);
+  const cameraIdBeforeBlurRef = useRef<string | undefined>(undefined);
+
+  const stopBackgroundBlur = useCallback(
+    async (restoreCamera: boolean) => {
+      const pipeline = blurPipelineRef.current;
+      blurPipelineRef.current = null;
+      pipeline?.stop();
+      if (restoreCamera && callObject) {
+        try {
+          // Hand the camera back to Daily (the camera we took it from, or its default)
+          const id = cameraIdBeforeBlurRef.current;
+          if (id) await callObject.setInputDevicesAsync({ videoDeviceId: id });
+          else await (callObject as any).setInputDevicesAsync({ videoSource: true });
+        } catch (err) {
+          console.warn('Could not restore camera after background blur:', err);
+        }
+      }
+    },
+    [callObject],
+  );
+
   const applyBackgroundEffect = useCallback(
-    async (effect: BackgroundEffectType, presetId?: string, customImg?: string, customBuffer?: ArrayBuffer) => {
-      const chosenPreset = presetId || selectedBgPreset;
+    async (effect: BackgroundEffectType, _presetId?: string, _customImg?: string, _customBuffer?: ArrayBuffer) => {
       const flashNotice = (msg: string) => {
         setBackgroundNotice(msg);
         setTimeout(() => setBackgroundNotice(null), 5000);
       };
+      if (bgBusyRef.current) return;
 
-      if (effect !== 'none') {
-        let supported = true;
-        try {
-          supported = DailyIframe.supportedBrowser().supportsVideoProcessing !== false;
-        } catch {
-          supported = true;
-        }
-        if (!supported) {
-          flashNotice('Background effects are not supported on this browser or device. Try Chrome or Edge on a laptop or desktop.');
-          return;
-        }
+      if (effect === 'virtual-image') {
+        flashNotice('Virtual backgrounds are coming soon. Background blur is available now.');
+        return;
       }
 
-      if (callObject) {
+      if (effect === 'none') {
+        bgBusyRef.current = true;
         try {
-          if (effect === 'blur-light') {
-            await callObject.updateInputSettings({
-              video: { processor: { type: 'background-blur', config: { strength: 0.4 } } },
-            });
-          } else if (effect === 'blur-heavy') {
-            await callObject.updateInputSettings({
-              video: { processor: { type: 'background-blur', config: { strength: 0.8 } } },
-            });
-          } else if (effect === 'virtual-image') {
-            let source: string | ArrayBuffer = '';
-            if (customBuffer) {
-              source = customBuffer;
-            } else if (customImg && customImg.startsWith('data:')) {
-              const res = await fetch(customImg);
-              source = await res.arrayBuffer();
-            } else {
-              const preset = VIRTUAL_BACKGROUND_PRESETS.find((p) => p.id === chosenPreset);
-              const path = preset?.previewUrl || '/images/backgrounds/clinic-suite.png';
-              source = `${window.location.origin}${path}`;
-            }
-
-            await callObject.updateInputSettings({
-              video: {
-                processor: {
-                  type: 'background-image',
-                  config: { source },
-                },
-              },
-            });
-          } else {
-            await callObject.updateInputSettings({
-              video: { processor: { type: 'none' } },
-            });
-          }
-          // Only reflect the effect in the UI once Daily has actually applied it
-          setActiveEffect(effect);
-          if (presetId) setSelectedBgPreset(presetId);
-          // Force track synchronization after input settings update
-          syncDailyTracks(callObject);
-        } catch (err: any) {
-          console.warn('Daily background processor exception:', err);
-          flashNotice('Background effect could not be activated on this camera. Check that your camera is on and try again.');
+          await stopBackgroundBlur(true);
+          setActiveEffect('none');
+        } finally {
+          bgBusyRef.current = false;
         }
-      } else {
+        return;
+      }
+
+      const strength = effect === 'blur-heavy' ? 0.85 : 0.45;
+
+      // Already running: just change the strength.
+      if (blurPipelineRef.current) {
+        blurPipelineRef.current.setStrength(strength);
+        setActiveEffect(effect);
+        return;
+      }
+
+      if (!callObject) {
         flashNotice('Join the call first, then choose a background.');
+        return;
+      }
+      if (!backgroundBlurSupported()) {
+        flashNotice('This browser cannot blur your background. Try the latest Chrome or Safari.');
+        return;
+      }
+      if (isVideoMuted) {
+        flashNotice('Turn your camera on first, then choose a background.');
+        return;
+      }
+
+      bgBusyRef.current = true;
+      try {
+        // Which camera is Daily using right now?
+        let deviceId: string | undefined;
+        try {
+          const devices: any = await callObject.getInputDevices();
+          deviceId = devices?.camera?.deviceId;
+        } catch {
+          deviceId = undefined;
+        }
+        cameraIdBeforeBlurRef.current = deviceId;
+
+        // Release Daily's camera so we can read it ourselves, then feed back the blurred track.
+        await callObject.setInputDevicesAsync({ videoSource: false });
+        const cam = await navigator.mediaDevices.getUserMedia({
+          video: deviceId
+            ? { deviceId: { ideal: deviceId }, width: { ideal: 640 }, height: { ideal: 480 } }
+            : { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false,
+        });
+        const sourceTrack = cam.getVideoTracks()[0];
+
+        const pipeline = new BackgroundBlurPipeline({
+          strength,
+          onSlow: () => {
+            flashNotice('Your device is too slow for background blur, so it was turned off.');
+            setActiveEffect('none');
+            stopBackgroundBlur(true).catch(() => {});
+          },
+        });
+        let outTrack: MediaStreamTrack;
+        try {
+          outTrack = await pipeline.start(sourceTrack);
+        } catch (err) {
+          pipeline.stop();
+          sourceTrack.stop();
+          throw err;
+        }
+        blurPipelineRef.current = pipeline;
+        await callObject.setInputDevicesAsync({ videoSource: outTrack });
+        callObject.setLocalVideo(true);
+        setActiveEffect(effect);
+        syncDailyTracks(callObject);
+      } catch (err: any) {
+        console.warn('Background blur could not start:', err);
+        await stopBackgroundBlur(true);
+        setActiveEffect('none');
+        flashNotice('Could not turn on background blur on this camera.');
+      } finally {
+        bgBusyRef.current = false;
       }
     },
-    [callObject, selectedBgPreset, syncDailyTracks],
+    [callObject, isVideoMuted, stopBackgroundBlur, syncDailyTracks],
   );
+
+  // The call is over for this patient: release the camera
+  useEffect(() => {
+    if (isConsultationEnded || hasLeftRoom) {
+      blurPipelineRef.current?.stop();
+      blurPipelineRef.current = null;
+    }
+  }, [isConsultationEnded, hasLeftRoom]);
+
+  // Never leave the camera running after the call (or page) is over
+  useEffect(() => {
+    return () => {
+      blurPipelineRef.current?.stop();
+      blurPipelineRef.current = null;
+    };
+  }, []);
 
   // --------------------------------------------------------------------------
   // Prescription Data Fetching & Sync
@@ -1191,6 +1261,11 @@ export default function PatientConsultationPage() {
 
   const handleSwitchCamera = async () => {
     if (availableCameras.length <= 1) return;
+    // Background blur owns the camera while it runs; turn it off before switching lenses
+    if (blurPipelineRef.current) {
+      await stopBackgroundBlur(true);
+      setActiveEffect('none');
+    }
     const idx = availableCameras.findIndex((c) => c.deviceId === selectedCameraId);
     const next = availableCameras[(idx + 1) % availableCameras.length];
     setSelectedCameraId(next.deviceId);
@@ -2415,7 +2490,7 @@ export default function PatientConsultationPage() {
               </div>
             </div>
 
-            <div>
+            {VIRTUAL_BACKGROUNDS_ENABLED && (            <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                 <label style={{ fontSize: '0.75rem', fontWeight: 800, color: '#DFAB62', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Virtual Backgrounds</label>
                 <button onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', color: '#DFAB62', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', padding: 0 }}>
@@ -2437,7 +2512,7 @@ export default function PatientConsultationPage() {
                   );
                 })}
               </div>
-            </div>
+            </div>)}
           </div>
         )}
 
