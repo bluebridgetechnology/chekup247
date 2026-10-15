@@ -99,6 +99,12 @@ export class DoctorsService implements OnModuleInit {
 
   async onModuleInit() {
     try {
+      // Safety net mirroring migration 1700000021000, so a deploy never selects a column that isn't there
+      await this.userRepository.query('ALTER TABLE users ADD COLUMN IF NOT EXISTS timezone varchar(64);');
+    } catch (err: any) {
+      this.logger.warn(`users.timezone column check failed: ${err.message}`);
+    }
+    try {
       await this.userRepository.query('ALTER TABLE users ALTER COLUMN avatar_url TYPE text;');
     } catch (err: any) {
       // Column may already be text
