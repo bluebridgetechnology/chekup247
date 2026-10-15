@@ -191,6 +191,38 @@ const CORNER_STYLES: Record<string, React.CSSProperties> = {
   'top-left': { top: '56px', left: '16px' },
 };
 
+
+/**
+ * Phone layout for the post-consultation record: one column, tidy header, 2-up metrics,
+ * full-width actions and no squeezed side-by-side cards. (Desktop is unchanged.)
+ */
+const ENCOUNTER_MOBILE_CSS = `
+@media (max-width: 760px) {
+  .enc-page { padding: 14px 12px 40px !important; }
+  .enc-topbar { flex-direction: column !important; align-items: stretch !important; gap: 12px !important; margin-bottom: 16px !important; }
+  .enc-crumbs { flex-wrap: wrap !important; gap: 8px !important; }
+  .enc-crumbs > div { flex-wrap: wrap !important; min-width: 0; }
+  .enc-actions { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+  .enc-actions > * { justify-content: center !important; min-height: 46px; box-sizing: border-box; padding-left: 10px !important; padding-right: 10px !important; white-space: nowrap; }
+  .enc-hero { padding: 16px !important; flex-direction: column !important; align-items: stretch !important; gap: 16px !important; margin-bottom: 16px !important; border-radius: 18px !important; }
+  .enc-id { min-width: 0 !important; align-items: flex-start !important; }
+  .enc-id h1 { font-size: 1.25rem !important; overflow-wrap: anywhere; }
+  .enc-id span { overflow-wrap: anywhere; }
+  .enc-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; max-width: none !important; width: 100% !important; gap: 10px !important; }
+  .enc-metrics > div { padding: 10px 12px !important; min-width: 0; overflow-wrap: anywhere; }
+  .enc-grid { grid-template-columns: minmax(0, 1fr) !important; gap: 16px !important; }
+  .enc-grid > div { gap: 16px !important; min-width: 0; }
+  .enc-grid > div > div { padding: 16px !important; border-radius: 16px !important; min-width: 0; }
+  .enc-grid > div > div > div:first-child { flex-wrap: wrap !important; gap: 6px 12px !important; }
+  .enc-grid h3 { font-size: 0.95rem !important; line-height: 1.3; }
+  .enc-grid a, .enc-grid button { max-width: 100%; }
+  .enc-grid [style*="text-align: center"], .enc-grid [style*="textAlign"] { text-align: left !important; }
+}
+@media print {
+  .enc-actions { display: none !important; }
+}
+`;
+
 export default function DoctorConsultationWorkspace() {
   const params = useParams();
   const { doctor, token } = useDoctorAuth();
@@ -1361,16 +1393,23 @@ export default function DoctorConsultationWorkspace() {
   if (isConsultationEnded) {
     return (
       <div
+        className="enc-page"
         style={{
-          minHeight: '100vh',
+          // The consultation-room layout clips overflow, so this record scrolls itself
+          height: '100dvh',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          WebkitOverflowScrolling: 'touch',
           backgroundColor: '#FAF6EE',
           color: '#2A170F',
           padding: '24px 20px 60px',
         }}
       >
+        <style>{ENCOUNTER_MOBILE_CSS}</style>
         <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
           {/* Top Breadcrumb & Action Header */}
           <div
+            className="enc-topbar"
             style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -1380,7 +1419,7 @@ export default function DoctorConsultationWorkspace() {
               marginBottom: '24px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="enc-crumbs" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <Link
                 href="/appointments"
                 style={{
@@ -1426,7 +1465,7 @@ export default function DoctorConsultationWorkspace() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div className="enc-actions" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
                 type="button"
                 onClick={() => window.print()}
@@ -1473,6 +1512,7 @@ export default function DoctorConsultationWorkspace() {
 
           {/* Hero Banner with Patient & Encounter Metrics */}
           <div
+            className="enc-hero"
             style={{
               backgroundColor: '#FFFFFF',
               borderRadius: '20px',
@@ -1487,7 +1527,7 @@ export default function DoctorConsultationWorkspace() {
               gap: '20px',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '240px' }}>
+            <div className="enc-id" style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '240px' }}>
               <div
                 style={{
                   width: '54px',
@@ -1537,6 +1577,7 @@ export default function DoctorConsultationWorkspace() {
 
             {/* Quick Metrics Cards */}
             <div
+              className="enc-metrics"
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
@@ -1605,7 +1646,7 @@ export default function DoctorConsultationWorkspace() {
                   Attending Doctor
                 </div>
                 <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#2A170F', marginTop: '2px' }}>
-                  {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'Dr. Practitioner'}
+                  {doctor?.fullName ? `Dr. ${doctor.fullName.replace(/^(dr|prof)\.?\s+/i, '')}` : 'Dr. Practitioner'}
                 </div>
               </div>
             </div>
@@ -1613,6 +1654,7 @@ export default function DoctorConsultationWorkspace() {
 
           {/* Two-Column Clinical Encounter Details */}
           <div
+            className="enc-grid"
             style={{
               display: 'grid',
               gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1.1fr)',
