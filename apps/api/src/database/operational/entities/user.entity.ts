@@ -39,6 +39,10 @@ export class User {
   @Column({ type: 'varchar', length: 50, nullable: true })
   phone: string;
 
+  /** IANA timezone reported by the user's browser (e.g. "Africa/Lagos"); used to format emails/SMS. */
+  @Column({ type: 'varchar', length: 64, nullable: true })
+  timezone: string | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   password_hash: string;
 

@@ -408,6 +408,13 @@ export class AuthController {
     return this.authService.updateProfile(user.sub, dto);
   }
 
+  /** The browser reports its IANA timezone so emails and SMS show times the user can trust. */
+  @UseGuards(JwtAuthGuard)
+  @Put('me/timezone')
+  async updateTimezone(@CurrentUser() user: JwtPayload, @Body() dto: { timeZone?: string }) {
+    return this.authService.updateTimezone(user.sub, dto?.timeZone);
+  }
+
   @UseGuards(JwtAuthGuard)
   @Put('change-password')
   async changePassword(

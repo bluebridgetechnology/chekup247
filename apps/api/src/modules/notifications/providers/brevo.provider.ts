@@ -276,6 +276,7 @@ export class BrevoEmailProvider {
     const doctorName = params.doctorName || 'Doctor';
     const appointmentDate = params.appointmentDate || 'Upcoming';
     const appointmentTime = params.appointmentTime || '';
+    const tzLabel = params.timeZoneLabel || 'SAST';
     const portalUrl = params.portalUrl || envConfig.PATIENT_WEB_URL;
     // Doctor-facing links go to the doctor portal (signed-out doctors are sent to login, then back)
     const doctorUrl = (params.doctorPortalUrl || envConfig.DOCTOR_PORTAL_URL).replace(/\/+$/, '');
@@ -368,7 +369,7 @@ export class BrevoEmailProvider {
               <div style="background: #FAF6EE; border: 1px solid #DFAB62; border-radius: 12px; padding: 18px; margin: 20px 0;">
                 <p style="margin: 4px 0; color: #2A170F;"><strong>Consulting Practitioner:</strong> Dr. ${doctorName} (${specialty})</p>
                 <p style="margin: 4px 0; color: #2A170F;"><strong>Date:</strong> ${appointmentDate}</p>
-                <p style="margin: 4px 0; color: #2A170F;"><strong>Time:</strong> ${appointmentTime} (SAST)</p>
+                <p style="margin: 4px 0; color: #2A170F;"><strong>Time:</strong> ${appointmentTime} (${tzLabel})</p>
                 <p style="margin: 4px 0; color: #2A170F;"><strong>Booking Reference:</strong> <span style="font-family: monospace; font-weight: 700;">${bookingId}</span></p>
               </div>
               <p style="color: #475569; font-size: 14px;">${
@@ -460,7 +461,7 @@ export class BrevoEmailProvider {
               <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
                 <p style="margin: 4px 0;"><strong>Patient:</strong> ${patientName}</p>
                 <p style="margin: 4px 0;"><strong>Date:</strong> ${appointmentDate}</p>
-                <p style="margin: 4px 0;"><strong>Time:</strong> ${appointmentTime} (SAST)</p>
+                <p style="margin: 4px 0;"><strong>Time:</strong> ${appointmentTime} (${tzLabel})</p>
                 <p style="margin: 4px 0;"><strong>Primary Reason:</strong> ${params.clinicalReason || 'General Telehealth Consultation'}</p>
                 <p style="margin: 4px 0;"><strong>Booking Reference:</strong> <span style="font-family: monospace; font-weight: 700;">${bookingId}</span></p>
               </div>
@@ -679,7 +680,7 @@ export class BrevoEmailProvider {
               <p>Hi <strong>${patientName}</strong>,</p>
               <p>This is a reminder that your telehealth consultation with <strong>Dr. ${doctorName}</strong> starts in <strong>${timing}</strong>.</p>
               <div style="background: #f1f5f9; border-radius: 12px; padding: 16px; margin: 20px 0;">
-                <p style="margin: 4px 0;"><strong>Scheduled Start:</strong> ${appointmentDate} at ${appointmentTime} (SAST)</p>
+                <p style="margin: 4px 0;"><strong>Scheduled Start:</strong> ${appointmentDate} at ${appointmentTime} (${tzLabel})</p>
                 <p style="margin: 4px 0;"><strong>Grace Period:</strong> 10 minutes maximum after start time</p>
               </div>
               <div style="text-align: center;">
@@ -730,7 +731,7 @@ export class BrevoEmailProvider {
               <p>Your consultation with <strong>Dr. ${doctorName}</strong> has been rescheduled to a new time.</p>
               <div style="background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 16px; margin: 20px 0; color: #065f46;">
                 <p style="margin: 4px 0;"><strong>New Date:</strong> ${appointmentDate}</p>
-                <p style="margin: 4px 0;"><strong>New Time:</strong> ${appointmentTime} (SAST)</p>
+                <p style="margin: 4px 0;"><strong>New Time:</strong> ${appointmentTime} (${tzLabel})</p>
               </div>
               <div style="text-align: center;">
                 <a href="${portalUrl}/bookings/${bookingId}" style="${buttonStyles}">View Rescheduled Booking</a>

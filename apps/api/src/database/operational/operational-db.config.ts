@@ -31,6 +31,7 @@ import { AddMinimumBillableMinutesToPlatformSettings1700000017000 } from './migr
 import { AddBookingLeadMinutesToPlatformSettings1700000018000 } from './migrations/1700000018000-AddBookingLeadMinutesToPlatformSettings';
 import { AddSlotHolds1700000019000 } from './migrations/1700000019000-AddSlotHolds';
 import { AddJoinGraceMinutes1700000020000 } from './migrations/1700000020000-AddJoinGraceMinutes';
+import { AddUserTimezone1700000021000 } from './migrations/1700000021000-AddUserTimezone';
 
 export const operationalEntities = [
   User,
@@ -76,6 +77,7 @@ export const getOperationalDbConfig = (): TypeOrmModuleOptions => ({
     AddBookingLeadMinutesToPlatformSettings1700000018000,
     AddSlotHolds1700000019000,
     AddJoinGraceMinutes1700000020000,
+    AddUserTimezone1700000021000,
   ],
   migrationsRun: false,
   synchronize: envConfig.NODE_ENV !== 'production' || envConfig.DB_SYNCHRONIZE,

@@ -22,6 +22,7 @@ import { User, AvailabilitySlot, DoctorProfile } from '../../database/operationa
 import { PaystackService } from './paystack.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ConsultationsService } from '../consultations/consultations.service';
+import { ReminderScheduler } from '../queues/reminder.scheduler';
 import { envConfig } from '../../config/env.config';
 
 export interface InitiatePaymentDto {
@@ -54,6 +55,8 @@ export class PaymentsService {
     @Optional()
     @Inject(forwardRef(() => ConsultationsService))
     private readonly consultationsService?: ConsultationsService,
+    @Optional()
+    private readonly reminderScheduler?: ReminderScheduler,
   ) {}
 
   /**
@@ -560,6 +563,20 @@ export class PaymentsService {
 
       if (!doctorName) doctorName = 'Practitioner';
 
+      // Reminders (24h / 1h / 15m before) are queued the moment a booking is confirmed. Idempotent: any
+      // existing jobs for this booking are replaced, so repeat confirmations (webhook + verify) are safe.
+      if (this.reminderScheduler && slot?.start_time) {
+        this.reminderScheduler
+          .scheduleBookingReminders({
+            bookingId: booking.id,
+            patientId: booking.patient_id,
+            doctorId: doctorUserId,
+            slotStartTime: slot.start_time,
+            doctorName,
+          })
+          .catch((err: any) => this.logger.warn(`Could not schedule reminders for ${booking.id}: ${err.message}`));
+      }
+
       const patientUser = await this.userRepository.findOne({ where: { id: booking.patient_id } });
       const patientName = patientUser?.full_name || 'Patient';
 
@@ -587,6 +604,7 @@ export class PaymentsService {
           bookingId: booking.id,
           doctorName,
           patientName,
+          appointmentStart: slot?.start_time ? new Date(slot.start_time).toISOString() : undefined,
           appointmentDate: formattedDate,
           appointmentTime: formattedTime,
           message: `Your consultation with Dr. ${doctorName} is confirmed for ${formattedDate} at ${formattedTime}.`,
@@ -604,6 +622,7 @@ export class PaymentsService {
             bookingId: booking.id,
             doctorName,
             patientName,
+            appointmentStart: slot?.start_time ? new Date(slot.start_time).toISOString() : undefined,
             appointmentDate: formattedDate,
             appointmentTime: formattedTime,
             clinicalReason: booking.notes || 'General Telehealth Consultation',

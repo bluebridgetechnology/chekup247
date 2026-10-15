@@ -107,6 +107,9 @@ interface TimerSyncPayload {
   is1MinWarning: boolean;
 }
 
+/** Background blur / virtual backgrounds are switched off until our own phone-friendly pipeline is built. */
+const BACKGROUND_EFFECTS_ENABLED = false;
+
 export type BackgroundEffectType = 'none' | 'blur-light' | 'blur-heavy' | 'virtual-image';
 
 interface VirtualBackgroundPreset {
@@ -2386,7 +2389,7 @@ export default function PatientConsultationPage() {
         {/* ================================================================
             EFFECTS DRAWER
             ================================================================ */}
-        {showEffectsDrawer && (
+        {BACKGROUND_EFFECTS_ENABLED && showEffectsDrawer && (
           <div className="effects-drawer" style={{ position: 'absolute', bottom: '96px', left: '50%', transform: 'translateX(-50%)', width: '460px', maxWidth: '92vw', backgroundColor: '#1E100A', border: '1.5px solid rgba(223,171,98,0.35)', borderRadius: '20px', boxShadow: '0 20px 50px rgba(0,0,0,0.75)', padding: '20px', zIndex: 40, backdropFilter: 'blur(20px)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px', paddingBottom: '12px', borderBottom: '1px solid rgba(223,171,98,0.2)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2451,10 +2454,10 @@ export default function PatientConsultationPage() {
             {isVideoMuted ? <VideoOff size={20} /> : <Video size={20} />}
           </button>
           {/* Effects */}
-          <button onClick={() => setShowEffectsDrawer(!showEffectsDrawer)} title="Video Effects" style={{ width: '46px', height: '46px', borderRadius: '50%', border: activeEffect !== 'none' || showEffectsDrawer ? '1.5px solid #DFAB62' : '1px solid rgba(223,171,98,0.3)', backgroundColor: activeEffect !== 'none' || showEffectsDrawer ? 'rgba(223,171,98,0.25)' : 'rgba(255,255,255,0.08)', color: activeEffect !== 'none' || showEffectsDrawer ? '#DFAB62' : '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease', position: 'relative' }}>
+{BACKGROUND_EFFECTS_ENABLED && (<button onClick={() => setShowEffectsDrawer(!showEffectsDrawer)} title="Video Effects" style={{ width: '46px', height: '46px', borderRadius: '50%', border: activeEffect !== 'none' || showEffectsDrawer ? '1.5px solid #DFAB62' : '1px solid rgba(223,171,98,0.3)', backgroundColor: activeEffect !== 'none' || showEffectsDrawer ? 'rgba(223,171,98,0.25)' : 'rgba(255,255,255,0.08)', color: activeEffect !== 'none' || showEffectsDrawer ? '#DFAB62' : '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease', position: 'relative' }}>
             <Sparkles size={20} />
             {activeEffect !== 'none' && <span style={{ position: 'absolute', top: '3px', right: '3px', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#DFAB62', boxShadow: '0 0 6px #DFAB62' }} />}
-          </button>
+          </button>)}
           {/* Speaker */}
           <button onClick={toggleSpeaker} title={isSpeakerMuted ? 'Unmute Speaker' : 'Mute Speaker'} style={{ width: '46px', height: '46px', borderRadius: '50%', border: isSpeakerMuted ? '1.5px solid #EF4444' : '1px solid rgba(223,171,98,0.3)', backgroundColor: isSpeakerMuted ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.08)', color: isSpeakerMuted ? '#EF4444' : '#FAF6EE', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', transition: 'all 0.18s ease' }}>
             {isSpeakerMuted ? <VolumeX size={20} /> : <Volume2 size={20} />}

@@ -63,6 +63,7 @@ export class ReminderProcessor extends WorkerHost {
         bookingId,
         window,
         doctorName: doctorName || 'Doctor',
+        appointmentStart: new Date(slotStartTime).toISOString(),
         appointmentDate: formattedDate,
         appointmentTime: formattedTime,
         message: `Your telehealth consultation with Dr. ${doctorName || 'Doctor'} starts in ${windowText} at ${formattedTime}.`,

@@ -23,6 +23,7 @@ import { SmsProvider } from './providers/sms.provider';
 import { WhatsAppProvider } from './providers/whatsapp.provider';
 import { WebPushProvider, PushPayload } from './providers/web-push.provider';
 import { NotificationsGateway } from './notifications.gateway';
+import { formatInZone } from '../../common/utils/zoned-time';
 
 export interface DispatchNotificationOptions {
   recipientId: string;
@@ -134,10 +135,12 @@ export class NotificationsService {
     inAppNotificationId: string;
     channelsDispatched: string[];
   }> {
-    const { recipientId, title, templateId, payload, deepLink, forceChannels } = options;
+    const { recipientId, title, templateId, deepLink, forceChannels } = options;
 
     // 1. Fetch user & notification preferences
     const user = await this.userRepository.findOne({ where: { id: recipientId } });
+    // Appointment times are shown in the recipient's own timezone (not the server's)
+    const payload = this.localizeAppointment(options.payload, user?.timezone);
     const pref = await this.getUserPreferences(recipientId);
 
     // Patient emails/SMS for a booking carry a one-tap "join your consultation" link (no login or
@@ -409,6 +412,31 @@ export class NotificationsService {
   }
 
   /**
+   * When a payload carries `appointmentStart` (ISO instant), render the date/time for this recipient's
+   * timezone and swap the pre-formatted values that callers also put in the human-readable message.
+   */
+  private localizeAppointment(payload: Record<string, any>, timeZone?: string | null): Record<string, any> {
+    if (!payload?.appointmentStart) return payload;
+    const start = new Date(payload.appointmentStart);
+    if (Number.isNaN(start.getTime())) return payload;
+    const local = formatInZone(start, timeZone);
+    let message: string | undefined = payload.message;
+    if (typeof message === 'string') {
+      if (payload.appointmentDate) message = message.split(payload.appointmentDate).join(local.date);
+      if (payload.appointmentTime) {
+        message = message.split(payload.appointmentTime).join(`${local.time} (${local.zone})`);
+      }
+    }
+    return {
+      ...payload,
+      appointmentDate: local.date,
+      appointmentTime: local.time,
+      timeZoneLabel: local.zone,
+      ...(message !== undefined ? { message } : {}),
+    };
+  }
+
+  /**
    * Render concise, GSM-compliant SMS copy matching ChekUp247 standards.
    */
   private renderSmsMessage(
@@ -430,7 +458,7 @@ export class NotificationsService {
         return `ChekUp247: Your clinical verification code is ${payload.otp || '000000'}. Valid for 15 mins. Do not share this code.`;
 
       case 'booking_confirmed':
-        return `ChekUp247: Consultation with Dr. ${docName} confirmed for ${appDate}${appTime ? ' at ' + appTime : ''}. Join: ${payload.joinUrl || `${portalUrl}/bookings/${bookingId}`}`;
+        return `ChekUp247: Consultation with Dr. ${docName} confirmed for ${appDate}${appTime ? ' at ' + appTime + (payload.timeZoneLabel ? ' ' + payload.timeZoneLabel : '') : ''}. Join: ${payload.joinUrl || `${portalUrl}/bookings/${bookingId}`}`;
 
       case 'doctor_application_received':
         return `ChekUp247: Dr. ${docName}, your practitioner onboarding application (HPCSA ${payload.hpcsaNumber || 'Submitted'}) has been received and is under clinical review.`;
@@ -439,7 +467,7 @@ export class NotificationsService {
         return `ChekUp247: Congratulations Dr. ${docName}! Your practitioner account is verified and approved. Set your schedule: ${portalUrl}/calendar`;
 
       case 'new_booking_doctor':
-        return `ChekUp247: New booking with ${patientName} on ${appDate} at ${appTime} (SAST). View details: ${envConfig.DOCTOR_PORTAL_URL.replace(/\/+$/, '')}/consultations/${bookingId}`;
+        return `ChekUp247: New booking with ${patientName} on ${appDate} at ${appTime} (${payload.timeZoneLabel || 'SAST'}). View details: ${envConfig.DOCTOR_PORTAL_URL.replace(/\/+$/, '')}/consultations/${bookingId}`;
 
       case 'doctor_joined_room':
         return `ChekUp247: Dr. ${docName} is waiting in your video consultation room. Join now: ${portalUrl}/consultations/${bookingId}`;

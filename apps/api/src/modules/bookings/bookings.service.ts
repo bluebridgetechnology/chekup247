@@ -817,6 +817,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
         payload: {
           bookingId: booking.id,
           doctorName: slot?.doctor?.user?.full_name || 'Doctor',
+          appointmentStart: slot?.start_time ? new Date(slot.start_time).toISOString() : undefined,
           appointmentDate: formattedDate,
           refundStatus: isOver24Hours
             ? '100% full refund processed'
@@ -1001,6 +1002,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
         payload: {
           bookingId: booking.id,
           doctorName: newSlot.doctor?.user?.full_name || 'Doctor',
+          appointmentStart: new Date(newSlot.start_time).toISOString(),
           appointmentDate: formattedDate,
           appointmentTime: formattedTime,
           message: `Your appointment with Dr. ${newSlot.doctor?.user?.full_name || 'Doctor'} has been rescheduled to ${formattedDate} at ${formattedTime}.`,
@@ -1017,6 +1019,7 @@ export class BookingsService implements OnModuleInit, OnModuleDestroy {
           templateId: 'booking_rescheduled',
           payload: {
             bookingId: booking.id,
+            appointmentStart: new Date(newSlot.start_time).toISOString(),
             appointmentDate: formattedDate,
             appointmentTime: formattedTime,
             message: `An appointment was rescheduled to ${formattedDate} at ${formattedTime}.`,

@@ -142,6 +142,9 @@ interface DiagnosisItem {
   isPrimary: boolean;
 }
 
+/** Background blur / virtual backgrounds are switched off until our own phone-friendly pipeline is built. */
+const BACKGROUND_EFFECTS_ENABLED = false;
+
 export type BackgroundEffectType = 'none' | 'blur-light' | 'blur-heavy' | 'virtual-image';
 
 interface VirtualBackgroundPreset {
@@ -3415,7 +3418,8 @@ export default function DoctorConsultationWorkspace() {
               </button>
 
               {/* Video Effects Toggle */}
-              <button
+              {BACKGROUND_EFFECTS_ENABLED && (
+<button
                 className="call-ctrl-btn call-ctrl-desktop-only"
                 onClick={() => setShowEffectsDrawer(!showEffectsDrawer)}
                 title="Video Background & Privacy"
@@ -3451,6 +3455,7 @@ export default function DoctorConsultationWorkspace() {
                   />
                 )}
               </button>
+)}
 
               {/* Full Video View Toggle */}
               <button
@@ -3580,7 +3585,8 @@ export default function DoctorConsultationWorkspace() {
                     </button>
 
                     {/* Video Background & Effects */}
-                    <button
+                    {BACKGROUND_EFFECTS_ENABLED && (
+<button
                       onClick={() => {
                         setShowEffectsDrawer(!showEffectsDrawer);
                         setShowMoreMenu(false);
@@ -3606,6 +3612,7 @@ export default function DoctorConsultationWorkspace() {
                       <Sparkles size={15} color="#DFAB62" />
                       <span>Video Effects &amp; Privacy</span>
                     </button>
+)}
 
                     {/* Swap Views */}
                     <button
@@ -3695,7 +3702,7 @@ export default function DoctorConsultationWorkspace() {
             {/* ================================================================
                 EFFECTS DRAWER (Video Background & Privacy)
                 ================================================================ */}
-            {showEffectsDrawer && (
+            {BACKGROUND_EFFECTS_ENABLED && showEffectsDrawer && (
               <div
                 className={`effects-drawer${bgSupported ? '' : ' effects-unsupported'}`}
                 style={{
