@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { syncTimezone } from '../lib/syncTimezone';
 
 export interface UserProfile {
   id: string;
@@ -104,6 +105,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false);
     }
   }, []);
+
+  // Let the API know this browser's timezone (for emails/SMS)
+  useEffect(() => {
+    syncTimezone(API_BASE, token);
+  }, [token]);
 
   useEffect(() => {
     refreshUser();

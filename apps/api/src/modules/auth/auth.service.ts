@@ -37,6 +37,7 @@ import {
   ExpressPatientDto,
 } from './dto/auth.dto';
 import * as crypto from 'crypto';
+import { isValidTimeZone } from '../../common/utils/zoned-time';
 import { BrevoEmailProvider } from '../notifications/providers/brevo.provider';
 import { SmsProvider } from '../notifications/providers/sms.provider';
 
@@ -1084,6 +1085,19 @@ export class AuthService implements OnModuleInit {
   /**
    * Update patient profile details
    */
+  async updateTimezone(userId: string, timeZone?: string): Promise<{ timezone: string | null }> {
+    if (!isValidTimeZone(timeZone)) {
+      throw new BadRequestException('A valid IANA timezone is required');
+    }
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.timezone !== timeZone) {
+      user.timezone = timeZone;
+      await this.userRepository.save(user);
+    }
+    return { timezone: user.timezone };
+  }
+
   async updateProfile(
     userId: string,
     dto: {

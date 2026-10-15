@@ -15,6 +15,7 @@ interface Rule {
 
 const RULES: Rule[] = [
   { methods: ['GET'], pattern: /^\/auth\/me$/ },
+  { methods: ['PUT'], pattern: /^\/auth\/me\/timezone$/ },
   { methods: ['POST'], pattern: /^\/auth\/logout$/ },
   { methods: ['POST'], pattern: /^\/bookings$/ },
   { methods: ['GET'], pattern: /^\/bookings\/([^/]+)$/, bookingGroup: 1 },
