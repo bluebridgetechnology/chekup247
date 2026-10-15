@@ -279,6 +279,15 @@ export default function DoctorConsultationWorkspace() {
   const [customBgImage, setCustomBgImage] = useState<string | null>(null);
   const [showEffectsDrawer, setShowEffectsDrawer] = useState<boolean>(false);
   const [backgroundNotice, setBackgroundNotice] = useState<string | null>(null);
+  // Daily's background processor needs a desktop browser; phones can't run it
+  const [bgSupported, setBgSupported] = useState<boolean>(true);
+  useEffect(() => {
+    try {
+      setBgSupported(DailyIframe.supportedBrowser().supportsVideoProcessing !== false);
+    } catch {
+      setBgSupported(true);
+    }
+  }, []);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Timer State (starts from 0 or calculated from consultation.started_at)
@@ -2791,6 +2800,7 @@ export default function DoctorConsultationWorkspace() {
 
             {/* Video Stage Content: Container for Doctor and Patient Tiles */}
             <div
+              className={videoLayout === 'grid' ? 'video-grid' : ''}
               style={{
                 position: 'relative',
                 width: '100%',
@@ -2848,6 +2858,7 @@ export default function DoctorConsultationWorkspace() {
                 {/* Doctor Video Feed */}
                 <video
                   ref={localVideoRef}
+                  className="doctor-video"
                   autoPlay
                   playsInline
                   muted
@@ -2991,6 +3002,7 @@ export default function DoctorConsultationWorkspace() {
 
                 {/* Doctor Bottom Badge */}
                 <div
+                  className={`video-badge ${videoLayout === 'pip' ? (isSwapped ? 'video-badge-main' : 'video-badge-pip') : ''}`}
                   style={{
                     position: 'absolute',
                     bottom: '6px',
@@ -3008,7 +3020,7 @@ export default function DoctorConsultationWorkspace() {
                 >
                   <div>
                     <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1 }}>
-                      {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'You (Doctor)'}
+                      {doctor?.fullName ? `Dr. ${doctor.fullName.replace(/^(dr|prof)\.?\s+/i, '')}` : 'You (Doctor)'}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '1px' }}>
                       <div style={{ fontSize: '0.62rem', color: '#DFAB62', fontWeight: 500 }}>
@@ -3089,6 +3101,7 @@ export default function DoctorConsultationWorkspace() {
                 {/* Patient Video Stream */}
                 <video
                   ref={remoteVideoRef}
+                  className="doctor-video"
                   autoPlay
                   playsInline
                   style={{
@@ -3249,6 +3262,7 @@ export default function DoctorConsultationWorkspace() {
 
                 {/* Patient Bottom Badge */}
                 <div
+                  className={`video-badge ${videoLayout === 'pip' ? (isSwapped ? 'video-badge-pip' : 'video-badge-main') : ''}`}
                   style={{
                     position: 'absolute',
                     bottom: '6px',
@@ -3683,7 +3697,7 @@ export default function DoctorConsultationWorkspace() {
                 ================================================================ */}
             {showEffectsDrawer && (
               <div
-                className="effects-drawer"
+                className={`effects-drawer${bgSupported ? '' : ' effects-unsupported'}`}
                 style={{
                   position: 'absolute',
                   bottom: '76px',
@@ -3731,6 +3745,24 @@ export default function DoctorConsultationWorkspace() {
                   </button>
                 </div>
 
+                {!bgSupported && (
+                  <div
+                    role="note"
+                    style={{
+                      marginBottom: '14px',
+                      padding: '10px 12px',
+                      borderRadius: '12px',
+                      backgroundColor: 'rgba(223, 171, 98, 0.12)',
+                      border: '1px solid rgba(223, 171, 98, 0.35)',
+                      color: '#F0E5D3',
+                      fontSize: '0.8rem',
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    Background blur and virtual backgrounds need a laptop or desktop browser (Chrome, Edge or Safari).
+                    Phone browsers can&apos;t run them yet.
+                  </div>
+                )}
                 <div style={{ marginBottom: '16px' }}>
                   <label
                     style={{
@@ -5402,7 +5434,7 @@ export default function DoctorConsultationWorkspace() {
                 <div>
                   <div style={{ fontSize: '0.72rem', color: '#8C7768', textTransform: 'uppercase', fontWeight: 700 }}>Doctor</div>
                   <div style={{ fontSize: '1rem', fontWeight: 800, color: '#2A170F' }}>
-                    {doctor?.fullName ? `Dr. ${doctor.fullName}` : 'Dr. ChekUp247 Practitioner'}
+                    {doctor?.fullName ? `Dr. ${doctor.fullName.replace(/^(dr|prof)\.?\s+/i, '')}` : 'Dr. ChekUp247 Practitioner'}
                   </div>
                 </div>
                 <div>
@@ -6203,14 +6235,52 @@ export default function DoctorConsultationWorkspace() {
             display: none !important;
           }
 
+          /* Self-view / PiP: a proper portrait tile tucked under the top bar, clear of the call controls */
           .doctor-pip {
             cursor: pointer !important;
-            border-radius: 12px !important;
-            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
-            max-width: 120px !important;
-            max-height: 160px !important;
-            bottom: 74px !important;
+            border-radius: 14px !important;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.55) !important;
+            width: 112px !important;
+            height: 150px !important;
+            max-width: none !important;
+            max-height: none !important;
+            top: 64px !important;
+            bottom: auto !important;
             right: 10px !important;
+            left: auto !important;
+          }
+
+          /* Fill the tile (crop edges, favour faces) instead of letterboxing with black bars */
+          .doctor-video {
+            object-fit: cover !important;
+            object-position: center 30% !important;
+          }
+
+          /* Name badge: out of the PiP, and lifted above the call controls on the main tile */
+          .video-badge-pip {
+            display: none !important;
+          }
+          .video-badge-main {
+            bottom: 84px !important;
+            left: 10px !important;
+            right: auto !important;
+            max-width: calc(100% - 20px) !important;
+          }
+
+          /* Side-by-side: keep both tiles clear of the floating control bar */
+          .video-grid {
+            padding: 10px 10px 84px !important;
+            gap: 10px !important;
+            grid-template-columns: 1fr !important;
+            grid-auto-rows: 1fr !important;
+          }
+          .video-grid .video-badge {
+            bottom: 8px !important;
+          }
+
+          .effects-unsupported > div:nth-child(n + 3) {
+            opacity: 0.4;
+            pointer-events: none;
           }
 
           /* Desktop-only Call Controls Hidden on Mobile */
