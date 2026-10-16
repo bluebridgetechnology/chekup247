@@ -112,7 +112,8 @@ interface TimerSyncPayload {
 /** Background blur runs on-device (MediaPipe) so it works on phones as well as laptops. */
 const BACKGROUND_EFFECTS_ENABLED = true;
 /** Virtual (image) backgrounds ride on the same on-device pipeline as blur. */
-const VIRTUAL_BACKGROUNDS_ENABLED = true;
+// Off for now: only blur is offered while we tune mobile performance.
+const VIRTUAL_BACKGROUNDS_ENABLED = false;
 
 export type BackgroundEffectType = 'none' | 'blur-light' | 'blur-heavy' | 'virtual-image';
 

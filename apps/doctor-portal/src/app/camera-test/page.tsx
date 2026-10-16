@@ -11,6 +11,9 @@ import '../../styles/camera-test.css';
 
 type Mode = 'none' | 'blur-light' | 'blur-heavy' | 'image';
 
+/** Off for now, matching the call: only blur is offered while we tune mobile performance. */
+const VIRTUAL_BACKGROUNDS_ENABLED = false;
+
 const PRESETS = [
   { id: 'clinic-suite', name: 'Medical Suite', url: '/images/backgrounds/clinic-suite.png' },
   { id: 'modern-office', name: 'Modern Clinic Office', url: '/images/backgrounds/modern-office.png' },
@@ -67,7 +70,11 @@ export default function CameraTestPage() {
         setFps(Math.round((frames * 1000) / (now - last)));
         setSize(`${v.videoWidth}×${v.videoHeight}`);
         const st = pipelineRef.current?.stats();
-        setEngine(st?.delegate ? `${st.delegate} · ${st.segmentMs} ms/mask` : '');
+        setEngine(
+          st?.delegate
+            ? `${st.delegate} · mask every ${st.maskEvery === 1 ? 'frame' : st.maskEvery === 2 ? '2nd frame' : `${st.maskEvery}rd frame`}`
+            : '',
+        );
         frames = 0;
         last = now;
       }
@@ -240,7 +247,7 @@ export default function CameraTestPage() {
       <div>
         <h1 className="page-title" style={{ marginBottom: 4 }}>Camera test</h1>
         <p className="ct-intro">
-          Try background blur and virtual backgrounds on your own camera, with no booking or call. Nothing is
+          Try background blur on your own camera, with no booking or call. Nothing is
           recorded or sent anywhere: it all runs on this device.
         </p>
       </div>
@@ -316,44 +323,48 @@ export default function CameraTestPage() {
           ))}
         </div>
 
-        <div className="ct-label">Virtual backgrounds</div>
-        <div className="ct-presets">
-          {hasCustom && (
-            <button
-              type="button"
-              className="ct-preset"
-              aria-pressed={mode === 'image' && preset === 'custom'}
-              disabled={!running || processing}
-              onClick={() => pickPreset('custom')}
-            >
-              <span style={{ padding: '26px 8px', textAlign: 'center' }}>Your image</span>
-            </button>
-          )}
-          {PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="ct-preset"
-              aria-pressed={mode === 'image' && preset === p.id}
-              disabled={!running || !supported || processing}
-              onClick={() => pickPreset(p.id)}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.url} alt="" />
-              <span>{p.name}</span>
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          className="btn-secondary"
-          style={{ minHeight: 44 }}
-          disabled={!running || !supported || processing}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          Upload your own image
-        </button>
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={onUpload} style={{ display: 'none' }} />
+        {VIRTUAL_BACKGROUNDS_ENABLED && (
+          <>
+          <div className="ct-label">Virtual backgrounds</div>
+          <div className="ct-presets">
+            {hasCustom && (
+              <button
+                type="button"
+                className="ct-preset"
+                aria-pressed={mode === 'image' && preset === 'custom'}
+                disabled={!running || processing}
+                onClick={() => pickPreset('custom')}
+              >
+                <span style={{ padding: '26px 8px', textAlign: 'center' }}>Your image</span>
+              </button>
+            )}
+            {PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="ct-preset"
+                aria-pressed={mode === 'image' && preset === p.id}
+                disabled={!running || !supported || processing}
+                onClick={() => pickPreset(p.id)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt="" />
+                <span>{p.name}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ minHeight: 44 }}
+            disabled={!running || !supported || processing}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Upload your own image
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={onUpload} style={{ display: 'none' }} />
+          </>
+        )}
       </section>
 
       <p className="ct-intro" style={{ fontSize: '0.8rem' }}>

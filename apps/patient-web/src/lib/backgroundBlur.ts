@@ -99,7 +99,13 @@ function loadViaImageElement(source: string | Blob): Promise<HTMLImageElement> {
 let visionModule: Promise<typeof import('@mediapipe/tasks-vision')> | null = null;
 let filesetPromise: Promise<any> | null = null;
 
-async function createSegmenter(): Promise<{ segmenter: ImageSegmenter; delegate: 'GPU' | 'CPU' }> {
+/**
+ * The segmenter shares our WebGL2 context (`canvas`), so its masks stay on the GPU and the compositor
+ * reads them directly: no per-frame GPU-to-CPU readback stalling the main thread.
+ */
+async function createSegmenter(
+  canvas: HTMLCanvasElement,
+): Promise<{ segmenter: ImageSegmenter; delegate: 'GPU' | 'CPU' }> {
   if (!visionModule) visionModule = import('@mediapipe/tasks-vision');
   const vision = await visionModule.catch((err) => {
     visionModule = null;
@@ -113,6 +119,7 @@ async function createSegmenter(): Promise<{ segmenter: ImageSegmenter; delegate:
   const make = (delegate: 'GPU' | 'CPU') =>
     vision.ImageSegmenter.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: MODEL_URL, delegate },
+      canvas,
       runningMode: 'VIDEO',
       outputCategoryMask: false,
       outputConfidenceMasks: true,
@@ -139,6 +146,21 @@ void main() {
   float y = a_pos.y * 0.5 + 0.5;
   v_uv = vec2(a_pos.x * 0.5 + 0.5, mix(y, 1.0 - y, u_flipY));
   gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
+
+// Copies the segmenter's float mask texture (no linear filtering guaranteed on phones) into our own
+// 8-bit texture at the same size, which the refine pass can then sample with hardware filtering.
+const FRAG_COPY_MASK = `#version 300 es
+precision highp float;
+uniform highp sampler2D u_src;
+uniform float u_srcFlip;
+in vec2 v_uv;
+out vec4 o;
+void main() {
+  ivec2 size = textureSize(u_src, 0);
+  vec2 uv = vec2(v_uv.x, mix(v_uv.y, 1.0 - v_uv.y, u_srcFlip));
+  ivec2 p = clamp(ivec2(uv * vec2(size)), ivec2(0), size - 1);
+  o = vec4(clamp(texelFetch(u_src, p, 0).r, 0.0, 1.0), 0.0, 0.0, 1.0);
 }`;
 
 // Joint bilateral upsample of the low-res model mask, guided by the camera frame, plus temporal
@@ -284,8 +306,10 @@ export interface BlurPipelineOptions {
 export interface PipelineStats {
   /** Frames sent out per second over the last couple of seconds. */
   fps: number;
-  /** Average time the model takes per mask, in ms. */
+  /** Average main-thread time per mask, in ms (GPU time is not included). */
   segmentMs: number;
+  /** A fresh mask every Nth frame (1 = every frame); raised automatically on slow devices. */
+  maskEvery: number;
   /** Where the model runs. */
   delegate: 'GPU' | 'CPU' | null;
   /** Output size. */
@@ -293,8 +317,9 @@ export interface PipelineStats {
   height: number;
 }
 
-const OUTPUT_MAX_EDGE = 640;
 const TARGET_FPS = 30;
+/** 1 if the segmenter's mask textures are stored bottom-up relative to our top-down textures. */
+const MASK_TEXTURE_FLIP = 0;
 
 export class BackgroundBlurPipeline {
   private video: HTMLVideoElement | null = null;
@@ -307,6 +332,7 @@ export class BackgroundBlurPipeline {
   private running = false;
   private raf = 0;
 
+  private progCopy: Program | null = null;
   private progRefine: Program | null = null;
   private progDown: Program | null = null;
   private progBlur: Program | null = null;
@@ -314,6 +340,10 @@ export class BackgroundBlurPipeline {
   private vao: WebGLVertexArrayObject | null = null;
   private videoTex: WebGLTexture | null = null;
   private rawMaskTex: WebGLTexture | null = null;
+  private rawMaskTarget: Target | null = null;
+  /** Read masks straight from the GPU; switched off (readback instead) if that ever fails. */
+  private zeroCopy = true;
+  private rawMaskSource: WebGLTexture | null = null;
   private backdropTex: WebGLTexture | null = null;
   private masks: Target[] = [];
   private maskIndex = 0;
@@ -336,6 +366,8 @@ export class BackgroundBlurPipeline {
   private frameNo = 0;
   private segEvery = 1;
   private segAvg = 0;
+  private segCount = 0;
+  private graceUntil = 0;
   private frames = 0;
   private windowStart = 0;
   private fps = 0;
@@ -367,6 +399,7 @@ export class BackgroundBlurPipeline {
     return {
       fps: Math.round(this.fps),
       segmentMs: Math.round(this.segAvg * 10) / 10,
+      maskEvery: this.segEvery,
       delegate: this.delegate,
       width: this.canvas?.width || 0,
       height: this.canvas?.height || 0,
@@ -385,17 +418,9 @@ export class BackgroundBlurPipeline {
     this.video = video;
     await waitFor(() => video.readyState >= 2 && video.videoWidth > 0, 4000);
 
-    const { segmenter, delegate } = await createSegmenter();
-    if (!this.video) {
-      // stop() was called while the model loaded
-      segmenter.close();
-      throw new Error('stopped');
-    }
-    this.segmenter = segmenter;
-    this.delegate = delegate;
-
     const canvas = document.createElement('canvas');
     this.canvas = canvas;
+    // Our context attributes win: the segmenter then reuses this same context.
     const gl = canvas.getContext('webgl2', {
       alpha: false,
       antialias: false,
@@ -411,8 +436,18 @@ export class BackgroundBlurPipeline {
     this.initGl(gl);
     this.resize();
 
+    const { segmenter, delegate } = await createSegmenter(canvas);
+    if (!this.video) {
+      // stop() was called while the model loaded
+      segmenter.close();
+      throw new Error('stopped');
+    }
+    this.segmenter = segmenter;
+    this.delegate = delegate;
+
     this.running = true;
     this.windowStart = performance.now();
+    this.graceUntil = this.windowStart + 3000;
     this.raf = requestAnimationFrame(this.tick);
 
     this.outTrack = (canvas as any).captureStream(TARGET_FPS).getVideoTracks()[0];
@@ -435,6 +470,7 @@ export class BackgroundBlurPipeline {
 
   private initGl(gl: WebGL2RenderingContext) {
     this.floatTargets = !!gl.getExtension('EXT_color_buffer_float') || !!gl.getExtension('EXT_color_buffer_half_float');
+    this.progCopy = program(gl, FRAG_COPY_MASK, ['u_src', 'u_srcFlip']);
     this.progRefine = program(gl, FRAG_REFINE, ['u_mask', 'u_video', 'u_prev', 'u_step', 'u_hasPrev']);
     this.progDown = program(gl, FRAG_DOWN, ['u_video', 'u_mask', 'u_texel']);
     this.progBlur = program(gl, FRAG_BLUR, ['u_src', 'u_dir']);
@@ -451,11 +487,22 @@ export class BackgroundBlurPipeline {
     this.videoTex = texture(gl);
     this.rawMaskTex = texture(gl);
     this.backdropTex = texture(gl);
+    this.resetState();
+  }
+
+  /** The segmenter draws with the same context: put back the state our passes rely on. */
+  private resetState() {
+    const gl = this.gl!;
+    gl.bindVertexArray(this.vao);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
     gl.disable(gl.BLEND);
     gl.disable(gl.DEPTH_TEST);
+    gl.disable(gl.SCISSOR_TEST);
+    gl.disable(gl.STENCIL_TEST);
+    gl.disable(gl.CULL_FACE);
+    gl.colorMask(true, true, true, true);
   }
 
   private makeTarget(w: number, h: number, float: boolean): Target {
@@ -480,22 +527,22 @@ export class BackgroundBlurPipeline {
   private freeTargets() {
     const gl = this.gl;
     if (!gl) return;
-    for (const t of [...this.masks, ...this.small]) {
+    for (const t of [...this.masks, ...this.small, ...(this.rawMaskTarget ? [this.rawMaskTarget] : [])]) {
       gl.deleteFramebuffer(t.fbo);
       gl.deleteTexture(t.tex);
     }
     this.masks = [];
     this.small = [];
+    this.rawMaskTarget = null;
   }
 
-  /** Sizes the canvas and render targets to the camera frame (capped), e.g. after a phone rotates. */
+  /** Sizes the canvas and render targets to the camera frame, e.g. after a phone rotates. */
   private resize(): boolean {
     const video = this.video!;
-    const vw = video.videoWidth || 640;
-    const vh = video.videoHeight || 480;
-    const k = Math.min(1, OUTPUT_MAX_EDGE / Math.max(vw, vh));
-    const w = Math.max(2, Math.round((vw * k) / 2) * 2);
-    const h = Math.max(2, Math.round((vh * k) / 2) * 2);
+    // Output = camera size (callers ask for ~640x480): the segmenter sizes a shared canvas to its
+    // input, so any other size would have the two of us resizing it every frame.
+    const w = video.videoWidth || 640;
+    const h = video.videoHeight || 480;
     const canvas = this.canvas!;
     if (canvas.width === w && canvas.height === h && this.masks.length) return false;
     canvas.width = w;
@@ -537,7 +584,11 @@ export class BackgroundBlurPipeline {
     if (this.backdropDirty && this.bgImage) this.uploadBackdrop();
 
     // New mask on this frame? (On slow devices we segment every 2nd/3rd frame and reuse the last.)
-    if (!this.hasMask || this.frameNo % this.segEvery === 0) this.segment(video, now);
+    if (!this.hasMask || this.frameNo % this.segEvery === 0) {
+      this.segment(video, now);
+      this.resetState();
+      this.resize(); // in case the segmenter resized the shared canvas
+    }
     this.frameNo += 1;
     const mask = this.masks[this.maskIndex];
 
@@ -575,43 +626,40 @@ export class BackgroundBlurPipeline {
   }
 
   private segment(video: HTMLVideoElement, now: number) {
-    const gl = this.gl!;
     const seg = this.segmenter;
     if (!seg) return;
     const ts = Math.max(now, this.lastTs + 1);
     this.lastTs = ts;
     const t0 = performance.now();
-    const result = seg.segmentForVideo(video, ts);
-    try {
+    let got = false;
+    // Masks are only valid inside the callback.
+    seg.segmentForVideo(video, ts, (result) => {
       const masks = result.confidenceMasks;
       if (!masks || !masks.length) return;
       // Single-output selfie model: the one mask is the person's confidence.
       const m = masks[masks.length - 1];
-      const data = m.getAsFloat32Array();
-      const mw = m.width;
-      const mh = m.height;
-      if (!this.maskBytes || this.maskBytes.length !== data.length) this.maskBytes = new Uint8Array(data.length);
-      const bytes = this.maskBytes;
-      for (let i = 0; i < data.length; i++) bytes[i] = data[i] * 255;
-
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, this.rawMaskTex);
-      if (mw !== this.rawMaskW || mh !== this.rawMaskH) {
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, mw, mh, 0, gl.RED, gl.UNSIGNED_BYTE, bytes);
-        this.rawMaskW = mw;
-        this.rawMaskH = mh;
-      } else {
-        gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, mw, mh, gl.RED, gl.UNSIGNED_BYTE, bytes);
+      if (this.zeroCopy) {
+        try {
+          this.copyMaskOnGpu(m.getAsWebGLTexture(), m.width, m.height);
+          got = true;
+          return;
+        } catch (err) {
+          console.warn('Reading the mask on the GPU failed; reading it back instead:', err);
+          this.zeroCopy = false;
+          this.resetState();
+        }
       }
-    } finally {
-      result.close();
-    }
+      this.uploadMask(m.getAsFloat32Array(), m.width, m.height);
+      got = true;
+    });
+    this.resetState();
+    if (!got) return;
     const dt = performance.now() - t0;
-    this.segAvg = this.segAvg ? this.segAvg * 0.9 + dt * 0.1 : dt;
-    // Keep the frame rate up on slow phones: fewer fresh masks, every frame still composited.
-    this.segEvery = this.segAvg > 45 ? 3 : this.segAvg > 24 ? 2 : 1;
+    // The first mask includes GPU warm-up (shader compiles): don't let it skew the average.
+    if (this.segCount++ > 0) this.segAvg = this.segAvg ? this.segAvg * 0.8 + dt * 0.2 : dt;
 
     // Refine into the next mask target, reading the previous one for temporal smoothing.
+    const gl = this.gl!;
     const prev = this.masks[this.maskIndex];
     const next = this.masks[1 - this.maskIndex];
     const p = this.progRefine!;
@@ -619,7 +667,7 @@ export class BackgroundBlurPipeline {
     gl.viewport(0, 0, next.w, next.h);
     gl.useProgram(p.prog);
     gl.uniform1f(p.u.u_flipY, 0);
-    this.bind(p, 'u_mask', 0, this.rawMaskTex);
+    this.bind(p, 'u_mask', 0, this.rawMaskSource);
     this.bind(p, 'u_video', 1, this.videoTex);
     this.bind(p, 'u_prev', 2, prev.tex);
     gl.uniform2f(p.u.u_step, 0.8 / this.rawMaskW, 0.8 / this.rawMaskH);
@@ -627,6 +675,49 @@ export class BackgroundBlurPipeline {
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     this.maskIndex = 1 - this.maskIndex;
     this.hasMask = true;
+  }
+
+  /** Zero-copy: draw the segmenter's (float) mask texture into our 8-bit, filterable one. */
+  private copyMaskOnGpu(src: WebGLTexture, mw: number, mh: number) {
+    const gl = this.gl!;
+    this.resetState();
+    let t = this.rawMaskTarget;
+    if (!t || t.w !== mw || t.h !== mh) {
+      if (t) {
+        gl.deleteFramebuffer(t.fbo);
+        gl.deleteTexture(t.tex);
+      }
+      t = this.rawMaskTarget = this.makeTarget(mw, mh, false);
+    }
+    const p = this.progCopy!;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, t.fbo);
+    gl.viewport(0, 0, mw, mh);
+    gl.useProgram(p.prog);
+    gl.uniform1f(p.u.u_flipY, 0);
+    gl.uniform1f(p.u.u_srcFlip, MASK_TEXTURE_FLIP);
+    this.bind(p, 'u_src', 0, src);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    this.rawMaskSource = t.tex;
+    this.rawMaskW = mw;
+    this.rawMaskH = mh;
+  }
+
+  /** Fallback: the mask came back to the CPU; upload it as an 8-bit texture. */
+  private uploadMask(data: Float32Array, mw: number, mh: number) {
+    const gl = this.gl!;
+    if (!this.maskBytes || this.maskBytes.length !== data.length) this.maskBytes = new Uint8Array(data.length);
+    const bytes = this.maskBytes;
+    for (let i = 0; i < data.length; i++) bytes[i] = data[i] * 255;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, this.rawMaskTex);
+    if (mw !== this.rawMaskW || mh !== this.rawMaskH || this.rawMaskSource !== this.rawMaskTex) {
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.R8, mw, mh, 0, gl.RED, gl.UNSIGNED_BYTE, bytes);
+      this.rawMaskW = mw;
+      this.rawMaskH = mh;
+    } else {
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, mw, mh, gl.RED, gl.UNSIGNED_BYTE, bytes);
+    }
+    this.rawMaskSource = this.rawMaskTex;
   }
 
   /** Background-only blur at 1/4 size; returns the texture holding it (premultiplied by weight). */
@@ -690,13 +781,29 @@ export class BackgroundBlurPipeline {
     }
   }
 
-  /** If we sustain < 12 fps for ~4 seconds the device can't carry this: tell the caller. */
+  /**
+   * Every 2s: if the output drops under 20 fps, refresh the mask less often (every 2nd, then 3rd
+   * frame; the model is the expensive part, compositing is cheap). Only if that still can't hold
+   * 12 fps for ~4s do we tell the caller to turn the effect off.
+   */
   private watchPerformance(now: number) {
+    if (now < this.graceUntil) {
+      // Still warming up: start measuring once things have settled.
+      this.frames = 0;
+      this.windowStart = now;
+      return;
+    }
     const elapsed = now - this.windowStart;
     if (elapsed < 2000) return;
     this.fps = (this.frames * 1000) / elapsed;
     this.frames = 0;
     this.windowStart = now;
+    if (this.fps < 20 && this.segEvery < 3) {
+      this.segEvery += 1;
+      this.slowWindows = 0;
+      return;
+    }
+    if (this.fps >= 28 && this.segEvery > 1) this.segEvery -= 1;
     this.slowWindows = this.fps < 12 ? this.slowWindows + 1 : 0;
     if (this.slowWindows >= 2) this.fireSlow();
   }
