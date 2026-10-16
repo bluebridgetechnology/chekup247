@@ -45,7 +45,7 @@ import {
   RefreshCw,
   VideoOff as VideoOffIcon,
 } from 'lucide-react';
-import { BackgroundBlurPipeline, backgroundBlurSupported, loadBackgroundImage, type PipelineBackground } from '../../../lib/backgroundBlur';
+import { BackgroundBlurPipeline, backgroundBlurSupported, describeEffectError, loadBackgroundImage, preloadBackgroundEngine, type PipelineBackground } from '../../../lib/backgroundBlur';
 import { dailyProcessorSupported } from '../../../lib/dailyProcessor';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
@@ -528,6 +528,11 @@ export default function PatientConsultationPage() {
   }, [callObject]);
 
 
+  // Opening the effects panel: start fetching the engine so the first pick is quick.
+  useEffect(() => {
+    if (showEffectsDrawer) preloadBackgroundEngine();
+  }, [showEffectsDrawer]);
+
   const stopBackgroundBlur = useCallback(
     async (restoreCamera: boolean) => {
       const pipeline = blurPipelineRef.current;
@@ -670,6 +675,11 @@ export default function PatientConsultationPage() {
         }
         cameraIdBeforeBlurRef.current = deviceId;
 
+        // Fetch the engine first, while the camera is still live in the call (first use can take a while
+        // on a slow connection); only then take the camera over.
+        setBackgroundNotice('Preparing the background effect…');
+        await Promise.race([preloadBackgroundEngine(), new Promise((resolve) => setTimeout(resolve, 60000))]);
+
         // Release Daily's camera so we can read it ourselves, then feed back the processed track.
         await callObject!.setInputDevicesAsync({ videoSource: false });
         const cam = await navigator.mediaDevices.getUserMedia({
@@ -683,6 +693,7 @@ export default function PatientConsultationPage() {
         const pipeline = new BackgroundBlurPipeline({
           background,
           stopSourceOnStop: true,
+          onStage: (label) => setBackgroundNotice(label),
           onSlow: () => {
             flashNotice('Your device is too slow for background effects, so they were turned off.');
             setActiveEffect('none');
@@ -700,13 +711,14 @@ export default function PatientConsultationPage() {
         blurPipelineRef.current = pipeline;
         await callObject!.setInputDevicesAsync({ videoSource: outTrack });
         callObject!.setLocalVideo(true);
+        setBackgroundNotice(null);
         commit();
         syncDailyTracks(callObject!);
       } catch (err: any) {
         console.warn('Background effect could not start:', err);
         await stopBackgroundBlur(true);
         setActiveEffect('none');
-        flashNotice('Could not turn on the background effect on this camera.');
+        flashNotice(`${describeEffectError(err)} Your camera is unchanged.`);
       } finally {
         bgBusyRef.current = false;
       }

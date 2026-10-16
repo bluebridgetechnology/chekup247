@@ -16,8 +16,9 @@
 
 import type { ImageSegmenter } from '@mediapipe/tasks-vision';
 
-const WASM_BASE = '/mediapipe/wasm';
-const MODEL_URL = '/mediapipe/models/selfie_segmenter.tflite';
+// Versioned paths: they are served with a one-year cache, so bump the folder when the engine changes.
+const WASM_BASE = '/mediapipe/tv-1.0.1/wasm';
+const MODEL_URL = '/mediapipe/tv-1.0.1/models/selfie_segmenter.tflite';
 
 /** Whether this browser can run the pipeline at all (WebGL2 + canvas capture + WebAssembly). */
 export function backgroundBlurSupported(): boolean {
@@ -98,37 +99,105 @@ function loadViaImageElement(source: string | Blob): Promise<HTMLImageElement> {
 
 let visionModule: Promise<typeof import('@mediapipe/tasks-vision')> | null = null;
 let filesetPromise: Promise<any> | null = null;
+let preloadPromise: Promise<void> | null = null;
 
-/**
- * The segmenter shares our WebGL2 context (`canvas`), so its masks stay on the GPU and the compositor
- * reads them directly: no per-frame GPU-to-CPU readback stalling the main thread.
- */
-async function createSegmenter(
-  canvas: HTMLCanvasElement,
-): Promise<{ segmenter: ImageSegmenter; delegate: 'GPU' | 'CPU' }> {
+/** Rejects if `promise` takes longer than `ms`; `onLate` cleans up whatever it eventually produces. */
+function within<T>(promise: Promise<T>, ms: number, what: string, onLate?: (value: T) => void): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    let settled = false;
+    const timer = setTimeout(() => {
+      settled = true;
+      reject(new Error(`${what} timed out`));
+    }, ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        if (settled) onLate?.(value);
+        else resolve(value);
+      },
+      (err) => {
+        clearTimeout(timer);
+        if (!settled) reject(err);
+      },
+    );
+  });
+}
+
+function loadVision() {
   if (!visionModule) visionModule = import('@mediapipe/tasks-vision');
-  const vision = await visionModule.catch((err) => {
+  return visionModule.catch((err) => {
     visionModule = null;
     throw err;
   });
+}
+
+function loadFileset(vision: typeof import('@mediapipe/tasks-vision')) {
   if (!filesetPromise) filesetPromise = vision.FilesetResolver.forVisionTasks(WASM_BASE);
-  const fileset = await filesetPromise.catch((err) => {
+  return filesetPromise.catch((err) => {
     filesetPromise = null;
     throw err;
   });
-  const make = (delegate: 'GPU' | 'CPU') =>
+}
+
+/**
+ * Starts downloading the engine (code, ~3 MB of wasm, model) in the background so it is already in the
+ * browser cache by the time someone picks a background. Safe to call any number of times.
+ */
+export function preloadBackgroundEngine(): Promise<void> {
+  if (typeof window === 'undefined' || !backgroundBlurSupported()) return Promise.resolve();
+  if (!preloadPromise) {
+    preloadPromise = (async () => {
+      const vision = await loadVision();
+      await loadFileset(vision);
+      const simd = await vision.FilesetResolver.isSimdSupported?.().catch?.(() => true);
+      await Promise.all([
+        fetch(`${WASM_BASE}/vision_wasm_${simd === false ? 'nosimd_' : ''}internal.wasm`).then((r) => r.arrayBuffer()),
+        fetch(MODEL_URL).then((r) => r.arrayBuffer()),
+      ]);
+    })().catch((err) => {
+      console.warn('Background engine preload failed:', err);
+      preloadPromise = null;
+    });
+  }
+  return preloadPromise;
+}
+
+/**
+ * The segmenter shares our WebGL2 context (`canvas`), so its masks stay on the GPU and the compositor
+ * reads them directly: no per-frame GPU-to-CPU readback stalling the main thread. If the GPU can't start
+ * it within a time limit, fall back to the CPU delegate (slower, but works everywhere).
+ */
+async function createSegmenter(
+  canvas: HTMLCanvasElement,
+  stage: (label: string) => void,
+): Promise<{ segmenter: ImageSegmenter; delegate: 'GPU' | 'CPU' }> {
+  // Download first, on its own clock: a slow connection must not eat the time the GPU needs to start.
+  stage('Downloading the background engine (first time only)…');
+  await within(preloadBackgroundEngine(), 150_000, 'Downloading the engine');
+  const vision = await within(loadVision(), 30_000, 'Loading the engine');
+  const fileset = await within(loadFileset(vision), 30_000, 'Loading the engine');
+  const make = (delegate: 'GPU' | 'CPU', useCanvas: boolean) =>
     vision.ImageSegmenter.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: MODEL_URL, delegate },
-      canvas,
+      ...(useCanvas ? { canvas } : {}),
       runningMode: 'VIDEO',
       outputCategoryMask: false,
       outputConfidenceMasks: true,
     });
+  const close = (seg: ImageSegmenter) => {
+    try {
+      seg.close();
+    } catch {
+      // ignore
+    }
+  };
+  stage('Starting the background engine…');
   try {
-    return { segmenter: await make('GPU'), delegate: 'GPU' };
+    return { segmenter: await within(make('GPU', true), 25_000, 'Starting on the GPU', close), delegate: 'GPU' };
   } catch (err) {
     console.warn('GPU segmentation unavailable, using CPU:', err);
-    return { segmenter: await make('CPU'), delegate: 'CPU' };
+    stage('Starting the background engine (compatibility mode)…');
+    return { segmenter: await within(make('CPU', false), 45_000, 'Starting the engine', close), delegate: 'CPU' };
   }
 }
 
@@ -292,6 +361,18 @@ function texture(gl: WebGL2RenderingContext): WebGLTexture {
   return t;
 }
 
+/** Turns a startup failure into a sentence a doctor or patient can act on (details go to the console). */
+export function describeEffectError(err: unknown): string {
+  console.warn('Background effect failed to start:', err);
+  const m = String((err as any)?.message || err || '');
+  if (/timed out|wasm|fetch|network|load|download|abort/i.test(m)) {
+    return 'The background engine could not load. Check your connection and try again.';
+  }
+  if (/webgl|gpu/i.test(m)) return 'This device could not start the background effect.';
+  if (/camera|pictures/i.test(m)) return 'The camera did not respond. Please try again.';
+  return 'The background effect could not start.';
+}
+
 export interface BlurPipelineOptions {
   /** 0..1 — how strongly to blur the background (used when no `background` is given). */
   strength?: number;
@@ -301,6 +382,8 @@ export interface BlurPipelineOptions {
   onSlow?: () => void;
   /** Stop the camera track passed to start() when the pipeline stops (the call pages own it). */
   stopSourceOnStop?: boolean;
+  /** Plain-language progress while start() runs ("Downloading…", "Starting…"). */
+  onStage?: (label: string) => void;
 }
 
 export interface PipelineStats {
@@ -406,17 +489,27 @@ export class BackgroundBlurPipeline {
     };
   }
 
-  /** Starts processing `source` and returns the processed output track. */
+  /** Starts processing `source` and returns the processed output track. Cleans up after itself on failure. */
   async start(source: MediaStreamTrack): Promise<MediaStreamTrack> {
+    try {
+      return await this.startInner(source);
+    } catch (err) {
+      this.stop();
+      throw err;
+    }
+  }
+
+  private async startInner(source: MediaStreamTrack): Promise<MediaStreamTrack> {
     this.source = source;
     const video = document.createElement('video');
     video.muted = true;
     video.playsInline = true;
     video.autoplay = true;
     video.srcObject = new MediaStream([source]);
-    await video.play().catch(() => {});
     this.video = video;
+    await Promise.race([video.play().catch(() => {}), new Promise((r) => setTimeout(r, 3000))]);
     await waitFor(() => video.readyState >= 2 && video.videoWidth > 0, 4000);
+    if (!video.videoWidth) throw new Error('The camera is not sending pictures yet');
 
     const canvas = document.createElement('canvas');
     this.canvas = canvas;
@@ -436,7 +529,7 @@ export class BackgroundBlurPipeline {
     this.initGl(gl);
     this.resize();
 
-    const { segmenter, delegate } = await createSegmenter(canvas);
+    const { segmenter, delegate } = await createSegmenter(canvas, (label) => this.opts.onStage?.(label));
     if (!this.video) {
       // stop() was called while the model loaded
       segmenter.close();
@@ -444,6 +537,9 @@ export class BackgroundBlurPipeline {
     }
     this.segmenter = segmenter;
     this.delegate = delegate;
+    // CPU-delegate masks are plain arrays, not GPU textures: use the upload path.
+    if (delegate === 'CPU') this.zeroCopy = false;
+    this.opts.onStage?.('Almost ready…');
 
     this.running = true;
     this.windowStart = performance.now();
@@ -451,8 +547,10 @@ export class BackgroundBlurPipeline {
     this.raf = requestAnimationFrame(this.tick);
 
     this.outTrack = (canvas as any).captureStream(TARGET_FPS).getVideoTracks()[0];
-    // Wait for a first composed frame so the call never flashes an empty picture.
-    await waitFor(() => this.hasMask, 4000);
+    // Wait for a first composed frame so the call never flashes an empty picture; if none ever
+    // arrives, fail loudly so the caller keeps the plain camera instead of sending a blank track.
+    await waitFor(() => this.hasMask, 10_000);
+    if (!this.hasMask) throw new Error('The effect produced no pictures');
     return this.outTrack!;
   }
 

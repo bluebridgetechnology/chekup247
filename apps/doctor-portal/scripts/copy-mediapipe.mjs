@@ -8,12 +8,13 @@ import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
-const root = join(here, '..', 'public', 'mediapipe');
+const base = join(here, '..', 'public', 'mediapipe');
+const root = join(base, 'tv-1.0.1'); // keep in step with WASM_BASE / MODEL_URL in src/lib/backgroundBlur.ts
 const wasmDest = join(root, 'wasm');
 const modelDest = join(root, 'models');
 
-// The legacy runtime this replaced; drop it so stale files are never served.
-rmSync(join(root, 'selfie'), { recursive: true, force: true });
+// Older layouts of this folder; drop them so stale files are never served.
+for (const old of ['selfie', 'wasm', 'models']) rmSync(join(base, old), { recursive: true, force: true });
 
 let src;
 try {

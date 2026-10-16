@@ -7,6 +7,15 @@ const nextConfig = {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 31536000,
   },
+  async headers() {
+    return [
+      {
+        // Background-effects engine (wasm + model): versioned folder, safe to cache for a year.
+        source: '/mediapipe/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+    ];
+  },
   async rewrites() {
     return [
       {
