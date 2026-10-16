@@ -16,7 +16,7 @@
     "@daily-co/daily-js": "^0.69.0",
     "@iconify-json/solar": "^1.2.11",
     "@iconify/react": "^6.0.2",
-    "@mediapipe/selfie_segmentation": "^0.1.1675465747",
+    "@mediapipe/tasks-vision": "1.0.1",
     "lucide-react": "^0.439.0",
     "next": "^16.0.0",
     "react": "^19.0.0",

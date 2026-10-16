@@ -43,6 +43,7 @@ export default function CameraTestPage() {
   const [fps, setFps] = useState<number | null>(null);
   const [size, setSize] = useState<string>('');
   const [startMs, setStartMs] = useState<number | null>(null);
+  const [engine, setEngine] = useState<string>('');
   const [processing, setProcessing] = useState(false);
   const [supported, setSupported] = useState(true);
 
@@ -65,6 +66,8 @@ export default function CameraTestPage() {
       if (now - last >= 1000) {
         setFps(Math.round((frames * 1000) / (now - last)));
         setSize(`${v.videoWidth}×${v.videoHeight}`);
+        const st = pipelineRef.current?.stats();
+        setEngine(st?.delegate ? `${st.delegate} · ${st.segmentMs} ms/mask` : '');
         frames = 0;
         last = now;
       }
@@ -102,6 +105,7 @@ export default function CameraTestPage() {
     setFps(null);
     setSize('');
     setStartMs(null);
+    setEngine('');
   }, [showStream, stopPipeline]);
 
   useEffect(() => () => stopAll(), [stopAll]);
@@ -268,6 +272,7 @@ export default function CameraTestPage() {
             {fps !== null && <span className={`ct-chip ${fpsClass}`}>{fps} fps</span>}
             {size && <span className="ct-chip">{size}</span>}
             {startMs !== null && mode !== 'none' && <span className="ct-chip">started in {startMs} ms</span>}
+            {engine && mode !== 'none' && <span className="ct-chip">{engine}</span>}
             {processing && <span className="ct-chip">working…</span>}
           </div>
         )}

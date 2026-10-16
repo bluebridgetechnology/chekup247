@@ -17,7 +17,7 @@
     "@daily-co/daily-js": "^0.69.0",
     "@iconify-json/solar": "^1.2.11",
     "@iconify/react": "^6.0.2",
-    "@mediapipe/selfie_segmentation": "^0.1.1675465747",
+    "@mediapipe/tasks-vision": "1.0.1",
     "@tanstack/react-table": "^8.21.3",
     "@types/qrcode": "^1.5.6",
     "class-variance-authority": "^0.7.1",

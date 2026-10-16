@@ -46,6 +46,7 @@ import {
   VideoOff as VideoOffIcon,
 } from 'lucide-react';
 import { BackgroundBlurPipeline, backgroundBlurSupported, loadBackgroundImage, type PipelineBackground } from '../../../lib/backgroundBlur';
+import { dailyProcessorSupported } from '../../../lib/dailyProcessor';
 import DailyIframe, { DailyCall, DailyEventObjectTrack } from '@daily-co/daily-js';
 import { io, Socket } from 'socket.io-client';
 import { useAuth } from '../../../context/AuthContext';
@@ -494,13 +495,37 @@ export default function PatientConsultationPage() {
   }, []);
 
   // --------------------------------------------------------------------------
-  // Background blur: on-device segmentation (works on phones), sent to Daily as a custom video track
+  // Background effects. Desktop browsers: Daily's built-in processor (runs off the main thread).
+  // Phones (where Daily's processor is unavailable), or if it fails: our on-device pipeline, sent to
+  // Daily as a custom video track.
   // --------------------------------------------------------------------------
   const blurPipelineRef = useRef<BackgroundBlurPipeline | null>(null);
   const bgBusyRef = useRef<boolean>(false);
   const cameraIdBeforeBlurRef = useRef<string | undefined>(undefined);
   const customBgFileRef = useRef<File | null>(null);
   const customBgUrlRef = useRef<string | null>(null);
+  const dailyFxActiveRef = useRef<boolean>(false);
+  const dailyFxBrokenRef = useRef<boolean>(false);
+
+  // Daily's processor failed mid-call: drop it; the next pick uses the on-device pipeline instead.
+  useEffect(() => {
+    if (!callObject) return;
+    const onError = (ev: any) => {
+      if (ev?.type !== 'video-processor-error' || !dailyFxActiveRef.current) return;
+      console.warn('Daily background processor failed:', ev?.errorMsg);
+      dailyFxBrokenRef.current = true;
+      dailyFxActiveRef.current = false;
+      callObject.updateInputSettings({ video: { processor: { type: 'none' } } }).catch(() => {});
+      setActiveEffect('none');
+      setBackgroundNotice('The background effect stopped. Pick it again to turn it back on.');
+      setTimeout(() => setBackgroundNotice(null), 5000);
+    };
+    callObject.on('nonfatal-error', onError);
+    return () => {
+      callObject.off('nonfatal-error', onError);
+    };
+  }, [callObject]);
+
 
   const stopBackgroundBlur = useCallback(
     async (restoreCamera: boolean) => {
@@ -532,6 +557,10 @@ export default function PatientConsultationPage() {
       if (effect === 'none') {
         bgBusyRef.current = true;
         try {
+          if (dailyFxActiveRef.current && callObject) {
+            dailyFxActiveRef.current = false;
+            await callObject.updateInputSettings({ video: { processor: { type: 'none' } } }).catch(() => {});
+          }
           await stopBackgroundBlur(true);
           setActiveEffect('none');
         } finally {
@@ -556,12 +585,12 @@ export default function PatientConsultationPage() {
       }
       const strength = effect === 'blur-heavy' ? 0.85 : 0.45;
 
-      if (!blurPipelineRef.current) {
+      if (!blurPipelineRef.current && !dailyFxActiveRef.current) {
         if (!callObject) {
           flashNotice('Join the call first, then choose a background.');
           return;
         }
-        if (!backgroundBlurSupported()) {
+        if (!backgroundBlurSupported() && !dailyProcessorSupported()) {
           flashNotice('This browser cannot change your background. Try the latest Chrome or Safari.');
           return;
         }
@@ -604,6 +633,32 @@ export default function PatientConsultationPage() {
           return;
         }
 
+        // Desktop: let Daily process the camera itself. Any failure falls through to our pipeline.
+        if (!dailyFxBrokenRef.current && dailyProcessorSupported()) {
+          try {
+            const processor =
+              imageSource === null
+                ? { type: 'background-blur' as const, config: { strength: effect === 'blur-heavy' ? 1 : 0.5 } }
+                : {
+                    type: 'background-image' as const,
+                    config: {
+                      source:
+                        typeof imageSource === 'string'
+                          ? new URL(imageSource, window.location.href).href
+                          : await imageSource.arrayBuffer(),
+                    },
+                  };
+            await callObject!.updateInputSettings({ video: { processor } });
+            dailyFxActiveRef.current = true;
+            commit();
+            return;
+          } catch (err) {
+            console.warn('Daily background processor unavailable, using on-device pipeline:', err);
+            dailyFxBrokenRef.current = true;
+            dailyFxActiveRef.current = false;
+            await callObject!.updateInputSettings({ video: { processor: { type: 'none' } } }).catch(() => {});
+          }
+        }
         // Which camera is Daily using right now?
         let deviceId: string | undefined;
         try {
@@ -626,6 +681,7 @@ export default function PatientConsultationPage() {
 
         const pipeline = new BackgroundBlurPipeline({
           background,
+          stopSourceOnStop: true,
           onSlow: () => {
             flashNotice('Your device is too slow for background effects, so they were turned off.');
             setActiveEffect('none');
