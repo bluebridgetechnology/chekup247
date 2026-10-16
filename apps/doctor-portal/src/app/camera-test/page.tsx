@@ -4,6 +4,8 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   BackgroundBlurPipeline,
   backgroundBlurSupported,
+  describeEffectError,
+  preloadBackgroundEngine,
   loadBackgroundImage,
   type PipelineBackground,
 } from '../../lib/backgroundBlur';
@@ -48,6 +50,7 @@ export default function CameraTestPage() {
   const [startMs, setStartMs] = useState<number | null>(null);
   const [engine, setEngine] = useState<string>('');
   const [processing, setProcessing] = useState(false);
+  const [stage, setStage] = useState<string>('');
   const [supported, setSupported] = useState(true);
 
   useEffect(() => {
@@ -151,6 +154,7 @@ export default function CameraTestPage() {
         } else {
           const pipeline = new BackgroundBlurPipeline({
             background,
+            onStage: setStage,
             onSlow: () => {
               setNotice('This device is too slow for background effects, so they were turned off (the same thing happens in a real call).');
               stopPipeline();
@@ -173,13 +177,12 @@ export default function CameraTestPage() {
         modeRef.current = 'none';
         setModeState('none');
         setNotice(
-          err?.message && /not available/i.test(err.message)
-            ? err.message
-            : 'Could not turn that effect on for this camera.',
+          err?.message && /not available/i.test(err.message) ? err.message : `${describeEffectError(err)} Tap the effect again to retry.`,
         );
       } finally {
         busyRef.current = false;
         setProcessing(false);
+        setStage('');
       }
     },
     [resolveBackground, showStream, stopPipeline],
@@ -196,6 +199,8 @@ export default function CameraTestPage() {
         });
         camStreamRef.current = stream;
         facingRef.current = facingMode;
+        // Fetch the effects engine in the background so it is ready when a blur is picked.
+        preloadBackgroundEngine();
         setFacing(facingMode);
         showStream(stream);
         setRunning(true);
@@ -280,7 +285,7 @@ export default function CameraTestPage() {
             {size && <span className="ct-chip">{size}</span>}
             {startMs !== null && mode !== 'none' && <span className="ct-chip">started in {startMs} ms</span>}
             {engine && mode !== 'none' && <span className="ct-chip">{engine}</span>}
-            {processing && <span className="ct-chip">working…</span>}
+            {processing && <span className="ct-chip">{stage || 'working…'}</span>}
           </div>
         )}
       </div>
