@@ -1,38 +1,46 @@
-// Copies the self-hosted MediaPipe selfie-segmentation runtime (wasm + model) into /public so the
-// background-blur feature never depends on a third-party CDN. Runs before `dev` and `build`.
+// Copies the self-hosted MediaPipe Tasks Vision runtime (wasm) and the selfie segmentation model into
+// /public so the background-effects feature never depends on a third-party CDN. Runs before `dev` and
+// `build`. The model lives in scripts/models (it is not shipped on npm).
 import { createRequire } from 'node:module';
-import { cpSync, mkdirSync, existsSync, chmodSync } from 'node:fs';
+import { cpSync, mkdirSync, existsSync, chmodSync, rmSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const here = dirname(fileURLToPath(import.meta.url));
-const dest = join(here, '..', 'public', 'mediapipe', 'selfie');
+const root = join(here, '..', 'public', 'mediapipe');
+const wasmDest = join(root, 'wasm');
+const modelDest = join(root, 'models');
+
+// The legacy runtime this replaced; drop it so stale files are never served.
+rmSync(join(root, 'selfie'), { recursive: true, force: true });
 
 let src;
 try {
-  src = dirname(require.resolve('@mediapipe/selfie_segmentation/package.json'));
+  // The package's exports map hides package.json; resolve a wasm file it does export instead.
+  src = dirname(require.resolve('@mediapipe/tasks-vision/vision_wasm_internal.wasm'));
 } catch {
-  console.warn('[mediapipe] @mediapipe/selfie_segmentation not installed; background blur will be unavailable');
+  console.warn('[mediapipe] @mediapipe/tasks-vision not installed; background effects will be unavailable');
   process.exit(0);
 }
 
-mkdirSync(dest, { recursive: true });
-for (const f of [
-  'selfie_segmentation.js',
-  'selfie_segmentation.binarypb',
-  'selfie_segmentation.tflite',
-  'selfie_segmentation_landscape.tflite',
-  'selfie_segmentation_solution_simd_wasm_bin.js',
-  'selfie_segmentation_solution_simd_wasm_bin.wasm',
-  'selfie_segmentation_solution_simd_wasm_bin.data',
-  'selfie_segmentation_solution_wasm_bin.js',
-  'selfie_segmentation_solution_wasm_bin.wasm',
-]) {
-  const from = join(src, f);
-  if (existsSync(from)) {
-    cpSync(from, join(dest, f));
-    chmodSync(join(dest, f), 0o644);
+mkdirSync(wasmDest, { recursive: true });
+mkdirSync(modelDest, { recursive: true });
+const copy = (from, to) => {
+  if (!existsSync(from)) {
+    console.warn(`[mediapipe] missing ${from}`);
+    return;
   }
+  cpSync(from, to);
+  chmodSync(to, 0o644);
+};
+for (const f of [
+  'vision_wasm_internal.js',
+  'vision_wasm_internal.wasm',
+  'vision_wasm_nosimd_internal.js',
+  'vision_wasm_nosimd_internal.wasm',
+]) {
+  copy(join(src, f), join(wasmDest, f));
 }
-console.log('[mediapipe] copied selfie segmentation runtime to public/mediapipe/selfie');
+copy(join(here, 'models', 'selfie_segmenter.tflite'), join(modelDest, 'selfie_segmenter.tflite'));
+console.log('[mediapipe] copied tasks-vision runtime and selfie model to public/mediapipe');

@@ -11,6 +11,9 @@ import '../../styles/camera-test.css';
 
 type Mode = 'none' | 'blur-light' | 'blur-heavy' | 'image';
 
+/** Off for now, matching the call: only blur is offered while we tune mobile performance. */
+const VIRTUAL_BACKGROUNDS_ENABLED = false;
+
 const PRESETS = [
   { id: 'clinic-suite', name: 'Medical Suite', url: '/images/backgrounds/clinic-suite.png' },
   { id: 'modern-office', name: 'Modern Clinic Office', url: '/images/backgrounds/modern-office.png' },
@@ -43,6 +46,7 @@ export default function CameraTestPage() {
   const [fps, setFps] = useState<number | null>(null);
   const [size, setSize] = useState<string>('');
   const [startMs, setStartMs] = useState<number | null>(null);
+  const [engine, setEngine] = useState<string>('');
   const [processing, setProcessing] = useState(false);
   const [supported, setSupported] = useState(true);
 
@@ -65,6 +69,12 @@ export default function CameraTestPage() {
       if (now - last >= 1000) {
         setFps(Math.round((frames * 1000) / (now - last)));
         setSize(`${v.videoWidth}×${v.videoHeight}`);
+        const st = pipelineRef.current?.stats();
+        setEngine(
+          st?.delegate
+            ? `${st.delegate} · mask every ${st.maskEvery === 1 ? 'frame' : st.maskEvery === 2 ? '2nd frame' : `${st.maskEvery}rd frame`}`
+            : '',
+        );
         frames = 0;
         last = now;
       }
@@ -102,6 +112,7 @@ export default function CameraTestPage() {
     setFps(null);
     setSize('');
     setStartMs(null);
+    setEngine('');
   }, [showStream, stopPipeline]);
 
   useEffect(() => () => stopAll(), [stopAll]);
@@ -236,7 +247,7 @@ export default function CameraTestPage() {
       <div>
         <h1 className="page-title" style={{ marginBottom: 4 }}>Camera test</h1>
         <p className="ct-intro">
-          Try background blur and virtual backgrounds on your own camera, with no booking or call. Nothing is
+          Try background blur on your own camera, with no booking or call. Nothing is
           recorded or sent anywhere: it all runs on this device.
         </p>
       </div>
@@ -268,6 +279,7 @@ export default function CameraTestPage() {
             {fps !== null && <span className={`ct-chip ${fpsClass}`}>{fps} fps</span>}
             {size && <span className="ct-chip">{size}</span>}
             {startMs !== null && mode !== 'none' && <span className="ct-chip">started in {startMs} ms</span>}
+            {engine && mode !== 'none' && <span className="ct-chip">{engine}</span>}
             {processing && <span className="ct-chip">working…</span>}
           </div>
         )}
@@ -311,44 +323,48 @@ export default function CameraTestPage() {
           ))}
         </div>
 
-        <div className="ct-label">Virtual backgrounds</div>
-        <div className="ct-presets">
-          {hasCustom && (
-            <button
-              type="button"
-              className="ct-preset"
-              aria-pressed={mode === 'image' && preset === 'custom'}
-              disabled={!running || processing}
-              onClick={() => pickPreset('custom')}
-            >
-              <span style={{ padding: '26px 8px', textAlign: 'center' }}>Your image</span>
-            </button>
-          )}
-          {PRESETS.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="ct-preset"
-              aria-pressed={mode === 'image' && preset === p.id}
-              disabled={!running || !supported || processing}
-              onClick={() => pickPreset(p.id)}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={p.url} alt="" />
-              <span>{p.name}</span>
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          className="btn-secondary"
-          style={{ minHeight: 44 }}
-          disabled={!running || !supported || processing}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          Upload your own image
-        </button>
-        <input ref={fileInputRef} type="file" accept="image/*" onChange={onUpload} style={{ display: 'none' }} />
+        {VIRTUAL_BACKGROUNDS_ENABLED && (
+          <>
+          <div className="ct-label">Virtual backgrounds</div>
+          <div className="ct-presets">
+            {hasCustom && (
+              <button
+                type="button"
+                className="ct-preset"
+                aria-pressed={mode === 'image' && preset === 'custom'}
+                disabled={!running || processing}
+                onClick={() => pickPreset('custom')}
+              >
+                <span style={{ padding: '26px 8px', textAlign: 'center' }}>Your image</span>
+              </button>
+            )}
+            {PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                className="ct-preset"
+                aria-pressed={mode === 'image' && preset === p.id}
+                disabled={!running || !supported || processing}
+                onClick={() => pickPreset(p.id)}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={p.url} alt="" />
+                <span>{p.name}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ minHeight: 44 }}
+            disabled={!running || !supported || processing}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Upload your own image
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" onChange={onUpload} style={{ display: 'none' }} />
+          </>
+        )}
       </section>
 
       <p className="ct-intro" style={{ fontSize: '0.8rem' }}>
