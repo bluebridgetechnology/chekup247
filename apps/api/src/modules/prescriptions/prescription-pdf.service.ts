@@ -69,6 +69,16 @@ interface CachedIconBuffers {
   lock: Buffer;
 }
 
+/** Tamper-evident SHA-256 seal printed on the PDF and shown on the public verification page. */
+export function computePrescriptionSeal(
+  prescription: { id: string; icd10_code: string; issued_at?: Date | string | null; created_at?: Date | string | null },
+  hpcsaNumber: string,
+  patientName: string,
+): string {
+  const rawPayload = `${prescription.id}|${hpcsaNumber}|${patientName}|${prescription.icd10_code}|${prescription.issued_at || prescription.created_at}`;
+  return crypto.createHash('sha256').update(rawPayload).digest('hex').toUpperCase();
+}
+
 @Injectable()
 export class PrescriptionPdfService {
   private readonly logger = new Logger(PrescriptionPdfService.name);
@@ -262,12 +272,7 @@ export class PrescriptionPdfService {
     const white = rgb(1.0, 1.0, 1.0);
 
     // Compute cryptographic verification hash (Tamper-evident seal)
-    const rawPayload = `${prescription.id}|${doctor.hpcsa_number}|${patient.name}|${prescription.icd10_code}|${prescription.issued_at || (prescription as any).created_at}`;
-    const verificationHash = crypto
-      .createHash('sha256')
-      .update(rawPayload)
-      .digest('hex')
-      .toUpperCase();
+    const verificationHash = computePrescriptionSeal(prescription, doctor.hpcsa_number, patient.name);
 
     // Dynamic verification URL using domain chekup247.com
     const verificationBaseUrl =

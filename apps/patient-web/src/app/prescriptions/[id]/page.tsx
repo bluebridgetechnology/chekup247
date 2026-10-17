@@ -2,7 +2,8 @@ import { redirect } from 'next/navigation';
 
 /**
  * Legacy email / notification deep link (`/prescriptions/<id>`).
- * Forward to the public prescription page (no login needed) which has the PDF download.
+ * Sends the PDF straight to the browser as a download, no login needed.
+ * (The public /verify/rx/<id> page is reserved for QR-code verification.)
  */
 export default async function PrescriptionDeepLinkPage({
   params,
@@ -10,5 +11,6 @@ export default async function PrescriptionDeepLinkPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/verify/rx/${encodeURIComponent(id)}`);
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+  redirect(`${apiBase}/prescriptions/${encodeURIComponent(id)}/download`);
 }
