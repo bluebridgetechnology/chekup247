@@ -12,28 +12,105 @@ import {
   Req,
 } from '@nestjs/common';
 import { Response, Request } from 'express';
+import { Type } from 'class-transformer';
+import { IsArray, IsBoolean, IsNumber, IsOptional, IsString, ValidateNested } from 'class-validator';
 import { PrescriptionsService, CreatePrescriptionDto } from './prescriptions.service';
 import { Public, CurrentUser } from '../../common/decorators/auth.decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
 
+export class PrescriptionMedicationDto {
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  dosage: string;
+
+  @IsOptional()
+  @IsString()
+  duration: string;
+
+  @IsOptional()
+  @IsString()
+  instructions: string;
+
+  @IsOptional()
+  @IsString()
+  nappi_code?: string;
+
+  @IsOptional()
+  @IsString()
+  schedule_flag?: string;
+
+  @IsOptional()
+  @IsString()
+  frequency?: string;
+
+  @IsOptional()
+  @IsNumber()
+  repeats?: number;
+}
+
+export class RecommendedLabTestDto {
+  @IsString()
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  indication?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  urgent?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  fasting?: boolean;
+}
+
 export class CreatePrescriptionRequestDto {
+  @IsOptional()
+  @IsString()
   consultationId?: string;
+
+  @IsOptional()
+  @IsString()
   bookingId?: string;
+
+  @IsOptional()
+  @IsString()
   doctorId?: string;
+
+  @IsString()
   icd10Code: string;
-  medications: Array<{
-    name: string;
-    dosage: string;
-    duration: string;
-    instructions: string;
-    nappi_code?: string;
-    schedule_flag?: string;
-    frequency?: string;
-  }>;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PrescriptionMedicationDto)
+  medications: PrescriptionMedicationDto[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => RecommendedLabTestDto)
+  recommendedLabTests?: RecommendedLabTestDto[];
+
+  @IsOptional()
+  @IsString()
   scheduleFlag?: string;
+
+  @IsOptional()
+  @IsString()
   supervisionDeclaration?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   symptoms?: string[];
+
+  @IsOptional()
+  @IsString()
   clinicalNotes?: string;
 }
 
