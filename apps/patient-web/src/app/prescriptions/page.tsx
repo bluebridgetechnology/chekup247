@@ -117,6 +117,15 @@ export default function PatientPrescriptionsPage() {
     loadPrescriptions();
   }, [user, token]);
 
+  // Deep link from email/notification: /prescriptions?id=<id> opens that prescription
+  useEffect(() => {
+    if (typeof window === 'undefined' || prescriptions.length === 0) return;
+    const linkedId = new URLSearchParams(window.location.search).get('id');
+    if (!linkedId) return;
+    const match = prescriptions.find((p) => p.id.toLowerCase() === linkedId.toLowerCase());
+    if (match) setSelectedPrescription((current) => current ?? match);
+  }, [prescriptions]);
+
   // Filtered prescriptions
   const filteredPrescriptions = useMemo(() => {
     return prescriptions.filter((p) => {

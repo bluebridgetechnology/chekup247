@@ -339,7 +339,7 @@ export class PrescriptionsService {
             icd10Code: savedPrescription.icd10_code,
             message: `Dr. ${doctorName} has issued your official e-prescription. You can now download your digitally signed script.`,
           },
-          deepLink: `/prescriptions/${savedPrescription.id}`,
+          deepLink: `/verify/rx/${savedPrescription.id}`,
         })
         .catch((err) => {
           this.logger.warn(`Could not dispatch prescription_issued: ${err.message}`);
