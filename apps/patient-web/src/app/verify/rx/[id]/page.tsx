@@ -11,6 +11,7 @@ interface PrescriptionVerificationData {
   status: string;
   verified: boolean;
   issued_at: string;
+  valid_until?: string;
   pdf_hash: string;
   doctor: {
     fullName: string;
@@ -39,6 +40,36 @@ interface PrescriptionVerificationData {
   }>;
 }
 
+type Tone = 'valid' | 'expired' | 'revoked';
+
+const TONES: Record<Tone, { bg: string; icon: string; title: string; sub: string }> = {
+  valid: {
+    bg: 'linear-gradient(135deg, #065F46 0%, #047857 100%)',
+    icon: 'shield-check-linear',
+    title: 'Valid prescription',
+    sub: 'Authentic, digitally signed and within its validity period.',
+  },
+  expired: {
+    bg: 'linear-gradient(135deg, #92400E 0%, #B45309 100%)',
+    icon: 'clock-circle-linear',
+    title: 'Authentic but expired',
+    sub: 'This prescription is genuine, but its 30-day validity period has ended. Do not dispense.',
+  },
+  revoked: {
+    bg: 'linear-gradient(135deg, #991B1B 0%, #B91C1C 100%)',
+    icon: 'close-circle-linear',
+    title: 'Prescription revoked',
+    sub: 'The prescribing practitioner has withdrawn this prescription. Do not dispense.',
+  },
+};
+
+const fmtDate = (value?: string) =>
+  value
+    ? new Date(value).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })
+    : '—';
+
+const shortRef = (value: string) => value.split('-')[0].toUpperCase();
+
 export default function PrescriptionVerificationPage() {
   const params = useParams();
   const id = typeof params?.id === 'string' ? params.id : '';
@@ -46,9 +77,10 @@ export default function PrescriptionVerificationPage() {
   const [data, setData] = useState<PrescriptionVerificationData | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const [copied, setCopied] = useState<boolean>(false);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api/v1';
+  const downloadUrl = `${API_BASE}/prescriptions/${id}/download`;
 
   useEffect(() => {
     if (!id) return;
@@ -64,17 +96,12 @@ export default function PrescriptionVerificationPage() {
           if (isMounted) setData(json);
           return;
         }
-
         if (isMounted) {
-          setError('Prescription could not be verified or record was not found in the compliance ledger.');
+          setError('This prescription could not be verified. It may not exist, or the QR code may be damaged.');
         }
-
+      } catch {
         if (isMounted) {
-          setError('Prescription could not be verified or record was not found in the compliance ledger.');
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setError('Verification service is temporarily unreachable. Please try again.');
+          setError('The verification service is temporarily unreachable. Please try again.');
         }
       } finally {
         if (isMounted) setIsLoading(false);
@@ -87,520 +114,296 @@ export default function PrescriptionVerificationPage() {
     };
   }, [id, API_BASE]);
 
-  const handleDownloadPdf = async () => {
-    if (!id) return;
-    setIsDownloading(true);
+  const copySeal = async () => {
+    if (!data) return;
     try {
-      const downloadUrl = `${API_BASE}/prescriptions/${id}/download`;
-      const res = await fetch(downloadUrl);
-      if (res.ok) {
-        const blob = await res.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `ChekUp247_Prescription_${id.toUpperCase()}.pdf`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
-      } else {
-        window.open(downloadUrl, '_blank');
-      }
+      await navigator.clipboard.writeText(data.pdf_hash);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
     } catch {
-      window.open(`${API_BASE}/prescriptions/${id}/download`, '_blank');
-    } finally {
-      setIsDownloading(false);
+      /* clipboard unavailable */
     }
   };
 
+  const tone: Tone = data
+    ? /REVOK/i.test(data.status)
+      ? 'revoked'
+      : /EXPIRED/i.test(data.status)
+        ? 'expired'
+        : 'valid'
+    : 'valid';
+  const t = TONES[tone];
+  const showDescription =
+    !!data?.icd10_description && data.icd10_description.trim().toUpperCase() !== data.icd10_code.trim().toUpperCase();
+
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        backgroundColor: '#F8F4EC',
-        padding: '24px 16px 60px',
-        boxSizing: 'border-box',
-        fontFamily: 'var(--font-heading), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}
-    >
-      <div style={{ maxWidth: '820px', margin: '0 auto' }}>
-        {/* Header Branding */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '20px',
-            flexWrap: 'wrap',
-            gap: '12px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+    <div className="vrx-page">
+      <style>{`
+        .vrx-page { min-height: 100vh; background: #F8F4EC; padding: 20px 14px 56px; box-sizing: border-box; font-family: var(--font-heading), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #2A170F; }
+        .vrx-wrap { max-width: 760px; margin: 0 auto; }
+        .vrx-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+        .vrx-brand { display: flex; align-items: center; gap: 10px; }
+        .vrx-brand-name { font-size: 1.05rem; font-weight: 900; letter-spacing: -0.02em; }
+        .vrx-brand-sub { font-size: 0.72rem; color: #7A6A5E; font-weight: 600; }
+        .vrx-home { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: #fff; border: 1.5px solid #DDD0BC; color: #2A170F; font-size: 0.78rem; font-weight: 700; text-decoration: none; }
+        .vrx-card { background: #fff; border: 1.5px solid #DDD0BC; border-radius: 18px; overflow: hidden; box-shadow: 0 10px 30px -8px rgba(42,23,15,.12); }
+        .vrx-banner { color: #fff; padding: 22px 22px 20px; }
+        .vrx-banner-row { display: flex; align-items: center; gap: 14px; }
+        .vrx-banner-icon { width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        .vrx-banner h1 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em; color: #fff; }
+        .vrx-banner p { margin: 3px 0 0; font-size: 0.82rem; opacity: .92; line-height: 1.4; }
+        .vrx-facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: rgba(255,255,255,.22); border-radius: 12px; overflow: hidden; margin-top: 18px; }
+        .vrx-fact { background: rgba(0,0,0,.14); padding: 10px 12px; }
+        .vrx-fact dt { font-size: 0.64rem; letter-spacing: .07em; text-transform: uppercase; opacity: .8; font-weight: 700; margin: 0; }
+        .vrx-fact dd { margin: 3px 0 0; font-size: 0.86rem; font-weight: 800; }
+        .vrx-body { padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 18px; }
+        .vrx-people { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .vrx-box { background: #FAF6EE; border: 1px solid #EDE4D4; border-radius: 14px; padding: 14px 16px; min-width: 0; }
+        .vrx-label { font-size: 0.66rem; font-weight: 800; color: #B88647; text-transform: uppercase; letter-spacing: .07em; display: flex; align-items: center; gap: 6px; }
+        .vrx-name { font-weight: 800; font-size: 1.02rem; margin-top: 6px; overflow-wrap: anywhere; }
+        .vrx-meta { font-size: 0.8rem; color: #6B5E55; margin-top: 3px; overflow-wrap: anywhere; }
+        .vrx-meta b { color: #2A170F; }
+        .vrx-tick { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.72rem; font-weight: 800; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 2px 8px; border-radius: 999px; }
+        .vrx-dx { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #fff; border: 1.5px solid #EDE4D4; border-radius: 14px; padding: 12px 16px; }
+        .vrx-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 800; font-size: 0.85rem; padding: 3px 9px; border-radius: 6px; background: #EDE4D4; }
+        .vrx-h2 { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
+        .vrx-count { background: #2A170F; color: #fff; border-radius: 999px; font-size: 0.68rem; padding: 1px 8px; }
+        .vrx-meds { display: flex; flex-direction: column; gap: 12px; }
+        .vrx-med { border: 1.5px solid #EDE4D4; border-radius: 14px; padding: 14px 16px; background: #fff; }
+        .vrx-med-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .vrx-med-name { font-weight: 800; font-size: 1rem; overflow-wrap: anywhere; }
+        .vrx-nappi { font-size: 0.74rem; color: #6B5E55; margin-top: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .vrx-sched { flex-shrink: 0; font-size: 0.74rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; border: 1px solid; }
+        .vrx-sched.low { color: #047857; background: #ECFDF5; border-color: #A7F3D0; }
+        .vrx-sched.high { color: #B91C1C; background: #FEF2F2; border-color: #FECACA; }
+        .vrx-med-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #E6DAC6; }
+        .vrx-k { font-size: 0.64rem; color: #8A7B72; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+        .vrx-v { font-size: 0.9rem; font-weight: 700; margin-top: 2px; }
+        .vrx-note { margin-top: 12px; background: #FFFBEB; border-left: 3px solid #DFAB62; border-radius: 6px; padding: 8px 12px; font-size: 0.8rem; color: #5C4F46; }
+        .vrx-warn { background: #FFFBEB; border: 1.5px solid #F59E0B; border-radius: 12px; padding: 12px 14px; font-size: 0.8rem; color: #92400E; line-height: 1.45; }
+        .vrx-seal { background: #F8F4EC; border: 1px solid #EDE4D4; border-radius: 14px; padding: 14px 16px; }
+        .vrx-hash { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 0.72rem; word-break: break-all; margin-top: 6px; line-height: 1.5; }
+        .vrx-copy { border: 1px solid #DDD0BC; background: #fff; border-radius: 8px; font-size: 0.72rem; font-weight: 700; padding: 4px 10px; cursor: pointer; color: #2A170F; margin-left: auto; }
+        .vrx-seal-note { font-size: 0.72rem; color: #7A6A5E; margin-top: 8px; line-height: 1.45; }
+        .vrx-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; padding-top: 18px; border-top: 1px solid #EDE4D4; }
+        .vrx-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 20px; border-radius: 12px; font-size: 0.88rem; font-weight: 700; cursor: pointer; text-decoration: none; border: 1.5px solid #DDD0BC; background: #fff; color: #2A170F; }
+        .vrx-btn.primary { background: #DFAB62; border-color: #DFAB62; box-shadow: 0 2px 8px rgba(223,171,98,.35); }
+        .vrx-foot { text-align: center; font-size: 0.72rem; color: #8A7B72; margin-top: 14px; line-height: 1.5; }
+        .vrx-state { background: #fff; border: 1.5px solid #DDD0BC; border-radius: 18px; padding: 56px 24px; text-align: center; box-shadow: 0 8px 30px -4px rgba(42,23,15,.08); }
+        .vrx-state.err { border-color: #FECACA; }
+        @media (max-width: 640px) {
+          .vrx-facts { grid-template-columns: 1fr 1fr; }
+          .vrx-people { grid-template-columns: 1fr; }
+          .vrx-med-grid { grid-template-columns: 1fr 1fr; }
+          .vrx-med-grid > :first-child { grid-column: 1 / -1; }
+          .vrx-banner h1 { font-size: 1.12rem; }
+          .vrx-actions .vrx-btn { flex: 1 1 100%; }
+          .vrx-body, .vrx-banner { padding-left: 16px; padding-right: 16px; }
+        }
+        @media print {
+          .vrx-top .vrx-home, .vrx-actions, .vrx-copy { display: none !important; }
+          .vrx-page { background: #fff; padding: 0; }
+          .vrx-card { box-shadow: none; }
+        }
+      `}</style>
+
+      <div className="vrx-wrap">
+        <div className="vrx-top">
+          <div className="vrx-brand">
             <ChekupCrossLogo size={32} />
             <div>
-              <div
-                style={{
-                  fontSize: '1.15rem',
-                  fontWeight: 900,
-                  color: '#2A170F',
-                  letterSpacing: '-0.02em',
-                }}
-              >
-                CHEKUP247 TELEHEALTH
-              </div>
-              <div style={{ fontSize: '0.74rem', color: '#7A6A5E', fontWeight: 600 }}>
-                Official South African Electronic Prescription Verification Portal
-              </div>
+              <div className="vrx-brand-name">CHEKUP247 TELEHEALTH</div>
+              <div className="vrx-brand-sub">Electronic Prescription Verification</div>
             </div>
           </div>
-
-          <Link
-            href="/"
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '7px 14px',
-              borderRadius: '8px',
-              background: '#FFFFFF',
-              border: '1.5px solid #DDD0BC',
-              color: '#2A170F',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              textDecoration: 'none',
-            }}
-          >
+          <Link href="/" className="vrx-home">
             <SolarIcon name="home-linear" size={15} color="#2A170F" />
             ChekUp247 Home
           </Link>
         </div>
 
-        {/* Loading State */}
         {isLoading && (
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '16px',
-              border: '1.5px solid #DDD0BC',
-              padding: '60px 24px',
-              textAlign: 'center',
-              boxShadow: '0 8px 30px -4px rgba(42, 23, 15, 0.08)',
-            }}
-          >
-            <SolarIcon
-              name="refresh-linear"
-              size={32}
-              className="animate-spin"
-              color="#DFAB62"
-              style={{ margin: '0 auto 16px', display: 'block' }}
-            />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#2A170F', margin: 0 }}>
-              Verifying Cryptographic Seal & HPCSA Registry…
-            </h3>
-            <p style={{ color: '#7A6A5E', fontSize: '0.85rem', marginTop: '6px' }}>
-              Validating SHA-256 tamper-evident electronic prescription ledger.
-            </p>
+          <div className="vrx-state" role="status" aria-live="polite">
+            <SolarIcon name="refresh-linear" size={32} className="animate-spin" color="#DFAB62" style={{ margin: '0 auto 14px', display: 'block' }} />
+            <h2 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0 }}>Verifying prescription…</h2>
+            <p style={{ color: '#7A6A5E', fontSize: '0.85rem', marginTop: 6 }}>Checking the digital seal and practitioner registration.</p>
           </div>
         )}
 
-        {/* Error State */}
         {!isLoading && error && (
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '16px',
-              border: '1.5px solid #FECACA',
-              padding: '48px 24px',
-              textAlign: 'center',
-              boxShadow: '0 8px 30px -4px rgba(220, 38, 38, 0.08)',
-            }}
-          >
-            <div
-              style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '50%',
-                background: '#FEF2F2',
-                color: '#DC2626',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}
-            >
+          <div className="vrx-state err" role="alert">
+            <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#FEF2F2', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
               <SolarIcon name="close-circle-linear" size={32} color="#DC2626" />
             </div>
-            <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#991B1B', margin: 0 }}>
-              Prescription Verification Failed
-            </h3>
-            <p style={{ color: '#7F1D1D', fontSize: '0.9rem', maxWidth: '480px', margin: '8px auto 20px' }}>
-              {error}
-            </p>
-            <div style={{ fontSize: '0.78rem', color: '#6B7280' }}>
-              Reference Checked: <code>{id}</code>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#991B1B', margin: 0 }}>Could not verify prescription</h2>
+            <p style={{ color: '#7F1D1D', fontSize: '0.9rem', maxWidth: 440, margin: '8px auto 16px', lineHeight: 1.5 }}>{error}</p>
+            <div style={{ fontSize: '0.76rem', color: '#6B7280', overflowWrap: 'anywhere' }}>
+              Reference checked: <code>{id}</code>
             </div>
           </div>
         )}
 
-        {/* Verified Content */}
         {!isLoading && data && (
-          <div
-            style={{
-              backgroundColor: '#FFFFFF',
-              borderRadius: '16px',
-              border: '1.5px solid #DDD0BC',
-              overflow: 'hidden',
-              boxShadow: '0 10px 30px -5px rgba(42, 23, 15, 0.09)',
-            }}
-          >
-            {/* Status Banner */}
-            <div
-              style={{
-                background: 'linear-gradient(135deg, #065F46 0%, #047857 100%)',
-                color: '#FFFFFF',
-                padding: '20px 24px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '12px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div
-                  style={{
-                    width: '42px',
-                    height: '42px',
-                    borderRadius: '50%',
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}
-                >
-                  <SolarIcon name="shield-check-linear" size={24} color="#FFFFFF" />
+          <div className="vrx-card">
+            <div className="vrx-banner" style={{ background: t.bg }}>
+              <div className="vrx-banner-row">
+                <div className="vrx-banner-icon">
+                  <SolarIcon name={t.icon} size={28} color="#FFFFFF" />
                 </div>
                 <div>
-                  <div style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '0.01em' }}>
-                    AUTHENTIC & VERIFIED PRESCRIPTION
-                  </div>
-                  <div style={{ fontSize: '0.78rem', opacity: 0.9, marginTop: '2px' }}>
-                    Complies with South African Medicines Act (Act 101/1965) & ECTA (Act 25/2002)
-                  </div>
+                  <h1>{t.title}</h1>
+                  <p>{t.sub}</p>
                 </div>
               </div>
-
-              <div
-                style={{
-                  background: 'rgba(255, 255, 255, 0.15)',
-                  borderRadius: '10px',
-                  padding: '6px 14px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  letterSpacing: '0.04em',
-                }}
-              >
-                STATUS: {data.status}
-              </div>
+              <dl className="vrx-facts">
+                <div className="vrx-fact">
+                  <dt>Rx reference</dt>
+                  <dd style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}>{shortRef(data.id)}</dd>
+                </div>
+                <div className="vrx-fact">
+                  <dt>Issued</dt>
+                  <dd>{fmtDate(data.issued_at)}</dd>
+                </div>
+                <div className="vrx-fact">
+                  <dt>Valid until</dt>
+                  <dd>{fmtDate(data.valid_until)}</dd>
+                </div>
+                <div className="vrx-fact">
+                  <dt>Highest schedule</dt>
+                  <dd>S{data.max_schedule}</dd>
+                </div>
+              </dl>
             </div>
 
-            {/* Content Body */}
-            <div style={{ padding: '24px' }}>
-              {/* Metadata Grid */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-                  gap: '16px',
-                  marginBottom: '20px',
-                  background: '#FAF6EE',
-                  padding: '16px',
-                  borderRadius: '12px',
-                  border: '1px solid #EDE4D4',
-                }}
-              >
-                {/* Prescribing Doctor */}
-                <div>
-                  <div
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                      color: '#B88647',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    PRESCRIBING PRACTITIONER
+            <div className="vrx-body">
+              <div className="vrx-people">
+                <div className="vrx-box">
+                  <div className="vrx-label">
+                    <SolarIcon name="stethoscope-linear" size={14} color="#B88647" />
+                    Prescribing practitioner
                   </div>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#2A170F' }}>
-                    {data.doctor.fullName}
+                  <div className="vrx-name">{data.doctor.fullName}</div>
+                  <div className="vrx-meta">{data.doctor.specialty || 'General Practitioner'}</div>
+                  <div className="vrx-meta">
+                    HPCSA: <b style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}>{data.doctor.hpcsa_number}</b>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#6B5E55', marginTop: '2px' }}>
-                    {data.doctor.specialty || 'General Practitioner'}
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: '#2A170F', marginTop: '4px', fontWeight: 600 }}>
-                    HPCSA Reg: <span style={{ fontFamily: 'monospace' }}>{data.doctor.hpcsa_number}</span>
-                    {data.doctor.practice_number && ` · Practice: ${data.doctor.practice_number}`}
-                  </div>
+                  {data.doctor.practice_number && (
+                    <div className="vrx-meta">
+                      Practice no.: <b>{data.doctor.practice_number}</b>
+                    </div>
+                  )}
+                  {data.doctor.verified_hpcsa && (
+                    <span className="vrx-tick">
+                      <SolarIcon name="check-circle-bold" size={12} color="#047857" />
+                      HPCSA registered
+                    </span>
+                  )}
                 </div>
 
-                {/* Patient Information */}
-                <div>
-                  <div
-                    style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 800,
-                      color: '#B88647',
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.06em',
-                      marginBottom: '4px',
-                    }}
-                  >
-                    PATIENT ON RECORD
+                <div className="vrx-box">
+                  <div className="vrx-label">
+                    <SolarIcon name="user-linear" size={14} color="#B88647" />
+                    Patient
                   </div>
-                  <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#2A170F' }}>
-                    {data.patient.fullName}
+                  <div className="vrx-name">{data.patient.fullName}</div>
+                  <div className="vrx-meta">
+                    Patient ref: <b style={{ fontFamily: 'ui-monospace, Menlo, monospace' }}>{shortRef(data.patient.patient_id || '—')}</b>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#6B5E55', marginTop: '2px' }}>
-                    Patient ID / Ref: {data.patient.patient_id}
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: '#2A170F', marginTop: '4px', fontWeight: 600 }}>
-                    Issued: {new Date(data.issued_at).toLocaleDateString('en-ZA', { year: 'numeric', month: 'long', day: 'numeric' })}
-                  </div>
+                  <div className="vrx-meta">Check the patient’s name against their ID before dispensing.</div>
                 </div>
               </div>
 
-              {/* Diagnosis Box */}
-              <div
-                style={{
-                  background: '#FFFFFF',
-                  border: '1.5px solid #EDE4D4',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  marginBottom: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  flexWrap: 'wrap',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.7rem',
-                    fontWeight: 800,
-                    color: '#B88647',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.05em',
-                  }}
-                >
-                  DIAGNOSIS (ICD-10):
-                </div>
-                <span
-                  style={{
-                    fontFamily: 'monospace',
-                    fontWeight: 800,
-                    fontSize: '0.82rem',
-                    padding: '2px 7px',
-                    borderRadius: '4px',
-                    background: '#EDE4D4',
-                    color: '#2A170F',
-                  }}
-                >
-                  {data.icd10_code}
-                </span>
-                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: '#2A170F' }}>
-                  {data.icd10_description}
-                </span>
+              <div className="vrx-dx">
+                <span className="vrx-label">Diagnosis (ICD-10)</span>
+                <span className="vrx-code">{data.icd10_code}</span>
+                {showDescription && <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{data.icd10_description}</span>}
               </div>
 
-              {/* Prescribed Medications Table */}
-              <div style={{ marginBottom: '22px' }}>
-                <div
-                  style={{
-                    fontSize: '0.8rem',
-                    fontWeight: 800,
-                    color: '#2A170F',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
-                    marginBottom: '8px',
-                  }}
-                >
-                  Prescribed Medications ({data.items.length})
+              <section>
+                <h2 className="vrx-h2">
+                  <SolarIcon name="pill-linear" size={16} color="#2A170F" />
+                  Prescribed medication
+                  <span className="vrx-count">{data.items.length}</span>
+                </h2>
+                <div className="vrx-meds">
+                  {data.items.map((item, idx) => (
+                    <div className="vrx-med" key={idx}>
+                      <div className="vrx-med-head">
+                        <div style={{ minWidth: 0 }}>
+                          <div className="vrx-med-name">
+                            {idx + 1}. {item.medication_name}
+                          </div>
+                          <div className="vrx-nappi">NAPPI: {item.nappi_code && item.nappi_code !== 'CUSTOM-FREE-TEXT' ? item.nappi_code : 'N/A'}</div>
+                        </div>
+                        <span className={`vrx-sched ${item.schedule >= 5 ? 'high' : 'low'}`}>S{item.schedule}</span>
+                      </div>
+                      <div className="vrx-med-grid">
+                        <div>
+                          <div className="vrx-k">Dosage &amp; frequency</div>
+                          <div className="vrx-v">
+                            {item.dosage}
+                            {item.frequency ? ` · ${item.frequency}` : ''}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="vrx-k">Duration</div>
+                          <div className="vrx-v">{item.duration}</div>
+                        </div>
+                        <div>
+                          <div className="vrx-k">Repeats</div>
+                          <div className="vrx-v" style={{ color: item.repeats > 0 ? '#047857' : undefined }}>
+                            {item.repeats > 0 ? item.repeats : 'None'}
+                          </div>
+                        </div>
+                      </div>
+                      {item.instructions && (
+                        <div className="vrx-note">
+                          <b>Instructions:</b> {item.instructions}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
+              </section>
 
-                <div
-                  style={{
-                    border: '1.5px solid #EDE4D4',
-                    borderRadius: '12px',
-                    overflowX: 'auto',
-                    backgroundColor: '#FFFFFF',
-                  }}
-                >
-                  <table
-                    style={{
-                      width: '100%',
-                      borderCollapse: 'collapse',
-                      fontSize: '0.85rem',
-                      minWidth: '600px',
-                    }}
-                  >
-                    <thead>
-                      <tr style={{ background: '#EBE2D3' }}>
-                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#3D2B20', textTransform: 'uppercase' }}>#</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#3D2B20', textTransform: 'uppercase' }}>Medication Name</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#3D2B20', textTransform: 'uppercase' }}>NAPPI</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'center', fontSize: '0.7rem', fontWeight: 700, color: '#3D2B20', textTransform: 'uppercase' }}>Sched</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#3D2B20', textTransform: 'uppercase' }}>Dosage & Frequency</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'left', fontSize: '0.7rem', fontWeight: 700, color: '#3D2B20', textTransform: 'uppercase' }}>Duration</th>
-                        <th style={{ padding: '10px 12px', textAlign: 'right', fontSize: '0.7rem', fontWeight: 700, color: '#3D2B20', textTransform: 'uppercase' }}>Repeats</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.items.map((item, idx) => (
-                        <React.Fragment key={idx}>
-                          <tr style={{ borderBottom: '1px solid #F0E6D8', background: idx % 2 === 1 ? '#FAF6EE' : '#FFFFFF' }}>
-                            <td style={{ padding: '10px 12px', fontWeight: 600, color: '#6B5E55' }}>{idx + 1}</td>
-                            <td style={{ padding: '10px 12px', fontWeight: 700, color: '#2A170F' }}>{item.medication_name}</td>
-                            <td style={{ padding: '10px 12px', fontFamily: 'monospace', color: '#4A3F38', fontSize: '0.8rem' }}>{item.nappi_code}</td>
-                            <td style={{ padding: '10px 12px', textAlign: 'center', fontWeight: 700, color: item.schedule >= 5 ? '#B91C1C' : '#047857' }}>
-                              S{item.schedule}
-                            </td>
-                            <td style={{ padding: '10px 12px', color: '#2A170F' }}>{item.dosage} · {item.frequency}</td>
-                            <td style={{ padding: '10px 12px', color: '#2A170F' }}>{item.duration}</td>
-                            <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: item.repeats > 0 ? '#047857' : '#6B5E55' }}>
-                              {item.repeats > 0 ? `${item.repeats} repeats` : 'None'}
-                            </td>
-                          </tr>
-                          {item.instructions && (
-                            <tr style={{ background: idx % 2 === 1 ? '#FAF6EE' : '#FFFFFF', borderBottom: '1px solid #F0E6D8' }}>
-                              <td></td>
-                              <td colSpan={6} style={{ padding: '0 12px 10px', fontSize: '0.78rem', color: '#6B5E55', fontStyle: 'italic' }}>
-                                Instructions: {item.instructions}
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* Schedule 5/6 Supervised Notice */}
               {data.supervision_declared && (
-                <div
-                  style={{
-                    background: '#FFFBEB',
-                    border: '1.5px solid #F59E0B',
-                    borderRadius: '10px',
-                    padding: '10px 14px',
-                    marginBottom: '20px',
-                    fontSize: '0.78rem',
-                    color: '#92400E',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800, marginBottom: '3px' }}>
-                    <SolarIcon name="shield-check-linear" size={14} color="#D97706" />
-                    HPCSA Schedule 5 & 6 Telehealth Supervision Declaration
-                  </div>
-                  This prescription complies with real-time consultation requirements for scheduled substances under South African telemedicine regulations.
+                <div className="vrx-warn">
+                  <b>Schedule 5 &amp; 6 telehealth supervision declaration on record.</b> The practitioner declared a real-time consultation under HPCSA telemedicine guidelines.
                 </div>
               )}
 
-              {/* Cryptographic Seal Box */}
-              <div
-                style={{
-                  background: '#F8F4EC',
-                  border: '1px solid #EDE4D4',
-                  borderRadius: '12px',
-                  padding: '14px 16px',
-                  marginBottom: '24px',
-                }}
-              >
-                <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#B88647', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  CRYPTOGRAPHIC SHA-256 DIGITAL SEAL
+              <div className="vrx-seal">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="vrx-label">
+                    <SolarIcon name="lock-linear" size={14} color="#B88647" />
+                    SHA-256 digital seal
+                  </span>
+                  <button type="button" className="vrx-copy" onClick={copySeal}>
+                    {copied ? 'Copied' : 'Copy'}
+                  </button>
                 </div>
-                <div
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '0.75rem',
-                    color: '#2A170F',
-                    wordBreak: 'break-all',
-                    marginTop: '4px',
-                  }}
-                >
-                  {data.pdf_hash}
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#7A6A5E', marginTop: '6px' }}>
-                  Tamper-evident hash verified against ChekUp247 immutable compliance audit ledger.
-                </div>
+                <div className="vrx-hash">{data.pdf_hash}</div>
+                <div className="vrx-seal-note">This seal is printed on the original PDF. If the two do not match, the document has been altered.</div>
               </div>
 
-              {/* Action Buttons */}
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'flex-end',
-                  gap: '10px',
-                  flexWrap: 'wrap',
-                  borderTop: '1px solid #EDE4D4',
-                  paddingTop: '20px',
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  style={{
-                    padding: '9px 18px',
-                    borderRadius: '10px',
-                    background: '#FFFFFF',
-                    border: '1.5px solid #DDD0BC',
-                    color: '#2A170F',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                  }}
-                >
-                  <SolarIcon name="printer-linear" size={16} color="#2A170F" />
-                  Print Verification
+              <div className="vrx-actions">
+                <button type="button" className="vrx-btn" onClick={() => window.print()}>
+                  <SolarIcon name="printer-linear" size={18} color="#2A170F" />
+                  Print
                 </button>
-
-                <button
-                  type="button"
-                  onClick={handleDownloadPdf}
-                  disabled={isDownloading}
-                  style={{
-                    padding: '9px 20px',
-                    borderRadius: '10px',
-                    background: '#DFAB62',
-                    border: 'none',
-                    color: '#2A170F',
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    cursor: isDownloading ? 'wait' : 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 2px 6px rgba(223, 171, 98, 0.3)',
-                  }}
-                >
-                  <SolarIcon
-                    name={isDownloading ? 'refresh-linear' : 'download-linear'}
-                    size={16}
-                    color="#2A170F"
-                    className={isDownloading ? 'animate-spin' : ''}
-                  />
-                  {isDownloading ? 'Preparing PDF…' : 'Download Official PDF'}
-                </button>
+                <a className="vrx-btn primary" href={downloadUrl} download>
+                  <SolarIcon name="download-linear" size={18} color="#2A170F" />
+                  Download official PDF
+                </a>
               </div>
             </div>
           </div>
+        )}
+
+        {!isLoading && data && (
+          <p className="vrx-foot">
+            Verified live against the ChekUp247 prescription register. Issued under Section 22 of ECTA (Act 25 of 2002) and the Medicines and Related Substances Act (Act 101 of 1965).
+          </p>
         )}
       </div>
     </div>

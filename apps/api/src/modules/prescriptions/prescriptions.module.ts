@@ -2,7 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule } from '@nestjs/bullmq';
 import { Prescription, Consultation, Booking } from '../../database/patient/entities';
-import { DoctorProfile, User, AuditLog } from '../../database/operational/entities';
+import { DoctorProfile, User, AuditLog, Icd10Code } from '../../database/operational/entities';
 import { QUEUES } from '../queues/queue.constants';
 import { ConsultationsModule } from '../consultations/consultations.module';
 import { NotificationsModule } from '../notifications/notifications.module';
@@ -14,7 +14,7 @@ import { PrescriptionPdfService } from './prescription-pdf.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Prescription, Consultation, Booking], 'patient'),
-    TypeOrmModule.forFeature([DoctorProfile, User, AuditLog], 'operational'),
+    TypeOrmModule.forFeature([DoctorProfile, User, AuditLog, Icd10Code], 'operational'),
     BullModule.registerQueue({
       name: QUEUES.NOTIFICATIONS,
     }),

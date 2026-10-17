@@ -21,9 +21,9 @@ import {
   BookingStatus,
   MedicationItem,
 } from '../../database/patient/entities';
-import { DoctorProfile, User, AuditLog } from '../../database/operational/entities';
+import { DoctorProfile, User, AuditLog, Icd10Code } from '../../database/operational/entities';
 import { envConfig } from '../../config/env.config';
-import { PrescriptionPdfService } from './prescription-pdf.service';
+import { PrescriptionPdfService, computePrescriptionSeal } from './prescription-pdf.service';
 import { StorageService } from '../storage/storage.service';
 import { ConsultationGateway } from '../consultations/consultation.gateway';
 import { PatientDemoSeederService } from '../consultations/patient-demo-seeder.service';
@@ -74,6 +74,9 @@ export class PrescriptionsService {
     private readonly notificationsService?: NotificationsService,
     @Optional()
     private readonly patientDemoSeederService?: PatientDemoSeederService,
+    @Optional()
+    @InjectRepository(Icd10Code, 'operational')
+    private readonly icd10Repository?: Repository<Icd10Code>,
   ) {}
 
   /**
@@ -339,7 +342,7 @@ export class PrescriptionsService {
             icd10Code: savedPrescription.icd10_code,
             message: `Dr. ${doctorName} has issued your official e-prescription. You can now download your digitally signed script.`,
           },
-          deepLink: `/verify/rx/${savedPrescription.id}`,
+          deepLink: `/prescriptions`,
         })
         .catch((err) => {
           this.logger.warn(`Could not dispatch prescription_issued: ${err.message}`);
@@ -698,6 +701,14 @@ export class PrescriptionsService {
       }
     }
 
+    let icd10Description = prescription.icd10_code;
+    try {
+      const icd = await this.icd10Repository?.findOne({ where: { code: prescription.icd10_code } });
+      if (icd?.description) icd10Description = icd.description;
+    } catch (err: any) {
+      this.logger.warn(`ICD-10 description lookup failed for ${prescription.icd10_code}: ${err.message}`);
+    }
+
     let patientName = 'Patient on File';
     if (prescription.patient_id) {
       const patientUser = await this.userRepository.findOne({
@@ -708,12 +719,22 @@ export class PrescriptionsService {
       }
     }
 
+    const issuedAt = prescription.issued_at || (prescription as any).created_at;
+    const validUntil = new Date(new Date(issuedAt).getTime() + 30 * 24 * 60 * 60 * 1000);
+    const rawStatus: string = (prescription as any).status || '';
+    const status = /REVOK/i.test(rawStatus)
+      ? 'REVOKED'
+      : validUntil.getTime() < Date.now()
+        ? 'EXPIRED'
+        : 'VERIFIED & ACTIVE';
+
     return {
       id: prescription.id,
-      status: (prescription as any).status || 'VERIFIED & ACTIVE',
+      status,
+      valid_until: validUntil.toISOString(),
       verified: true,
       issued_at: prescription.issued_at,
-      pdf_hash: (prescription as any).pdf_hash || 'SHA256:AUTHENTIC-LEGAL-PRESCRIPTION',
+      pdf_hash: computePrescriptionSeal(prescription, hpcsaNumber, patientName),
       doctor: {
         fullName: doctorName,
         hpcsa_number: hpcsaNumber,
@@ -726,7 +747,7 @@ export class PrescriptionsService {
         patient_id: prescription.patient_id,
       },
       icd10_code: prescription.icd10_code,
-      icd10_description: prescription.icd10_code,
+      icd10_description: icd10Description,
       max_schedule: prescription.schedule_flag
         ? parseInt(prescription.schedule_flag.replace('S', ''), 10) || 4
         : 4,
