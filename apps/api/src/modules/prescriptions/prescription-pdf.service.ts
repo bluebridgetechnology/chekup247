@@ -4,10 +4,41 @@ import * as crypto from 'crypto';
 import * as QRCode from 'qrcode';
 import { Prescription, MedicationItem } from '../../database/patient/entities';
 
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const sharp = require('sharp');
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const solar = require('@iconify-json/solar/icons.json');
+// 1x1 transparent PNG used in place of an icon if icon rendering is unavailable
+const BLANK_PNG = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+const WIN_ANSI_MAP: Record<string, string> = {
+  '\u2013': '-',
+  '\u2014': '-',
+  '\u2018': "'",
+  '\u2019': "'",
+  '\u201C': '"',
+  '\u201D': '"',
+  '\u2192': '->',
+  '\u2265': '>=',
+  '\u2264': '<=',
+  '\u00A0': ' ',
+  '\u202F': ' ',
+};
+
+/**
+ * Standard PDF fonts only encode WinAnsi; any other character (newlines, emoji, non-Latin
+ * letters) makes pdf-lib throw and the whole PDF fails. Collapse whitespace and replace the rest.
+ */
+export function toWinAnsiSafe(input: unknown): string {
+  const text = String(input ?? '').replace(/\s+/g, ' ');
+  let out = '';
+  for (const ch of text) {
+    const code = ch.codePointAt(0)!;
+    if (WIN_ANSI_MAP[ch] !== undefined) out += WIN_ANSI_MAP[ch];
+    else if ((code >= 0x20 && code <= 0x7e) || (code >= 0xa1 && code <= 0xff) || ch === '\u2022' || ch === '\u2026' || ch === '\u20AC') out += ch;
+    else out += '?';
+  }
+  return out;
+}
 
 export interface DoctorDetails {
   name: string;
@@ -53,6 +84,12 @@ export class PrescriptionPdfService {
     }
 
     try {
+      // Loaded lazily so a missing native module degrades to a PDF without icons
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const sharp = require('sharp');
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const solar = require('@iconify-json/solar/icons.json');
+
       const calendarBody = solar.icons['calendar-linear']?.body || '';
       const hourglassBody = solar.icons['hourglass-linear']?.body || '';
       const userBody = solar.icons['user-linear']?.body || '';
@@ -165,8 +202,20 @@ export class PrescriptionPdfService {
 
       return this.cachedIcons;
     } catch (err: any) {
-      this.logger.error(`Failed to generate icon buffers: ${err.message}`, err.stack);
-      throw err;
+      this.logger.error(`Failed to generate icon buffers, rendering PDF without icons: ${err.message}`, err.stack);
+      // Do not cache, so a later call can retry
+      return {
+        logo: BLANK_PNG,
+        calendar: BLANK_PNG,
+        hourglass: BLANK_PNG,
+        user: BLANK_PNG,
+        stethoscope: BLANK_PNG,
+        pill: BLANK_PNG,
+        shield: BLANK_PNG,
+        stampCheck: BLANK_PNG,
+        info: BLANK_PNG,
+        lock: BLANK_PNG,
+      };
     }
   }
 
@@ -183,6 +232,10 @@ export class PrescriptionPdfService {
     const pdfDoc = await PDFDocument.create();
     const page = pdfDoc.addPage([595.28, 841.89]); // Standard A4 (points)
     const { width, height } = page.getSize();
+
+    // Make every drawn string WinAnsi-safe so user-entered text can never abort PDF generation
+    const drawTextRaw = page.drawText.bind(page);
+    page.drawText = (text, options) => drawTextRaw(toWinAnsiSafe(text), options);
 
     const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
@@ -618,7 +671,7 @@ export class PrescriptionPdfService {
       borderColor: borderCream,
       borderWidth: 0.8,
     });
-    page.drawText(prescription.icd10_code, {
+    page.drawText(prescription.icd10_code || '', {
       x: marginX + 42,
       y: y - 29,
       size: 8,
@@ -723,7 +776,8 @@ export class PrescriptionPdfService {
       });
 
       // Medication Name (truncated gracefully if excessively long)
-      const medName = item.name.length > 34 ? `${item.name.substring(0, 32)}...` : item.name;
+      const rawName = String(item.name ?? 'Medication');
+      const medName = rawName.length > 34 ? `${rawName.substring(0, 32)}...` : rawName;
       page.drawText(medName, {
         x: marginX + 24,
         y: y - 13,
@@ -801,7 +855,7 @@ export class PrescriptionPdfService {
           width: 9,
           height: 9,
         });
-        page.drawText(`Instructions: ${item.instructions.substring(0, 95)}`, {
+        page.drawText(`Instructions: ${String(item.instructions).substring(0, 95)}`, {
           x: marginX + 37,
           y: y - 25,
           size: 6.8,
