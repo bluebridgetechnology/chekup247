@@ -44,19 +44,19 @@ type Tone = 'valid' | 'expired' | 'revoked';
 
 const TONES: Record<Tone, { bg: string; icon: string; title: string; sub: string }> = {
   valid: {
-    bg: 'linear-gradient(135deg, #065F46 0%, #047857 100%)',
+    bg: '#2A170F',
     icon: 'shield-check-linear',
     title: 'Valid prescription',
     sub: 'Authentic, digitally signed and within its validity period.',
   },
   expired: {
-    bg: 'linear-gradient(135deg, #92400E 0%, #B45309 100%)',
+    bg: '#92400E',
     icon: 'clock-circle-linear',
     title: 'Authentic but expired',
     sub: 'This prescription is genuine, but its 30-day validity period has ended. Do not dispense.',
   },
   revoked: {
-    bg: 'linear-gradient(135deg, #991B1B 0%, #B91C1C 100%)',
+    bg: '#991B1B',
     icon: 'close-circle-linear',
     title: 'Prescription revoked',
     sub: 'The prescribing practitioner has withdrawn this prescription. Do not dispense.',
@@ -146,14 +146,14 @@ export default function PrescriptionVerificationPage() {
         .vrx-brand-name { font-size: 1.05rem; font-weight: 900; letter-spacing: -0.02em; }
         .vrx-brand-sub { font-size: 0.72rem; color: #7A6A5E; font-weight: 600; }
         .vrx-home { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 999px; background: #fff; border: 1.5px solid #DDD0BC; color: #2A170F; font-size: 0.78rem; font-weight: 700; text-decoration: none; }
-        .vrx-card { background: #fff; border: 1.5px solid #DDD0BC; border-radius: 18px; overflow: hidden; box-shadow: 0 10px 30px -8px rgba(42,23,15,.12); }
+        .vrx-card { background: #fff; border: 1.5px solid #DDD0BC; border-radius: 18px; overflow: hidden; }
         .vrx-banner { color: #fff; padding: 22px 22px 20px; }
         .vrx-banner-row { display: flex; align-items: center; gap: 14px; }
         .vrx-banner-icon { width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,.2); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-        .vrx-banner h1 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em; color: #fff; }
-        .vrx-banner p { margin: 3px 0 0; font-size: 0.82rem; opacity: .92; line-height: 1.4; }
+        .vrx-banner h1 { margin: 0; font-size: 1.3rem; font-weight: 800; letter-spacing: -0.01em; color: #fff !important; }
+        .vrx-banner p { margin: 3px 0 0; font-size: 0.82rem; opacity: .92; line-height: 1.4; color: #fff !important; }
         .vrx-facts { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1px; background: rgba(255,255,255,.22); border-radius: 12px; overflow: hidden; margin-top: 18px; }
-        .vrx-fact { background: rgba(0,0,0,.14); padding: 10px 12px; }
+        .vrx-fact { background: rgba(255,255,255,.06); padding: 10px 12px; }
         .vrx-fact dt { font-size: 0.64rem; letter-spacing: .07em; text-transform: uppercase; opacity: .8; font-weight: 700; margin: 0; }
         .vrx-fact dd { margin: 3px 0 0; font-size: 0.86rem; font-weight: 800; }
         .vrx-body { padding: 20px 22px 24px; display: flex; flex-direction: column; gap: 18px; }
@@ -163,7 +163,7 @@ export default function PrescriptionVerificationPage() {
         .vrx-name { font-weight: 800; font-size: 1.02rem; margin-top: 6px; overflow-wrap: anywhere; }
         .vrx-meta { font-size: 0.8rem; color: #6B5E55; margin-top: 3px; overflow-wrap: anywhere; }
         .vrx-meta b { color: #2A170F; }
-        .vrx-tick { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.72rem; font-weight: 800; color: #047857; background: #ECFDF5; border: 1px solid #A7F3D0; padding: 2px 8px; border-radius: 999px; }
+        .vrx-tick { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 0.72rem; font-weight: 800; color: #A86C38; background: #FAF2E4; border: 1px solid #EBD3A8; padding: 2px 8px; border-radius: 999px; }
         .vrx-dx { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; background: #fff; border: 1.5px solid #EDE4D4; border-radius: 14px; padding: 12px 16px; }
         .vrx-code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 800; font-size: 0.85rem; padding: 3px 9px; border-radius: 6px; background: #EDE4D4; }
         .vrx-h2 { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
@@ -174,7 +174,7 @@ export default function PrescriptionVerificationPage() {
         .vrx-med-name { font-weight: 800; font-size: 1rem; overflow-wrap: anywhere; }
         .vrx-nappi { font-size: 0.74rem; color: #6B5E55; margin-top: 2px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
         .vrx-sched { flex-shrink: 0; font-size: 0.74rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; border: 1px solid; }
-        .vrx-sched.low { color: #047857; background: #ECFDF5; border-color: #A7F3D0; }
+        .vrx-sched.low { color: #A86C38; background: #FAF2E4; border-color: #EBD3A8; }
         .vrx-sched.high { color: #B91C1C; background: #FEF2F2; border-color: #FECACA; }
         .vrx-med-grid { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed #E6DAC6; }
         .vrx-k { font-size: 0.64rem; color: #8A7B72; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
@@ -187,9 +187,9 @@ export default function PrescriptionVerificationPage() {
         .vrx-seal-note { font-size: 0.72rem; color: #7A6A5E; margin-top: 8px; line-height: 1.45; }
         .vrx-actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; padding-top: 18px; border-top: 1px solid #EDE4D4; }
         .vrx-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 20px; border-radius: 12px; font-size: 0.88rem; font-weight: 700; cursor: pointer; text-decoration: none; border: 1.5px solid #DDD0BC; background: #fff; color: #2A170F; }
-        .vrx-btn.primary { background: #DFAB62; border-color: #DFAB62; box-shadow: 0 2px 8px rgba(223,171,98,.35); }
+        .vrx-btn.primary { background: #DFAB62; border-color: #DFAB62; }
         .vrx-foot { text-align: center; font-size: 0.72rem; color: #8A7B72; margin-top: 14px; line-height: 1.5; }
-        .vrx-state { background: #fff; border: 1.5px solid #DDD0BC; border-radius: 18px; padding: 56px 24px; text-align: center; box-shadow: 0 8px 30px -4px rgba(42,23,15,.08); }
+        .vrx-state { background: #fff; border: 1.5px solid #DDD0BC; border-radius: 18px; padding: 56px 24px; text-align: center; }
         .vrx-state.err { border-color: #FECACA; }
         @media (max-width: 640px) {
           .vrx-facts { grid-template-columns: 1fr 1fr; }
@@ -248,7 +248,7 @@ export default function PrescriptionVerificationPage() {
             <div className="vrx-banner" style={{ background: t.bg }}>
               <div className="vrx-banner-row">
                 <div className="vrx-banner-icon">
-                  <SolarIcon name={t.icon} size={28} color="#FFFFFF" />
+                  <SolarIcon name={t.icon} size={28} color={tone === 'valid' ? '#DFAB62' : '#FFFFFF'} />
                 </div>
                 <div>
                   <h1>{t.title}</h1>
@@ -294,7 +294,7 @@ export default function PrescriptionVerificationPage() {
                   )}
                   {data.doctor.verified_hpcsa && (
                     <span className="vrx-tick">
-                      <SolarIcon name="check-circle-bold" size={12} color="#047857" />
+                      <SolarIcon name="check-circle-bold" size={12} color="#A86C38" />
                       HPCSA registered
                     </span>
                   )}
@@ -351,7 +351,7 @@ export default function PrescriptionVerificationPage() {
                         </div>
                         <div>
                           <div className="vrx-k">Repeats</div>
-                          <div className="vrx-v" style={{ color: item.repeats > 0 ? '#047857' : undefined }}>
+                          <div className="vrx-v" style={{ color: item.repeats > 0 ? '#A86C38' : undefined }}>
                             {item.repeats > 0 ? item.repeats : 'None'}
                           </div>
                         </div>
