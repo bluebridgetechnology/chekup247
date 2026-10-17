@@ -544,7 +544,8 @@ export class BrevoEmailProvider {
               </div>
               <p style="color: #475569; font-size: 14px;">This prescription includes a cryptographic digital seal compliant with the South African Medicines Act. You can download the PDF or present it directly to any licensed South African community or courier pharmacy.</p>
               <div style="text-align: center;">
-                <a href="${portalUrl}/prescriptions/${prescriptionId}" style="${buttonStyles}">View & Download Prescription</a>
+                <a href="${envConfig.API_BASE_URL.replace(/\/+$/, '')}/api/v1/prescriptions/${prescriptionId}/download" style="${buttonStyles}">Download Prescription (PDF)</a>
+                <p style="margin: 12px 0 0; font-size: 12px;"><a href="${portalUrl}/verify/rx/${prescriptionId}" style="color: #A86C38;">View prescription online</a></p>
               </div>
               ${footerHtml}
             </div>

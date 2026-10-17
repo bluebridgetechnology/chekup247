@@ -476,7 +476,7 @@ export class NotificationsService {
         return `ChekUp247 URGENT: Dr. ${docName} is waiting in your room. Connect within 5 mins to avoid appointment cancellation: ${portalUrl}/consultations/${bookingId}`;
 
       case 'prescription_issued':
-        return `ChekUp247: Dr. ${docName} issued your e-prescription. Access your digitally signed script: ${portalUrl}/prescriptions/${payload.prescriptionId || bookingId}`;
+        return `ChekUp247: Dr. ${docName} issued your e-prescription. Download your digitally signed script: ${envConfig.API_BASE_URL.replace(/\/+$/, '')}/api/v1/prescriptions/${payload.prescriptionId || bookingId}/download`;
 
       case 'medical_certificate_ready':
         return `ChekUp247: Your medical certificate from Dr. ${docName} is ready. Access it at: ${portalUrl}/records`;

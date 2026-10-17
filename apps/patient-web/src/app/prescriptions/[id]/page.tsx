@@ -1,8 +1,8 @@
 import { redirect } from 'next/navigation';
 
 /**
- * Email / notification deep link target (`/prescriptions/<id>`).
- * The prescription viewer lives on the list page, so forward there with the id preselected.
+ * Legacy email / notification deep link (`/prescriptions/<id>`).
+ * Forward to the public prescription page (no login needed) which has the PDF download.
  */
 export default async function PrescriptionDeepLinkPage({
   params,
@@ -10,5 +10,5 @@ export default async function PrescriptionDeepLinkPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  redirect(`/prescriptions?id=${encodeURIComponent(id)}`);
+  redirect(`/verify/rx/${encodeURIComponent(id)}`);
 }
