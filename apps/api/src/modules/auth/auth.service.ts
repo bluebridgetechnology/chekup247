@@ -887,6 +887,8 @@ export class AuthService implements OnModuleInit {
 
     user.password_hash = await this.tokenService.hashPassword(dto.new_password);
     await this.userRepository.save(user);
+    // A password reset signs the doctor out everywhere (e.g. a stolen or forgotten device)
+    await this.sessionService?.endSession(user.id);
 
     record.used_at = new Date();
     await this.tokenRepository.save(record);
@@ -921,6 +923,8 @@ export class AuthService implements OnModuleInit {
     user.password_hash = await this.tokenService.hashPassword(dto.newPassword);
     user.must_change_password = false;
     await this.userRepository.save(user);
+    // Changing the password ends the doctor's session on every device, including this one
+    await this.sessionService?.endSession(user.id);
 
     return { message: 'Password updated successfully.' };
   }

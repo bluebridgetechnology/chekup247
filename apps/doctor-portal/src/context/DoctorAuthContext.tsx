@@ -188,7 +188,7 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
           try {
             sessionStorage.setItem(
               SESSION_NOTICE_KEY,
-              'You were signed out because your account was used on another device.',
+              body?.message || 'You were signed out because your account was used on another device or your password was changed.',
             );
           } catch {
             /* storage unavailable */

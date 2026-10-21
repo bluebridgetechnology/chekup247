@@ -84,7 +84,7 @@ export class SessionService implements OnModuleInit {
       throw new UnauthorizedException({
         statusCode: 401,
         code: SESSION_REPLACED_CODE,
-        message: 'You were signed out because your account was used on another device or you logged out.',
+        message: 'You were signed out because your account was used on another device or your password was changed.',
       });
     }
   }
