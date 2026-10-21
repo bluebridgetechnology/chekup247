@@ -102,6 +102,8 @@ interface DoctorAuthContextType {
   updatePresenceStatus: (status: string) => Promise<any>;
 }
 
+export const SESSION_NOTICE_KEY = 'chekup_doctor_session_notice';
+
 const DoctorAuthContext = createContext<DoctorAuthContextType | undefined>(undefined);
 
 const API_BASE =
@@ -179,7 +181,19 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
         const resolvedAvatar = data.avatarUrl || mappedProfile?.photoUrl || null;
         setDoctor({ ...data, avatarUrl: resolvedAvatar });
         setProfile(mappedProfile ? { ...mappedProfile, photoUrl: resolvedAvatar } : null);
-      } else {
+      } else if (res.status === 401) {
+        // Only a genuine 401 ends the session; a server hiccup must not sign the doctor out
+        const body = await res.json().catch(() => ({}));
+        if (body?.code === 'SESSION_REPLACED') {
+          try {
+            sessionStorage.setItem(
+              SESSION_NOTICE_KEY,
+              'You were signed out because your account was used on another device.',
+            );
+          } catch {
+            /* storage unavailable */
+          }
+        }
         localStorage.removeItem('chekup_doctor_token');
         setDoctor(null);
         setProfile(null);
@@ -201,6 +215,20 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     refreshDoctor();
   }, [refreshDoctor]);
+
+  // Notice promptly if this session was replaced by a login on another device
+  useEffect(() => {
+    if (!token) return;
+    const check = () => {
+      if (document.visibilityState === 'visible') refreshDoctor();
+    };
+    const timer = window.setInterval(check, 60_000);
+    document.addEventListener('visibilitychange', check);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', check);
+    };
+  }, [token, refreshDoctor]);
 
   const login = async (email: string, password: string) => {
     const res = await fetch(`${API_BASE}/auth/login`, {
@@ -333,7 +361,11 @@ export function DoctorAuthProvider({ children }: { children: React.ReactNode }) 
 
   const logout = async () => {
     try {
-      await fetch(`${API_BASE}/auth/logout`, { method: 'POST', credentials: 'include' });
+      await fetch(`${API_BASE}/auth/logout`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: 'include',
+      });
     } catch (e) {
       // ignore
     }

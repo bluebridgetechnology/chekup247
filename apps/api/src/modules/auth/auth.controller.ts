@@ -11,6 +11,8 @@ import {
   HttpCode,
   HttpStatus,
   ForbiddenException,
+  Headers,
+  Optional,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service';
@@ -29,6 +31,7 @@ import {
   ExpressPatientDto,
 } from './dto/auth.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { SessionService } from './session.service';
 import { AdminLoginRateLimitGuard } from '../../common/guards/admin-login-rate-limit.guard';
 import { Public, CurrentUser } from '../../common/decorators/auth.decorators';
 import { JwtPayload } from './token.service';
@@ -39,6 +42,8 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly locumStaffSsoService: LocumStaffSsoService,
     private readonly rateLimitGuard: AdminLoginRateLimitGuard,
+    @Optional()
+    private readonly sessionService?: SessionService,
   ) {}
 
   @Public()
@@ -153,7 +158,13 @@ export class AuthController {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
-      maxAge: dto.remember_me ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000,
+      // Doctors stay signed in until they log out or sign in on another device
+      maxAge:
+        result.user.role === 'doctor'
+          ? SessionService.doctorCookieMaxAgeMs
+          : dto.remember_me
+            ? 30 * 24 * 60 * 60 * 1000
+            : 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
 
@@ -181,7 +192,7 @@ export class AuthController {
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      maxAge: result.user.role === 'doctor' ? SessionService.doctorCookieMaxAgeMs : 7 * 24 * 60 * 60 * 1000,
       path: '/',
     });
 
@@ -443,7 +454,17 @@ export class AuthController {
   @Public()
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  async logout(@Res({ passthrough: true }) res: Response) {
+  async logout(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Headers('authorization') authorization?: string,
+  ) {
+    // End the doctor's server-side session so the token stops working everywhere
+    const cookies = (req as any).cookies || {};
+    const token =
+      (authorization?.toLowerCase().startsWith('bearer ') ? authorization.slice(7) : undefined) ||
+      cookies.chekup_doctor_session;
+    if (token && this.sessionService) await this.sessionService.endSessionForToken(token);
     res.clearCookie('chekup_session', { path: '/' });
     res.clearCookie('chekup_doctor_session', { path: '/' });
     res.clearCookie('chekup_admin_session', { path: '/' });

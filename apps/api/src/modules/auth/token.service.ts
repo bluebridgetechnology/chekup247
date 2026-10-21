@@ -14,6 +14,8 @@ export interface JwtPayload {
   scope?: string;
   /** For guest sessions from a join link: the one booking it is bound to. */
   bid?: string;
+  /** Doctor session id; the token is rejected once it is no longer the user's active session. */
+  sid?: string;
   iat?: number;
   exp?: number;
 }
@@ -46,6 +48,7 @@ export class TokenService {
         fullName: payload.fullName,
         ...(payload.scope ? { scope: payload.scope } : {}),
         ...(payload.bid ? { bid: payload.bid } : {}),
+        ...(payload.sid ? { sid: payload.sid } : {}),
       },
       this.jwtSecret,
       {

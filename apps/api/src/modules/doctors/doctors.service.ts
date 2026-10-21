@@ -42,6 +42,7 @@ import {
 import { randomBytes } from 'crypto';
 import { envConfig } from '../../config/env.config';
 import { TokenService } from '../auth/token.service';
+import { SessionService } from '../auth/session.service';
 import { isValidTimeZone, zonedWallTimeToUtc } from '../../common/utils/zoned-time';
 import { DirectorySyncService } from './directory-sync.service';
 import { AvailabilitySyncService } from './availability-sync.service';
@@ -95,6 +96,8 @@ export class DoctorsService implements OnModuleInit {
     private readonly availabilitySyncService: AvailabilitySyncService,
     @Optional()
     private readonly notificationsService?: NotificationsService,
+    @Optional()
+    private readonly sessionService?: SessionService,
   ) {}
 
   async onModuleInit() {
@@ -621,12 +624,11 @@ export class DoctorsService implements OnModuleInit {
         });
     }
 
-    const accessToken = this.tokenService.generateAccessToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      fullName: user.full_name,
-    });
+    const accessToken = await (this.sessionService
+      ? this.sessionService.issueAccessToken(user)
+      : Promise.resolve(
+          this.tokenService.generateAccessToken({ sub: user.id, email: user.email, role: user.role, fullName: user.full_name }),
+        ));
 
     return {
       message:

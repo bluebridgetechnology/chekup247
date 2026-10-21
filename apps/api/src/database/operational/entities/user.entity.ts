@@ -43,6 +43,13 @@ export class User {
   @Column({ type: 'varchar', length: 64, nullable: true })
   timezone: string | null;
 
+  /** Doctor session currently allowed to use the account; a login elsewhere replaces it, logout clears it. */
+  @Column({ type: 'uuid', nullable: true })
+  active_session_id: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  active_session_started_at: Date | null;
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   password_hash: string;
 

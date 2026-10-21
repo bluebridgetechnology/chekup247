@@ -69,6 +69,8 @@ const envSchema = z.object({
   // Security
   JWT_SECRET: z.string().min(16).default('super-secret-development-jwt-key-minimum-32-chars'),
   JWT_EXPIRES_IN: z.string().default('7d'),
+  /** Doctors stay signed in until they log out or sign in on another device; this is only the hard upper bound. */
+  DOCTOR_SESSION_EXPIRES_IN: z.string().default('365d'),
   ADMIN_SESSION_SECRET: z.string().min(16).default('admin-isolated-session-secret-key-32-chars'),
 
   // URLs

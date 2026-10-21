@@ -4,10 +4,12 @@ import {
   ExecutionContext,
   UnauthorizedException,
   ForbiddenException,
+  Optional,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { TokenService, JwtPayload } from '../../modules/auth/token.service';
 import { IS_PUBLIC_KEY } from '../decorators/auth.decorators';
+import { SessionService } from '../../modules/auth/session.service';
 import { GUEST_SCOPE, guestMayAccess } from './guest-scope';
 
 @Injectable()
@@ -15,9 +17,10 @@ export class JwtAuthGuard implements CanActivate {
   constructor(
     private readonly reflector: Reflector,
     private readonly tokenService: TokenService,
+    @Optional() private readonly sessionService?: SessionService,
   ) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -41,10 +44,15 @@ export class JwtAuthGuard implements CanActivate {
           'This session only covers your booking and consultation. Please log in to access this.',
         );
       }
+      // Doctor tokens are bound to one active session (logout / login on another device ends it)
+      if (payload.sid && this.sessionService) {
+        await this.sessionService.assertActive(payload.sub, payload.sid);
+      }
       request.user = { ...payload, id: (payload as any).id || payload.sub };
       return true;
     } catch (err: any) {
       if (err instanceof ForbiddenException) throw err;
+      if (err instanceof UnauthorizedException && typeof err.getResponse() === 'object') throw err;
       throw new UnauthorizedException(
         err.message || 'Invalid or expired authentication credentials',
       );

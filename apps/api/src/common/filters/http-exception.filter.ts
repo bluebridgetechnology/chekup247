@@ -12,6 +12,8 @@ export interface StandardErrorResponse {
   statusCode: number;
   message: string | string[];
   error: string;
+  /** Optional machine-readable reason (e.g. SESSION_REPLACED). */
+  code?: string;
   timestamp: string;
   path: string;
 }
@@ -28,6 +30,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
     let statusCode = HttpStatus.INTERNAL_SERVER_ERROR;
     let message: string | string[] = 'Internal server error';
     let error = 'Internal Server Error';
+    let code: string | undefined;
 
     if (exception instanceof HttpException) {
       statusCode = exception.getStatus();
@@ -39,6 +42,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
         const resObj = res as Record<string, any>;
         message = resObj.message || message;
         error = resObj.error || exception.name;
+        if (typeof resObj.code === 'string') code = resObj.code;
       }
     } else if (exception instanceof Error) {
       this.logger.error(`Unhandled error: ${exception.message}`, exception.stack);
@@ -49,6 +53,7 @@ export class GlobalHttpExceptionFilter implements ExceptionFilter {
       statusCode,
       message,
       error,
+      ...(code ? { code } : {}),
       timestamp: new Date().toISOString(),
       path: request.url,
     };
