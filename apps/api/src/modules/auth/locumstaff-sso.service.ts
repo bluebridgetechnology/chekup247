@@ -22,6 +22,7 @@ import {
   PlatformSetting,
 } from '../../database/operational/entities';
 import { TokenService } from './token.service';
+import { SessionService } from './session.service';
 import { envConfig } from '../../config/env.config';
 
 /**
@@ -102,6 +103,8 @@ export class LocumStaffSsoService implements OnModuleDestroy {
     @Optional()
     @InjectRepository(PlatformSetting, 'operational')
     private readonly platformSettingRepository?: Repository<PlatformSetting>,
+    @Optional()
+    private readonly sessionService?: SessionService,
   ) {
     this.redis = new Redis({
       host: envConfig.REDIS_HOST,
@@ -703,12 +706,7 @@ export class LocumStaffSsoService implements OnModuleDestroy {
 
     doctorProfile.user = user;
 
-    const accessToken = this.tokenService.generateAccessToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      fullName: user.full_name,
-    });
+    const accessToken = await this.issueUserAccessToken(user);
 
     return {
       user,
@@ -716,5 +714,18 @@ export class LocumStaffSsoService implements OnModuleDestroy {
       accessToken,
       isNewUser,
     };
+  }
+
+  /** Doctors get a long-lived, single-device session; everyone else a regular token. */
+  private issueUserAccessToken(user: User): Promise<string> {
+    if (this.sessionService) return this.sessionService.issueAccessToken(user);
+    return Promise.resolve(
+      this.tokenService.generateAccessToken({
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        fullName: user.full_name,
+      }),
+    );
   }
 }

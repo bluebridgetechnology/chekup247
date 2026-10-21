@@ -22,6 +22,7 @@ import {
 } from '../../database/operational/entities';
 import { PatientMedicalProfile } from '../../database/patient/entities';
 import { TokenService } from './token.service';
+import { SessionService } from './session.service';
 import { GUEST_SCOPE } from '../../common/guards/guest-scope';
 import { TotpService } from './totp.service';
 import {
@@ -100,6 +101,8 @@ export class AuthService implements OnModuleInit {
     private readonly totpService: TotpService,
     private readonly brevoEmailProvider: BrevoEmailProvider,
     private readonly smsProvider: SmsProvider,
+    @Optional()
+    private readonly sessionService?: SessionService,
   ) {}
 
   async onModuleInit() {
@@ -436,12 +439,7 @@ export class AuthService implements OnModuleInit {
     }
 
     if (user.is_email_verified) {
-      const accessToken = this.tokenService.generateAccessToken({
-        sub: user.id,
-        email: user.email,
-        role: user.role,
-        fullName: user.full_name,
-      });
+      const accessToken = await this.issueUserAccessToken(user);
 
       return {
         accessToken,
@@ -491,12 +489,7 @@ export class AuthService implements OnModuleInit {
     record.used_at = new Date();
     await this.tokenRepository.save(record);
 
-    const accessToken = this.tokenService.generateAccessToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      fullName: user.full_name,
-    });
+    const accessToken = await this.issueUserAccessToken(user);
 
     this.logger.log(`Patient verified via OTP: ${user.email}`);
 
@@ -637,12 +630,7 @@ export class AuthService implements OnModuleInit {
     record.used_at = new Date();
     await this.tokenRepository.save(record);
 
-    const accessToken = this.tokenService.generateAccessToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      fullName: user.full_name,
-    });
+    const accessToken = await this.issueUserAccessToken(user);
 
     return {
       accessToken,
@@ -733,6 +721,19 @@ export class AuthService implements OnModuleInit {
     return this.issueSession(user);
   }
 
+  /** Doctors get a long-lived, single-device session; everyone else a regular token. */
+  private issueUserAccessToken(user: User): Promise<string> {
+    if (this.sessionService) return this.sessionService.issueAccessToken(user);
+    return Promise.resolve(
+      this.tokenService.generateAccessToken({
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        fullName: user.full_name,
+      }),
+    );
+  }
+
   private async issueSession(user: User): Promise<AuthSessionResponse> {
     // If doctor, load doctor profile
     let doctorProfile: DoctorProfile | null = null;
@@ -742,12 +743,7 @@ export class AuthService implements OnModuleInit {
       });
     }
 
-    const accessToken = this.tokenService.generateAccessToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      fullName: user.full_name,
-    });
+    const accessToken = await this.issueUserAccessToken(user);
 
     return {
       accessToken,
@@ -1000,12 +996,7 @@ export class AuthService implements OnModuleInit {
       }
     }
 
-    const accessToken = this.tokenService.generateAccessToken({
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      fullName: user.full_name,
-    });
+    const accessToken = await this.issueUserAccessToken(user);
 
     return {
       accessToken,

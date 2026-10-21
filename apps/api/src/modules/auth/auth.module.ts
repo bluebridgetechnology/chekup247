@@ -11,6 +11,7 @@ import { PatientMedicalProfile } from '../../database/patient/entities';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
+import { SessionService } from './session.service';
 import { TotpService } from './totp.service';
 import { LocumStaffSsoService } from './locumstaff-sso.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -30,6 +31,7 @@ import { SmsProvider } from '../notifications/providers/sms.provider';
   providers: [
     AuthService,
     TokenService,
+    SessionService,
     TotpService,
     LocumStaffSsoService,
     JwtAuthGuard,
@@ -38,7 +40,7 @@ import { SmsProvider } from '../notifications/providers/sms.provider';
     BrevoEmailProvider,
     SmsProvider,
   ],
-  exports: [AuthService, TokenService, LocumStaffSsoService, JwtAuthGuard, RolesGuard],
+  exports: [AuthService, TokenService, SessionService, LocumStaffSsoService, JwtAuthGuard, RolesGuard],
 })
 export class AuthModule {}
 

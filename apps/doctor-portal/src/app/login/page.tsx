@@ -31,6 +31,19 @@ function DoctorLoginContent() {
     rememberNext(sanitizeNext(searchParams?.get('next')));
   }, [searchParams]);
 
+  // Shown when this session was ended by a login on another device
+  useEffect(() => {
+    try {
+      const notice = sessionStorage.getItem('chekup_doctor_session_notice');
+      if (notice) {
+        sessionStorage.removeItem('chekup_doctor_session_notice');
+        setError(notice);
+      }
+    } catch {
+      /* storage unavailable */
+    }
+  }, []);
+
   useEffect(() => {
     if (urlError) {
       const decoded = decodeURIComponent(urlError);
