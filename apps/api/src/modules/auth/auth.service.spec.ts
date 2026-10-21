@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { TokenService } from './token.service';
+import { SessionService } from './session.service';
 import { TotpService } from './totp.service';
 import { LocumStaffSsoService } from './locumstaff-sso.service';
 import { BrevoEmailProvider } from '../notifications/providers/brevo.provider';
@@ -126,7 +127,13 @@ describe('AuthService & LocumStaffSsoService', () => {
     }),
   };
 
+  const mockSessionService = {
+    endSession: jest.fn().mockResolvedValue(undefined),
+    issueAccessToken: jest.fn().mockResolvedValue('session-token'),
+  };
+
   beforeEach(async () => {
+    mockSessionService.endSession.mockClear();
     mockUsers.length = 0;
     mockTokens.length = 0;
     mockDoctorProfiles.length = 0;
@@ -162,6 +169,7 @@ describe('AuthService & LocumStaffSsoService', () => {
             save: jest.fn().mockImplementation((entity) => Promise.resolve({ ...entity })),
           },
         },
+        { provide: SessionService, useValue: mockSessionService },
         {
           provide: BrevoEmailProvider,
           useValue: {
@@ -254,6 +262,43 @@ describe('AuthService & LocumStaffSsoService', () => {
       }
       expect(loginRes.accessToken).toBeDefined();
       expect(loginRes.user.email).toBe('login@example.com');
+    });
+
+    it('should end the active session when the password is changed', async () => {
+      await authService.registerPatient({
+        full_name: 'Change Pass',
+        email: 'change@example.com',
+        password: 'ValidPassword123!',
+      });
+      const user = mockUsers.find((u: any) => u.email === 'change@example.com');
+
+      await authService.changePassword(user.id, {
+        currentPassword: 'ValidPassword123!',
+        newPassword: 'AnotherPassword456!',
+      });
+
+      expect(mockSessionService.endSession).toHaveBeenCalledWith(user.id);
+    });
+
+    it('should end the active session when the password is reset by email', async () => {
+      await authService.registerPatient({
+        full_name: 'Reset Pass',
+        email: 'reset@example.com',
+        password: 'ValidPassword123!',
+      });
+      const user = mockUsers.find((u: any) => u.email === 'reset@example.com');
+      mockTokens.push({
+        id: 'reset-tok',
+        user_id: user.id,
+        token_hash: tokenService.hashToken('reset-token-value'),
+        type: 'password_reset',
+        expires_at: new Date(Date.now() + 3600_000),
+        used_at: null,
+      } as any);
+
+      await authService.resetPassword({ token: 'reset-token-value', new_password: 'BrandNewPass789!' } as any);
+
+      expect(mockSessionService.endSession).toHaveBeenCalledWith(user.id);
     });
 
     it('should fail authentication with invalid password', async () => {
