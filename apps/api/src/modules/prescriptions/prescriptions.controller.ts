@@ -8,6 +8,7 @@ import {
   Res,
   Headers,
   BadRequestException,
+  ForbiddenException,
   UseGuards,
   Req,
 } from '@nestjs/common';
@@ -18,6 +19,7 @@ import { PrescriptionsService, CreatePrescriptionDto } from './prescriptions.ser
 import { Public, CurrentUser } from '../../common/decorators/auth.decorators';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuditService } from '../audit/audit.service';
+import { PatientAccessService } from '../patient-records/patient-access.service';
 
 export class PrescriptionMedicationDto {
   @IsString()
@@ -119,18 +121,24 @@ export class PrescriptionsController {
   constructor(
     private readonly prescriptionsService: PrescriptionsService,
     private readonly auditService: AuditService,
+    private readonly patientAccess: PatientAccessService,
   ) {}
 
   /**
    * Creates an E-Prescription following consultation (BE-702, BE-703, BE-706, BE-707, BE-907).
    */
+  @UseGuards(JwtAuthGuard)
   @Post()
   async createPrescription(
     @Body() dto: CreatePrescriptionRequestDto,
     @Req() req: Request,
-    @Headers('x-doctor-id') headerDoctorId?: string,
+    @CurrentUser() user: any,
   ) {
-    const doctorId = dto.doctorId || headerDoctorId || 'system-doctor';
+    // The prescriber is always the authenticated doctor, never a client-supplied id
+    if (!this.patientAccess.isDoctor(user)) {
+      throw new ForbiddenException('Only doctors can issue prescriptions');
+    }
+    const doctorId = this.patientAccess.userId(user)!;
     const result = await this.prescriptionsService.createPrescription(doctorId, dto);
 
     await this.auditService.logHealthRecordAccess({
@@ -158,25 +166,29 @@ export class PrescriptionsController {
   @Get()
   async getDoctorPrescriptions(
     @Query('doctorId') queryDoctorId?: string,
-    @Headers('x-doctor-id') headerDoctorId?: string,
-    @CurrentUser('id') currentUserId?: string,
-    @Req() req?: Request,
+    @CurrentUser() user?: any,
   ) {
-    const doctorId = queryDoctorId || headerDoctorId || currentUserId || (req as any)?.user?.sub;
+    // Doctors only ever see their own prescriptions; admins may look up a specific doctor
+    const doctorId = this.patientAccess.isAdmin(user)
+      ? queryDoctorId || undefined
+      : this.patientAccess.userId(user) || undefined;
     return this.prescriptionsService.getDoctorPrescriptions(doctorId);
   }
 
   /**
    * Revokes an existing prescription (DR-702).
    */
+  @UseGuards(JwtAuthGuard)
   @Post(':id/revoke')
   async revokePrescription(
     @Param('id') id: string,
     @Body('reason') reason: string,
-    @Headers('x-doctor-id') headerDoctorId?: string,
+    @CurrentUser() user: any,
     @Req() req?: Request,
   ) {
-    const doctorId = headerDoctorId || (req as any)?.user?.sub || 'system-doctor';
+    const existing = await this.prescriptionsService.getPrescriptionById(id);
+    await this.patientAccess.assertIssuingDoctor(user, existing.doctor_id);
+    const doctorId = this.patientAccess.userId(user)!;
     const result = await this.prescriptionsService.revokePrescription(doctorId, id, reason || 'Revoked by practitioner');
 
     await this.auditService.logHealthRecordAccess({
@@ -198,14 +210,19 @@ export class PrescriptionsController {
   /**
    * Retrieves all prescriptions for a patient (PA-703, BE-907).
    */
+  @UseGuards(JwtAuthGuard)
   @Get('patient/:patientId')
   async getPatientPrescriptions(
     @Param('patientId') patientId: string,
     @Req() req: Request,
+    @CurrentUser() user: any,
   ) {
+    await this.patientAccess.assertPatientAccess(user, patientId);
     const result = await this.prescriptionsService.getPatientPrescriptions(patientId);
 
     await this.auditService.logHealthRecordAccess({
+      userId: this.patientAccess.userId(user) || undefined,
+      userRole: user?.role,
       patientId,
       action: 'VIEW_PATIENT_PRESCRIPTIONS_LIST',
       ipAddress: req.ip || (req.headers['x-forwarded-for'] as string),
@@ -261,14 +278,19 @@ export class PrescriptionsController {
   /**
    * Retrieves single prescription details (BE-907).
    */
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   async getPrescription(
     @Param('id') id: string,
     @Req() req: Request,
+    @CurrentUser() user: any,
   ) {
     const result = await this.prescriptionsService.getPrescriptionById(id);
+    await this.patientAccess.assertPatientAccess(user, result.patient_id);
 
     await this.auditService.logHealthRecordAccess({
+      userId: this.patientAccess.userId(user) || undefined,
+      userRole: user?.role,
       patientId: result?.patient_id,
       action: 'VIEW_PRESCRIPTION_DETAIL',
       ipAddress: req.ip || (req.headers['x-forwarded-for'] as string),

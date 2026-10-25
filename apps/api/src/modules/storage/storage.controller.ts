@@ -15,6 +15,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { StorageService } from './storage.service';
+import { PatientAccessService } from '../patient-records/patient-access.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/auth.decorators';
 import { envConfig } from '../../config/env.config';
@@ -56,6 +57,7 @@ export class StorageController {
     private readonly storageService: StorageService,
     @InjectRepository(PatientDocument, 'patient')
     private readonly documentRepository: Repository<PatientDocument>,
+    private readonly patientAccess: PatientAccessService,
   ) {}
 
   /**
@@ -199,7 +201,9 @@ export class StorageController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('documents/patient/:patientId')
-  async getPatientDocuments(@Param('patientId') patientId: string) {
+  async getPatientDocuments(@CurrentUser() user: any, @Param('patientId') patientId: string) {
+    // Only the patient, an admin, or a doctor with a confirmed/completed booking with them
+    await this.patientAccess.assertPatientAccess(user, patientId);
     const docs = await this.documentRepository.find({
       where: { patient_id: patientId },
       order: { created_at: 'DESC' },
