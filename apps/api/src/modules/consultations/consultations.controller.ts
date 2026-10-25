@@ -74,12 +74,14 @@ import { Request } from 'express';
 
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/auth.decorators';
+import { PatientAccessService } from '../patient-records/patient-access.service';
 
 @Controller('consultations')
 export class ConsultationsController {
   constructor(
     private readonly consultationsService: ConsultationsService,
     private readonly auditService: AuditService,
+    private readonly patientAccess: PatientAccessService,
   ) {}
 
   /**
@@ -97,7 +99,8 @@ export class ConsultationsController {
    */
   @UseGuards(JwtAuthGuard)
   @Get('patient-notes/:patientId')
-  async getPatientHealthNotes(@Param('patientId') patientId: string) {
+  async getPatientHealthNotes(@CurrentUser() user: any, @Param('patientId') patientId: string) {
+    await this.patientAccess.assertPatientAccess(user, patientId);
     return this.consultationsService.getPatientHealthNotes(patientId);
   }
 
@@ -106,8 +109,10 @@ export class ConsultationsController {
    */
   @Get('booking/:bookingId')
   @UseGuards(JwtAuthGuard)
-  getByBooking(@Param('bookingId') bookingId: string) {
-    return this.consultationsService.getConsultationDetails(bookingId);
+  async getByBooking(@CurrentUser() user: any, @Param('bookingId') bookingId: string) {
+    const details = await this.consultationsService.getConsultationDetails(bookingId);
+    await this.patientAccess.assertBookingParticipant(user, details.booking);
+    return details;
   }
 
   /**
@@ -124,8 +129,10 @@ export class ConsultationsController {
    */
   @Get(':bookingId')
   @UseGuards(JwtAuthGuard)
-  getConsultation(@Param('bookingId') bookingId: string) {
-    return this.consultationsService.getConsultationDetails(bookingId);
+  async getConsultation(@CurrentUser() user: any, @Param('bookingId') bookingId: string) {
+    const details = await this.consultationsService.getConsultationDetails(bookingId);
+    await this.patientAccess.assertBookingParticipant(user, details.booking);
+    return details;
   }
 
   /**

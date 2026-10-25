@@ -12,11 +12,14 @@ import {
   PatientMedicalProfile,
   PatientDocument,
   Dispute,
+  PatientVital,
+  PatientProblem,
 } from './entities';
 import { InitPatientSchema1700000001000 } from './migrations/1700000001000-InitPatientSchema';
 import { AddDisputesTable1700000006000 } from './migrations/1700000006000-AddDisputesTable';
 import { AddReviewModeration1700000011000 } from './migrations/1700000012000-AddReviewModeration';
 import { AddConsultationModeToBookings1761264000000 } from './migrations/1761264000000-AddConsultationModeToBookings';
+import { AddPatientRecords1761350000000 } from './migrations/1761350000000-AddPatientRecords';
 
 export const patientEntities = [
   Booking,
@@ -30,6 +33,8 @@ export const patientEntities = [
   PatientMedicalProfile,
   PatientDocument,
   Dispute,
+  PatientVital,
+  PatientProblem,
 ];
 
 export const getPatientDbConfig = (): TypeOrmModuleOptions => ({
@@ -47,6 +52,7 @@ export const getPatientDbConfig = (): TypeOrmModuleOptions => ({
     AddDisputesTable1700000006000,
     AddReviewModeration1700000011000,
     AddConsultationModeToBookings1761264000000,
+    AddPatientRecords1761350000000,
   ],
   migrationsRun: false,
   synchronize: envConfig.NODE_ENV !== 'production' || envConfig.DB_SYNCHRONIZE,

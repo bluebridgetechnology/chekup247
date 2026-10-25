@@ -9,3 +9,5 @@ export * from './wallet-credit.entity';
 export * from './patient-medical-profile.entity';
 export * from './patient-document.entity';
 export * from './dispute.entity';
+export * from './patient-vital.entity';
+export * from './patient-problem.entity';
