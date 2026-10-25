@@ -16,6 +16,7 @@ const navItems = [
   { label: 'Overview', href: '/', icon: 'widget-linear' },
   { label: 'Calendar & Shifts', href: '/calendar', icon: 'calendar-linear' },
   { label: 'Appointments Queue', href: '/appointments', icon: 'clock-circle-linear' },
+  { label: 'My Patients', href: '/patients', icon: 'users-group-rounded-linear' },
   { label: 'E-Prescriptions', href: '/prescriptions', icon: 'document-text-linear' },
   { label: 'ICD-10 Coding', href: '/icd10', icon: 'stethoscope-linear' },
   { label: 'Earnings & Payouts', href: '/earnings', icon: 'wallet-money-linear' },
@@ -135,7 +136,7 @@ export function CollapsibleSidebar({ collapsed, onToggle }: SidebarProps) {
         }}
       >
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive = item.href === '/' ? pathname === '/' : pathname === item.href || pathname.startsWith(`${item.href}/`);
 
           return (
             <Link

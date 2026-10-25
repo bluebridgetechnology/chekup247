@@ -2186,6 +2186,14 @@ export default function DoctorConsultationWorkspace() {
                   <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#2A170F' }}>
                     Patient Medical Context
                   </h3>
+                  {consultation?.patient?.id && (
+                    <Link
+                      href={`/patients/${consultation.patient.id}`}
+                      style={{ marginLeft: 'auto', fontSize: '0.78rem', fontWeight: 700, color: '#A86C38', textDecoration: 'none' }}
+                    >
+                      Open full chart →
+                    </Link>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>

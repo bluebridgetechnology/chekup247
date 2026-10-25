@@ -9,6 +9,7 @@ import { BookingsModule } from './modules/bookings/bookings.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { ConsultationsModule } from './modules/consultations/consultations.module';
 import { PatientAccessModule } from './modules/patient-records/patient-access.module';
+import { PatientRecordsModule } from './modules/patient-records/patient-records.module';
 import { PrescriptionsModule } from './modules/prescriptions/prescriptions.module';
 import { ReviewsModule } from './modules/reviews/reviews.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
@@ -24,6 +25,7 @@ import { TestimonialsModule } from './modules/testimonials/testimonials.module';
     QueuesModule,
     AuditModule,
     PatientAccessModule,
+    PatientRecordsModule,
     StorageModule,
     HealthModule,
     AuthModule,
