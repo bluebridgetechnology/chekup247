@@ -514,7 +514,7 @@ export default function AdminLoginPage() {
                       autoFocus
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="admin@chekup247.com"
+                      placeholder="Enter your administrator email"
                       className="auth-input"
                     />
                   </div>
